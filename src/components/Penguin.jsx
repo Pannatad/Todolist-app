@@ -56,6 +56,9 @@ const Penguin = ({ stage, level, difficulty }) => {
     if (difficulty === 'easy') bodyColor = "#F472B6"; // Pink
     if (difficulty === 'medium') bodyColor = "#60A5FA"; // Light Blue
 
+    // Check if urgent (level 5 means < 6 hours, level 4 means < 24 hours)
+    const isUrgent = level >= 4;
+
     return (
         <motion.div
             className={`relative flex items-center justify-center ${size}`}
@@ -95,11 +98,24 @@ const Penguin = ({ stage, level, difficulty }) => {
 
                 {/* 5. FACE FEATURES */}
                 <g transform="translate(0, 0)">
-                    {/* Eyes (Happy Arcs) */}
-                    {/* Left Eye */}
-                    <path d="M 32 42 Q 38 35 44 42" fill="none" stroke="#1F2937" strokeWidth="3" strokeLinecap="round" />
-                    {/* Right Eye */}
-                    <path d="M 56 42 Q 62 35 68 42" fill="none" stroke="#1F2937" strokeWidth="3" strokeLinecap="round" />
+                    {/* Eyes - Angry when urgent, Happy otherwise */}
+                    {isUrgent ? (
+                        <>
+                            {/* Angry Eyes - Angled down inward */}
+                            {/* Left Eye */}
+                            <path d="M 32 38 Q 38 44 44 42" fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" />
+                            {/* Right Eye */}
+                            <path d="M 56 42 Q 62 44 68 38" fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" />
+                        </>
+                    ) : (
+                        <>
+                            {/* Happy Eyes - Arced up */}
+                            {/* Left Eye */}
+                            <path d="M 32 42 Q 38 35 44 42" fill="none" stroke="#1F2937" strokeWidth="3" strokeLinecap="round" />
+                            {/* Right Eye */}
+                            <path d="M 56 42 Q 62 35 68 42" fill="none" stroke="#1F2937" strokeWidth="3" strokeLinecap="round" />
+                        </>
+                    )}
 
                     {/* Cheeks (Pink Circles) */}
                     <circle cx="28" cy="50" r="6" fill="#F472B6" opacity="0.8" />
@@ -124,6 +140,64 @@ const Penguin = ({ stage, level, difficulty }) => {
                 >
                     Zzz
                 </motion.div>
+            )}
+
+            {/* Fire Animation for Angry Penguin */}
+            {isUrgent && (
+                <>
+                    {/* Left Fire */}
+                    <motion.div
+                        className="absolute -left-2 top-1/4 text-2xl pointer-events-none"
+                        animate={{
+                            y: [0, -8, 0],
+                            opacity: [0.8, 1, 0.8],
+                            scale: [1, 1.2, 1]
+                        }}
+                        transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                    >
+                        🔥
+                    </motion.div>
+
+                    {/* Right Fire */}
+                    <motion.div
+                        className="absolute -right-2 top-1/4 text-2xl pointer-events-none"
+                        animate={{
+                            y: [0, -8, 0],
+                            opacity: [0.8, 1, 0.8],
+                            scale: [1, 1.2, 1]
+                        }}
+                        transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                            delay: 0.3
+                        }}
+                    >
+                        🔥
+                    </motion.div>
+
+                    {/* Top Fire */}
+                    <motion.div
+                        className="absolute -top-2 left-1/2 -translate-x-1/2 text-xl pointer-events-none"
+                        animate={{
+                            y: [0, -6, 0],
+                            opacity: [0.8, 1, 0.8],
+                            scale: [1, 1.15, 1]
+                        }}
+                        transition={{
+                            duration: 0.5,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                            delay: 0.15
+                        }}
+                    >
+                        🔥
+                    </motion.div>
+                </>
             )}
         </motion.div>
     );

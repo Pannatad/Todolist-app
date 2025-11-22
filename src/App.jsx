@@ -129,6 +129,10 @@ function App() {
     // Optional: Play a sound or show a notification
   };
 
+  const updateTask = (id, updates) => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+
   const buyPlot = () => {
     const cost = 50; // Cost per plot
     if (coins >= cost) {
@@ -215,6 +219,8 @@ function App() {
                 tasks={tasks}
                 onCompleteTask={completeTask}
                 onDeleteTask={deleteTask}
+                onUpdateTask={updateTask}
+                existingSubjects={existingSubjects}
                 unlockedPlots={unlockedPlots}
                 coins={coins}
                 onBuyPlot={buyPlot}
