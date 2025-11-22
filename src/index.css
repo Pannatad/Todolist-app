@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  /* Cozy Theme Palette */
+  --color-cream-50: #fdfbf7;
+  /* Main Background */
+  --color-cream-100: #f7f5f0;
+  /* Secondary Background */
+  --color-cream-200: #e6e2d8;
+  /* Borders */
+
+  --color-sage-500: #84b59f;
+  /* Primary Accent */
+  --color-sage-600: #6a9e85;
+  --color-sage-100: #e8f3ea;
+  /* Light Accent */
+
+  --color-blush-400: #e699c6;
+  /* Secondary Accent */
+  --color-blush-100: #fdebf2;
+
+  --color-ink-800: #4a4a4a;
+  /* Text Main */
+  --color-ink-500: #7a7a7a;
+  /* Text Secondary */
+
+  /* Legacy mappings for compatibility */
+  --color-void-950: #fdfbf7;
+  /* Map Void to Cream */
+  --color-void-800: #ffffff;
+  /* Map Card to White */
+  --color-magma-500: #84b59f;
+  /* Map Magma to Sage */
+  --color-bone-100: #4a4a4a;
+  /* Map Bone to Ink */
+  --color-bone-200: #7a7a7a;
+
+  --font-serif: "Nunito", "Quicksand", system-ui, sans-serif;
+  /* Rounded, friendly font */
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink-800);
+    background-color: var(--color-cream-50);
+    background-image: none;
+    /* Remove dark gradient */
+    min-height: 100vh;
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    letter-spacing: 0.02em;
+    color: var(--color-sage-600);
+    filter: none;
+    /* Remove scary drop shadow */
+    font-weight: 800;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    border-radius: 24px;
+  }
+}
