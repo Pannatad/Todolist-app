@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Initialize Gemini API
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
+const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
 
 /**
  * Suggests a difficulty level for a given task.
@@ -55,7 +55,8 @@ export const breakDownTask = async (taskTitle) => {
     try {
         const prompt = `Break down the task "${taskTitle}" into 3-5 smaller, actionable subtasks.
         Reply with a JSON array of strings, e.g., ["Step 1", "Step 2"].
-        Do not include any markdown formatting or extra text.`;
+        Do not include any markdown formatting or extra text. Also use the task name as the context
+        to generate helpful subtasks. Don't use general suggestions for everything`;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
@@ -70,5 +71,53 @@ export const breakDownTask = async (taskTitle) => {
     } catch (error) {
         console.error("Error breaking down task:", error);
         return [];
+    }
+};
+
+/**
+ * Generates helpful tips and a step-by-step plan for a task.
+ * @param {string} taskTitle - The task title.
+ * @param {string} subject - The task subject.
+ * @returns {Promise<{tips: string[], steps: string[]}>} - Structured advice.
+ */
+export const getTaskTips = async (taskTitle, subject) => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return { tips: ["Focus on one thing at a time.", "Take breaks."], steps: ["Start", "Finish"] };
+    }
+
+    try {
+        const prompt = `You are a wise and helpful productivity demon. deeply analyze the specific task: "${taskTitle}" (Subject: ${subject || 'General'}).
+        
+        Do not give generic advice. tailored your response to the specific nature of this task.
+        
+        Reply with a JSON object containing:
+        1. "tips": An array of 3 short, punchy, motivating tips (max 10 words each) that are specific to this task.
+        2. "steps": An array of 3-5 actionable, concrete steps to complete this specific task.
+        
+        Keep the tone encouraging but slightly mischievous (like a friendly demon).
+        Do not include markdown formatting.
+        
+        (Random seed: ${Math.random()})`; // Prevent caching
+
+        // Use gemini-3-pro-preview as requested
+        const adviceModel = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+
+        const result = await adviceModel.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        // Clean up potential markdown code blocks
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error getting task tips:", error);
+        return {
+            tips: [`Error: ${error.message || "Unknown error"}`, "Try checking API key", "Reverting to 1.5 Pro"],
+            steps: ["Check Console", "Verify Model ID", "Retry"]
+        };
     }
 };

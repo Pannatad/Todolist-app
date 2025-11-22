@@ -5,6 +5,8 @@ import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
 import FocusTimer from './components/FocusTimer';
 import Calendar from './components/Calendar';
+import AIHelpSidebar from './components/AIHelpSidebar';
+import { suggestDifficulty, getTaskTips } from './services/gemini';
 
 // Sound assets (using placeholders or online URLs for now if local not available, 
 // but for this task I'll assume we might need to add them or just use silence/log if missing. 
@@ -133,6 +135,28 @@ function App() {
     setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
+  // --- AI Help Logic ---
+  const [showAISidebar, setShowAISidebar] = useState(false);
+  const [currentAITask, setCurrentAITask] = useState(null);
+  const [aiTips, setAiTips] = useState(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  const handleRequestAIHelp = async (task) => {
+    setCurrentAITask(task);
+    setAiTips(null);
+    setShowAISidebar(true);
+    setIsLoadingAI(true);
+
+    try {
+      const tips = await getTaskTips(task.title, task.subject);
+      setAiTips(tips);
+    } catch (error) {
+      console.error("Failed to get AI tips:", error);
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
+
   const buyPlot = () => {
     const cost = 50; // Cost per plot
     if (coins >= cost) {
@@ -220,6 +244,7 @@ function App() {
                 onCompleteTask={completeTask}
                 onDeleteTask={deleteTask}
                 onUpdateTask={updateTask}
+                onRequestAIHelp={handleRequestAIHelp}
                 existingSubjects={existingSubjects}
                 unlockedPlots={unlockedPlots}
                 coins={coins}
@@ -238,6 +263,14 @@ function App() {
           )}
         </main>
       </div>
+      {/* AI Help Sidebar */}
+      <AIHelpSidebar
+        isOpen={showAISidebar}
+        onClose={() => setShowAISidebar(false)}
+        task={currentAITask}
+        aiTips={aiTips}
+        isLoading={isLoadingAI}
+      />
     </div>
   );
 }

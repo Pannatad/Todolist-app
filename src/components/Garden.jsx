@@ -4,7 +4,7 @@ import { ArrowUpDown, ChevronDown } from 'lucide-react';
 import Plant from './Plant';
 import { getColorForSubject } from '../constants/subjects';
 
-const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, existingSubjects = [], unlockedPlots = 12, coins = 0, onBuyPlot, penguinMode }) => {
+const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRequestAIHelp, existingSubjects = [], unlockedPlots = 12, coins = 0, onBuyPlot, penguinMode }) => {
     const [sortBy, setSortBy] = useState('deadline');
     const [showSort, setShowSort] = useState(false);
     const [selectedSubject, setSelectedSubject] = useState('all');
@@ -142,7 +142,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, existingSub
                     >
                         {sortedTasks.map(task => (
                             <div key={task.id} className="relative group">
-                                <Plant task={task} onComplete={onCompleteTask} onDelete={onDeleteTask} onUpdate={onUpdateTask} existingSubjects={existingSubjects} penguinMode={penguinMode} />
+                                <Plant task={task} onComplete={onCompleteTask} onDelete={onDeleteTask} onUpdate={onUpdateTask} onRequestAIHelp={onRequestAIHelp} existingSubjects={existingSubjects} penguinMode={penguinMode} />
                             </div>
                         ))}
 
@@ -171,7 +171,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, existingSub
                     <h2 className="text-2xl font-serif text-bone-200/50 mb-6 pl-2">Banished Souls</h2>
                     <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 opacity-60 hover:opacity-100 transition-opacity">
                         {completedTasks.map(task => (
-                            <Plant key={`harvested-${task.id}`} task={task} onComplete={() => { }} onDelete={onDeleteTask} onUpdate={onUpdateTask} existingSubjects={existingSubjects} penguinMode={penguinMode} />
+                            <Plant key={`harvested-${task.id}`} task={task} onComplete={() => { }} onDelete={onDeleteTask} onUpdate={onUpdateTask} onRequestAIHelp={onRequestAIHelp} existingSubjects={existingSubjects} penguinMode={penguinMode} />
                         ))}
                     </div>
                 </div>

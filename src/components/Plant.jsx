@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ghost, Skull, Flame, X, Edit2 } from 'lucide-react';
+import { Ghost, Skull, Flame, X, Edit2, Sparkles } from 'lucide-react';
 import Penguin from './Penguin';
 import { getColorForSubject } from '../constants/subjects';
 
-const Plant = ({ task, onComplete, onDelete, onUpdate, existingSubjects = [], penguinMode }) => {
+const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], penguinMode }) => {
     const { status, difficulty, title, deadline, subject } = task;
     const [timeLeft, setTimeLeft] = React.useState('');
     const [showEditModal, setShowEditModal] = React.useState(false);
@@ -264,6 +264,18 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, existingSubjects = [], pe
                 >
                     <Edit2 size={12} strokeWidth={3} />
                 </button>
+
+                {/* AI Help Button - Appears on Hover */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestAIHelp(task);
+                    }}
+                    className="absolute top-0 right-16 p-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg hover:scale-110 transition-all z-50"
+                    title="Ask Demon Wisdom"
+                >
+                    <Sparkles size={12} strokeWidth={3} />
+                </button>
             </div>
 
             {/* Task Label */}
@@ -313,7 +325,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, existingSubjects = [], pe
                                 {/* Task Title (Read-only) */}
                                 <div>
                                     <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">Task</label>
-                                    <p className="text-base font-medium text-sage-800 dark:text-bone-200 bg-sage-50 dark:bg-void-800 p-2 rounded-lg">{title}</p>
+                                    <p className="text-base font-medium text-sage-800 dark:text-bone-200 bg-sage-50 dark:bg-void-800 p-3 rounded-lg break-words whitespace-normal">{title}</p>
                                 </div>
 
                                 {/* Difficulty */}
