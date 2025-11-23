@@ -1,8 +1,31 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Zap, ListChecks, BrainCircuit } from 'lucide-react';
+import { X, Sparkles, Zap, ListChecks, BrainCircuit, Upload, FileText, Image as ImageIcon, Send } from 'lucide-react';
 
-const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading }) => {
+const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdvice, isAnalyzing }) => {
+    const [file, setFile] = React.useState(null);
+    const [instructions, setInstructions] = React.useState('');
+
+    // Reset state when task changes or sidebar opens
+    React.useEffect(() => {
+        if (isOpen) {
+            setFile(null);
+            setInstructions('');
+        }
+    }, [isOpen, task]);
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            setFile(e.target.files[0]);
+        }
+    };
+
+    const handleGenerate = () => {
+        if (onGenerateAdvice) {
+            onGenerateAdvice(file, instructions);
+        }
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -31,7 +54,7 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading }) => {
                                     <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-bold text-sage-800 dark:text-bone-200">Demon Wisdom</h2>
+                                    <h2 className="text-lg font-bold text-sage-800 dark:text-bone-200">AI Assistant</h2>
                                     <p className="text-xs text-sage-500 dark:text-sage-400">Powered by Gemini</p>
                                 </div>
                             </div>
@@ -56,68 +79,111 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading }) => {
                                 )}
                             </div>
 
-                            {isLoading ? (
-                                <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-                                    <motion.div
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                            {/* Input Section (Always visible at top) */}
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-bold text-sage-500 dark:text-sage-400 flex items-center gap-2">
+                                    <BrainCircuit size={16} />
+                                    Summon Advice
+                                </h3>
+
+                                {/* Instructions */}
+                                <textarea
+                                    value={instructions}
+                                    onChange={(e) => setInstructions(e.target.value)}
+                                    placeholder="What do you need help with? (e.g., 'Break this down', 'Explain this file')"
+                                    className="w-full bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 rounded-xl p-3 text-sm text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none h-24"
+                                />
+
+                                {/* File Input */}
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            onChange={handleFileChange}
+                                            className="hidden"
+                                            id="file-upload"
+                                        />
+                                        <label
+                                            htmlFor="file-upload"
+                                            className="flex items-center justify-center gap-2 w-full p-3 border-2 border-dashed border-sage-300 dark:border-white/20 rounded-xl cursor-pointer hover:border-purple-500 dark:hover:border-purple-500 transition-colors text-sage-500 dark:text-sage-400 hover:text-purple-500"
+                                        >
+                                            {file ? (
+                                                <>
+                                                    {file.type.includes('pdf') ? <FileText size={20} /> : <ImageIcon size={20} />}
+                                                    <span className="truncate max-w-[150px] text-sm font-medium">{file.name}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Upload size={20} />
+                                                    <span className="text-sm font-medium">Add File (Optional)</span>
+                                                </>
+                                            )}
+                                        </label>
+                                    </div>
+
+                                    <button
+                                        onClick={handleGenerate}
+                                        disabled={isLoading || isAnalyzing}
+                                        className="p-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[60px]"
                                     >
-                                        <BrainCircuit className="w-12 h-12 text-purple-500 opacity-50" />
-                                    </motion.div>
-                                    <p className="text-sage-600 dark:text-sage-400 font-medium animate-pulse">
-                                        Summoning ancient productivity spells...
-                                    </p>
+                                        {isLoading || isAnalyzing ? (
+                                            <motion.div
+                                                animate={{ rotate: 360 }}
+                                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                            >
+                                                <Sparkles size={20} />
+                                            </motion.div>
+                                        ) : (
+                                            <Send size={20} />
+                                        )}
+                                    </button>
                                 </div>
-                            ) : aiTips ? (
-                                <>
-                                    {/* Quick Tips */}
+                            </div>
+
+                            {/* Results Section */}
+                            {aiTips && (
+                                <div className="space-y-6 pt-4 border-t border-sage-200 dark:border-white/10">
+                                    {/* Analysis / Direct Answer */}
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
                                             <Zap size={18} />
-                                            <h3 className="font-bold">Pro Tips</h3>
+                                            <h3 className="font-bold">Analysis</h3>
                                         </div>
-                                        <div className="grid gap-3">
-                                            {aiTips.tips?.map((tip, index) => (
-                                                <motion.div
-                                                    key={index}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: index * 0.1 }}
-                                                    className="bg-purple-50 dark:bg-purple-900/10 p-3 rounded-lg border border-purple-100 dark:border-purple-500/20 text-sm text-sage-700 dark:text-bone-300"
-                                                >
-                                                    {tip}
-                                                </motion.div>
-                                            ))}
-                                        </div>
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-500/20 text-sm text-sage-700 dark:text-bone-300 whitespace-pre-wrap leading-relaxed"
+                                        >
+                                            {aiTips.analysis || aiTips.tips?.join('\n')}
+                                        </motion.div>
                                     </div>
 
-                                    {/* Battle Plan */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                                            <ListChecks size={18} />
-                                            <h3 className="font-bold">Battle Plan</h3>
+                                    {/* Action Steps */}
+                                    {aiTips.steps && aiTips.steps.length > 0 && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                                                <ListChecks size={18} />
+                                                <h3 className="font-bold">Action Plan</h3>
+                                            </div>
+                                            <div className="space-y-0">
+                                                {aiTips.steps.map((step, index) => (
+                                                    <motion.div
+                                                        key={index}
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.1 + (index * 0.1) }}
+                                                        className="flex gap-3 p-3 border-b border-sage-100 dark:border-white/5 last:border-0"
+                                                    >
+                                                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold">
+                                                            {index + 1}
+                                                        </div>
+                                                        <p className="text-sm text-sage-700 dark:text-bone-300 pt-0.5">{step}</p>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="space-y-0">
-                                            {aiTips.steps?.map((step, index) => (
-                                                <motion.div
-                                                    key={index}
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: 0.3 + (index * 0.1) }}
-                                                    className="flex gap-3 p-3 border-b border-sage-100 dark:border-white/5 last:border-0"
-                                                >
-                                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold">
-                                                        {index + 1}
-                                                    </div>
-                                                    <p className="text-sm text-sage-700 dark:text-bone-300 pt-0.5">{step}</p>
-                                                </motion.div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="text-center py-8 text-sage-500 dark:text-sage-400">
-                                    <p>Select a task to receive wisdom.</p>
+                                    )}
                                 </div>
                             )}
                         </div>

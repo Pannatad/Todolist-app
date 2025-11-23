@@ -58,13 +58,13 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                 <div className="flex gap-2">
                     <button
                         onClick={() => navigateMonth(-1)}
-                        className="p-2 rounded-full bg-void-800 border border-white/10 hover:bg-void-700 text-bone-200 transition-colors"
+                        className="p-2 rounded-full bg-sage-100 dark:bg-void-800 border border-sage-200 dark:border-white/10 hover:bg-sage-200 dark:hover:bg-void-700 text-sage-600 dark:text-bone-200 transition-colors"
                     >
                         <ChevronLeft size={20} />
                     </button>
                     <button
                         onClick={() => navigateMonth(1)}
-                        className="p-2 rounded-full bg-void-800 border border-white/10 hover:bg-void-700 text-bone-200 transition-colors"
+                        className="p-2 rounded-full bg-sage-100 dark:bg-void-800 border border-sage-200 dark:border-white/10 hover:bg-sage-200 dark:hover:bg-void-700 text-sage-600 dark:text-bone-200 transition-colors"
                     >
                         <ChevronRight size={20} />
                     </button>
@@ -73,7 +73,7 @@ const Calendar = ({ tasks, onCompleteTask }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Calendar Grid - Takes up more space now */}
-                <div className="lg:col-span-3 bg-void-900/50 backdrop-blur-sm rounded-2xl border border-white/5 p-6 shadow-xl">
+                <div className="lg:col-span-3 bg-white/50 dark:bg-void-900/50 backdrop-blur-sm rounded-2xl border border-sage-200 dark:border-white/5 p-6 shadow-xl">
                     {/* Weekday Headers */}
                     <div className="grid grid-cols-7 mb-4 text-center">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -87,7 +87,7 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                     <div className="grid grid-cols-7 gap-2 auto-rows-fr">
                         {/* Empty slots for previous month */}
                         {[...Array(firstDay)].map((_, i) => (
-                            <div key={`empty-${i}`} className="min-h-[100px] bg-void-800/20 rounded-xl" />
+                            <div key={`empty-${i}`} className="min-h-[100px] bg-sage-50/50 dark:bg-void-800/20 rounded-xl" />
                         ))}
 
                         {/* Days */}
@@ -107,11 +107,11 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                                     onClick={() => setSelectedDate(day)}
                                     className={`
                                         min-h-[100px] p-2 rounded-xl flex flex-col items-start justify-start relative transition-all text-left overflow-hidden
-                                        ${isSelected ? 'bg-magma-900/40 border-magma-500 ring-1 ring-magma-500' : 'bg-void-800/50 border-white/5 hover:bg-void-800'}
+                                        ${isSelected ? 'bg-magma-500/10 dark:bg-magma-900/40 border-magma-500 ring-1 ring-magma-500' : 'bg-white/50 dark:bg-void-800/50 border-sage-100 dark:border-white/5 hover:bg-white dark:hover:bg-void-800'}
                                         ${isTodayDate ? 'ring-1 ring-sage-400' : 'border'}
                                     `}
                                 >
-                                    <span className={`text-sm font-bold mb-1 ${isTodayDate ? 'text-sage-400' : 'text-bone-300'}`}>
+                                    <span className={`text-sm font-bold mb-1 ${isTodayDate ? 'text-sage-600 dark:text-sage-400' : 'text-sage-700 dark:text-bone-300'}`}>
                                         {day}
                                     </span>
 
@@ -151,9 +151,9 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 20 }}
-                                className="bg-void-900/50 backdrop-blur-sm rounded-2xl border border-white/5 p-6 h-full sticky top-4"
+                                className="bg-white/50 dark:bg-void-900/50 backdrop-blur-sm rounded-2xl border border-sage-200 dark:border-white/5 p-6 h-full sticky top-4"
                             >
-                                <h3 className="text-xl font-serif text-bone-100 mb-4 border-b border-white/10 pb-2">
+                                <h3 className="text-xl font-serif text-sage-800 dark:text-bone-100 mb-4 border-b border-sage-200 dark:border-white/10 pb-2">
                                     {monthNames[currentDate.getMonth()]} {selectedDate}
                                 </h3>
 
@@ -162,13 +162,13 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                                         getTasksForDate(selectedDate).map(task => {
                                             const color = getColorForSubject(task.subject);
                                             return (
-                                                <div key={task.id} className="bg-void-800 p-3 rounded-xl border border-white/5 flex items-start gap-3 group hover:border-magma-500/30 transition-colors">
+                                                <div key={task.id} className="bg-white dark:bg-void-800 p-3 rounded-xl border border-sage-100 dark:border-white/5 flex items-start gap-3 group hover:border-magma-500/30 transition-colors">
                                                     <div
                                                         className="w-1 h-full min-h-[2rem] rounded-full"
                                                         style={{ backgroundColor: color.color }}
                                                     />
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-bold text-bone-200 group-hover:text-magma-400 transition-colors truncate">{task.title}</h4>
+                                                        <h4 className="text-sm font-bold text-sage-800 dark:text-bone-200 group-hover:text-magma-500 dark:group-hover:text-magma-400 transition-colors truncate">{task.title}</h4>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <span
                                                                 className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
@@ -187,7 +187,7 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                                         })
                                     ) : (
                                         <div className="text-center py-8 text-sage-500 italic">
-                                            No demons summoned for this day...
+                                            No tasks scheduled for this day...
                                         </div>
                                     )}
                                 </div>
@@ -197,7 +197,7 @@ const Calendar = ({ tasks, onCompleteTask }) => {
                                 key="empty"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="bg-void-900/30 rounded-2xl border border-white/5 p-6 h-full flex flex-col items-center justify-center text-center text-sage-500 sticky top-4"
+                                className="bg-white/30 dark:bg-void-900/30 rounded-2xl border border-sage-200 dark:border-white/5 p-6 h-full flex flex-col items-center justify-center text-center text-sage-500 sticky top-4"
                             >
                                 <CalendarIcon size={48} className="mb-4 opacity-20" />
                                 <p>Select a date to view full details</p>

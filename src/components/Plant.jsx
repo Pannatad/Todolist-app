@@ -36,8 +36,8 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
         return timeString;
     };
 
-    // Helper to get demon level based on time left
-    const getDemonLevel = () => {
+    // Helper to get urgency level based on time left
+    const getUrgencyLevel = () => {
         if (!deadline) return 1;
         const now = new Date();
         const end = new Date(deadline);
@@ -61,10 +61,10 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
     }, [deadline]);
 
     // Visual mapping based on status and difficulty
-    const getDemonVisual = () => {
-        const level = getDemonLevel();
+    const getTaskVisual = () => {
+        const level = getUrgencyLevel();
 
-        // Base classes for all demons
+        // Base classes for all task visuals
         const baseClasses = "drop-shadow-md transition-all duration-500";
 
         // Color mapping based on difficulty
@@ -218,9 +218,9 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 {/* Icon (Demon or Penguin) */}
                 <div className="relative z-10 mb-2 flex items-center justify-center h-full w-full">
                     {penguinMode ? (
-                        <Penguin stage={status} level={getDemonLevel()} difficulty={difficulty} />
+                        <Penguin stage={status} level={getUrgencyLevel()} difficulty={difficulty} />
                     ) : (
-                        getDemonVisual()
+                        getTaskVisual()
                     )}
 
                     {/* Hover effect for interaction */}
@@ -236,19 +236,19 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     )}
                 </div>
 
-                {/* Delete Button - Appears on Hover */}
+                {/* Delete Button - Appears on Hover (desktop) or Always Visible (mobile) */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         onDelete(task.id);
                     }}
-                    className="absolute top-0 right-0 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-0 right-0 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
                     title="Banish Forever"
                 >
                     <X size={12} strokeWidth={3} />
                 </button>
 
-                {/* Edit Button - Appears on Hover */}
+                {/* Edit Button - Appears on Hover (desktop) or Always Visible (mobile) */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -259,20 +259,20 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                         });
                         setShowEditModal(true);
                     }}
-                    className="absolute top-0 right-8 p-1.5 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-0 right-8 p-1.5 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
                     title="Edit Task"
                 >
                     <Edit2 size={12} strokeWidth={3} />
                 </button>
 
-                {/* AI Help Button - Appears on Hover */}
+                {/* AI Help Button - Always visible */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         onRequestAIHelp(task);
                     }}
-                    className="absolute top-0 right-16 p-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg hover:scale-110 transition-all z-50"
-                    title="Ask Demon Wisdom"
+                    className="absolute top-0 right-16 p-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg hover:scale-110 transition-all z-50 opacity-100 md:opacity-100"
+                    title="Get AI Help"
                 >
                     <Sparkles size={12} strokeWidth={3} />
                 </button>
@@ -296,9 +296,23 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     </span>
                 )}
                 {status !== 'harvested' && (
-                    <p className="text-xs font-bold text-center text-sage-500 dark:text-sage-400 w-full leading-tight">
-                        {timeLeft || "No Due Date"}
-                    </p>
+                    <>
+                        <p className="text-xs font-bold text-center text-sage-500 dark:text-sage-400 w-full leading-tight">
+                            {timeLeft || "No Due Date"}
+                        </p>
+                        {task.estimatedTime && (
+                            <p className="text-xs font-medium text-center w-full leading-tight" style={{ color: subjectColor.color }}>
+                                ⏱ {(() => {
+                                    const minutes = task.estimatedTime;
+                                    const hours = Math.floor(minutes / 60);
+                                    const mins = minutes % 60;
+                                    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+                                    if (hours > 0) return `${hours}h`;
+                                    return `${mins}m`;
+                                })()}
+                            </p>
+                        )}
+                    </>
                 )}
             </div>
 
