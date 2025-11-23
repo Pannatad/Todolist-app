@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Moon, Sun } from 'lucide-react';
+import { Volume2, VolumeX, Moon, Sun, LogIn, LogOut, User } from 'lucide-react';
 import useSound from 'use-sound';
 import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
@@ -8,16 +8,21 @@ import Calendar from './components/Calendar';
 import AIHelpSidebar from './components/AIHelpSidebar';
 import VisionBoard from './components/VisionBoard';
 import DailyLog from './components/DailyLog';
+import AuthModal from './components/AuthModal';
 import { suggestDifficulty, getPersonalizedAdvice } from './services/gemini';
+import { useAuth } from './context/AuthContext';
+import { supabase } from './services/supabase';
 
-// Sound assets (using placeholders or online URLs for now if local not available, 
-// but for this task I'll assume we might need to add them or just use silence/log if missing. 
-// Actually, I should try to use some free sounds if possible, or just setup the hook structure.)
+// Sound assets
 // For now I will just set up the structure.
 
 function App() {
-  // State
+  // Auth State
+  const { user, signOut } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
+  // State
   const [tasks, setTasks] = useState(() => {
     try {
       const saved = localStorage.getItem('growth-tasks');
@@ -73,13 +78,13 @@ function App() {
     }
   });
 
-  // Daily Log State with Mock Data
+  // Daily Log State
   const [activityLogs, setActivityLogs] = useState(() => {
     try {
       const saved = localStorage.getItem('daily-logs');
       if (saved) return JSON.parse(saved);
 
-      // Mock data
+      // Mock data for guest
       const today = new Date();
       const mockLogs = [
         {
@@ -111,14 +116,94 @@ function App() {
     }
   });
 
-  // Persistence
+  // --- Data Persistence & Sync ---
+
+  // Load data from Supabase when user logs in
   useEffect(() => {
-    localStorage.setItem('growth-tasks', JSON.stringify(tasks));
-    localStorage.setItem('growth-coins', coins.toString());
-    localStorage.setItem('growth-plots', unlockedPlots.toString());
-    localStorage.setItem('vision-goals', JSON.stringify(goals));
-    localStorage.setItem('daily-logs', JSON.stringify(activityLogs));
-  }, [tasks, coins, unlockedPlots, goals, activityLogs]);
+    if (user) {
+      loadUserData();
+    } else {
+      // Revert to local storage if user logs out (or stays logged out)
+      // We already loaded initial state from LS, but if we just logged out, we might want to reload LS data
+      loadLocalData();
+    }
+  }, [user]);
+
+  const loadLocalData = () => {
+    try {
+      const t = localStorage.getItem('growth-tasks');
+      if (t) setTasks(JSON.parse(t));
+
+      const c = localStorage.getItem('growth-coins');
+      if (c) setCoins(parseInt(c) || 0);
+
+      const p = localStorage.getItem('growth-plots');
+      if (p) setUnlockedPlots(parseInt(p) || 12);
+
+      const g = localStorage.getItem('vision-goals');
+      if (g) setGoals(JSON.parse(g));
+
+      const l = localStorage.getItem('daily-logs');
+      if (l) setActivityLogs(JSON.parse(l));
+    } catch (e) {
+      console.error("Error loading local data", e);
+    }
+  };
+
+  const loadUserData = async () => {
+    setIsLoadingData(true);
+    try {
+      // 1. Profile (Coins, Plots)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setCoins(profile.coins);
+        setUnlockedPlots(profile.unlocked_plots);
+        setPenguinMode(profile.penguin_mode);
+      }
+
+      // 2. Tasks
+      const { data: tasksData } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (tasksData) setTasks(tasksData);
+
+      // 3. Goals
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (goalsData) setGoals(goalsData);
+
+      // 4. Logs
+      const { data: logsData } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('timestamp', { ascending: false });
+      if (logsData) setActivityLogs(logsData);
+
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  // Save to LocalStorage (Guest Mode Only)
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('growth-tasks', JSON.stringify(tasks));
+      localStorage.setItem('growth-coins', coins.toString());
+      localStorage.setItem('growth-plots', unlockedPlots.toString());
+      localStorage.setItem('vision-goals', JSON.stringify(goals));
+      localStorage.setItem('daily-logs', JSON.stringify(activityLogs));
+    }
+  }, [tasks, coins, unlockedPlots, goals, activityLogs, user]);
 
   // Dark Mode
   useEffect(() => {
@@ -132,31 +217,56 @@ function App() {
 
   // Theme Toggle
   const toggleSound = () => setSoundEnabled(!soundEnabled);
-  const togglePenguinMode = () => setPenguinMode(!penguinMode);
+  const togglePenguinMode = async () => {
+    const newMode = !penguinMode;
+    setPenguinMode(newMode);
+    if (user) {
+      await supabase.from('profiles').update({ penguin_mode: newMode }).eq('id', user.id);
+    }
+  };
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  // Sound hooks (Placeholders - User needs to add files to public/sounds/)
+  // Sound hooks
   const [playPlant] = useSound('/sounds/plant.mp3', { volume: 0.5 });
   const [playComplete] = useSound('/sounds/water.mp3', { volume: 0.5 });
-  // const [playAmbient, { stop: stopAmbient }] = useSound('/sounds/ambient.mp3', { loop: true, volume: 0.2 });
 
-  // Task Handlers
-  const addTask = ({ title, difficulty, deadline, subject, estimatedTime }) => {
+  // --- Task Handlers ---
+
+  const addTask = async ({ title, difficulty, deadline, subject, estimatedTime }) => {
     const newTask = {
-      id: Date.now(),
+      id: user ? undefined : Date.now(), // Let Supabase generate UUID if logged in, else timestamp
       title,
       difficulty,
-      subject: subject || 'other', // Default to 'other'
-      deadline, // ISO string or null
-      estimatedTime, // in minutes or null
+      subject: subject || 'other',
+      deadline,
+      estimated_time: estimatedTime, // Note: snake_case for DB
+      estimatedTime: estimatedTime, // camelCase for local app (legacy)
       status: 'seed',
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      user_id: user?.id
     };
-    setTasks([...tasks, newTask]);
+
+    // Optimistic Update
+    const tempId = Date.now();
+    setTasks(prev => [...prev, { ...newTask, id: user ? tempId : newTask.id }]);
     if (soundEnabled) playPlant();
+
+    if (user) {
+      // Remove local-only fields before sending to DB
+      const { id, estimatedTime, ...dbTask } = newTask;
+      const { data, error } = await supabase.from('tasks').insert([dbTask]).select().single();
+
+      if (data) {
+        // Replace temp ID with real ID
+        setTasks(prev => prev.map(t => t.id === tempId ? { ...t, ...data, estimatedTime: data.estimated_time } : t));
+      } else if (error) {
+        console.error("Error adding task:", error);
+        // Revert optimistic update? Or just show error?
+      }
+    }
   };
 
-  const completeTask = (id) => {
+  const completeTask = async (id) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
@@ -165,14 +275,12 @@ function App() {
 
     // State transitions: seed → growing → harvested
     if (task.status === 'seed') {
-      // First click: seed becomes growing (show flower)
       newStatus = 'growing';
       if (soundEnabled) playComplete();
     } else if (task.status === 'growing') {
-      // Second click: growing becomes harvested (move to harvest section)
       newStatus = 'harvested';
 
-      // Calculate Reward only on harvest
+      // Calculate Reward
       switch (task.difficulty) {
         case 'hard': reward = 30; break;
         case 'medium': reward = 20; break;
@@ -184,28 +292,51 @@ function App() {
         const now = new Date();
         const deadlineDate = new Date(task.deadline);
         if (now <= deadlineDate) {
-          reward += 10; // Bonus for on-time
+          reward += 10;
         } else {
-          reward = Math.max(0, reward - 5); // Penalty for late
+          reward = Math.max(0, reward - 5);
         }
       }
 
-      setCoins(prev => prev + reward);
+      setCoins(prev => {
+        const newCoins = prev + reward;
+        if (user) {
+          supabase.from('profiles').update({ coins: newCoins }).eq('id', user.id).then();
+        }
+        return newCoins;
+      });
       if (soundEnabled) playComplete();
     }
 
+    const updates = { status: newStatus, completed_at: new Date().toISOString() };
+
     setTasks(tasks.map(t =>
-      t.id === id ? { ...t, status: newStatus, completedAt: new Date().toISOString() } : t
+      t.id === id ? { ...t, ...updates, completedAt: updates.completed_at } : t
     ));
+
+    if (user) {
+      await supabase.from('tasks').update(updates).eq('id', id);
+    }
   };
 
-  const deleteTask = (id) => {
+  const deleteTask = async (id) => {
     setTasks(tasks.filter(t => t.id !== id));
-    // Optional: Play a sound or show a notification
+    if (user) {
+      await supabase.from('tasks').delete().eq('id', id);
+    }
   };
 
-  const updateTask = (id, updates) => {
+  const updateTask = async (id, updates) => {
     setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
+    if (user) {
+      // Map camelCase to snake_case if needed
+      const dbUpdates = { ...updates };
+      if (dbUpdates.estimatedTime) {
+        dbUpdates.estimated_time = dbUpdates.estimatedTime;
+        delete dbUpdates.estimatedTime;
+      }
+      await supabase.from('tasks').update(dbUpdates).eq('id', id);
+    }
   };
 
   // --- AI Help Logic ---
@@ -245,43 +376,101 @@ function App() {
     }
   };
 
-  const buyPlot = () => {
-    const cost = 50; // Cost per plot
+  const buyPlot = async () => {
+    const cost = 50;
     if (coins >= cost) {
-      setCoins(prev => prev - cost);
-      setUnlockedPlots(prev => prev + 1);
+      setCoins(prev => {
+        const newCoins = prev - cost;
+        if (user) supabase.from('profiles').update({ coins: newCoins }).eq('id', user.id).then();
+        return newCoins;
+      });
+      setUnlockedPlots(prev => {
+        const newPlots = prev + 1;
+        if (user) supabase.from('profiles').update({ unlocked_plots: newPlots }).eq('id', user.id).then();
+        return newPlots;
+      });
     }
   };
 
   const handleFocusComplete = (minutes) => {
-    const reward = minutes; // 1 coin per minute
-    setCoins(prev => prev + reward);
+    const reward = minutes;
+    setCoins(prev => {
+      const newCoins = prev + reward;
+      if (user) supabase.from('profiles').update({ coins: newCoins }).eq('id', user.id).then();
+      return newCoins;
+    });
     if (soundEnabled) playComplete();
   };
 
-  // Extract unique subjects from existing tasks
+  // Extract unique subjects
   const existingSubjects = [...new Set(tasks.map(t => t.subject).filter(Boolean))];
 
-  // Goal Handlers
-  const addGoal = (goalData) => {
-    setGoals([...goals, goalData]);
+  // --- Goal Handlers ---
+  const addGoal = async (goalData) => {
+    const newGoal = {
+      ...goalData,
+      id: user ? undefined : Date.now(),
+      user_id: user?.id,
+      color_theme: goalData.colorTheme, // Map to DB column
+      created_at: new Date().toISOString()
+    };
+
+    const tempId = Date.now();
+    setGoals(prev => [...prev, { ...newGoal, id: user ? tempId : newGoal.id }]);
+
+    if (user) {
+      const { id, colorTheme, ...dbGoal } = newGoal;
+      const { data, error } = await supabase.from('goals').insert([dbGoal]).select().single();
+      if (data) {
+        setGoals(prev => prev.map(g => g.id === tempId ? { ...g, ...data, colorTheme: data.color_theme } : g));
+      }
+    }
   };
 
-  const updateGoal = (id, updates) => {
+  const updateGoal = async (id, updates) => {
     setGoals(goals.map(g => g.id === id ? { ...g, ...updates } : g));
+    if (user) {
+      const dbUpdates = { ...updates };
+      if (dbUpdates.colorTheme) {
+        dbUpdates.color_theme = dbUpdates.colorTheme;
+        delete dbUpdates.colorTheme;
+      }
+      await supabase.from('goals').update(dbUpdates).eq('id', id);
+    }
   };
 
-  const deleteGoal = (id) => {
+  const deleteGoal = async (id) => {
     setGoals(goals.filter(g => g.id !== id));
+    if (user) {
+      await supabase.from('goals').delete().eq('id', id);
+    }
   };
 
-  // Activity Log Handlers
-  const addActivityLog = (logData) => {
-    setActivityLogs([...activityLogs, logData]);
+  // --- Activity Log Handlers ---
+  const addActivityLog = async (logData) => {
+    const newLog = {
+      ...logData,
+      id: user ? undefined : Date.now(),
+      user_id: user?.id
+    };
+
+    const tempId = Date.now();
+    setActivityLogs(prev => [...prev, { ...newLog, id: user ? tempId : newLog.id }]);
+
+    if (user) {
+      const { id, ...dbLog } = newLog;
+      const { data, error } = await supabase.from('activity_logs').insert([dbLog]).select().single();
+      if (data) {
+        setActivityLogs(prev => prev.map(l => l.id === tempId ? { ...l, ...data } : l));
+      }
+    }
   };
 
-  const deleteActivityLog = (id) => {
+  const deleteActivityLog = async (id) => {
     setActivityLogs(activityLogs.filter(log => log.id !== id));
+    if (user) {
+      await supabase.from('activity_logs').delete().eq('id', id);
+    }
   };
 
   return (
@@ -297,6 +486,24 @@ function App() {
           </div>
 
           <div className="flex gap-3 items-center">
+            {/* Auth Button */}
+            <button
+              onClick={() => user ? signOut() : setShowAuthModal(true)}
+              className={`px-4 py-2 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 flex items-center gap-2 font-bold ${user ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-sage-100 dark:bg-sage-900/30 text-sage-700 dark:text-sage-300'}`}
+            >
+              {user ? (
+                <>
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" />
+                  <span className="hidden sm:inline">Login</span>
+                </>
+              )}
+            </button>
+
             <div className="bg-white/50 dark:bg-void-800/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 text-sage-800 dark:text-bone-200 font-bold shadow-sm border border-sage-200 dark:border-white/5">
               <span className="text-yellow-500 text-lg drop-shadow-md">🪙</span>
               <span>{coins}</span>
@@ -328,37 +535,16 @@ function App() {
           </div>
         </header>
 
-        <nav className="flex justify-center gap-4 mb-8">
-          <button
-            onClick={() => setActiveTab('garden')}
-            className={`px-6 py-2 rounded-full font-bold transition-all border ${activeTab === 'garden' ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
-          >
-            My Tasks
-          </button>
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`px-6 py-2 rounded-full font-bold transition-all border ${activeTab === 'calendar' ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
-          >
-            Calendar
-          </button>
-          <button
-            onClick={() => setActiveTab('dailylog')}
-            className={`px-6 py-2 rounded-full font-bold transition-all border ${activeTab === 'dailylog' ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
-          >
-            Daily Log
-          </button>
-          <button
-            onClick={() => setActiveTab('vision')}
-            className={`px-6 py-2 rounded-full font-bold transition-all border ${activeTab === 'vision' ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
-          >
-            Vision Board
-          </button>
-          <button
-            onClick={() => setActiveTab('focus')}
-            className={`px-6 py-2 rounded-full font-bold transition-all border ${activeTab === 'focus' ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
-          >
-            Focus Timer
-          </button>
+        <nav className="flex justify-center gap-4 mb-8 flex-wrap">
+          {['garden', 'calendar', 'dailylog', 'vision', 'focus'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-2 rounded-full font-bold transition-all border capitalize ${activeTab === tab ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
+            >
+              {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'focus' ? 'Focus Timer' : tab === 'garden' ? 'My Tasks' : tab}
+            </button>
+          ))}
         </nav>
 
         {/* Only show TaskInput on My Tasks tab */}
@@ -366,7 +552,13 @@ function App() {
           <TaskInput onAdd={addTask} existingSubjects={existingSubjects} />
         )}
 
-        <main>
+        <main className="relative">
+          {isLoadingData && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-void-950/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
+              <div className="animate-spin text-4xl">⏳</div>
+            </div>
+          )}
+
           {activeTab === 'garden' && (
             <>
               <div className="mb-12 text-center">
@@ -416,6 +608,7 @@ function App() {
           )}
         </main>
       </div>
+
       {/* AI Help Sidebar */}
       <AIHelpSidebar
         isOpen={showAISidebar}
@@ -424,6 +617,12 @@ function App() {
         aiTips={aiTips}
         isLoading={isLoadingAI}
         onGenerateAdvice={handleGenerateAdvice}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
       />
     </div>
   );
