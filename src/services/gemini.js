@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+const model_easy = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
 /**
  * Suggests a difficulty level for a given task.
@@ -25,7 +26,7 @@ export const suggestDifficulty = async (taskTitle) => {
         Consider time, effort, and complexity.`;
 
         console.log("Sending prompt to Gemini...");
-        const result = await model.generateContent(prompt);
+        const result = await model_easy.generateContent(prompt);
         const response = await result.response;
         const text = response.text().trim().toLowerCase();
         console.log("Gemini response:", text);
@@ -273,5 +274,107 @@ export const getPersonalizedAdvice = async (taskTitle, subject, instructions, fi
             analysis: `I tried to summon wisdom, but something went wrong. (${error.message})`,
             steps: ["Try again", "Rephrase instructions", "Check file format"]
         };
+    }
+};
+
+/**
+ * Generates a short, personality-driven reaction to a user action.
+ * @param {string} action - 'add', 'complete', 'delete', 'idle'.
+ * @param {string} taskTitle - The task title (if applicable).
+ * @param {string} mode - 'demon' | 'penguin'.
+ * @returns {Promise<string>} - The reaction text.
+ */
+export const getPersonaReaction = async (action, taskTitle, mode) => {
+    if (!API_KEY) return mode === 'penguin' ? "Waddle waddle! (No API Key)" : "The void is silent... (No API Key)";
+
+    try {
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+
+        let systemPrompt = "";
+        if (mode === 'penguin') {
+            systemPrompt = `You are a cute, cheerful, fish-obsessed penguin. 
+            You love productivity and ice. You are very supportive but slightly chaotic.
+            Keep it short (max 15 words). Use emojis like 🐟, 🧊, 🐧.`;
+        } else {
+            systemPrompt = `You are a sarcastic, void-dwelling demon. 
+            You view human tasks as trivial but necessary for "soul harvesting".
+            You are demanding, slightly mean, but secretly want the user to succeed so you can feed.
+            Keep it short (max 15 words). Use emojis like 👿, 🔥, 💀.`;
+        }
+
+        const prompt = `
+            ${systemPrompt}
+            User Action: ${action}
+            Task: "${taskTitle || 'General'}"
+            
+            React to this action in character.
+        `;
+
+        const result = await modelToUse.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+
+    } catch (error) {
+        console.error("Error getting persona reaction:", error);
+        return mode === 'penguin' ? "Squeak? (Error)" : "The void glitches... (Error)";
+    }
+};
+/**
+ * Generates a daily schedule based on existing tasks.
+ * @param {Array} tasks - List of task objects.
+ * @returns {Promise<Array>} - Array of schedule objects { activity, duration, category, reason }.
+ */
+export const generateDailySchedule = async (tasks) => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return [];
+    }
+
+    try {
+        const tasksList = tasks.map(t => `- ${t.title} (Diff: ${t.difficulty}, Due: ${t.deadline || 'None'}, Est: ${t.estimatedTime || 'Unknown'}m)`).join('\n');
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const prompt = `
+            You are an expert time management coach.
+            Current Time: ${now}
+            
+            User's Tasks:
+            ${tasksList}
+            
+            Create a realistic, optimized schedule for the rest of the day to help the user be productive.
+            Rules:
+            1. Prioritize tasks with deadlines and high difficulty.
+            2. Mix deep work with quick wins.
+            3. Include breaks.
+            4. If tasks have estimated times, use them. Otherwise, estimate reasonable durations (30-90 mins).
+            5. Suggest specific start times.
+            
+            Reply with a JSON array of objects:
+            [
+                { 
+                    "activity": "Task Name or Break", 
+                    "duration": 60, // in minutes
+                    "category": "Work" | "Health" | "Break" | "Study",
+                    "reason": "Why this task now?"
+                }
+            ]
+            
+            Do not include markdown formatting in the JSON output.
+        `;
+
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+        const result = await modelToUse.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
+        }
+
+        return JSON.parse(text);
+
+    } catch (error) {
+        console.error("Error generating schedule:", error);
+        return [];
     }
 };

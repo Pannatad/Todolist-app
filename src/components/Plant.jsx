@@ -242,7 +242,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                         e.stopPropagation();
                         onDelete(task.id);
                     }}
-                    className="absolute top-0 right-0 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-0 right-0 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
                     title="Banish Forever"
                 >
                     <X size={12} strokeWidth={3} />
@@ -259,7 +259,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                         });
                         setShowEditModal(true);
                     }}
-                    className="absolute top-0 right-8 p-1.5 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-0 right-8 p-1.5 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
                     title="Edit Task"
                 >
                     <Edit2 size={12} strokeWidth={3} />
@@ -271,7 +271,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                         e.stopPropagation();
                         onRequestAIHelp(task);
                     }}
-                    className="absolute top-0 right-16 p-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg hover:scale-110 transition-all z-50 opacity-100 md:opacity-100"
+                    className="absolute top-0 right-24 p-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg hover:scale-110 transition-all z-50 opacity-100 md:opacity-100"
                     title="Get AI Help"
                 >
                     <Sparkles size={12} strokeWidth={3} />

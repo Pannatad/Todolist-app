@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { generateDailySchedule } from '../services/gemini';
 
-const DailyLog = ({ logs, onAddLog, onDeleteLog }) => {
+const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
     const [input, setInput] = useState('');
     const [category, setCategory] = useState('Study');
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [isPlanning, setIsPlanning] = useState(false);
 
     // Category configurations
     const categories = {
@@ -98,14 +100,15 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog }) => {
         return logDate.toDateString() === selectedDate.toDateString();
     }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // Calculate stats
-    const totalMinutes = selectedDateLogs.reduce((sum, log) => sum + log.duration, 0);
+    // Calculate stats (exclude planned items)
+    const completedLogs = selectedDateLogs.filter(log => !log.isPlanned);
+    const totalMinutes = completedLogs.reduce((sum, log) => sum + log.duration, 0);
     const totalHours = Math.floor(totalMinutes / 60);
     const remainingMinutes = totalMinutes % 60;
 
-    // Category breakdown
+    // Category breakdown (exclude planned items)
     const categoryStats = {};
-    selectedDateLogs.forEach(log => {
+    completedLogs.forEach(log => {
         if (!categoryStats[log.category]) {
             categoryStats[log.category] = 0;
         }
@@ -135,6 +138,34 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog }) => {
         return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     };
 
+    const handlePlanDay = async () => {
+        if (isPlanning) return;
+        setIsPlanning(true);
+
+        try {
+            const schedule = await generateDailySchedule(tasks);
+            if (schedule && schedule.length > 0) {
+                schedule.forEach((item, index) => {
+                    // Add a slight delay for each item to simulate "building" the schedule
+                    setTimeout(() => {
+                        onAddLog({
+                            id: Date.now() + index,
+                            activity: item.activity,
+                            duration: item.duration,
+                            category: item.category || 'Work',
+                            timestamp: new Date().toISOString(), // Or calculate based on start time if provided
+                            isPlanned: true // Flag as planned
+                        });
+                    }, index * 100);
+                });
+            }
+        } catch (error) {
+            console.error("Failed to plan day:", error);
+        } finally {
+            setIsPlanning(false);
+        }
+    };
+
     return (
         <div className="w-full max-w-6xl mx-auto">
             {/* Header */}
@@ -142,9 +173,19 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog }) => {
                 <h2 className="text-3xl font-serif font-bold text-sage-600 dark:text-magma-500 mb-2">
                     Daily Log
                 </h2>
-                <p className="text-sage-500 dark:text-bone-200/60 italic">
+                <p className="text-sage-500 dark:text-bone-200/60 italic mb-4">
                     Track your accomplishments and productivity
                 </p>
+                {isToday && (
+                    <button
+                        onClick={handlePlanDay}
+                        disabled={isPlanning}
+                        className={`inline-flex items-center gap-2 px-6 py-2 rounded-full font-bold text-white transition-all shadow-md hover:scale-105 active:scale-95 ${isPlanning ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-600'}`}
+                    >
+                        {isPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        {isPlanning ? 'Consulting the Stars...' : 'Plan My Day'}
+                    </button>
+                )}
             </div>
 
             {/* Date Navigation */}
@@ -302,16 +343,18 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog }) => {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="p-4 rounded-xl bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4 group"
+                                    className={`p-4 rounded-xl border shadow-sm hover:shadow-md transition-all flex items-center gap-4 group ${log.isPlanned ? 'bg-sage-50/50 dark:bg-void-900/50 border-dashed border-sage-300 dark:border-white/20' : 'bg-white dark:bg-void-900 border-sage-200 dark:border-white/10'}`}
                                 >
-                                    <div className="p-3 rounded-full" style={{ backgroundColor: config.bg }}>
+                                    <div className={`p-3 rounded-full ${log.isPlanned ? 'opacity-50' : ''}`} style={{ backgroundColor: config.bg }}>
                                         <Icon className="w-5 h-5" style={{ color: config.color }} />
                                     </div>
                                     <div className="flex-1">
-                                        <h4 className="font-bold text-sage-800 dark:text-sage-200">{log.activity}</h4>
+                                        <h4 className={`font-bold ${log.isPlanned ? 'text-sage-600 dark:text-sage-400 italic' : 'text-sage-800 dark:text-sage-200'}`}>
+                                            {log.activity} {log.isPlanned && <span className="text-xs font-normal not-italic opacity-70 ml-2">(Planned)</span>}
+                                        </h4>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span
-                                                className="px-2 py-0.5 rounded-full text-xs font-bold"
+                                                className={`px-2 py-0.5 rounded-full text-xs font-bold ${log.isPlanned ? 'opacity-70' : ''}`}
                                                 style={{ backgroundColor: config.bg, color: config.color }}
                                             >
                                                 {log.category}
@@ -325,12 +368,26 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog }) => {
                                         <span className="text-sm text-sage-600 dark:text-sage-400">
                                             {formatTime(log.timestamp)}
                                         </span>
-                                        <button
-                                            onClick={() => onDeleteLog(log.id)}
-                                            className="block mt-1 text-xs text-red-500 hover:text-red-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                                        >
-                                            Delete
-                                        </button>
+                                        <div className="flex flex-col items-end gap-1 mt-1">
+                                            {log.isPlanned && (
+                                                <button
+                                                    onClick={() => {
+                                                        // Convert to actual log
+                                                        onDeleteLog(log.id); // Remove planned
+                                                        onAddLog({ ...log, id: Date.now(), isPlanned: false }); // Add real
+                                                    }}
+                                                    className="text-xs text-emerald-500 hover:text-emerald-700 font-bold"
+                                                >
+                                                    Complete
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => onDeleteLog(log.id)}
+                                                className="text-xs text-red-500 hover:text-red-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
                                     </div>
                                 </motion.div>
                             );

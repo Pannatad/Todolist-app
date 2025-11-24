@@ -9,7 +9,8 @@ import AIHelpSidebar from './components/AIHelpSidebar';
 import VisionBoard from './components/VisionBoard';
 import DailyLog from './components/DailyLog';
 import AuthModal from './components/AuthModal';
-import { suggestDifficulty, getPersonalizedAdvice } from './services/gemini';
+import PersonaAvatar from './components/PersonaAvatar';
+import { suggestDifficulty, getPersonalizedAdvice, getPersonaReaction } from './services/gemini';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabase';
 
@@ -66,6 +67,10 @@ function App() {
   const [activeTab, setActiveTab] = useState('garden'); // 'garden', 'calendar', 'focus', 'vision'
 
   const [penguinMode, setPenguinMode] = useState(false);
+
+  // Persona State
+  const [personaMessage, setPersonaMessage] = useState('');
+  const [isPersonaTyping, setIsPersonaTyping] = useState(false);
 
   // Goals State
   const [goals, setGoals] = useState(() => {
@@ -230,6 +235,48 @@ function App() {
   const [playPlant] = useSound('/sounds/plant.mp3', { volume: 0.5 });
   const [playComplete] = useSound('/sounds/water.mp3', { volume: 0.5 });
 
+  // --- Helper for Persona Reaction ---
+  const triggerPersonaReaction = async (action, taskTitle) => {
+    setIsPersonaTyping(true);
+    setPersonaMessage(''); // Clear previous
+
+    // Slight delay to feel natural
+    setTimeout(async () => {
+      const reaction = await getPersonaReaction(action, taskTitle, penguinMode ? 'penguin' : 'demon');
+      setPersonaMessage(reaction);
+      setIsPersonaTyping(false);
+
+      // Text-to-Speech
+      if (soundEnabled) {
+        const utterance = new SpeechSynthesisUtterance(reaction);
+        // Select a voice if possible (optional, browsers vary)
+        const voices = window.speechSynthesis.getVoices();
+
+        if (penguinMode) {
+          utterance.pitch = 1.5; // High pitch for cute penguin
+          utterance.rate = 1.1;
+          // Try to find a female or higher pitched voice
+          const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google US English'));
+          if (femaleVoice) utterance.voice = femaleVoice;
+        } else {
+          utterance.pitch = 0.6; // Low pitch for deep demon voice
+          utterance.rate = 0.9;
+          // Try to find a male or lower pitched voice
+          const maleVoice = voices.find(v => v.name.includes('Male') || v.name.includes('Google UK English Male'));
+          if (maleVoice) utterance.voice = maleVoice;
+        }
+
+        window.speechSynthesis.cancel(); // Stop any previous speech
+        window.speechSynthesis.speak(utterance);
+      }
+
+      // Auto-hide after 8 seconds
+      setTimeout(() => {
+        setPersonaMessage('');
+      }, 8000);
+    }, 500);
+  };
+
   // --- Task Handlers ---
 
   const addTask = async ({ title, difficulty, deadline, subject, estimatedTime }) => {
@@ -250,6 +297,9 @@ function App() {
     const tempId = Date.now();
     setTasks(prev => [...prev, { ...newTask, id: user ? tempId : newTask.id }]);
     if (soundEnabled) playPlant();
+
+    // Trigger Persona Reaction
+    triggerPersonaReaction('add', title);
 
     if (user) {
       // Remove local-only fields before sending to DB
@@ -306,6 +356,9 @@ function App() {
         return newCoins;
       });
       if (soundEnabled) playComplete();
+
+      // Trigger Persona Reaction
+      triggerPersonaReaction('complete', task.title);
     }
 
     const updates = { status: newStatus, completed_at: new Date().toISOString() };
@@ -478,7 +531,13 @@ function App() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <header className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-sage-100 dark:bg-void-800 border border-sage-300 dark:border-magma-500/30 rounded-full flex items-center justify-center text-sage-600 dark:text-magma-500 font-serif font-bold text-2xl shadow-sm dark:shadow-[0_0_15px_rgba(239,68,68,0.3)]">D</div>
+            {/* Persona Avatar */}
+            <PersonaAvatar
+              mode={penguinMode ? 'penguin' : 'demon'}
+              message={personaMessage}
+              isTyping={isPersonaTyping}
+            />
+
             <div>
               <h1 className="text-4xl font-serif font-bold text-sage-600 dark:text-magma-500 tracking-widest drop-shadow-sm dark:drop-shadow-[0_2px_5px_rgba(239,68,68,0.5)]">All in One Personal Assistance</h1>
               <p className="text-xs text-sage-500 dark:text-bone-200/50 mt-1">Developed by Mxllow</p>
@@ -575,7 +634,6 @@ function App() {
                 onRequestAIHelp={handleRequestAIHelp}
                 existingSubjects={existingSubjects}
                 unlockedPlots={unlockedPlots}
-                coins={coins}
                 onBuyPlot={buyPlot}
                 penguinMode={penguinMode}
               />
@@ -600,6 +658,7 @@ function App() {
               logs={activityLogs}
               onAddLog={addActivityLog}
               onDeleteLog={deleteActivityLog}
+              tasks={tasks}
             />
           )}
 
