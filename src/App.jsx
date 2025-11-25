@@ -3,7 +3,6 @@ import { Volume2, VolumeX, Moon, Sun, LogIn, LogOut, User } from 'lucide-react';
 import useSound from 'use-sound';
 import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
-import FocusTimer from './components/FocusTimer';
 import Calendar from './components/Calendar';
 import AIHelpSidebar from './components/AIHelpSidebar';
 import VisionBoard from './components/VisionBoard';
@@ -246,29 +245,12 @@ function App() {
       setPersonaMessage(reaction);
       setIsPersonaTyping(false);
 
-      // Text-to-Speech
-      if (soundEnabled) {
-        const utterance = new SpeechSynthesisUtterance(reaction);
-        // Select a voice if possible (optional, browsers vary)
-        const voices = window.speechSynthesis.getVoices();
-
-        if (penguinMode) {
-          utterance.pitch = 1.5; // High pitch for cute penguin
-          utterance.rate = 1.1;
-          // Try to find a female or higher pitched voice
-          const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google US English'));
-          if (femaleVoice) utterance.voice = femaleVoice;
-        } else {
-          utterance.pitch = 0.6; // Low pitch for deep demon voice
-          utterance.rate = 0.9;
-          // Try to find a male or lower pitched voice
-          const maleVoice = voices.find(v => v.name.includes('Male') || v.name.includes('Google UK English Male'));
-          if (maleVoice) utterance.voice = maleVoice;
-        }
-
-        window.speechSynthesis.cancel(); // Stop any previous speech
-        window.speechSynthesis.speak(utterance);
-      }
+      // Text-to-Speech removed as per user request
+      // if (soundEnabled) {
+      //   const utterance = new SpeechSynthesisUtterance(reaction);
+      //   ...
+      //   window.speechSynthesis.speak(utterance);
+      // }
 
       // Auto-hide after 8 seconds
       setTimeout(() => {
@@ -445,15 +427,7 @@ function App() {
     }
   };
 
-  const handleFocusComplete = (minutes) => {
-    const reward = minutes;
-    setCoins(prev => {
-      const newCoins = prev + reward;
-      if (user) supabase.from('profiles').update({ coins: newCoins }).eq('id', user.id).then();
-      return newCoins;
-    });
-    if (soundEnabled) playComplete();
-  };
+
 
   // Extract unique subjects
   const existingSubjects = [...new Set(tasks.map(t => t.subject).filter(Boolean))];
@@ -529,8 +503,8 @@ function App() {
   return (
     <div className="min-h-screen bg-cream-50 dark:bg-void-950 text-ink-800 dark:text-bone-100 transition-colors duration-1000 ease-in-out">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <header className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-3">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {/* Persona Avatar */}
             <PersonaAvatar
               mode={penguinMode ? 'penguin' : 'demon'}
@@ -538,17 +512,18 @@ function App() {
               isTyping={isPersonaTyping}
             />
 
-            <div>
-              <h1 className="text-4xl font-serif font-bold text-sage-600 dark:text-magma-500 tracking-widest drop-shadow-sm dark:drop-shadow-[0_2px_5px_rgba(239,68,68,0.5)]">All in One Personal Assistance</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-4xl font-serif font-bold text-sage-600 dark:text-magma-500 tracking-widest drop-shadow-sm dark:drop-shadow-[0_2px_5px_rgba(239,68,68,0.5)] truncate">All in One Personal Assistance</h1>
               <p className="text-xs text-sage-500 dark:text-bone-200/50 mt-1">Developed by Mxllow</p>
             </div>
           </div>
 
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 sm:gap-3 items-center flex-wrap w-full sm:w-auto justify-end">
             {/* Auth Button */}
             <button
               onClick={() => user ? signOut() : setShowAuthModal(true)}
-              className={`px-4 py-2 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 flex items-center gap-2 font-bold ${user ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-sage-100 dark:bg-sage-900/30 text-sage-700 dark:text-sage-300'}`}
+              className={`px-3 sm:px-4 py-2 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 flex items-center gap-2 font-bold text-sm ${user ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-sage-100 dark:bg-sage-900/30 text-sage-700 dark:text-sage-300'}`}
+              title={user ? 'Sign Out' : 'Login'}
             >
               {user ? (
                 <>
@@ -563,45 +538,45 @@ function App() {
               )}
             </button>
 
-            <div className="bg-white/50 dark:bg-void-800/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 text-sage-800 dark:text-bone-200 font-bold shadow-sm border border-sage-200 dark:border-white/5">
-              <span className="text-yellow-500 text-lg drop-shadow-md">🪙</span>
+            <div className="bg-white/50 dark:bg-void-800/50 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full flex items-center gap-1.5 sm:gap-2 text-sage-800 dark:text-bone-200 font-bold shadow-sm border border-sage-200 dark:border-white/5 text-sm">
+              <span className="text-yellow-500 text-base sm:text-lg drop-shadow-md">🪙</span>
               <span>{coins}</span>
             </div>
 
             {/* Penguin Mode Toggle */}
             <button
               onClick={togglePenguinMode}
-              className={`p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group ${penguinMode ? 'bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800' : 'bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700'}`}
+              className={`p-2.5 sm:p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group ${penguinMode ? 'bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800' : 'bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700'}`}
               title="Toggle Penguin Mode"
             >
-              <span className="text-xl">{penguinMode ? '🐧' : '👿'}</span>
+              <span className="text-lg sm:text-xl">{penguinMode ? '🐧' : '👿'}</span>
             </button>
 
             <button
               onClick={toggleSound}
-              className="p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
+              className="p-2.5 sm:p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
             >
-              {soundEnabled ? <Volume2 className="w-6 h-6 text-sage-600 dark:text-bone-200 group-hover:text-sage-800 dark:group-hover:text-magma-400 transition-colors" /> : <VolumeX className="w-6 h-6 text-gray-500" />}
+              {soundEnabled ? <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-sage-600 dark:text-bone-200 group-hover:text-sage-800 dark:group-hover:text-magma-400 transition-colors" /> : <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />}
             </button>
 
             <button
               onClick={toggleDarkMode}
-              className="p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
+              className="p-2.5 sm:p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              {isDarkMode ? <Sun className="w-6 h-6 text-amber-400 group-hover:text-amber-300 transition-colors" /> : <Moon className="w-6 h-6 text-indigo-400 group-hover:text-indigo-300 transition-colors" />}
+              {isDarkMode ? <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 group-hover:text-amber-300 transition-colors" /> : <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400 group-hover:text-indigo-300 transition-colors" />}
             </button>
           </div>
         </header>
 
-        <nav className="flex justify-center gap-4 mb-8 flex-wrap">
-          {['garden', 'calendar', 'dailylog', 'vision', 'focus'].map(tab => (
+        <nav className="flex justify-center gap-2 sm:gap-4 mb-4 sm:mb-8 flex-wrap overflow-x-auto p-2">
+          {['garden', 'calendar', 'dailylog', 'vision'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-full font-bold transition-all border capitalize ${activeTab === tab ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
+              className={`px-4 sm:px-6 py-2 rounded-full font-bold transition-all border capitalize text-sm sm:text-base whitespace-nowrap ${activeTab === tab ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
             >
-              {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'focus' ? 'Focus Timer' : tab === 'garden' ? 'My Tasks' : tab}
+              {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'garden' ? 'My Tasks' : tab}
             </button>
           ))}
         </nav>
@@ -641,7 +616,7 @@ function App() {
           )}
 
           {activeTab === 'calendar' && (
-            <Calendar tasks={tasks} onCompleteTask={completeTask} />
+            <Calendar tasks={tasks} onCompleteTask={completeTask} onAddTask={addTask} />
           )}
 
           {activeTab === 'vision' && (
@@ -660,10 +635,6 @@ function App() {
               onDeleteLog={deleteActivityLog}
               tasks={tasks}
             />
-          )}
-
-          {activeTab === 'focus' && (
-            <FocusTimer onComplete={handleFocusComplete} />
           )}
         </main>
       </div>

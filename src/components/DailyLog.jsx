@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2, Play, Square, Volume2, VolumeX } from 'lucide-react';
 import { generateDailySchedule } from '../services/gemini';
 
 const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
@@ -8,6 +8,15 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
     const [category, setCategory] = useState('Study');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [isPlanning, setIsPlanning] = useState(false);
+
+    // Focus Session State
+    const [isFocusing, setIsFocusing] = useState(false);
+    const [showFocusModal, setShowFocusModal] = useState(false);
+    const [focusActivity, setFocusActivity] = useState('');
+    const [focusCategory, setFocusCategory] = useState('Study');
+    const [focusStartTime, setFocusStartTime] = useState(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
 
     // Category configurations
     const categories = {
@@ -49,6 +58,63 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
 
         return { activity, duration };
     };
+
+    // Timer effect - updates every second while focusing
+    useEffect(() => {
+        let interval;
+        if (isFocusing && focusStartTime) {
+            interval = setInterval(() => {
+                const now = new Date();
+                const elapsed = Math.floor((now - focusStartTime) / 1000);
+                setElapsedSeconds(elapsed);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isFocusing, focusStartTime]);
+
+    const handleOpenFocusModal = () => {
+        setShowFocusModal(true);
+    };
+
+    const handleStartFocus = () => {
+        if (!focusActivity.trim()) {
+            alert('Please enter an activity name');
+            return;
+        }
+        setFocusStartTime(new Date());
+        setIsFocusing(true);
+        setShowFocusModal(false);
+        setElapsedSeconds(0);
+    };
+
+    const handleStopFocus = () => {
+        if (!isFocusing) return;
+
+        const durationMinutes = Math.floor(elapsedSeconds / 60);
+
+        onAddLog({
+            id: Date.now(),
+            activity: focusActivity,
+            duration: durationMinutes,
+            category: focusCategory,
+            timestamp: new Date().toISOString()
+        });
+
+        // Reset focus state
+        setIsFocusing(false);
+        setFocusStartTime(null);
+        setElapsedSeconds(0);
+        setFocusActivity('');
+        setFocusCategory('Study');
+    };
+
+    const formatElapsedTime = (seconds) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -320,9 +386,19 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                             Log Session
                         </button>
                     </form>
-                    <p className="text-xs text-sage-500 dark:text-bone-200/50 mt-2 italic">
-                        Tip: Use format "Activity Name Xh Ym" (e.g., "Study 2h 15m")
-                    </p>
+                    <div className="flex items-center justify-between mt-3">
+                        <p className="text-xs text-sage-500 dark:text-bone-200/50 italic">
+                            Tip: Use format "Activity Name Xh Ym" (e.g., "Study 2h 15m")
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleOpenFocusModal}
+                            className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                        >
+                            <Play className="w-4 h-4" />
+                            Start Focus Session
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -400,6 +476,161 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                     )}
                 </div>
             </div>
+
+            {/* Focus Setup Modal */}
+            <AnimatePresence>
+                {showFocusModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowFocusModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white dark:bg-void-900 rounded-2xl p-8 max-w-md w-full shadow-2xl border border-sage-200 dark:border-white/10"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2 className="text-2xl font-bold text-sage-700 dark:text-sage-300 mb-6">Start Focus Session</h2>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-sage-600 dark:text-sage-400 mb-2">
+                                        Activity Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={focusActivity}
+                                        onChange={(e) => setFocusActivity(e.target.value)}
+                                        placeholder="e.g., Deep Work, Reading, Exercise"
+                                        className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-sage-600 dark:text-sage-400 mb-2">
+                                        Category
+                                    </label>
+                                    <select
+                                        value={focusCategory}
+                                        onChange={(e) => setFocusCategory(e.target.value)}
+                                        className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    >
+                                        {Object.keys(categories).map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => setShowFocusModal(false)}
+                                    className="flex-1 px-6 py-3 bg-sage-200 dark:bg-void-800 text-sage-700 dark:text-sage-300 rounded-xl font-bold hover:bg-sage-300 dark:hover:bg-void-700 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleStartFocus}
+                                    className="flex-1 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold transition-colors shadow-md flex items-center justify-center gap-2"
+                                >
+                                    <Play className="w-5 h-5" />
+                                    Begin
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Focus Session Overlay */}
+            <AnimatePresence>
+                {isFocusing && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
+                    >
+                        {/* Video Background */}
+                        <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover"
+                            style={{ filter: 'brightness(0.6)' }}
+                        >
+                            <source src="https://cdn.pixabay.com/video/2023/08/25/177336-858525066_large.mp4" type="video/mp4" />
+                        </video>
+
+                        {/* Audio */}
+                        <audio
+                            autoPlay
+                            loop
+                            muted={isMuted}
+                        >
+                            <source src="https://cdn.pixabay.com/download/audio/2022/05/13/audio_0c647d3116.mp3" type="audio/mpeg" />
+                        </audio>
+
+                        {/* Overlay Content */}
+                        <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                            <motion.div
+                                initial={{ scale: 0.8 }}
+                                animate={{ scale: 1 }}
+                                className="text-center"
+                            >
+                                <motion.div
+                                    animate={{
+                                        scale: [1, 1.05, 1],
+                                    }}
+                                    transition={{
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                    }}
+                                    className="mb-8"
+                                >
+                                    <div className="text-white/90 text-lg font-medium mb-4 drop-shadow-lg">
+                                        {focusActivity}
+                                    </div>
+                                    <div className="text-white text-8xl font-bold tracking-wider font-mono drop-shadow-2xl">
+                                        {formatElapsedTime(elapsedSeconds)}
+                                    </div>
+                                </motion.div>
+
+                                <div className="flex items-center gap-2 text-white/80 text-sm mb-12">
+                                    <span className="px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm drop-shadow-lg">
+                                        {focusCategory}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={handleStopFocus}
+                                        className="px-8 py-4 bg-white/20 hover:bg-white/30 text-white rounded-2xl font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-3 border border-white/30"
+                                    >
+                                        <Square className="w-6 h-6" />
+                                        Stop & Log Session
+                                    </button>
+
+                                    <button
+                                        onClick={() => setIsMuted(!isMuted)}
+                                        className="p-4 bg-white/20 hover:bg-white/30 text-white rounded-2xl font-bold transition-all shadow-lg backdrop-blur-md border border-white/30"
+                                        title={isMuted ? "Unmute" : "Mute"}
+                                    >
+                                        {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

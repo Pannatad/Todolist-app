@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
-const model_easy = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const model_easy = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 /**
  * Suggests a difficulty level for a given task.
@@ -101,7 +101,7 @@ export const getTaskTips = async (taskTitle, subject) => {
         `;
 
         // Use gemini-3-pro-preview as requested
-        const adviceModel = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+        const adviceModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const result = await adviceModel.generateContent(prompt);
         const response = await result.response;
@@ -160,10 +160,10 @@ export const analyzeFile = async (file, instructions) => {
         // Try the requested model first
         let visionModel;
         try {
-            visionModel = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+            visionModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         } catch (e) {
-            console.warn("gemini-3-pro-image not available, falling back to gemini-1.5-pro");
-            visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+            console.warn("gemini-3-pro-image not available, falling back to gemini-2.5-flash");
+            visionModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         }
 
         // Fallback logic if the first model instantiation doesn't throw but the request fails
@@ -188,7 +188,7 @@ export const analyzeFile = async (file, instructions) => {
         if (error.message.includes('model') || error.message.includes('not found') || error.status === 404) {
             console.log("Attempting fallback to gemini-1.5-pro...");
             try {
-                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
                 const imagePart = await fileToGenerativePart(file);
                 const prompt = instructions || "Analyze this file.";
                 const result = await fallbackModel.generateContent([prompt, imagePart]);
@@ -224,12 +224,12 @@ export const getPersonalizedAdvice = async (taskTitle, subject, instructions, fi
     try {
         // Select model
         let modelToUse;
-        const modelName = "gemini-3-pro-preview"; // Use the requested model
+        const modelName = "gemini-2.5-flash"; // Use the requested model
         try {
             modelToUse = genAI.getGenerativeModel({ model: modelName });
         } catch (e) {
-            console.warn(`${modelName} not available, falling back to gemini-1.5-pro`);
-            modelToUse = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+            console.warn(`${modelName} not available, falling back to gemini-2.5-flash`);
+            modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         }
 
         // Construct Prompt
@@ -288,7 +288,7 @@ export const getPersonaReaction = async (action, taskTitle, mode) => {
     if (!API_KEY) return mode === 'penguin' ? "Waddle waddle! (No API Key)" : "The void is silent... (No API Key)";
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         let systemPrompt = "";
         if (mode === 'penguin') {
@@ -362,7 +362,7 @@ export const generateDailySchedule = async (tasks) => {
             Do not include markdown formatting in the JSON output.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -376,5 +376,188 @@ export const generateDailySchedule = async (tasks) => {
     } catch (error) {
         console.error("Error generating schedule:", error);
         return [];
+    }
+};
+
+/**
+ * Parses natural language task input and extracts metadata.
+ * @param {string} input - Raw user input (e.g., "English task, due at today 11.59, estimate 20 mins to do").
+ * @returns {Promise<Object>} - { title, difficulty, deadline, subject, estimatedTime }
+ */
+export const parseTaskInput = async (input) => {
+    console.log("🚀 parseTaskInput called with input:", input);
+    if (!API_KEY) {
+        console.warn("⚠️ Gemini API Key is missing.");
+        return {
+            title: input,
+            difficulty: 'easy',
+            deadline: null,
+            subject: null,
+            estimatedTime: null
+        };
+    }
+
+    try {
+        // Get current date and time for context
+        const now = new Date();
+        const currentDateTime = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        console.log("📅 Current DateTime for context:", currentDateTime);
+
+        const prompt = `
+            You are an expert task parser. Analyze the following user input and extract task metadata.
+            
+            Current Date & Time: ${currentDateTime}
+            User Input: "${input}"
+            
+            Extract the following information:
+            1. **title**: The cleaned task description (without metadata like due dates, subjects, etc.)
+            2. **difficulty**: 'easy', 'medium', or 'hard' (infer from context, default to 'easy' if unclear)
+            3. **deadline**: ISO 8601 datetime string (e.g., "2025-11-25T23:59:00") or null. Parse relative dates like "today", "tomorrow", "tonight", and specific times like "11.59", "3pm", etc.
+            4. **subject**: The subject/category (e.g., "English", "Math", "Work") or null
+            5. **estimatedTime**: Estimated time in minutes (number) or null
+            
+            Rules:
+            - "today" or "tonight" means today at 11:59 PM
+            - "tomorrow" means tomorrow at 11:59 PM
+            - If time is specified (e.g., "11.59", "3pm"), use it for the deadline
+            - If only date is mentioned without time, default to 11:59 PM
+            - If input is just a simple task with no metadata, return defaults (difficulty='easy', everything else null)
+            - Clean the title to remove metadata mentions
+            
+            Reply with ONLY a JSON object in this exact format (no markdown, no extra text):
+            {
+                "title": "cleaned task title",
+                "difficulty": "easy|medium|hard",
+                "deadline": "ISO datetime string or null",
+                "subject": "subject name or null",
+                "estimatedTime": number or null
+            }
+        `;
+
+        console.log("📤 Sending request to Gemini API...");
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await modelToUse.generateContent(prompt);
+        console.log("📥 Received response from Gemini");
+        const response = await result.response;
+        let text = response.text().trim();
+        console.log("📄 Raw response text:", text);
+
+        // Clean up markdown if present
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            console.log("🧹 Cleaned response text:", text);
+        }
+
+        const parsed = JSON.parse(text);
+        console.log("✅ Parsed JSON:", parsed);
+
+        // Validate and sanitize the response
+        const result_object = {
+            title: parsed.title || input,
+            difficulty: ['easy', 'medium', 'hard'].includes(parsed.difficulty) ? parsed.difficulty : 'easy',
+            deadline: parsed.deadline || null,
+            subject: parsed.subject || null,
+            estimatedTime: parsed.estimatedTime ? parseInt(parsed.estimatedTime) : null
+        };
+
+        console.log("🎁 Returning result:", result_object);
+        return result_object;
+
+    } catch (error) {
+        console.error("❌ Error parsing task input:", error);
+        console.error("Error details:", error.message);
+        console.error("Error stack:", error.stack);
+        // Fallback to original input with defaults
+        return {
+            title: input,
+            difficulty: 'easy',
+            deadline: null,
+            subject: null,
+            estimatedTime: null
+        };
+    }
+};
+
+/**
+ * Parses natural language daily log input.
+ * @param {string} input - Raw user input (e.g., "Gym for 1 hour", "Coding react app 2h 30m").
+ * @param {string[]} categories - List of available categories.
+ * @returns {Promise<Object>} - { activity, duration, category }
+ */
+export const parseLogInput = async (input, categories) => {
+    console.log("🚀 parseLogInput called with input:", input);
+
+    if (!API_KEY) {
+        console.warn("⚠️ Gemini API Key is missing.");
+        return {
+            activity: input,
+            duration: 0,
+            category: 'Other'
+        };
+    }
+
+    try {
+        const prompt = `
+            You are an expert activity logger. Analyze the following user input and extract log details.
+            
+            User Input: "${input}"
+            Available Categories: ${categories.join(', ')}
+            
+            Extract:
+            1. **activity**: Cleaned activity description (remove duration info).
+            2. **duration**: Duration in minutes (number). If not specified, estimate a reasonable duration based on the activity.
+            3. **category**: The best matching category from the available list. Default to 'Other' if unclear.
+            
+            Rules:
+            - Convert hours/minutes to total minutes (e.g., "1h 30m" -> 90).
+            - If no duration is mentioned, infer a typical duration (e.g., "Gym" -> 60, "Lunch" -> 30).
+            - Strictly use one of the provided categories.
+            
+            Reply with ONLY a JSON object:
+            {
+                "activity": "cleaned activity name",
+                "duration": number,
+                "category": "CategoryName"
+            }
+        `;
+
+        console.log("📤 Sending request to Gemini API...");
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await modelToUse.generateContent(prompt);
+        console.log("📥 Received response from Gemini");
+
+        const response = await result.response;
+        let text = response.text().trim();
+        console.log("📄 Raw response text:", text);
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        const parsed = JSON.parse(text);
+        console.log("✅ Parsed JSON:", parsed);
+
+        return {
+            activity: parsed.activity || input,
+            duration: parsed.duration || 0,
+            category: categories.includes(parsed.category) ? parsed.category : 'Other'
+        };
+
+    } catch (error) {
+        console.error("❌ Error parsing log input:", error);
+        return {
+            activity: input,
+            duration: 0,
+            category: 'Other'
+        };
     }
 };
