@@ -9,6 +9,7 @@ import VisionBoard from './components/VisionBoard';
 import DailyLog from './components/DailyLog';
 import AuthModal from './components/AuthModal';
 import PersonaAvatar from './components/PersonaAvatar';
+import FocusTimer from './components/FocusTimer';
 import { suggestDifficulty, getPersonalizedAdvice, getPersonaReaction } from './services/gemini';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabase';
@@ -64,8 +65,9 @@ function App() {
     }
   });
   const [activeTab, setActiveTab] = useState('garden'); // 'garden', 'calendar', 'focus', 'vision'
+  const [currentFocusTask, setCurrentFocusTask] = useState(null);
 
-  const [penguinMode, setPenguinMode] = useState(false);
+  const [displayMode, setDisplayMode] = useState('minimal'); // 'demon', 'penguin', 'minimal'
 
   // Persona State
   const [personaMessage, setPersonaMessage] = useState('');
@@ -167,7 +169,7 @@ function App() {
       if (profile) {
         setCoins(profile.coins);
         setUnlockedPlots(profile.unlocked_plots);
-        setPenguinMode(profile.penguin_mode);
+        setDisplayMode(profile.display_mode || 'minimal');
       }
 
       // 2. Tasks
@@ -221,11 +223,13 @@ function App() {
 
   // Theme Toggle
   const toggleSound = () => setSoundEnabled(!soundEnabled);
-  const togglePenguinMode = async () => {
-    const newMode = !penguinMode;
-    setPenguinMode(newMode);
+  const cycleDisplayMode = async () => {
+    const modes = ['demon', 'penguin', 'minimal'];
+    const currentIndex = modes.indexOf(displayMode);
+    const newMode = modes[(currentIndex + 1) % modes.length];
+    setDisplayMode(newMode);
     if (user) {
-      await supabase.from('profiles').update({ penguin_mode: newMode }).eq('id', user.id);
+      await supabase.from('profiles').update({ display_mode: newMode }).eq('id', user.id);
     }
   };
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -241,7 +245,7 @@ function App() {
 
     // Slight delay to feel natural
     setTimeout(async () => {
-      const reaction = await getPersonaReaction(action, taskTitle, penguinMode ? 'penguin' : 'demon');
+      const reaction = await getPersonaReaction(action, taskTitle, displayMode === 'penguin' ? 'penguin' : 'demon');
       setPersonaMessage(reaction);
       setIsPersonaTyping(false);
 
@@ -411,6 +415,11 @@ function App() {
     }
   };
 
+  const handleStartFocus = (task) => {
+    setCurrentFocusTask(task);
+    setActiveTab('focus');
+  };
+
   const buyPlot = async () => {
     const cost = 50;
     if (coins >= cost) {
@@ -507,7 +516,7 @@ function App() {
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {/* Persona Avatar */}
             <PersonaAvatar
-              mode={penguinMode ? 'penguin' : 'demon'}
+              mode={displayMode === 'penguin' ? 'penguin' : 'demon'}
               message={personaMessage}
               isTyping={isPersonaTyping}
             />
@@ -543,13 +552,17 @@ function App() {
               <span>{coins}</span>
             </div>
 
-            {/* Penguin Mode Toggle */}
+            {/* Display Mode Toggle */}
             <button
-              onClick={togglePenguinMode}
-              className={`p-2.5 sm:p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group ${penguinMode ? 'bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800' : 'bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700'}`}
-              title="Toggle Penguin Mode"
+              onClick={cycleDisplayMode}
+              className="p-2.5 sm:p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 group"
+              title={`Mode: ${displayMode === 'demon' ? 'Demon' : displayMode === 'penguin' ? 'Penguin' : 'Minimal'} (Click to cycle)`}
             >
-              <span className="text-lg sm:text-xl">{penguinMode ? '🐧' : '👿'}</span>
+              <span className="text-lg sm:text-xl">
+                {displayMode === 'demon' && '👿'}
+                {displayMode === 'penguin' && '🐧'}
+                {displayMode === 'minimal' && '📋'}
+              </span>
             </button>
 
             <button
@@ -570,13 +583,13 @@ function App() {
         </header>
 
         <nav className="flex justify-center gap-2 sm:gap-4 mb-4 sm:mb-8 flex-wrap overflow-x-auto p-2">
-          {['garden', 'calendar', 'dailylog', 'vision'].map(tab => (
+          {['garden', 'focus', 'calendar', 'dailylog', 'vision'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 sm:px-6 py-2 rounded-full font-bold transition-all border capitalize text-sm sm:text-base whitespace-nowrap ${activeTab === tab ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
             >
-              {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'garden' ? 'My Tasks' : tab}
+              {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'garden' ? 'My Tasks' : tab === 'focus' ? 'Focus Mode' : tab}
             </button>
           ))}
         </nav>
@@ -610,7 +623,8 @@ function App() {
                 existingSubjects={existingSubjects}
                 unlockedPlots={unlockedPlots}
                 onBuyPlot={buyPlot}
-                penguinMode={penguinMode}
+                displayMode={displayMode}
+                onStartFocus={handleStartFocus}
               />
             </>
           )}
@@ -635,6 +649,23 @@ function App() {
               onDeleteLog={deleteActivityLog}
               tasks={tasks}
             />
+          )}
+
+          {activeTab === 'focus' && (
+            <div className="max-w-2xl mx-auto">
+              <FocusTimer onComplete={(minutes) => {
+                const reward = minutes;
+                setCoins(prev => {
+                  const newCoins = prev + reward;
+                  if (user) supabase.from('profiles').update({ coins: newCoins }).eq('id', user.id).then();
+                  return newCoins;
+                });
+                if (soundEnabled) playComplete();
+                triggerPersonaReaction('complete', `Focus Session (${minutes}m)`);
+              }}
+                initialTask={currentFocusTask}
+              />
+            </div>
           )}
         </main>
       </div>

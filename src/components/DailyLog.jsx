@@ -72,6 +72,18 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
         return () => clearInterval(interval);
     }, [isFocusing, focusStartTime]);
 
+    // Prevent body scroll when focusing
+    useEffect(() => {
+        if (isFocusing) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isFocusing]);
+
     const handleOpenFocusModal = () => {
         setShowFocusModal(true);
     };
@@ -556,17 +568,12 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
                     >
-                        {/* Video Background */}
-                        <video
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            className="absolute inset-0 w-full h-full object-cover"
-                            style={{ filter: 'brightness(0.6)' }}
-                        >
-                            <source src="https://cdn.pixabay.com/video/2023/08/25/177336-858525066_large.mp4" type="video/mp4" />
-                        </video>
+                        {/* Background Image */}
+                        <img
+                            src="/cozy-cafe.png"
+                            alt="Cozy Cafe"
+                            className="absolute inset-0 w-full h-full object-cover opacity-80"
+                        />
 
                         {/* Audio */}
                         <audio
@@ -574,8 +581,23 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                             loop
                             muted={isMuted}
                         >
-                            <source src="https://cdn.pixabay.com/download/audio/2022/05/13/audio_0c647d3116.mp3" type="audio/mpeg" />
+                            <source src="https://cdn.pixabay.com/audio/2022/05/13/audio_2fe7f89e90.mp3" type="audio/mpeg" />
                         </audio>
+
+                        {/* YouTube Music Player (optional) */}
+                        <div className="absolute bottom-8 right-8 z-10">
+                            <iframe
+                                width="200"
+                                height="113"
+                                src="https://www.youtube.com/embed/9a8eBDuc3uA?autoplay=1&loop=1&playlist=9a8eBDuc3uA&controls=1"
+                                title="Lofi Music"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                className="rounded-lg shadow-lg opacity-80 hover:opacity-100 transition-opacity"
+                            ></iframe>
+                        </div>
+
 
                         {/* Overlay Content */}
                         <div className="relative z-10 flex flex-col items-center justify-center h-full">
@@ -595,16 +617,16 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                                     }}
                                     className="mb-8"
                                 >
-                                    <div className="text-white/90 text-lg font-medium mb-4 drop-shadow-lg">
+                                    <div className="text-white/90 text-2xl font-medium mb-4 drop-shadow-lg px-6 py-3 rounded-2xl bg-gradient-to-r from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20">
                                         {focusActivity}
                                     </div>
-                                    <div className="text-white text-8xl font-bold tracking-wider font-mono drop-shadow-2xl">
+                                    <div className="text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-purple-100 text-9xl font-bold tracking-wider font-mono drop-shadow-2xl">
                                         {formatElapsedTime(elapsedSeconds)}
                                     </div>
                                 </motion.div>
 
-                                <div className="flex items-center gap-2 text-white/80 text-sm mb-12">
-                                    <span className="px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm drop-shadow-lg">
+                                <div className="flex items-center gap-2 text-white/90 text-sm mb-12">
+                                    <span className="px-4 py-2 bg-gradient-to-r from-white/20 via-white/10 to-white/20 rounded-full backdrop-blur-md drop-shadow-lg border border-white/30 font-medium">
                                         {focusCategory}
                                     </span>
                                 </div>
@@ -612,7 +634,7 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                                 <div className="flex items-center gap-4">
                                     <button
                                         onClick={handleStopFocus}
-                                        className="px-8 py-4 bg-white/20 hover:bg-white/30 text-white rounded-2xl font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-3 border border-white/30"
+                                        className="px-8 py-4 bg-gradient-to-r from-white/20 via-white/15 to-white/20 hover:from-white/30 hover:via-white/25 hover:to-white/30 text-white rounded-2xl font-bold transition-all shadow-lg backdrop-blur-md flex items-center gap-3 border border-white/40"
                                     >
                                         <Square className="w-6 h-6" />
                                         Stop & Log Session
@@ -620,7 +642,7 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
 
                                     <button
                                         onClick={() => setIsMuted(!isMuted)}
-                                        className="p-4 bg-white/20 hover:bg-white/30 text-white rounded-2xl font-bold transition-all shadow-lg backdrop-blur-md border border-white/30"
+                                        className="p-4 bg-gradient-to-r from-white/20 via-white/15 to-white/20 hover:from-white/30 hover:via-white/25 hover:to-white/30 text-white rounded-2xl font-bold transition-all shadow-lg backdrop-blur-md border border-white/40"
                                         title={isMuted ? "Unmute" : "Mute"}
                                     >
                                         {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}

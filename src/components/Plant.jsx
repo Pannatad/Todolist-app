@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ghost, Skull, Flame, X, Edit2, Sparkles } from 'lucide-react';
+import { Ghost, Skull, Flame, X, Edit2, Sparkles, Play } from 'lucide-react';
 import Penguin from './Penguin';
 import { getColorForSubject } from '../constants/subjects';
 
-const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], penguinMode }) => {
+const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], displayMode, onStartFocus }) => {
     const { status, difficulty, title, deadline, subject } = task;
     const [timeLeft, setTimeLeft] = React.useState('');
     const [showEditModal, setShowEditModal] = React.useState(false);
@@ -199,7 +199,117 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
         );
     };
 
-    return (
+    // Minimal Mode Rendering
+    const getMinimalContent = () => {
+        const difficultyColors = {
+            easy: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700',
+            medium: 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700',
+            hard: 'bg-rose-50 dark:bg-rose-900/20 border-rose-300 dark:border-rose-700'
+        };
+
+        const difficultyTextColors = {
+            easy: 'text-emerald-700 dark:text-emerald-300',
+            medium: 'text-amber-700 dark:text-amber-300',
+            hard: 'text-rose-700 dark:text-rose-300'
+        };
+
+        return (
+            <motion.div
+                layout
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className={`relative p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all w-full h-32 flex flex-col ${difficultyColors[difficulty]} ${status === 'harvested' ? 'opacity-50' : ''} group`}
+                onClick={() => status !== 'harvested' && onComplete(task.id)}
+            >
+                {/* Delete Button */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(task.id);
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-white/80 dark:bg-black/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    title="Delete Task"
+                >
+                    <X size={14} strokeWidth={2.5} />
+                </button>
+
+                {/* Edit Button */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setEditForm({
+                            difficulty: task.difficulty,
+                            subject: task.subject || '',
+                            deadline: task.deadline || ''
+                        });
+                        setShowEditModal(true);
+                    }}
+                    className="absolute top-2 right-10 p-1 bg-white/80 dark:bg-black/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    title="Edit Task"
+                >
+                    <Edit2 size={14} strokeWidth={2.5} />
+                </button>
+
+                {/* Focus Button */}
+                {onStartFocus && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onStartFocus(task);
+                        }}
+                        className="absolute top-2 right-20 p-1 bg-white/80 dark:bg-black/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-600 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                        title="Start Focus Session"
+                    >
+                        <Play size={14} strokeWidth={2.5} fill="currentColor" />
+                    </button>
+                )}
+
+                {/* Task Title */}
+                <h3 className={`font-bold text-sm mb-2 line-clamp-2 ${difficultyTextColors[difficulty]} ${status === 'harvested' ? 'line-through' : ''}`}>
+                    {title}
+                </h3>
+
+                {/* Subject Badge */}
+                {subject && (
+                    <div className="flex items-center gap-2 mb-2">
+                        <span
+                            className="px-2 py-0.5 rounded-full text-xs font-bold"
+                            style={{
+                                backgroundColor: subjectColor.bgColor,
+                                color: subjectColor.color
+                            }}
+                        >
+                            {subject}
+                        </span>
+                    </div>
+                )}
+
+                {/* Due Date & Estimate Time */}
+                <div className="flex flex-wrap gap-2 text-xs mt-auto">
+                    {deadline && (
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 border ${difficultyTextColors[difficulty]}`}>
+                            <span className="font-medium">📅</span>
+                            <span className="font-medium">{timeLeft || calculateTimeLeft()}</span>
+                        </div>
+                    )}
+                    {task.estimatedTime && (
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 border ${difficultyTextColors[difficulty]}`}>
+                            <span className="font-medium">⏱</span>
+                            <span className="font-medium">
+                                {Math.floor(task.estimatedTime / 60) > 0 && `${Math.floor(task.estimatedTime / 60)}h `}
+                                {task.estimatedTime % 60}m
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        );
+    };
+
+    // Demon/Penguin Mode Rendering
+    const getStandardContent = () => (
         <motion.div
             layout
             initial={{ scale: 0, opacity: 0, y: 20 }}
@@ -211,13 +321,13 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
         >
             {/* Plant Visual Container */}
             <div className="relative w-28 h-28 flex items-center justify-center">
-                {/* Base/Soil - Changed to a Summoning Circle style or just dark base */}
+                {/* Base/Soil */}
                 <div className={`absolute bottom-0 w-24 h-24 rounded-full ${status === 'harvested' ? 'bg-purple-900/30' : 'bg-gray-200 dark:bg-gray-800'} shadow-inner transition-colors duration-300`}>
                 </div>
 
                 {/* Icon (Demon or Penguin) */}
                 <div className="relative z-10 mb-2 flex items-center justify-center h-full w-full">
-                    {penguinMode ? (
+                    {displayMode === 'penguin' ? (
                         <Penguin stage={status} level={getUrgencyLevel()} difficulty={difficulty} />
                     ) : (
                         getTaskVisual()
@@ -236,19 +346,19 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     )}
                 </div>
 
-                {/* Delete Button - Appears on Hover (desktop) or Always Visible (mobile) */}
+                {/* Delete Button */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         onDelete(task.id);
                     }}
-                    className="absolute top-0 right-0 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
-                    title="Banish Forever"
+                    className="absolute top-2 right-2 p-1 bg-white/80 dark:bg-black/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    title="Delete Task"
                 >
-                    <X size={12} strokeWidth={3} />
+                    <X size={14} strokeWidth={2.5} />
                 </button>
 
-                {/* Edit Button - Appears on Hover (desktop) or Always Visible (mobile) */}
+                {/* Edit Button */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -259,13 +369,27 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                         });
                         setShowEditModal(true);
                     }}
-                    className="absolute top-0 right-8 p-1.5 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-2 right-10 p-1 bg-white/80 dark:bg-black/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
                     title="Edit Task"
                 >
-                    <Edit2 size={12} strokeWidth={3} />
+                    <Edit2 size={14} strokeWidth={2.5} />
                 </button>
 
-                {/* AI Help Button - Always visible */}
+                {/* Focus Button */}
+                {onStartFocus && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onStartFocus(task);
+                        }}
+                        className="absolute top-2 right-20 p-1 bg-white/80 dark:bg-black/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-600 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                        title="Start Focus Session"
+                    >
+                        <Play size={14} strokeWidth={2.5} fill="currentColor" />
+                    </button>
+                )}
+
+                {/* AI Help Button */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -315,8 +439,14 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     </>
                 )}
             </div>
+        </motion.div>
+    );
 
-            {/* Edit Modal */}
+    return (
+        <>
+            {displayMode === 'minimal' ? getMinimalContent() : getStandardContent()}
+
+            {/* Shared Edit Modal */}
             <AnimatePresence>
                 {showEditModal && (
                     <motion.div
@@ -406,7 +536,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     </motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </>
     );
 };
 
