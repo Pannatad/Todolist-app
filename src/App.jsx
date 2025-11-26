@@ -269,12 +269,13 @@ function App() {
     const newTask = {
       id: user ? undefined : Date.now(), // Let Supabase generate UUID if logged in, else timestamp
       title,
+      description: null,
       difficulty,
       subject: subject || 'other',
       deadline,
       estimated_time: estimatedTime, // Note: snake_case for DB
       estimatedTime: estimatedTime, // camelCase for local app (legacy)
-      status: 'seed',
+      status: 'growing',  // Auto-summon entities on task creation
       created_at: new Date().toISOString(),
       user_id: user?.id
     };
@@ -356,6 +357,25 @@ function App() {
     if (user) {
       await supabase.from('tasks').update(updates).eq('id', id);
     }
+  };
+
+  const restoreTask = async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.status !== 'harvested') return;
+
+    // Restore task to growing status
+    const updates = { status: 'growing', completed_at: null };
+
+    setTasks(tasks.map(t =>
+      t.id === id ? { ...t, ...updates, completedAt: null } : t
+    ));
+
+    if (user) {
+      await supabase.from('tasks').update(updates).eq('id', id);
+    }
+
+    // Optional: Play sound
+    if (soundEnabled) playPlant();
   };
 
   const deleteTask = async (id) => {
@@ -510,7 +530,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-cream-50 dark:bg-void-950 text-ink-800 dark:text-bone-100 transition-colors duration-1000 ease-in-out">
+    <div className={`min-h-screen bg-cream-50 dark:bg-void-950 text-ink-800 dark:text-bone-100 transition-colors duration-1000 ease-in-out mode-${displayMode}`}>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-8">
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
@@ -615,6 +635,7 @@ function App() {
                 onCompleteTask={completeTask}
                 onDeleteTask={deleteTask}
                 onUpdateTask={updateTask}
+                onRestoreTask={restoreTask}
                 onRequestAIHelp={handleRequestAIHelp}
                 existingSubjects={existingSubjects}
                 unlockedPlots={unlockedPlots}

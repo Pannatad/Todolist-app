@@ -1,17 +1,22 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ghost, Skull, Flame, X, Edit2, Sparkles, Play } from 'lucide-react';
+import { Ghost, Skull, Flame, X, Edit2, Sparkles, Play, Loader2 } from 'lucide-react';
 import Penguin from './Penguin';
 import { getColorForSubject } from '../constants/subjects';
+import { parseTaskInput } from '../services/gemini';
 
 const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], displayMode, onStartFocus }) => {
-    const { status, difficulty, title, deadline, subject } = task;
+    const { status, difficulty, title, deadline, subject, description } = task;
     const [timeLeft, setTimeLeft] = React.useState('');
     const [showEditModal, setShowEditModal] = React.useState(false);
+    const [isAnalyzing, setIsAnalyzing] = React.useState(false);
     const [editForm, setEditForm] = React.useState({
+        title: title,
+        description: description || '',
         difficulty: difficulty,
         subject: subject || '',
-        deadline: deadline || ''
+        deadline: deadline || '',
+        estimatedTime: task.estimatedTime || task.estimated_time || 0
     });
     const subjectColor = getColorForSubject(subject);
 
@@ -34,6 +39,31 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
         timeString += `${minutes}m`;
 
         return timeString;
+    };
+
+    // AI Analysis Handler
+    const handleAnalyzeTask = async () => {
+        setIsAnalyzing(true);
+        try {
+            // Analyze the task title to get suggestions
+            const analysis = await parseTaskInput(editForm.title);
+
+            if (analysis) {
+                setEditForm(prev => ({
+                    ...prev,
+                    title: analysis.title || prev.title,
+                    difficulty: analysis.difficulty || prev.difficulty,
+                    subject: analysis.subject || prev.subject,
+                    deadline: analysis.deadline || prev.deadline,
+                    estimatedTime: analysis.estimatedTime || prev.estimatedTime
+                    // Description is preserved
+                }));
+            }
+        } catch (error) {
+            console.error('Error analyzing task:', error);
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
     // Helper to get urgency level based on time left
@@ -221,7 +251,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className={`relative p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all w-full h-32 flex flex-col ${difficultyColors[difficulty]} ${status === 'harvested' ? 'opacity-50' : ''} group`}
-                onClick={() => status !== 'harvested' && onComplete(task.id)}
+                onClick={() => onComplete(task.id)}
             >
                 {/* Delete Button */}
                 <button
@@ -240,9 +270,12 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     onClick={(e) => {
                         e.stopPropagation();
                         setEditForm({
+                            title: task.title,
+                            description: task.description || '',
                             difficulty: task.difficulty,
                             subject: task.subject || '',
-                            deadline: task.deadline || ''
+                            deadline: task.deadline || '',
+                            estimatedTime: task.estimatedTime || task.estimated_time || 0
                         });
                         setShowEditModal(true);
                     }}
@@ -317,7 +350,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
             whileHover={{ scale: 1.05, y: -5 }}
             transition={{ type: "spring", stiffness: 300, damping: 15 }}
             className="flex flex-col items-center justify-end relative w-32 min-h-40 h-auto cursor-pointer group pb-2"
-            onClick={() => status !== 'harvested' && onComplete(task.id)}
+            onClick={() => onComplete(task.id)}
         >
             {/* Plant Visual Container */}
             <div className="relative w-28 h-28 flex items-center justify-center">
@@ -363,9 +396,12 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     onClick={(e) => {
                         e.stopPropagation();
                         setEditForm({
+                            title: task.title,
+                            description: task.description || '',
                             difficulty: task.difficulty,
                             subject: task.subject || '',
-                            deadline: task.deadline || ''
+                            deadline: task.deadline || '',
+                            estimatedTime: task.estimatedTime || task.estimated_time || 0
                         });
                         setShowEditModal(true);
                     }}
@@ -463,13 +499,41 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                             className="bg-white dark:bg-void-900 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border border-white/10"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <h3 className="text-xl font-bold text-sage-800 dark:text-bone-200 mb-4">Edit Task</h3>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold text-sage-800 dark:text-bone-200">Edit Task</h3>
+                                <button
+                                    onClick={handleAnalyzeTask}
+                                    disabled={isAnalyzing}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isAnalyzing ? 'bg-sage-100 text-sage-400' : 'bg-purple-100 text-purple-600 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300'}`}
+                                >
+                                    {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                    {isAnalyzing ? 'Analyzing...' : 'Auto-Analyze'}
+                                </button>
+                            </div>
 
                             <div className="space-y-4">
-                                {/* Task Title (Read-only) */}
+                                {/* Task Title (Editable) */}
                                 <div>
                                     <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">Task</label>
-                                    <p className="text-base font-medium text-sage-800 dark:text-bone-200 bg-sage-50 dark:bg-void-800 p-3 rounded-lg break-words whitespace-normal">{title}</p>
+                                    <input
+                                        type="text"
+                                        value={editForm.title}
+                                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400 font-medium"
+                                        placeholder="Task Name"
+                                    />
+                                </div>
+
+                                {/* Description (Editable) */}
+                                <div>
+                                    <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">Description</label>
+                                    <textarea
+                                        value={editForm.description}
+                                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400 font-medium resize-none"
+                                        placeholder="Add a description..."
+                                        rows={3}
+                                    />
                                 </div>
 
                                 {/* Difficulty */}
@@ -508,6 +572,18 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                                         className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400"
                                     />
                                 </div>
+
+                                {/* Estimated Time */}
+                                <div>
+                                    <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">Estimated Time (minutes)</label>
+                                    <input
+                                        type="number"
+                                        value={editForm.estimatedTime}
+                                        onChange={(e) => setEditForm({ ...editForm, estimatedTime: parseInt(e.target.value) || 0 })}
+                                        placeholder="e.g. 30"
+                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400"
+                                    />
+                                </div>
                             </div>
 
                             {/* Buttons */}
@@ -521,9 +597,12 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                                 <button
                                     onClick={() => {
                                         onUpdate(task.id, {
+                                            title: editForm.title,
+                                            description: editForm.description || null,
                                             difficulty: editForm.difficulty,
                                             subject: editForm.subject || null,
-                                            deadline: editForm.deadline || null
+                                            deadline: editForm.deadline || null,
+                                            estimatedTime: editForm.estimatedTime || 0
                                         });
                                         setShowEditModal(false);
                                     }}

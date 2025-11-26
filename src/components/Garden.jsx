@@ -4,7 +4,7 @@ import { ArrowUpDown, ChevronDown } from 'lucide-react';
 import Plant from './Plant';
 import { getColorForSubject } from '../constants/subjects';
 
-const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRequestAIHelp, existingSubjects = [], unlockedPlots = 12, coins = 0, onBuyPlot, displayMode, onStartFocus }) => {
+const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [], unlockedPlots = 12, coins = 0, onBuyPlot, displayMode, onStartFocus }) => {
     const [sortBy, setSortBy] = useState('deadline');
     const [showSort, setShowSort] = useState(false);
     const [selectedSubject, setSelectedSubject] = useState('all');
@@ -180,10 +180,10 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRequestAI
 
                 {completedTasks.length > 0 && (
                     <div className="border-t border-sage-200 dark:border-white/10 pt-6 sm:pt-8">
-                        <h2 className="text-xl sm:text-2xl font-serif text-sage-400 dark:text-bone-200/50 mb-4 sm:mb-6 pl-2">Banished Souls</h2>
+                        <h2 className="text-xl sm:text-2xl font-serif text-sage-400 dark:text-bone-200/50 mb-4 sm:mb-6 pl-2">Banished Souls (Click to Restore)</h2>
                         <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-3 sm:gap-4 opacity-60 hover:opacity-100 transition-opacity">
                             {completedTasks.map(task => (
-                                <Plant key={`harvested-${task.id}`} task={task} onComplete={() => { }} onDelete={onDeleteTask} onUpdate={onUpdateTask} onRequestAIHelp={onRequestAIHelp} existingSubjects={existingSubjects} displayMode={displayMode} />
+                                <Plant key={`harvested-${task.id}`} task={task} onComplete={onRestoreTask} onDelete={onDeleteTask} onUpdate={onUpdateTask} onRequestAIHelp={onRequestAIHelp} existingSubjects={existingSubjects} displayMode={displayMode} />
                             ))}
                         </div>
                     </div>

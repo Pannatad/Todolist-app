@@ -131,7 +131,7 @@ const FocusTimer = ({ onComplete, initialTask }) => {
             <audio ref={audioRef} loop src="https://cdn.pixabay.com/audio/2022/05/13/audio_2fe7f89e90.mp3" />
 
             {/* YouTube Music Player (hidden) */}
-            <div className="absolute bottom-4 right-4 z-30">
+            <div className="absolute bottom-4 right-4 z-[5]">
                 <iframe
                     width="200"
                     height="113"
