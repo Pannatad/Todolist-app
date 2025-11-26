@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import GoalCard from './GoalCard';
 import GoalModal from './GoalModal';
 
-const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal }) => {
+const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighlights, onUpdateHighlight }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingGoal, setEditingGoal] = useState(null);
 
@@ -27,6 +27,66 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal }) => {
         setEditingGoal(null);
     };
 
+    // Colors for the week - User liked these!
+    const dayColors = [
+        {
+            bg: 'bg-rose-50 dark:bg-rose-900/20',
+            border: 'border-rose-200 dark:border-rose-800',
+            text: 'text-rose-800 dark:text-rose-200',
+            boxBg: 'bg-rose-100 dark:bg-rose-900/40',
+            boxBorder: 'border-rose-300 dark:border-rose-700',
+            ring: 'ring-rose-400'
+        },
+        {
+            bg: 'bg-orange-50 dark:bg-orange-900/20',
+            border: 'border-orange-200 dark:border-orange-800',
+            text: 'text-orange-800 dark:text-orange-200',
+            boxBg: 'bg-orange-100 dark:bg-orange-900/40',
+            boxBorder: 'border-orange-300 dark:border-orange-700',
+            ring: 'ring-orange-400'
+        },
+        {
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            border: 'border-amber-200 dark:border-amber-800',
+            text: 'text-amber-800 dark:text-amber-200',
+            boxBg: 'bg-amber-100 dark:bg-amber-900/40',
+            boxBorder: 'border-amber-300 dark:border-amber-700',
+            ring: 'ring-amber-400'
+        },
+        {
+            bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+            border: 'border-emerald-200 dark:border-emerald-800',
+            text: 'text-emerald-800 dark:text-emerald-200',
+            boxBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+            boxBorder: 'border-emerald-300 dark:border-emerald-700',
+            ring: 'ring-emerald-400'
+        },
+        {
+            bg: 'bg-teal-50 dark:bg-teal-900/20',
+            border: 'border-teal-200 dark:border-teal-800',
+            text: 'text-teal-800 dark:text-teal-200',
+            boxBg: 'bg-teal-100 dark:bg-teal-900/40',
+            boxBorder: 'border-teal-300 dark:border-teal-700',
+            ring: 'ring-teal-400'
+        },
+        {
+            bg: 'bg-cyan-50 dark:bg-cyan-900/20',
+            border: 'border-cyan-200 dark:border-cyan-800',
+            text: 'text-cyan-800 dark:text-cyan-200',
+            boxBg: 'bg-cyan-100 dark:bg-cyan-900/40',
+            boxBorder: 'border-cyan-300 dark:border-cyan-700',
+            ring: 'ring-cyan-400'
+        },
+        {
+            bg: 'bg-indigo-50 dark:bg-indigo-900/20',
+            border: 'border-indigo-200 dark:border-indigo-800',
+            text: 'text-indigo-800 dark:text-indigo-200',
+            boxBg: 'bg-indigo-100 dark:bg-indigo-900/40',
+            boxBorder: 'border-indigo-300 dark:border-indigo-700',
+            ring: 'ring-indigo-400'
+        },
+    ];
+
     return (
         <div className="w-full">
             {/* Header */}
@@ -37,6 +97,79 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal }) => {
                 <p className="text-sage-500 dark:text-bone-200/60 italic">
                     Your long-term goals and dreams
                 </p>
+            </div>
+
+            {/* Weekly Focus (7 Days Vertical) */}
+            <div className="mb-12 space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-sage-100 dark:bg-sage-900/30 p-2 rounded-lg">
+                        <span className="text-2xl">📅</span>
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-bold text-sage-700 dark:text-bone-200">
+                            Weekly Focus
+                        </h3>
+                        <p className="text-sage-500 dark:text-bone-200/60 font-medium">Plan your main goals for the week</p>
+                    </div>
+                </div>
+
+                {Array.from({ length: 7 }).map((_, dayIndex) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() + dayIndex);
+                    const dateKey = date.toISOString().split('T')[0];
+                    const isToday = dayIndex === 0;
+                    const colorTheme = dayColors[dayIndex % dayColors.length];
+
+                    return (
+                        <div
+                            key={dateKey}
+                            className={`rounded-2xl p-6 border-2 transition-all ${colorTheme.bg} ${colorTheme.border} ${isToday ? `ring-2 ring-offset-2 ${colorTheme.ring}` : ''}`}
+                        >
+                            {/* Date Header */}
+                            <div className="mb-4 flex items-center gap-3">
+                                <h4 className={`text-lg font-bold px-3 py-1 rounded-lg border shadow-sm inline-block bg-white/80 dark:bg-void-900/80 ${colorTheme.text} ${colorTheme.border}`}>
+                                    {date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' })}
+                                </h4>
+                                {isToday && (
+                                    <span className={`text-xs font-bold px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 ${colorTheme.text}`}>
+                                        Today
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* 3 Goal Boxes */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {[0, 1, 2].map((goalIndex) => {
+                                    const uniqueKey = `${dateKey}_${goalIndex}`;
+
+                                    return (
+                                        <div
+                                            key={uniqueKey}
+                                            className={`relative group min-h-[80px] rounded-xl border-2 p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md ${colorTheme.boxBg} ${colorTheme.boxBorder}`}
+                                            onClick={() => {
+                                                const text = prompt(`Enter goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, dailyHighlights?.[uniqueKey] || '');
+                                                if (text !== null) {
+                                                    onUpdateHighlight(uniqueKey, text);
+                                                }
+                                            }}
+                                        >
+                                            {dailyHighlights?.[uniqueKey] ? (
+                                                <p className={`text-center font-bold text-lg leading-tight ${colorTheme.text}`}>
+                                                    {dailyHighlights[uniqueKey]}
+                                                </p>
+                                            ) : (
+                                                <div className={`flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity ${colorTheme.text}`}>
+                                                    <span className="text-lg">✨</span>
+                                                    <span className="font-bold">Add Goal {goalIndex + 1}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Masonry Grid */}

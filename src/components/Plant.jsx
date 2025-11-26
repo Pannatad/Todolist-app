@@ -300,7 +300,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 )}
 
                 {/* Task Title */}
-                <h3 className={`font-bold text-sm mb-2 line-clamp-2 ${difficultyTextColors[difficulty]} ${status === 'harvested' ? 'line-through' : ''}`}>
+                <h3 className={`font-bold text-sm mb-2 line-clamp-2 pr-24 ${difficultyTextColors[difficulty]} ${status === 'harvested' ? 'line-through' : ''}`}>
                     {title}
                 </h3>
 

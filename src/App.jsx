@@ -85,6 +85,21 @@ function App() {
     }
   });
 
+  // Daily Highlights State
+  const [dailyHighlights, setDailyHighlights] = useState(() => {
+    try {
+      const saved = localStorage.getItem('daily-highlights');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Failed to parse daily highlights:", e);
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('daily-highlights', JSON.stringify(dailyHighlights));
+  }, [dailyHighlights]);
+
   // Daily Log State
   const [activityLogs, setActivityLogs] = useState(() => {
     try {
@@ -656,6 +671,13 @@ function App() {
               onAddGoal={addGoal}
               onUpdateGoal={updateGoal}
               onDeleteGoal={deleteGoal}
+              dailyHighlights={dailyHighlights}
+              onUpdateHighlight={(index, text) => {
+                setDailyHighlights(prev => ({
+                  ...prev,
+                  [index]: text
+                }));
+              }}
             />
           )}
 
