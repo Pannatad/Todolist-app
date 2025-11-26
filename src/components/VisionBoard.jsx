@@ -141,24 +141,53 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {[0, 1, 2].map((goalIndex) => {
                                     const uniqueKey = `${dateKey}_${goalIndex}`;
+                                    const rawData = dailyHighlights?.[uniqueKey];
+                                    const goalData = typeof rawData === 'string'
+                                        ? { text: rawData, completed: false }
+                                        : (rawData || null);
 
                                     return (
                                         <div
                                             key={uniqueKey}
-                                            className={`relative group min-h-[80px] rounded-xl border-2 p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md ${colorTheme.boxBg} ${colorTheme.boxBorder}`}
-                                            onClick={() => {
-                                                const text = prompt(`Enter goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, dailyHighlights?.[uniqueKey] || '');
-                                                if (text !== null) {
-                                                    onUpdateHighlight(uniqueKey, text);
-                                                }
-                                            }}
+                                            className={`relative group min-h-[80px] rounded-xl border-2 p-4 flex flex-col items-center justify-center transition-all hover:scale-[1.02] hover:shadow-md ${colorTheme.boxBg} ${colorTheme.boxBorder} ${goalData?.completed ? 'opacity-60' : ''}`}
                                         >
-                                            {dailyHighlights?.[uniqueKey] ? (
-                                                <p className={`text-center font-bold text-lg leading-tight ${colorTheme.text}`}>
-                                                    {dailyHighlights[uniqueKey]}
-                                                </p>
+                                            {goalData ? (
+                                                <div className="w-full h-full flex flex-col items-center justify-center relative">
+                                                    {/* Checkbox - Top Right */}
+                                                    <div
+                                                        className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors z-10 ${goalData.completed ? 'bg-emerald-500 border-emerald-500 text-white' : `bg-white dark:bg-void-800 ${colorTheme.border} text-transparent hover:border-emerald-400`}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onUpdateHighlight(uniqueKey, goalData.text, !goalData.completed);
+                                                        }}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </div>
+
+                                                    <p
+                                                        className={`text-center font-bold text-lg leading-tight ${colorTheme.text} ${goalData.completed ? 'line-through decoration-2 opacity-70' : ''} cursor-pointer`}
+                                                        onClick={() => {
+                                                            const text = prompt(`Edit goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, goalData.text);
+                                                            if (text !== null) {
+                                                                onUpdateHighlight(uniqueKey, text, goalData.completed);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {goalData.text}
+                                                    </p>
+                                                </div>
                                             ) : (
-                                                <div className={`flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity ${colorTheme.text}`}>
+                                                <div
+                                                    className={`flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity ${colorTheme.text} cursor-pointer w-full h-full justify-center`}
+                                                    onClick={() => {
+                                                        const text = prompt(`Enter goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, '');
+                                                        if (text !== null) {
+                                                            onUpdateHighlight(uniqueKey, text, false);
+                                                        }
+                                                    }}
+                                                >
                                                     <span className="text-lg">✨</span>
                                                     <span className="font-bold">Add Goal {goalIndex + 1}</span>
                                                 </div>

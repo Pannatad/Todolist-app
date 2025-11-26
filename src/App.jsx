@@ -672,10 +672,10 @@ function App() {
               onUpdateGoal={updateGoal}
               onDeleteGoal={deleteGoal}
               dailyHighlights={dailyHighlights}
-              onUpdateHighlight={(index, text) => {
+              onUpdateHighlight={(index, text, completed = false) => {
                 setDailyHighlights(prev => ({
                   ...prev,
-                  [index]: text
+                  [index]: { text, completed }
                 }));
               }}
             />
