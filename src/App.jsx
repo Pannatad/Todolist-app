@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Moon, Sun, LogIn, LogOut, User } from 'lucide-react';
+import { Moon, Sun, LogIn, LogOut, User } from 'lucide-react';
 import useSound from 'use-sound';
 import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
@@ -10,6 +10,7 @@ import DailyLog from './components/DailyLog';
 import AuthModal from './components/AuthModal';
 import PersonaAvatar from './components/PersonaAvatar';
 import FocusTimer from './components/FocusTimer';
+import UserProfile from './components/UserProfile';
 import { suggestDifficulty, getPersonalizedAdvice, getPersonaReaction } from './services/gemini';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabase';
@@ -55,7 +56,7 @@ function App() {
       return 12;
     }
   });
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const soundEnabled = true; // Always enabled, no toggle needed
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const saved = localStorage.getItem('dark-mode');
@@ -222,7 +223,6 @@ function App() {
   }, [isDarkMode]);
 
   // Theme Toggle
-  const toggleSound = () => setSoundEnabled(!soundEnabled);
   const cycleDisplayMode = async () => {
     const modes = ['demon', 'penguin', 'minimal'];
     const currentIndex = modes.indexOf(displayMode);
@@ -565,12 +565,8 @@ function App() {
               </span>
             </button>
 
-            <button
-              onClick={toggleSound}
-              className="p-2.5 sm:p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
-            >
-              {soundEnabled ? <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-sage-600 dark:text-bone-200 group-hover:text-sage-800 dark:group-hover:text-magma-400 transition-colors" /> : <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />}
-            </button>
+            {/* User Profile Icon */}
+            <UserProfile />
 
             <button
               onClick={toggleDarkMode}
