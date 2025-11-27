@@ -250,7 +250,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 animate={{ scale: 1, opacity: 1 }}
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={`relative p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all w-full h-32 flex flex-col ${difficultyColors[difficulty]} ${status === 'harvested' ? 'opacity-50' : ''} group`}
+                className={`relative p-4 rounded-2xl border-2 shadow-sm hover:shadow-md transition-all w-full aspect-square flex flex-col ${difficultyColors[difficulty]} ${status === 'harvested' ? 'opacity-50' : ''} group`}
                 onClick={() => onComplete(task.id)}
             >
                 {/* Delete Button */}
@@ -270,7 +270,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     onClick={(e) => {
                         e.stopPropagation();
                         setEditForm({
-                            title: task.title,
+                            title: task.title || '',
                             description: task.description || '',
                             difficulty: task.difficulty,
                             subject: task.subject || '',
@@ -301,7 +301,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
 
                 {/* Task Title */}
                 <h3 className={`font-bold text-sm mb-2 line-clamp-2 pr-24 ${difficultyTextColors[difficulty]} ${status === 'harvested' ? 'line-through' : ''}`}>
-                    {title}
+                    {title || "Untitled Task"}
                 </h3>
 
                 {/* Subject Badge */}
@@ -396,7 +396,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     onClick={(e) => {
                         e.stopPropagation();
                         setEditForm({
-                            title: task.title,
+                            title: task.title || '',
                             description: task.description || '',
                             difficulty: task.difficulty,
                             subject: task.subject || '',
@@ -441,7 +441,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
             {/* Task Label */}
             <div className="mt-2 max-w-full px-1 flex flex-col items-center w-full gap-1">
                 <p className="text-base font-bold text-center text-sage-700 dark:text-sage-200 break-words w-full leading-tight drop-shadow-sm">
-                    {title}
+                    {title || "Untitled Task"}
                 </p>
                 {/* Subject Badge */}
                 {subject && (
@@ -596,6 +596,10 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                                 </button>
                                 <button
                                     onClick={() => {
+                                        if (!editForm.title.trim()) {
+                                            alert("Task name cannot be empty!");
+                                            return;
+                                        }
                                         onUpdate(task.id, {
                                             title: editForm.title,
                                             description: editForm.description || null,
@@ -606,7 +610,8 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                                         });
                                         setShowEditModal(false);
                                     }}
-                                    className="flex-1 px-4 py-2 bg-sage-500 hover:bg-sage-600 text-white rounded-lg font-bold transition-colors"
+                                    className={`flex-1 px-4 py-2 rounded-lg font-bold transition-colors ${!editForm.title.trim() ? 'bg-gray-300 cursor-not-allowed text-gray-500' : 'bg-sage-500 hover:bg-sage-600 text-white'}`}
+                                    disabled={!editForm.title.trim()}
                                 >
                                     Save Changes
                                 </button>

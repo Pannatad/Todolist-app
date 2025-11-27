@@ -27,64 +27,15 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
         setEditingGoal(null);
     };
 
-    // Colors for the week - User liked these!
+    // Sunset Theme Colors
     const dayColors = [
-        {
-            bg: 'bg-rose-50 dark:bg-rose-900/20',
-            border: 'border-rose-200 dark:border-rose-800',
-            text: 'text-rose-800 dark:text-rose-200',
-            boxBg: 'bg-rose-100 dark:bg-rose-900/40',
-            boxBorder: 'border-rose-300 dark:border-rose-700',
-            ring: 'ring-rose-400'
-        },
-        {
-            bg: 'bg-orange-50 dark:bg-orange-900/20',
-            border: 'border-orange-200 dark:border-orange-800',
-            text: 'text-orange-800 dark:text-orange-200',
-            boxBg: 'bg-orange-100 dark:bg-orange-900/40',
-            boxBorder: 'border-orange-300 dark:border-orange-700',
-            ring: 'ring-orange-400'
-        },
-        {
-            bg: 'bg-amber-50 dark:bg-amber-900/20',
-            border: 'border-amber-200 dark:border-amber-800',
-            text: 'text-amber-800 dark:text-amber-200',
-            boxBg: 'bg-amber-100 dark:bg-amber-900/40',
-            boxBorder: 'border-amber-300 dark:border-amber-700',
-            ring: 'ring-amber-400'
-        },
-        {
-            bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-            border: 'border-emerald-200 dark:border-emerald-800',
-            text: 'text-emerald-800 dark:text-emerald-200',
-            boxBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-            boxBorder: 'border-emerald-300 dark:border-emerald-700',
-            ring: 'ring-emerald-400'
-        },
-        {
-            bg: 'bg-teal-50 dark:bg-teal-900/20',
-            border: 'border-teal-200 dark:border-teal-800',
-            text: 'text-teal-800 dark:text-teal-200',
-            boxBg: 'bg-teal-100 dark:bg-teal-900/40',
-            boxBorder: 'border-teal-300 dark:border-teal-700',
-            ring: 'ring-teal-400'
-        },
-        {
-            bg: 'bg-cyan-50 dark:bg-cyan-900/20',
-            border: 'border-cyan-200 dark:border-cyan-800',
-            text: 'text-cyan-800 dark:text-cyan-200',
-            boxBg: 'bg-cyan-100 dark:bg-cyan-900/40',
-            boxBorder: 'border-cyan-300 dark:border-cyan-700',
-            ring: 'ring-cyan-400'
-        },
-        {
-            bg: 'bg-indigo-50 dark:bg-indigo-900/20',
-            border: 'border-indigo-200 dark:border-indigo-800',
-            text: 'text-indigo-800 dark:text-indigo-200',
-            boxBg: 'bg-indigo-100 dark:bg-indigo-900/40',
-            boxBorder: 'border-indigo-300 dark:border-indigo-700',
-            ring: 'ring-indigo-400'
-        },
+        { bg: 'bg-gradient-to-r from-red-400 to-orange-400', shadow: 'shadow-red-200 dark:shadow-none', text: 'text-white' },
+        { bg: 'bg-gradient-to-r from-orange-400 to-amber-400', shadow: 'shadow-orange-200 dark:shadow-none', text: 'text-white' },
+        { bg: 'bg-gradient-to-r from-amber-300 to-yellow-300', shadow: 'shadow-amber-200 dark:shadow-none', text: 'text-amber-900' },
+        { bg: 'bg-gradient-to-r from-yellow-200 to-lime-200', shadow: 'shadow-yellow-200 dark:shadow-none', text: 'text-lime-900' },
+        { bg: 'bg-gradient-to-r from-lime-200 to-emerald-200', shadow: 'shadow-lime-200 dark:shadow-none', text: 'text-emerald-900' },
+        { bg: 'bg-gradient-to-r from-emerald-200 to-teal-200', shadow: 'shadow-emerald-200 dark:shadow-none', text: 'text-teal-900' },
+        { bg: 'bg-gradient-to-r from-teal-200 to-cyan-200', shadow: 'shadow-teal-200 dark:shadow-none', text: 'text-cyan-900' },
     ];
 
     return (
@@ -100,7 +51,7 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
             </div>
 
             {/* Weekly Focus (7 Days Vertical) */}
-            <div className="mb-12 space-y-6">
+            <div className="mb-12 space-y-4">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="bg-sage-100 dark:bg-sage-900/30 p-2 rounded-lg">
                         <span className="text-2xl">📅</span>
@@ -118,21 +69,21 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                     date.setDate(date.getDate() + dayIndex);
                     const dateKey = date.toISOString().split('T')[0];
                     const isToday = dayIndex === 0;
-                    const colorTheme = dayColors[dayIndex % dayColors.length];
+                    const theme = dayColors[dayIndex % dayColors.length];
 
                     return (
                         <div
                             key={dateKey}
-                            className={`rounded-2xl p-6 border-2 transition-all ${colorTheme.bg} ${colorTheme.border} ${isToday ? `ring-2 ring-offset-2 ${colorTheme.ring}` : ''}`}
+                            className={`rounded-2xl p-4 sm:p-6 transition-all ${theme.bg} ${theme.shadow} shadow-lg`}
                         >
                             {/* Date Header */}
                             <div className="mb-4 flex items-center gap-3">
-                                <h4 className={`text-lg font-bold px-3 py-1 rounded-lg border shadow-sm inline-block bg-white/80 dark:bg-void-900/80 ${colorTheme.text} ${colorTheme.border}`}>
+                                <h4 className={`text-lg font-bold ${theme.text}`}>
                                     {date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' })}
                                 </h4>
                                 {isToday && (
-                                    <span className={`text-xs font-bold px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 ${colorTheme.text}`}>
-                                        Today
+                                    <span className="text-xs font-bold px-2 py-1 rounded-full bg-white/30 text-white backdrop-blur-sm">
+                                        TODAY
                                     </span>
                                 )}
                             </div>
@@ -149,27 +100,45 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                                     return (
                                         <div
                                             key={uniqueKey}
-                                            className={`relative group min-h-[80px] rounded-xl border-2 p-4 flex flex-col items-center justify-center transition-all hover:scale-[1.02] hover:shadow-md ${colorTheme.boxBg} ${colorTheme.boxBorder} ${goalData?.completed ? 'opacity-60' : ''}`}
+                                            className={`relative group min-h-[60px] rounded-xl flex items-center justify-center transition-all 
+                                                ${goalData
+                                                    ? 'bg-white shadow-sm hover:shadow-md'
+                                                    : 'border-2 border-dashed border-white/40 hover:bg-white/10 cursor-pointer'
+                                                }
+                                            `}
+                                            onClick={() => {
+                                                if (!goalData) {
+                                                    const text = prompt(`Enter goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, '');
+                                                    if (text !== null) {
+                                                        onUpdateHighlight(uniqueKey, text, false);
+                                                    }
+                                                }
+                                            }}
                                         >
                                             {goalData ? (
-                                                <div className="w-full h-full flex flex-col items-center justify-center relative">
-                                                    {/* Checkbox - Top Right */}
+                                                <div className="w-full h-full flex items-center px-4 py-3 gap-3">
+                                                    {/* Checkbox */}
                                                     <div
-                                                        className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors z-10 ${goalData.completed ? 'bg-emerald-500 border-emerald-500 text-white' : `bg-white dark:bg-void-800 ${colorTheme.border} text-transparent hover:border-emerald-400`}`}
+                                                        className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors
+                                                            ${goalData.completed
+                                                                ? 'bg-orange-400 border-orange-400 text-white'
+                                                                : 'border-gray-300 text-transparent hover:border-orange-400'
+                                                            }
+                                                        `}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             onUpdateHighlight(uniqueKey, goalData.text, !goalData.completed);
                                                         }}
                                                     >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                                                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                         </svg>
                                                     </div>
 
                                                     <p
-                                                        className={`text-center font-bold text-lg leading-tight ${colorTheme.text} ${goalData.completed ? 'line-through decoration-2 opacity-70' : ''} cursor-pointer`}
+                                                        className={`flex-1 text-sm font-medium text-gray-700 truncate cursor-pointer ${goalData.completed ? 'line-through text-gray-400' : ''}`}
                                                         onClick={() => {
-                                                            const text = prompt(`Edit goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, goalData.text);
+                                                            const text = prompt(`Edit goal #${goalIndex + 1}:`, goalData.text);
                                                             if (text !== null) {
                                                                 onUpdateHighlight(uniqueKey, text, goalData.completed);
                                                             }
@@ -179,17 +148,9 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                                                     </p>
                                                 </div>
                                             ) : (
-                                                <div
-                                                    className={`flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity ${colorTheme.text} cursor-pointer w-full h-full justify-center`}
-                                                    onClick={() => {
-                                                        const text = prompt(`Enter goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, '');
-                                                        if (text !== null) {
-                                                            onUpdateHighlight(uniqueKey, text, false);
-                                                        }
-                                                    }}
-                                                >
-                                                    <span className="text-lg">✨</span>
-                                                    <span className="font-bold">Add Goal {goalIndex + 1}</span>
+                                                <div className="flex items-center gap-2 text-white/70 font-medium text-sm">
+                                                    <span>✨</span>
+                                                    <span>Add Goal {goalIndex + 1}</span>
                                                 </div>
                                             )}
                                         </div>

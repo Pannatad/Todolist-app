@@ -1,0 +1,6 @@
+// Export all contexts for easy importing
+export { TaskProvider, useTask } from './TaskContext';
+export { GameProvider, useGame } from './GameContext';
+export { LogProvider, useLog } from './LogContext';
+export { GoalProvider, useGoal } from './GoalContext';
+export { AuthProvider, useAuth } from './AuthContext';

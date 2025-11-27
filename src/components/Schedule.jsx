@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 
-const Schedule = ({ tasks, onAddTask }) => {
+const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [weekDates, setWeekDates] = useState([]);
 
@@ -38,44 +38,36 @@ const Schedule = ({ tasks, onAddTask }) => {
             date.getFullYear() === today.getFullYear();
     };
 
-    // Time slots (e.g., 6 AM to 11 PM)
-    const timeSlots = Array.from({ length: 18 }, (_, i) => i + 6); // 6 to 23
+    // Visual Configuration
+    const START_HOUR = 6; // 6 AM
+    const END_HOUR = 24; // 12 AM (next day)
+    const PIXELS_PER_HOUR = 120; // Stretched height (was effectively ~80)
+    const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 
-    // Helper to check if a task falls in a specific time slot
-    const getTaskForSlot = (date, hour) => {
-        return tasks.find(task => {
-            if (!task.deadline || task.status === 'harvested') return false;
-            const taskDate = new Date(task.deadline);
-            return taskDate.getDate() === date.getDate() &&
-                taskDate.getMonth() === date.getMonth() &&
-                taskDate.getFullYear() === date.getFullYear() &&
-                taskDate.getHours() === hour;
+    // Helper to check if an event falls in a specific day
+    const getEventsForDay = (date) => {
+        return events.filter(event => {
+            if ((!event.deadline && !event.startTime && !event.start_time)) return false;
+            const eventDate = new Date(event.deadline || event.startTime || event.start_time);
+            return eventDate.getDate() === date.getDate() &&
+                eventDate.getMonth() === date.getMonth() &&
+                eventDate.getFullYear() === date.getFullYear();
         });
     };
 
-    // Handle adding a task at a specific time
-    const handleSlotClick = (date, hour) => {
-        // Create a default deadline date object
+    const handleTimeClick = (date, hour, minute) => {
         const deadline = new Date(date);
         deadline.setHours(hour);
-        deadline.setMinutes(0);
+        deadline.setMinutes(minute);
         deadline.setSeconds(0);
 
-        // Format for datetime-local input (YYYY-MM-DDTHH:mm)
-        // Note: We'll pass this to a prompt or modal. 
-        // For now, let's use a simple prompt to get the title, 
-        // but ideally we should open the TaskInput with pre-filled data.
-        // Since TaskInput is in App.jsx, we might need a better way.
-        // For this iteration, we'll use a simple prompt to demonstrate functionality.
-
-        const title = prompt(`Schedule task for ${date.toLocaleDateString()} at ${hour}:00?`);
+        const title = prompt(`Schedule event for ${date.toLocaleDateString()} at ${hour}:${minute.toString().padStart(2, '0')}?`);
         if (title) {
-            onAddTask({
+            onAddEvent({
                 title,
-                difficulty: 'medium', // Default
-                deadline: deadline.toISOString(),
-                subject: 'other',
-                estimatedTime: 60 // Default 1 hour
+                startTime: deadline.toISOString(),
+                category: 'other',
+                duration: 60
             });
         }
     };
@@ -83,7 +75,7 @@ const Schedule = ({ tasks, onAddTask }) => {
     return (
         <div className="w-full h-full flex flex-col bg-white/50 dark:bg-void-900/50 backdrop-blur-sm rounded-2xl border border-sage-200 dark:border-white/5 shadow-xl overflow-hidden">
             {/* Header / Navigation */}
-            <div className="flex justify-between items-center p-4 border-b border-sage-200 dark:border-white/10">
+            <div className="flex justify-between items-center p-4 border-b border-sage-200 dark:border-white/10 flex-none">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-serif font-bold text-sage-800 dark:text-bone-100">
                         {weekDates[0] && `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} - ${weekDates[6].toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
@@ -106,18 +98,18 @@ const Schedule = ({ tasks, onAddTask }) => {
             </div>
 
             {/* Schedule Grid */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="min-w-[800px]"> {/* Ensure horizontal scroll on small screens */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+                <div className="min-w-[800px] relative">
 
-                    {/* Days Header */}
-                    <div className="grid grid-cols-8 border-b border-sage-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-void-900/95 z-10 backdrop-blur-sm">
-                        <div className="p-4 text-center text-xs font-bold text-sage-400 border-r border-sage-100 dark:border-white/5">
+                    {/* Header Row (Days) */}
+                    <div className="flex border-b border-sage-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-void-900/95 z-20 backdrop-blur-sm">
+                        <div className="w-16 flex-none p-4 text-center text-xs font-bold text-sage-400 border-r border-sage-100 dark:border-white/5">
                             Time
                         </div>
                         {weekDates.map((date, index) => (
                             <div
                                 key={index}
-                                className={`p-4 text-center border-r border-sage-100 dark:border-white/5 ${isToday(date) ? 'bg-sage-50 dark:bg-sage-900/20' : ''}`}
+                                className={`flex-1 p-4 text-center border-r border-sage-100 dark:border-white/5 ${isToday(date) ? 'bg-sage-50 dark:bg-sage-900/20' : ''}`}
                             >
                                 <div className={`text-xs font-bold uppercase mb-1 ${isToday(date) ? 'text-sage-600 dark:text-sage-400' : 'text-sage-400'}`}>
                                     {date.toLocaleDateString([], { weekday: 'short' })}
@@ -129,65 +121,104 @@ const Schedule = ({ tasks, onAddTask }) => {
                         ))}
                     </div>
 
-                    {/* Time Slots */}
-                    {timeSlots.map(hour => (
-                        <div key={hour} className="grid grid-cols-8 border-b border-sage-100 dark:border-white/5 min-h-[80px]">
-                            {/* Time Label */}
-                            <div className="p-2 text-right text-xs font-medium text-sage-400 border-r border-sage-100 dark:border-white/5 relative">
-                                <span className="absolute -top-2.5 right-2 bg-white/50 dark:bg-void-900/50 px-1">
-                                    {hour}:00
-                                </span>
-                            </div>
+                    {/* Main Grid Area */}
+                    <div className="flex relative" style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}>
 
-                            {/* Days Columns */}
-                            {weekDates.map((date, index) => {
-                                const task = getTaskForSlot(date, hour);
+                        {/* Time Labels Column */}
+                        <div className="w-16 flex-none border-r border-sage-100 dark:border-white/5 bg-white/30 dark:bg-void-900/30 z-10">
+                            {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => {
+                                const hour = START_HOUR + i;
                                 return (
                                     <div
-                                        key={`${index}-${hour}`}
-                                        className={`
-                                            relative border-r border-sage-100 dark:border-white/5 group transition-colors
-                                            hover:bg-sage-50/50 dark:hover:bg-white/5 cursor-pointer
-                                            ${isToday(date) ? 'bg-sage-50/30 dark:bg-sage-900/10' : ''}
-                                        `}
-                                        onClick={() => !task && handleSlotClick(date, hour)}
+                                        key={hour}
+                                        className="relative border-b border-sage-100 dark:border-white/5 w-full"
+                                        style={{ height: PIXELS_PER_HOUR }}
                                     >
-                                        {/* Add Button on Hover (Empty Slot) */}
-                                        {!task && (
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Plus size={20} className="text-sage-400" />
-                                            </div>
-                                        )}
-
-                                        {/* Task Block */}
-                                        {task && (
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                className="absolute inset-1 rounded-lg p-2 shadow-sm overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10"
-                                                style={{
-                                                    backgroundColor: getColorForSubject(task.subject).bgColor,
-                                                    borderLeft: `4px solid ${getColorForSubject(task.subject).color}`
-                                                }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // Ideally open edit modal
-                                                    alert(`Task: ${task.title}\nDue: ${new Date(task.deadline).toLocaleString()}`);
-                                                }}
-                                            >
-                                                <div className="text-xs font-bold truncate" style={{ color: getColorForSubject(task.subject).color }}>
-                                                    {task.title}
-                                                </div>
-                                                <div className="text-[10px] opacity-80 truncate" style={{ color: getColorForSubject(task.subject).color }}>
-                                                    {task.estimatedTime ? `${task.estimatedTime}m` : '1h'}
-                                                </div>
-                                            </motion.div>
-                                        )}
+                                        <span className="absolute -top-2.5 right-2 text-xs font-medium text-sage-400 bg-white/50 dark:bg-void-900/50 px-1">
+                                            {hour}:00
+                                        </span>
                                     </div>
                                 );
                             })}
                         </div>
-                    ))}
+
+                        {/* Day Columns */}
+                        {weekDates.map((date, dayIndex) => {
+                            const dayEvents = getEventsForDay(date);
+
+                            return (
+                                <div
+                                    key={dayIndex}
+                                    className={`flex-1 relative border-r border-sage-100 dark:border-white/5 ${isToday(date) ? 'bg-sage-50/30 dark:bg-sage-900/10' : ''}`}
+                                >
+                                    {/* Hour Grid Lines */}
+                                    {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="border-b border-sage-100 dark:border-white/5 w-full hover:bg-sage-50/50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                            style={{ height: PIXELS_PER_HOUR }}
+                                            onClick={() => handleTimeClick(date, START_HOUR + i, 0)}
+                                        />
+                                    ))}
+
+                                    {/* Events */}
+                                    {dayEvents.map(event => {
+                                        const eventDate = new Date(event.deadline || event.startTime || event.start_time);
+                                        const hour = eventDate.getHours();
+                                        const minute = eventDate.getMinutes();
+
+                                        if (hour < START_HOUR || hour >= END_HOUR) return null;
+
+                                        const top = ((hour - START_HOUR) * 60 + minute) * PIXELS_PER_MINUTE;
+                                        const duration = event.estimatedTime || event.duration || 60;
+                                        const height = duration * PIXELS_PER_MINUTE;
+                                        const color = getColorForSubject(event.subject || event.category);
+
+                                        return (
+                                            <motion.div
+                                                key={event.id}
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                className="absolute left-1 right-1 rounded-lg p-2 shadow-sm overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 border-l-4"
+                                                style={{
+                                                    top: `${top}px`,
+                                                    height: `${Math.max(height, 20)}px`, // Min height for visibility
+                                                    backgroundColor: color.bgColor,
+                                                    borderColor: color.color
+                                                }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Simple interaction for now: Prompt for action
+                                                    const action = window.prompt(
+                                                        `Event: ${event.title}\nTime: ${hour}:${minute.toString().padStart(2, '0')}\nDuration: ${duration}m\n\nType 'delete' to remove, or type a new title to rename:`
+                                                    );
+
+                                                    if (action) {
+                                                        if (action.toLowerCase() === 'delete') {
+                                                            if (window.confirm(`Are you sure you want to delete "${event.title}"?`)) {
+                                                                onDeleteEvent(event.id);
+                                                            }
+                                                        } else {
+                                                            onUpdateEvent(event.id, { title: action });
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <div className="text-xs font-bold truncate" style={{ color: color.color }}>
+                                                    {event.title}
+                                                </div>
+                                                {height > 30 && (
+                                                    <div className="text-[10px] opacity-80 truncate" style={{ color: color.color }}>
+                                                        {duration}m
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>

@@ -3,7 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Initialize Gemini API
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+const model_pro = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 const model_easy = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 /**
@@ -375,6 +376,56 @@ export const generateDailySchedule = async (tasks) => {
 
     } catch (error) {
         console.error("Error generating schedule:", error);
+        return [];
+    }
+};
+
+/**
+ * Parses a schedule image into a list of activities.
+ * @param {File} file - The image file.
+ * @returns {Promise<Array>} - Array of schedule objects.
+ */
+export const parseScheduleImage = async (file) => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return [];
+    }
+
+    try {
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const imagePart = await fileToGenerativePart(file);
+
+        const prompt = `
+            Analyze this image of a schedule (handwritten or digital).
+            Extract the time blocks and activities.
+            
+            Reply with a JSON array of objects:
+            [
+                {
+                    "activity": "Activity Name",
+                    "duration": 60, // duration in minutes (estimate if not explicit)
+                    "category": "Work" | "Study" | "Health" | "Chore" | "Other", // Infer category
+                    "startTime": "HH:MM" // 24h format, e.g. "14:00"
+                }
+            ]
+            
+            Rules:
+            - Infer the duration from the start/end times if visible.
+            - If only start time is shown, estimate duration based on context (e.g. "Lunch" = 60m).
+            - Do not include markdown formatting.
+        `;
+
+        const result = await modelToUse.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error parsing schedule image:", error);
         return [];
     }
 };

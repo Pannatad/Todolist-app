@@ -40,6 +40,13 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
             const diffOrder = { hard: 3, medium: 2, easy: 1 };
             return diffOrder[b.difficulty] - diffOrder[a.difficulty];
         }
+        if (sortBy === 'estimatedTime') {
+            // Sort by estimated time (ascending - shortest first)
+            // Treat missing estimated time as Infinity so they go to the bottom
+            const timeA = a.estimatedTime || Infinity;
+            const timeB = b.estimatedTime || Infinity;
+            return timeA - timeB;
+        }
         return b.id - a.id;
     });
 
@@ -100,6 +107,9 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                             </button>
                                             <button onClick={() => { setSortBy('newest'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-sage-50 dark:hover:bg-white/5 ${sortBy === 'newest' ? 'text-sage-600 dark:text-magma-400' : 'text-sage-500 dark:text-bone-200'}`}>
                                                 Newest
+                                            </button>
+                                            <button onClick={() => { setSortBy('estimatedTime'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-sage-50 dark:hover:bg-white/5 ${sortBy === 'estimatedTime' ? 'text-sage-600 dark:text-magma-400' : 'text-sage-500 dark:text-bone-200'}`}>
+                                                Estimated Time
                                             </button>
                                         </motion.div>
                                     )}
