@@ -426,7 +426,7 @@ export const parseTaskInput = async (input) => {
             5. **estimatedTime**: Estimated time in minutes (number) or null
             
             Rules:
-            - "today" or "tonight" means today at 11:59 PM
+            - "today" or "tonight" means today at 11:59 PM at Thailand time
             - "tomorrow" means tomorrow at 11:59 PM
             - If time is specified (e.g., "11.59", "3pm"), use it for the deadline
             - If only date is mentioned without time, default to 11:59 PM

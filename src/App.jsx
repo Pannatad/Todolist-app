@@ -209,6 +209,19 @@ function App() {
         .order('timestamp', { ascending: false });
       if (logsData) setActivityLogs(logsData);
 
+      // 5. Daily Highlights (Vision Board)
+      const { data: highlightsData } = await supabase
+        .from('daily_highlights')
+        .select('*');
+
+      if (highlightsData) {
+        const highlightsMap = {};
+        highlightsData.forEach(h => {
+          highlightsMap[h.key] = { text: h.text, completed: h.completed };
+        });
+        setDailyHighlights(highlightsMap);
+      }
+
     } catch (error) {
       console.error("Error loading user data:", error);
     } finally {
@@ -544,6 +557,29 @@ function App() {
     }
   };
 
+  // --- Daily Highlight Handler ---
+  const handleUpdateHighlight = async (key, text, completed = false) => {
+    // Optimistic Update
+    setDailyHighlights(prev => ({
+      ...prev,
+      [key]: { text, completed }
+    }));
+
+    if (user) {
+      const { error } = await supabase
+        .from('daily_highlights')
+        .upsert({
+          user_id: user.id,
+          key,
+          text,
+          completed,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id, key' });
+
+      if (error) console.error("Error syncing highlight:", error);
+    }
+  };
+
   return (
     <div className={`min-h-screen bg-cream-50 dark:bg-void-950 text-ink-800 dark:text-bone-100 transition-colors duration-1000 ease-in-out mode-${displayMode}`}>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -672,12 +708,7 @@ function App() {
               onUpdateGoal={updateGoal}
               onDeleteGoal={deleteGoal}
               dailyHighlights={dailyHighlights}
-              onUpdateHighlight={(index, text, completed = false) => {
-                setDailyHighlights(prev => ({
-                  ...prev,
-                  [index]: { text, completed }
-                }));
-              }}
+              onUpdateHighlight={handleUpdateHighlight}
             />
           )}
 
