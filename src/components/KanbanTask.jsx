@@ -20,10 +20,19 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
 
     const getPriorityColor = (p) => {
         switch (p?.toLowerCase()) {
-            case 'high': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-            case 'medium': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+            case 'high': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+            case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
             case 'low': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
             default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+        }
+    };
+
+    const getDifficultyColor = (d) => {
+        switch (d?.toLowerCase()) {
+            case 'easy': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+            case 'medium': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+            case 'hard': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+            default: return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
         }
     };
 
@@ -54,7 +63,7 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleDelete}
-                        className="delete-button opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 hover:text-red-600 dark:text-red-400 transition-all"
+                        className="delete-button opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 hover:text-red-600 dark:text-red-400 transition-all"
                         title="Delete task"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -75,7 +84,7 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
                     {task.priority}
                 </span>
                 {task.difficulty && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getDifficultyColor(task.difficulty)}`}>
                         {task.difficulty}
                     </span>
                 )}
