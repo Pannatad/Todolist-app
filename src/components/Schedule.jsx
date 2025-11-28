@@ -41,7 +41,7 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     // Visual Configuration
     const START_HOUR = 6; // 6 AM
     const END_HOUR = 24; // 12 AM (next day)
-    const PIXELS_PER_HOUR = 120; // Stretched height (was effectively ~80)
+    const PIXELS_PER_HOUR = 120; // Reverted to original height
     const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 
     // Helper to check if an event falls in a specific day
@@ -98,8 +98,8 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
             </div>
 
             {/* Schedule Grid */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-                <div className="min-w-[800px] relative">
+            <div className="flex-1 overflow-auto custom-scrollbar relative">
+                <div className="min-w-[1600px] relative">
 
                     {/* Header Row (Days) */}
                     <div className="flex border-b border-sage-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-void-900/95 z-20 backdrop-blur-sm">
