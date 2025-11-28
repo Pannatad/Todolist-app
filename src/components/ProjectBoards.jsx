@@ -192,19 +192,25 @@ const ProjectBoards = () => {
 
                         {/* Task Preview List */}
                         <div className="space-y-2 mb-4">
-                            {project.tasks.slice(0, 5).map((task, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                    {getTaskIcon(task.title)}
-                                    <span className="text-sm text-sage-700 dark:text-bone-200 flex-1 truncate">
-                                        {task.title}
-                                    </span>
-                                    {task.priority && (
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getPriorityBadgeStyle(task.priority)}`}>
-                                            {task.priority} Priority
+                            {project.tasks
+                                .filter(task => {
+                                    const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
+                                    return !doneColumn || task.columnId !== doneColumn.id;
+                                })
+                                .slice(0, 5)
+                                .map((task, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                        {getTaskIcon(task.title)}
+                                        <span className="text-sm text-sage-700 dark:text-bone-200 flex-1 truncate">
+                                            {task.title}
                                         </span>
-                                    )}
-                                </div>
-                            ))}
+                                        {task.priority && (
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getPriorityBadgeStyle(task.priority)}`}>
+                                                {task.priority} Priority
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
                         </div>
 
                         {/* Progress Section */}
@@ -224,7 +230,11 @@ const ProjectBoards = () => {
                         {/* Footer */}
                         <div className="flex gap-2">
                             <div className="px-3 py-1.5 bg-sage-100 dark:bg-void-700 rounded-lg text-sm font-medium text-sage-700 dark:text-bone-300">
-                                {project.tasks.length} Tasks
+                                {(() => {
+                                    const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
+                                    const incompleteTasks = project.tasks.filter(t => !doneColumn || t.columnId !== doneColumn.id);
+                                    return incompleteTasks.length;
+                                })()} Tasks
                             </div>
                             <div className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize ${project.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
                                 project.status === 'completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :

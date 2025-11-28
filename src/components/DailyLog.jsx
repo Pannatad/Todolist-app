@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2, Play, Square, Volume2, VolumeX } from 'lucide-react';
+import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2, Play, Square, Volume2, VolumeX, CheckCircle, Plus } from 'lucide-react';
 import { generateDailySchedule } from '../services/gemini';
 
 const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
@@ -244,6 +244,23 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
         }
     };
 
+    // Suggested Activities (Mock data for now, could be dynamic)
+    const suggestedActivities = [
+        { id: 's1', activity: 'Morning Jog', duration: 30, category: 'Exercise', icon: Dumbbell },
+        { id: 's2', activity: 'Read Chapter 5', duration: 45, category: 'Study', icon: BookOpen },
+        { id: 's3', activity: 'Coding Practice', duration: 60, category: 'Coding', icon: Code },
+    ];
+
+    const handleLogSuggestion = (suggestion) => {
+        onAddLog({
+            id: Date.now(),
+            activity: suggestion.activity,
+            duration: suggestion.duration,
+            category: suggestion.category,
+            timestamp: new Date().toISOString()
+        });
+    };
+
     return (
         <div className="w-full max-w-6xl mx-auto">
             {/* Header */}
@@ -308,20 +325,19 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                     key={selectedDate.toDateString()}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="p-6 rounded-2xl bg-gradient-to-br from-sage-100 to-sage-50 dark:from-void-800 dark:to-void-900 border border-sage-300 dark:border-white/10 shadow-lg"
+                    className="p-6 rounded-3xl bg-emerald-50/60 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-500/20 shadow-sm"
                 >
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="p-3 rounded-full bg-sage-500/20">
-                            <Clock className="w-6 h-6 text-sage-600 dark:text-sage-400" />
+                        <div className="p-3 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                            <Clock className="w-6 h-6" />
                         </div>
-                        <h3 className="text-lg font-bold text-sage-700 dark:text-sage-300">Total Time</h3>
+                        <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-200">Total Time</h3>
                     </div>
-                    <div className="text-4xl font-bold text-sage-800 dark:text-sage-200">
-                        {totalHours > 0 && `${totalHours}h `}
-                        {remainingMinutes > 0 && `${remainingMinutes}m`}
-                        {totalMinutes === 0 && '0m'}
+                    <div className="text-5xl font-bold text-emerald-900 dark:text-emerald-100 mb-2">
+                        {totalHours > 0 && <span className="mr-2">{totalHours}h</span>}
+                        <span>{remainingMinutes}m</span>
                     </div>
-                    <p className="text-sm text-sage-600 dark:text-sage-400 mt-2">
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
                         {selectedDateLogs.length} {selectedDateLogs.length === 1 ? 'activity' : 'activities'} logged
                     </p>
                 </motion.div>
@@ -331,13 +347,13 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="p-6 rounded-2xl bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 shadow-lg"
+                    className="p-6 rounded-3xl bg-purple-50/60 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-500/20 shadow-sm"
                 >
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 rounded-full bg-purple-500/20">
-                            <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        <div className="p-3 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-400">
+                            <TrendingUp className="w-6 h-6" />
                         </div>
-                        <h3 className="text-lg font-bold text-sage-700 dark:text-sage-300">Category Breakdown</h3>
+                        <h3 className="text-lg font-bold text-purple-800 dark:text-purple-200">Category Breakdown</h3>
                     </div>
                     <div className="space-y-3">
                         {Object.entries(categoryStats).map(([cat, minutes]) => {
@@ -346,10 +362,10 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                             return (
                                 <div key={cat}>
                                     <div className="flex justify-between text-sm mb-1">
-                                        <span className="font-medium text-sage-700 dark:text-sage-300">{cat}</span>
-                                        <span className="text-sage-600 dark:text-sage-400">{formatDuration(minutes)}</span>
+                                        <span className="font-medium text-purple-900 dark:text-purple-100">{cat}</span>
+                                        <span className="text-purple-700 dark:text-purple-300">{formatDuration(minutes)}</span>
                                     </div>
-                                    <div className="h-2 bg-sage-100 dark:bg-void-800 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${percentage}%` }}
@@ -362,54 +378,90 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                             );
                         })}
                         {Object.keys(categoryStats).length === 0 && (
-                            <p className="text-sm text-sage-500 dark:text-bone-200/50 italic text-center py-4">
-                                No activities logged {isToday ? 'yet today' : 'for this day'}
+                            <p className="text-sm text-purple-500 dark:text-purple-300/60 italic text-center py-4">
+                                No activities logged yet today
                             </p>
                         )}
                     </div>
                 </motion.div>
             </div>
 
-            {/* Activity Logger Form - Only show for today */}
+            {/* Log Activity & Suggestions Section */}
             {isToday && (
-                <div className="mb-8 p-6 rounded-2xl bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 shadow-lg">
-                    <h3 className="text-xl font-bold text-sage-700 dark:text-sage-300 mb-4">Log Activity</h3>
-                    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            placeholder='e.g., "Math homework 1h 30m" or "Gym 45m"'
-                            className="flex-1 px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400"
-                        />
-                        <select
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                            className="px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400"
-                        >
-                            {Object.keys(categories).map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                        </select>
-                        <button
-                            type="submit"
-                            className="px-6 py-3 bg-sage-500 hover:bg-sage-600 text-white rounded-xl font-bold transition-colors shadow-md hover:shadow-lg"
-                        >
-                            Log Session
-                        </button>
-                    </form>
-                    <div className="flex items-center justify-between mt-3">
-                        <p className="text-xs text-sage-500 dark:text-bone-200/50 italic">
-                            Tip: Use format "Activity Name Xh Ym" (e.g., "Study 2h 15m")
-                        </p>
-                        <button
-                            type="button"
-                            onClick={handleOpenFocusModal}
-                            className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                        >
-                            <Play className="w-4 h-4" />
-                            Start Focus Session
-                        </button>
+                <div className="mb-8 p-6 rounded-3xl bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 shadow-lg">
+                    <div className="flex flex-col lg:flex-row gap-8">
+                        {/* Left: Manual Log */}
+                        <div className="flex-1">
+                            <h3 className="text-xl font-bold text-sage-700 dark:text-sage-300 mb-4">Log Activity</h3>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder='e.g., "Math homework 1h 30m" or "Gym 45m"'
+                                    className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400 transition-all"
+                                />
+                                <div className="flex gap-3">
+                                    <select
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                        className="px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400 cursor-pointer"
+                                    >
+                                        {Object.keys(categories).map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-6 py-3 bg-sage-600 hover:bg-sage-700 text-white rounded-xl font-bold transition-colors shadow-md hover:shadow-lg"
+                                    >
+                                        Log Session
+                                    </button>
+                                </div>
+                            </form>
+                            <div className="flex items-center justify-between mt-4">
+                                <p className="text-xs text-sage-500 dark:text-bone-200/50 italic">
+                                    Tip: Use format "Activity Name Xh Ym"
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={handleOpenFocusModal}
+                                    className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm"
+                                >
+                                    <Play className="w-4 h-4" />
+                                    Start Focus Session
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Right: Suggested Activities */}
+                        <div className="flex-1 lg:border-l lg:border-sage-100 dark:lg:border-white/5 lg:pl-8">
+                            <h3 className="text-xl font-bold text-sage-700 dark:text-sage-300 mb-4">Suggested Activities</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {suggestedActivities.map((suggestion) => {
+                                    const Icon = suggestion.icon;
+                                    const config = categories[suggestion.category];
+                                    return (
+                                        <button
+                                            key={suggestion.id}
+                                            onClick={() => handleLogSuggestion(suggestion)}
+                                            className="flex items-center gap-3 p-3 rounded-xl border border-sage-200 dark:border-white/10 hover:border-sage-400 dark:hover:border-white/30 hover:bg-sage-50 dark:hover:bg-void-800 transition-all group text-left"
+                                        >
+                                            <div className="p-2 rounded-lg" style={{ backgroundColor: config.bg }}>
+                                                <Icon className="w-5 h-5" style={{ color: config.color }} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-bold text-sage-700 dark:text-bone-200 truncate">{suggestion.activity}</div>
+                                                <div className="text-xs text-sage-500 dark:text-bone-400">{formatDuration(suggestion.duration)}</div>
+                                            </div>
+                                            <div className="px-3 py-1 bg-sage-200 dark:bg-void-700 text-sage-600 dark:text-bone-300 text-xs font-bold rounded-lg group-hover:bg-sage-300 dark:group-hover:bg-void-600 transition-colors">
+                                                Log
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -419,7 +471,7 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                 <h3 className="text-2xl font-bold text-sage-700 dark:text-sage-300 mb-4">
                     {isToday ? "Today's" : formatDate(selectedDate)} Activities
                 </h3>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AnimatePresence mode="wait">
                         {selectedDateLogs.map((log) => {
                             const Icon = categories[log.category]?.icon || BookOpen;
@@ -428,65 +480,73 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                             return (
                                 <motion.div
                                     key={log.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 20 }}
-                                    className={`p-4 rounded-xl border shadow-sm hover:shadow-md transition-all flex items-center gap-4 group ${log.isPlanned ? 'bg-sage-50/50 dark:bg-void-900/50 border-dashed border-sage-300 dark:border-white/20' : 'bg-white dark:bg-void-900 border-sage-200 dark:border-white/10'}`}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    className={`p-4 rounded-2xl border shadow-sm hover:shadow-md transition-all flex items-center gap-4 group ${log.isPlanned ? 'bg-sage-50/50 dark:bg-void-900/50 border-dashed border-sage-300 dark:border-white/20' : 'bg-white dark:bg-void-900 border-sage-200 dark:border-white/10'}`}
                                 >
-                                    <div className={`p-3 rounded-full ${log.isPlanned ? 'opacity-50' : ''}`} style={{ backgroundColor: config.bg }}>
-                                        <Icon className="w-5 h-5" style={{ color: config.color }} />
+                                    <div className="relative">
+                                        <div className={`p-3 rounded-xl ${log.isPlanned ? 'opacity-50' : ''}`} style={{ backgroundColor: config.bg }}>
+                                            <Icon className="w-6 h-6" style={{ color: config.color }} />
+                                        </div>
+                                        {!log.isPlanned && (
+                                            <div className="absolute -bottom-1 -right-1 bg-white dark:bg-void-900 rounded-full p-0.5">
+                                                <CheckCircle className="w-4 h-4 text-emerald-500 fill-emerald-50" />
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex-1">
-                                        <h4 className={`font-bold ${log.isPlanned ? 'text-sage-600 dark:text-sage-400 italic' : 'text-sage-800 dark:text-sage-200'}`}>
-                                            {log.activity} {log.isPlanned && <span className="text-xs font-normal not-italic opacity-70 ml-2">(Planned)</span>}
+
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className={`font-bold text-lg truncate ${log.isPlanned ? 'text-sage-600 dark:text-sage-400 italic' : 'text-sage-800 dark:text-sage-200'}`}>
+                                            {log.activity}
                                         </h4>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span
-                                                className={`px-2 py-0.5 rounded-full text-xs font-bold ${log.isPlanned ? 'opacity-70' : ''}`}
-                                                style={{ backgroundColor: config.bg, color: config.color }}
-                                            >
-                                                {log.category}
-                                            </span>
-                                            <span className="text-sm text-sage-500 dark:text-bone-200/60">
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-sm font-medium text-sage-500 dark:text-bone-200/60">
                                                 {formatDuration(log.duration)}
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-sage-300 dark:bg-white/20" />
+                                            <span className="text-sm text-sage-400 dark:text-bone-200/40">
+                                                {formatTime(log.timestamp)}
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <span className="text-sm text-sage-600 dark:text-sage-400">
-                                            {formatTime(log.timestamp)}
-                                        </span>
-                                        <div className="flex flex-col items-end gap-1 mt-1">
-                                            {log.isPlanned && (
-                                                <button
-                                                    onClick={() => {
-                                                        // Convert to actual log
-                                                        onDeleteLog(log.id); // Remove planned
-                                                        onAddLog({ ...log, id: Date.now(), isPlanned: false }); // Add real
-                                                    }}
-                                                    className="text-xs text-emerald-500 hover:text-emerald-700 font-bold"
-                                                >
-                                                    Complete
-                                                </button>
-                                            )}
+
+                                    <div className="flex flex-col items-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {log.isPlanned ? (
+                                            <button
+                                                onClick={() => {
+                                                    onDeleteLog(log.id);
+                                                    onAddLog({ ...log, id: Date.now(), isPlanned: false });
+                                                }}
+                                                className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors"
+                                                title="Mark as Complete"
+                                            >
+                                                <CheckCircle className="w-4 h-4" />
+                                            </button>
+                                        ) : (
                                             <button
                                                 onClick={() => onDeleteLog(log.id)}
-                                                className="text-xs text-red-500 hover:text-red-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                                className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 text-xs font-bold transition-colors"
                                             >
                                                 Delete
                                             </button>
-                                        </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             );
                         })}
                     </AnimatePresence>
-                    {selectedDateLogs.length === 0 && (
-                        <div className="text-center py-12 text-sage-500 dark:text-bone-200/50 italic">
-                            No activities logged {isToday ? 'yet. Start tracking your day!' : 'for this day.'}
-                        </div>
-                    )}
                 </div>
+                {selectedDateLogs.length === 0 && (
+                    <div className="text-center py-12 bg-sage-50/50 dark:bg-void-900/30 rounded-3xl border border-dashed border-sage-200 dark:border-white/10">
+                        <div className="p-4 bg-white dark:bg-void-800 rounded-full inline-block mb-3 shadow-sm">
+                            <Sparkles className="w-6 h-6 text-sage-400" />
+                        </div>
+                        <p className="text-sage-500 dark:text-bone-200/50 font-medium">
+                            No activities logged {isToday ? 'yet. Start tracking your day!' : 'for this day.'}
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Focus Setup Modal */}

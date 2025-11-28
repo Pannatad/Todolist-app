@@ -52,7 +52,12 @@ export const ProjectProvider = ({ children }) => {
                 // Convert snake_case to camelCase
                 const formattedProjects = projectsData.map(p => ({
                     ...p,
-                    isAIGenerated: p.is_ai_generated
+                    isAIGenerated: p.is_ai_generated,
+                    // Ensure all tasks have IDs
+                    tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
+                        ...t,
+                        id: t.id || crypto.randomUUID()
+                    })) : []
                 }));
                 setProjects(formattedProjects);
             }
@@ -110,7 +115,9 @@ export const ProjectProvider = ({ children }) => {
                     // Convert snake_case back to camelCase for state
                     const formattedData = {
                         ...data,
-                        isAIGenerated: data.is_ai_generated
+                        isAIGenerated: data.is_ai_generated,
+                        // Ensure tasks have IDs if any returned
+                        tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
                     };
                     setProjects(prev => prev.map(p => p.id === tempId ? { ...p, ...formattedData } : p));
                     return formattedData;
@@ -149,9 +156,10 @@ export const ProjectProvider = ({ children }) => {
     };
 
     const addTask = async (projectId, task) => {
+        // Always generate an ID for the new task
         const newTask = {
             ...task,
-            id: user ? undefined : crypto.randomUUID(),
+            id: crypto.randomUUID(),
             created_at: new Date().toISOString()
         };
 
@@ -159,13 +167,14 @@ export const ProjectProvider = ({ children }) => {
             if (p.id !== projectId) return p;
             return {
                 ...p,
-                tasks: [...p.tasks, { ...newTask, id: newTask.id || crypto.randomUUID() }]
+                tasks: [...p.tasks, newTask]
             };
         }));
 
         if (user) {
             const project = projects.find(p => p.id === projectId);
             if (project) {
+                // Use the newTask with the generated ID
                 const updatedTasks = [...project.tasks, newTask];
                 await supabase.from('projects').update({ tasks: updatedTasks }).eq('id', projectId);
             }
