@@ -63,7 +63,7 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleDelete}
-                        className="delete-button opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 hover:text-red-600 dark:text-red-400 transition-all"
+                        className="delete-button opacity-70 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 hover:text-red-600 dark:text-red-400 transition-all"
                         title="Delete task"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
