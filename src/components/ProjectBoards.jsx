@@ -137,7 +137,7 @@ const ProjectBoards = () => {
                             <div className="relative">
                                 <button
                                     onClick={(e) => toggleProjectMenu(e, project.id)}
-                                    className="p-1 rounded-full hover:bg-sage-100 dark:hover:bg-void-700 text-sage-500 dark:text-bone-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="p-1 rounded-full hover:bg-sage-100 dark:hover:bg-void-700 text-sage-500 dark:text-bone-400 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 >
                                     <MoreHorizontal className="w-5 h-5" />
                                 </button>
