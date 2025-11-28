@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, MoreHorizontal, Sparkles, Loader2, CheckSquare, Palette, Settings, Database, Code, FileText, Check, Trash2, X } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { useAIProjectArchitect } from '../hooks/useAIProjectArchitect';
@@ -96,6 +96,18 @@ const ProjectBoards = () => {
         setProjectMenuOpen(projectMenuOpen === projectId ? null : projectId);
     };
 
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => {
+            if (projectMenuOpen) {
+                setProjectMenuOpen(null);
+            }
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [projectMenuOpen]);
+
     if (selectedProject) {
         return <ProjectDetailView project={selectedProject} onBack={() => setSelectedProjectId(null)} />;
     }
@@ -143,10 +155,10 @@ const ProjectBoards = () => {
                                 </button>
 
                                 {projectMenuOpen === project.id && (
-                                    <div className="absolute right-0 top-8 bg-white dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg shadow-xl z-10 min-w-[160px] overflow-hidden">
+                                    <div className="absolute right-0 top-8 bg-white dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg shadow-xl z-50 min-w-[160px] overflow-hidden">
                                         <button
                                             onClick={(e) => handleCompleteProject(e, project.id)}
-                                            className="w-full px-4 py-2 text-left text-sm hover:bg-sage-50 dark:hover:bg-void-700 flex items-center gap-2 text-sage-700 dark:text-bone-200"
+                                            className="w-full px-4 py-2.5 text-left text-sm active:bg-sage-50 dark:active:bg-void-700 flex items-center gap-2 text-sage-700 dark:text-bone-200"
                                         >
                                             {project.status === 'completed' ? (
                                                 <>
@@ -162,7 +174,7 @@ const ProjectBoards = () => {
                                         </button>
                                         <button
                                             onClick={(e) => handleDeleteProject(e, project.id)}
-                                            className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400"
+                                            className="w-full px-4 py-2.5 text-left text-sm active:bg-red-50 dark:active:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                             Delete Project
