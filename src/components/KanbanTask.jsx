@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2 } from 'lucide-react';
 
-export const KanbanTask = ({ task, onEdit, onDelete }) => {
+export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
     const {
         attributes,
         listeners,
@@ -18,7 +18,15 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
         opacity: isDragging ? 0.5 : 1,
     };
 
-    const getPriorityColor = (p) => {
+    const getPriorityColor = (p, muted = false) => {
+        if (muted) {
+            switch (p?.toLowerCase()) {
+                case 'high': return 'bg-purple-50 text-purple-400 dark:bg-purple-900/10 dark:text-purple-500/50';
+                case 'medium': return 'bg-yellow-50 text-yellow-400 dark:bg-yellow-900/10 dark:text-yellow-500/50';
+                case 'low': return 'bg-blue-50 text-blue-400 dark:bg-blue-900/10 dark:text-blue-500/50';
+                default: return 'bg-gray-50 text-gray-400 dark:bg-gray-800/10 dark:text-gray-500/50';
+            }
+        }
         switch (p?.toLowerCase()) {
             case 'high': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
             case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
@@ -27,7 +35,15 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
         }
     };
 
-    const getDifficultyColor = (d) => {
+    const getDifficultyColor = (d, muted = false) => {
+        if (muted) {
+            switch (d?.toLowerCase()) {
+                case 'easy': return 'bg-green-50 text-green-400 dark:bg-green-900/10 dark:text-green-500/50';
+                case 'medium': return 'bg-orange-50 text-orange-400 dark:bg-orange-900/10 dark:text-orange-500/50';
+                case 'hard': return 'bg-red-50 text-red-400 dark:bg-red-900/10 dark:text-red-500/50';
+                default: return 'bg-purple-50 text-purple-400 dark:bg-purple-900/10 dark:text-purple-500/50';
+            }
+        }
         switch (d?.toLowerCase()) {
             case 'easy': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
             case 'medium': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
@@ -56,10 +72,16 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
             style={style}
             {...attributes}
             onClick={handleCardClick}
-            className="bg-white dark:bg-void-800 p-3 rounded-lg shadow-sm border border-sage-200 dark:border-white/10 group hover:border-sage-400 dark:hover:border-white/30 transition-all cursor-pointer"
+            className={`p-3 rounded-lg shadow-sm border group hover:border-sage-400 dark:hover:border-white/30 transition-all cursor-pointer ${isDone
+                    ? 'bg-white/40 dark:bg-void-800/40 border-sage-200/50 dark:border-white/5 opacity-60'
+                    : 'bg-white dark:bg-void-800 border-sage-200 dark:border-white/10'
+                }`}
         >
             <div className="flex justify-between items-start mb-2">
-                <h4 className="font-medium text-sage-800 dark:text-bone-100 text-sm flex-1">{task.title}</h4>
+                <h4 className={`font-medium text-sm flex-1 ${isDone
+                        ? 'text-sage-500 dark:text-bone-400 line-through'
+                        : 'text-sage-800 dark:text-bone-100'
+                    }`}>{task.title}</h4>
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleDelete}
@@ -77,14 +99,17 @@ export const KanbanTask = ({ task, onEdit, onDelete }) => {
                 </div>
             </div>
 
-            <p className="text-xs text-sage-500 dark:text-bone-400 mb-3 line-clamp-2">{task.description}</p>
+            <p className={`text-xs mb-3 line-clamp-2 ${isDone
+                    ? 'text-sage-400 dark:text-bone-500'
+                    : 'text-sage-500 dark:text-bone-400'
+                }`}>{task.description}</p>
 
             <div className="flex gap-2 flex-wrap">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getPriorityColor(task.priority)}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getPriorityColor(task.priority, isDone)}`}>
                     {task.priority}
                 </span>
                 {task.difficulty && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getDifficultyColor(task.difficulty)}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getDifficultyColor(task.difficulty, isDone)}`}>
                         {task.difficulty}
                     </span>
                 )}

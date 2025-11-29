@@ -90,6 +90,66 @@
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
+@theme {
+  /* Professional Theme Palette (Purple/Blue/Pink Gradient) */
+  --color-pro-bg: #f8fafc;
+  /* Slate-50 base */
+  --color-pro-text-main: #0f172a;
+  /* Slate-900 */
+  --color-pro-text-sec: #475569;
+  /* Slate-600 */
+
+  --color-pro-accent-1: #8b5cf6;
+  /* Violet-500 */
+  --color-pro-accent-2: #6366f1;
+  /* Indigo-500 */
+  --color-pro-accent-3: #d946ef;
+  /* Fuchsia-500 */
+
+  --color-pro-glass: rgba(255, 255, 255, 0.7);
+  --color-pro-glass-border: rgba(255, 255, 255, 0.5);
+}
+
+/* Professional Theme Overrides */
+.theme-professional {
+  --color-cream-50: #f8fafc;
+  /* Slate-50 */
+  --color-cream-100: #f1f5f9;
+  /* Slate-100 */
+  --color-cream-200: #e2e8f0;
+  /* Slate-200 */
+
+  --color-sage-500: #8b5cf6;
+  /* Violet-500 */
+  --color-sage-600: #7c3aed;
+  /* Violet-600 */
+  --color-sage-100: #ede9fe;
+  /* Violet-100 */
+  --color-sage-200: #ddd6fe;
+  /* Violet-200 */
+  --color-sage-400: #a78bfa;
+  /* Violet-400 */
+  --color-sage-700: #6d28d9;
+  /* Violet-700 */
+  --color-sage-800: #5b21b6;
+  /* Violet-800 */
+  --color-sage-300: #c4b5fd;
+  /* Violet-300 */
+
+  --color-ink-800: #1e1b4b;
+  /* Indigo-950 */
+  --color-ink-500: #4338ca;
+  /* Indigo-700 */
+
+  /* Magma becomes Pink/Fuchsia */
+  --color-magma-500: #ec4899;
+  /* Pink-500 */
+  --color-magma-400: #f472b6;
+  /* Pink-400 */
+  --color-magma-900: #831843;
+  /* Pink-900 */
+}
+
 @layer base {
   body {
     font-family: var(--font-sans);
@@ -101,6 +161,17 @@
     transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
+  }
+
+  /* Professional Theme Background - Balanced Soft Blue/Purple */
+  .theme-professional body {
+    background-color: #f8fafc;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(56, 189, 248, 0.15) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 
   .dark body {
@@ -135,6 +206,183 @@
     border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
     border-radius: 24px;
+  }
+
+  .theme-professional .glass-panel {
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px -4px rgba(139, 92, 246, 0.1);
+  }
+
+  /* Professional Gradient Button */
+  .theme-professional .pro-gradient-btn-active {
+    background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px -3px rgba(139, 92, 246, 0.4);
+  }
+
+  .theme-professional .pro-gradient-btn-inactive {
+    background: rgba(255, 255, 255, 0.5);
+    color: #64748b;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .theme-professional .pro-gradient-btn-inactive:hover {
+    background: rgba(255, 255, 255, 0.8);
+    color: #475569;
+    transform: translateY(-1px);
+  }
+
+  /* Pink Theme Overrides (Vibrant Pink/Fuchsia) */
+  .theme-pink {
+    --color-cream-50: #fff1f2;
+    /* Rose-50 */
+    --color-cream-100: #ffe4e6;
+    /* Rose-100 */
+    --color-cream-200: #fecdd3;
+    /* Rose-200 */
+
+    --color-sage-500: #ec4899;
+    /* Pink-500 */
+    --color-sage-600: #db2777;
+    /* Pink-600 */
+    --color-sage-100: #fce7f3;
+    /* Pink-100 */
+    --color-sage-200: #fbcfe8;
+    /* Pink-200 */
+    --color-sage-400: #f472b6;
+    /* Pink-400 */
+    --color-sage-700: #be185d;
+    /* Pink-700 */
+    --color-sage-800: #9d174d;
+    /* Pink-800 */
+    --color-sage-300: #f9a8d4;
+    /* Pink-300 */
+
+    --color-ink-800: #4c0519;
+    /* Rose-950 */
+    --color-ink-500: #9f1239;
+    /* Rose-700 */
+
+    --color-magma-500: #8b5cf6;
+    /* Violet-500 */
+    --color-magma-400: #a78bfa;
+    /* Violet-400 */
+    --color-magma-900: #4c1d95;
+    /* Violet-900 */
+  }
+
+  .theme-pink body {
+    background-color: #fff1f2;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(236, 72, 153, 0.25) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(219, 39, 119, 0.25) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.25) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(244, 114, 182, 0.25) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .theme-pink .glass-panel {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px -4px rgba(236, 72, 153, 0.15);
+  }
+
+  .theme-pink .pro-gradient-btn-active {
+    background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px -3px rgba(236, 72, 153, 0.4);
+  }
+
+  .theme-pink .pro-gradient-btn-inactive {
+    background: rgba(255, 255, 255, 0.5);
+    color: #9f1239;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .theme-pink .pro-gradient-btn-inactive:hover {
+    background: rgba(255, 255, 255, 0.8);
+    color: #831843;
+    transform: translateY(-1px);
+  }
+
+  /* Blue Theme Overrides (Cool Blue/Cyan/Sky) */
+  .theme-blue {
+    --color-cream-50: #f0f9ff;
+    /* Sky-50 */
+    --color-cream-100: #e0f2fe;
+    /* Sky-100 */
+    --color-cream-200: #bae6fd;
+    /* Sky-200 */
+
+    --color-sage-500: #0ea5e9;
+    /* Sky-500 */
+    --color-sage-600: #0284c7;
+    /* Sky-600 */
+    --color-sage-100: #e0f2fe;
+    /* Sky-100 */
+    --color-sage-200: #bae6fd;
+    /* Sky-200 */
+    --color-sage-400: #38bdf8;
+    /* Sky-400 */
+    --color-sage-700: #0369a1;
+    /* Sky-700 */
+    --color-sage-800: #075985;
+    /* Sky-800 */
+    --color-sage-300: #7dd3fc;
+    /* Sky-300 */
+
+    --color-ink-800: #0c4a6e;
+    /* Sky-950 */
+    --color-ink-500: #0369a1;
+    /* Sky-700 */
+
+    --color-magma-500: #3b82f6;
+    /* Blue-500 */
+    --color-magma-400: #60a5fa;
+    /* Blue-400 */
+    --color-magma-900: #1e3a8a;
+    /* Blue-900 */
+  }
+
+  .theme-blue body {
+    background-color: #f0f9ff;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.2) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.2) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.2) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.2) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .theme-blue .glass-panel {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px -4px rgba(14, 165, 233, 0.15);
+  }
+
+  .theme-blue .pro-gradient-btn-active {
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px -3px rgba(14, 165, 233, 0.4);
+  }
+
+  .theme-blue .pro-gradient-btn-inactive {
+    background: rgba(255, 255, 255, 0.5);
+    color: #0369a1;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .theme-blue .pro-gradient-btn-inactive:hover {
+    background: rgba(255, 255, 255, 0.8);
+    color: #075985;
+    transform: translateY(-1px);
   }
 
   .dark .glass-panel {

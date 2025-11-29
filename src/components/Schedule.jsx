@@ -39,9 +39,9 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     };
 
     // Visual Configuration
-    const START_HOUR = 6; // 6 AM
-    const END_HOUR = 24; // 12 AM (next day)
-    const PIXELS_PER_HOUR = 120; // Reverted to original height
+    const START_HOUR = 0; // 0 AM (Midnight)
+    const END_HOUR = 24; // 12 AM (Midnight next day)
+    const PIXELS_PER_HOUR = 72; // Reduced by 40% from 120 to show more time
     const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 
     // Helper to check if an event falls in a specific day
@@ -135,7 +135,7 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                                         style={{ height: PIXELS_PER_HOUR }}
                                     >
                                         <span className="absolute -top-2.5 right-2 text-xs font-medium text-sage-400 bg-white/50 dark:bg-void-900/50 px-1">
-                                            {hour}:00
+                                            {hour > 24 ? `${hour - 24}:00` : `${hour}:00`}
                                         </span>
                                     </div>
                                 );

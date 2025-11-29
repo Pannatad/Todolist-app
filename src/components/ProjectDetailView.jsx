@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DndContext, closestCorners, DragOverlay, defaultDropAnimationSideEffects } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { ArrowLeft, Plus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Plus, Sparkles, ArrowUp, ArrowDown } from 'lucide-react';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanTask } from './KanbanTask';
 import TaskModal from './TaskModal';
@@ -22,12 +22,16 @@ const ProjectDetailView = ({ project, onBack }) => {
     const [activeId, setActiveId] = useState(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
+    const [sortBy, setSortBy] = useState('manual'); // 'manual', 'priority', 'difficulty'
+    const [sortDirection, setSortDirection] = useState('desc'); // 'desc', 'asc'
 
     const handleDragStart = (event) => {
+        if (sortBy !== 'manual') return; // Disable drag start when sorted
         setActiveId(event.active.id);
     };
 
     const handleDragEnd = (event) => {
+        if (sortBy !== 'manual') return; // Disable drag end when sorted
         const { active, over } = event;
         setActiveId(null);
 
@@ -84,6 +88,29 @@ const ProjectDetailView = ({ project, onBack }) => {
         deleteTask(project.id, taskId);
     };
 
+    // Sorting Logic
+    const getSortedTasks = (tasks) => {
+        if (sortBy === 'manual') return tasks;
+
+        const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+        const difficultyOrder = { 'Hard': 3, 'Medium': 2, 'Easy': 1 };
+
+        return [...tasks].sort((a, b) => {
+            let result = 0;
+            if (sortBy === 'priority') {
+                const pA = priorityOrder[a.priority] || 0;
+                const pB = priorityOrder[b.priority] || 0;
+                result = pB - pA;
+            } else if (sortBy === 'difficulty') {
+                const dA = difficultyOrder[a.difficulty] || 0;
+                const dB = difficultyOrder[b.difficulty] || 0;
+                result = dB - dA;
+            }
+            // Reverse if ascending
+            return sortDirection === 'asc' ? -result : result;
+        });
+    };
+
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
@@ -113,6 +140,50 @@ const ProjectDetailView = ({ project, onBack }) => {
                 </div>
 
                 <div className="flex gap-2">
+                    <div className="flex bg-white dark:bg-void-800 rounded-lg border border-sage-200 dark:border-white/10 p-1">
+                        <button
+                            onClick={() => setSortBy('manual')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'manual'
+                                ? 'bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-100'
+                                : 'text-sage-500 dark:text-bone-400 hover:text-sage-700 dark:hover:text-bone-200'
+                                }`}
+                        >
+                            Manual
+                        </button>
+                        <button
+                            onClick={() => setSortBy('priority')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'priority'
+                                ? 'bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-100'
+                                : 'text-sage-500 dark:text-bone-400 hover:text-sage-700 dark:hover:text-bone-200'
+                                }`}
+                        >
+                            Priority
+                        </button>
+                        <button
+                            onClick={() => setSortBy('difficulty')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'difficulty'
+                                ? 'bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-100'
+                                : 'text-sage-500 dark:text-bone-400 hover:text-sage-700 dark:hover:text-bone-200'
+                                }`}
+                        >
+                            Difficulty
+                        </button>
+                    </div>
+
+                    {sortBy !== 'manual' && (
+                        <button
+                            onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
+                            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-700 dark:text-bone-200 hover:bg-sage-50 dark:hover:bg-void-700 transition-colors"
+                            title={sortDirection === 'desc' ? 'Descending (High to Low)' : 'Ascending (Low to High)'}
+                        >
+                            {sortDirection === 'desc' ? (
+                                <ArrowDown className="w-4 h-4" />
+                            ) : (
+                                <ArrowUp className="w-4 h-4" />
+                            )}
+                        </button>
+                    )}
+
                     <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-700 dark:text-bone-200 hover:bg-sage-50 dark:hover:bg-void-700 transition-colors">
                         <Sparkles className="w-4 h-4 text-amber-500" />
                         AI Suggestions
@@ -139,9 +210,10 @@ const ProjectDetailView = ({ project, onBack }) => {
                             <KanbanColumn
                                 key={column.id}
                                 column={column}
-                                tasks={project.tasks.filter(t => t.columnId === column.id)}
+                                tasks={getSortedTasks(project.tasks.filter(t => t.columnId === column.id))}
                                 onEditTask={handleEditTask}
                                 onDeleteTask={handleDeleteTask}
+                                isSorted={sortBy !== 'manual'}
                             />
                         ))}
                     </div>

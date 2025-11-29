@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, LogIn, LogOut } from 'lucide-react';
+import { Moon, Sun, LogIn, LogOut, Palette } from 'lucide-react';
 import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
 import Calendar from './components/Calendar';
@@ -54,12 +54,11 @@ function App() {
 
   // Local UI State (not in contexts)
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
+  const [theme, setTheme] = useState(() => {
     try {
-      const saved = localStorage.getItem('dark-mode');
-      return saved === 'true';
+      return localStorage.getItem('app-theme') || 'cozy'; // 'cozy', 'professional', 'pink', 'blue'
     } catch (e) {
-      return false;
+      return 'cozy';
     }
   });
   const [activeTab, setActiveTab] = useState('garden');
@@ -71,17 +70,33 @@ function App() {
   const [aiTips, setAiTips] = useState('');
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
-  // Dark mode effect
+  // Theme effect
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('dark-mode', isDarkMode.toString());
-  }, [isDarkMode]);
+    const root = document.documentElement;
+    // Reset classes
+    root.classList.remove('dark', 'theme-professional', 'theme-pink', 'theme-blue');
 
-  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
+    if (theme === 'professional') {
+      root.classList.add('theme-professional');
+    } else if (theme === 'pink') {
+      root.classList.add('theme-pink');
+    } else if (theme === 'blue') {
+      root.classList.add('theme-blue');
+    } else {
+      // Cozy is default
+    }
+
+    localStorage.setItem('app-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      if (prev === 'cozy') return 'professional';
+      if (prev === 'professional') return 'pink';
+      if (prev === 'pink') return 'blue';
+      return 'cozy';
+    });
+  };
 
   // Get unique subjects from tasks
   const existingSubjects = [...new Set(tasks.map(t => t.subject).filter(Boolean))];
@@ -200,11 +215,14 @@ function App() {
                 <UserProfile />
 
                 <button
-                  onClick={toggleDarkMode}
+                  onClick={toggleTheme}
                   className="p-2.5 sm:p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
-                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  title={`Current Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)} (Click to cycle)`}
                 >
-                  {isDarkMode ? <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 group-hover:text-amber-300 transition-colors" /> : <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400 group-hover:text-indigo-300 transition-colors" />}
+                  {theme === 'cozy' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-sage-600 group-hover:text-sage-800 transition-colors" />}
+                  {theme === 'professional' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500 group-hover:text-indigo-400 transition-colors" />}
+                  {theme === 'pink' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 group-hover:text-pink-400 transition-colors" />}
+                  {theme === 'blue' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-sky-500 group-hover:text-sky-400 transition-colors" />}
                 </button>
               </div>
             </div>
@@ -215,7 +233,14 @@ function App() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 sm:px-6 py-2 rounded-full font-bold transition-all border capitalize text-sm sm:text-base whitespace-nowrap ${activeTab === tab ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105' : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'}`}
+                className={`px-4 sm:px-6 py-2 rounded-full font-bold transition-all border capitalize text-sm sm:text-base whitespace-nowrap ${(theme === 'professional' || theme === 'pink' || theme === 'blue')
+                  ? activeTab === tab
+                    ? 'pro-gradient-btn-active scale-105'
+                    : 'pro-gradient-btn-inactive'
+                  : activeTab === tab
+                    ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105'
+                    : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'
+                  }`}
               >
                 {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'garden' ? 'My Tasks' : tab === 'focus' ? 'Focus Mode' : tab === 'projects' ? 'Project Boards' : tab}
               </button>
