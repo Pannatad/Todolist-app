@@ -1,13 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2, Play, Square, Volume2, VolumeX, CheckCircle, Plus } from 'lucide-react';
-import { generateDailySchedule } from '../services/gemini';
+import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2, Play, Square, Volume2, VolumeX, CheckCircle, Plus, Settings, RefreshCw, Save } from 'lucide-react';
+import { generateDailySchedule, getSmartSuggestions } from '../services/gemini';
 
 const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
     const [input, setInput] = useState('');
     const [category, setCategory] = useState('Study');
     const [selectedDate, setSelectedDate] = useState(new Date());
+
     const [isPlanning, setIsPlanning] = useState(false);
+
+    // Suggestions State
+    const [suggestedActivities, setSuggestedActivities] = useState([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [showRoutineSettings, setShowRoutineSettings] = useState(false);
+    const [routinePreferences, setRoutinePreferences] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('routinePreferences'));
+            // Migrate old format if necessary or default to empty array
+            if (saved && !Array.isArray(saved)) return [];
+            return saved || [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        localStorage.setItem('routinePreferences', JSON.stringify(routinePreferences));
+    }, [routinePreferences]);
+
+    // Initial fetch of suggestions
+    useEffect(() => {
+        refreshSuggestions();
+    }, []); // Run once on mount
 
     // Focus Session State
     const [isFocusing, setIsFocusing] = useState(false);
@@ -244,12 +269,88 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
         }
     };
 
-    // Suggested Activities (Mock data for now, could be dynamic)
-    const suggestedActivities = [
-        { id: 's1', activity: 'Morning Jog', duration: 30, category: 'Exercise', icon: Dumbbell },
-        { id: 's2', activity: 'Read Chapter 5', duration: 45, category: 'Study', icon: BookOpen },
-        { id: 's3', activity: 'Coding Practice', duration: 60, category: 'Coding', icon: Code },
-    ];
+    // Dynamic Suggestions Logic
+    const getTimeOfDay = () => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) return 'Morning';
+        if (hour >= 12 && hour < 17) return 'Afternoon';
+        if (hour >= 17 && hour < 21) return 'Evening';
+    };
+
+    const refreshSuggestions = async () => {
+        setIsLoadingSuggestions(true);
+        const timeOfDay = getTimeOfDay();
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        let newSuggestions = [];
+
+        // 1. Get User Routine Preferences (Time-based)
+        // Find routines within +/- 60 minutes of now
+        const matchingRoutines = routinePreferences.filter(routine => {
+            if (!routine.time || !routine.activity) return false;
+            const [h, m] = routine.time.split(':').map(Number);
+            const routineMinutes = h * 60 + m;
+            const diff = Math.abs(currentMinutes - routineMinutes);
+            return diff <= 60; // Match if within 1 hour
+        });
+
+        matchingRoutines.forEach(routine => {
+            newSuggestions.push({
+                id: 'routine-' + routine.id,
+                activity: routine.activity,
+                duration: 30, // Default
+                category: 'Other', // Default
+                isRoutine: true,
+                time: routine.time
+            });
+        });
+
+        // 2. Get AI Suggestions
+        try {
+            const aiSuggestions = await getSmartSuggestions(tasks, timeOfDay);
+            // Add IDs and merge
+            const formattedAiSuggestions = aiSuggestions.map((s, i) => ({
+                ...s,
+                id: 'ai-' + Date.now() + i,
+                isAi: true
+            }));
+            newSuggestions = [...newSuggestions, ...formattedAiSuggestions];
+        } catch (error) {
+            console.error("Failed to get AI suggestions", error);
+        }
+
+        // 3. Fallback if empty
+        if (newSuggestions.length === 0) {
+            newSuggestions = [
+                { id: 'def-1', activity: 'Quick Stretch', duration: 10, category: 'Health' },
+                { id: 'def-2', activity: 'Review Tasks', duration: 15, category: 'Work' }
+            ];
+        }
+
+        setSuggestedActivities(newSuggestions.slice(0, 4)); // Limit to 4
+        setIsLoadingSuggestions(false);
+    };
+
+    const handleAddRoutineSlot = () => {
+        setRoutinePreferences([...routinePreferences, { id: Date.now(), time: '09:00', activity: '' }]);
+    };
+
+    const handleRemoveRoutineSlot = (id) => {
+        setRoutinePreferences(routinePreferences.filter(r => r.id !== id));
+    };
+
+    const handleRoutineChange = (id, field, value) => {
+        setRoutinePreferences(routinePreferences.map(r =>
+            r.id === id ? { ...r, [field]: value } : r
+        ));
+    };
+
+    const handleSaveRoutine = (e) => {
+        e.preventDefault();
+        setShowRoutineSettings(false);
+        refreshSuggestions(); // Refresh to show new routine immediately
+    };
 
     const handleLogSuggestion = (suggestion) => {
         onAddLog({
@@ -435,31 +536,126 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                         </div>
 
                         {/* Right: Suggested Activities */}
-                        <div className="flex-1 lg:border-l lg:border-sage-100 dark:lg:border-white/5 lg:pl-8">
-                            <h3 className="text-xl font-bold text-sage-700 dark:text-sage-300 mb-4">Suggested Activities</h3>
+                        <div className="flex-1 lg:border-l lg:border-sage-100 dark:lg:border-white/5 lg:pl-8 relative">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-bold text-sage-700 dark:text-sage-300">Suggested Activities</h3>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setShowRoutineSettings(!showRoutineSettings)}
+                                        className="p-2 text-sage-400 hover:text-sage-600 dark:hover:text-sage-200 hover:bg-sage-100 dark:hover:bg-void-800 rounded-full transition-colors"
+                                        title="Routine Settings"
+                                    >
+                                        <Settings size={18} />
+                                    </button>
+                                    <button
+                                        onClick={refreshSuggestions}
+                                        disabled={isLoadingSuggestions}
+                                        className={`p-2 text-sage-400 hover:text-sage-600 dark:hover:text-sage-200 hover:bg-sage-100 dark:hover:bg-void-800 rounded-full transition-colors ${isLoadingSuggestions ? 'animate-spin' : ''}`}
+                                        title="Refresh Suggestions"
+                                    >
+                                        <RefreshCw size={18} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Routine Settings Popover */}
+                            <AnimatePresence>
+                                {showRoutineSettings && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute top-12 right-0 w-80 bg-white dark:bg-void-900 rounded-2xl shadow-xl border border-sage-200 dark:border-white/10 p-4 z-20"
+                                    >
+                                        <h4 className="font-bold text-sage-700 dark:text-sage-300 mb-3 flex items-center justify-between">
+                                            <span className="flex items-center gap-2"><Clock size={16} /> Routine Schedule</span>
+                                            <button
+                                                type="button"
+                                                onClick={handleAddRoutineSlot}
+                                                className="text-xs bg-sage-100 dark:bg-void-800 hover:bg-sage-200 dark:hover:bg-void-700 text-sage-600 dark:text-sage-300 px-2 py-1 rounded-lg transition-colors"
+                                            >
+                                                + Add Slot
+                                            </button>
+                                        </h4>
+                                        <form onSubmit={handleSaveRoutine} className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                                            {routinePreferences.length === 0 && (
+                                                <p className="text-xs text-sage-400 italic text-center py-2">No routines set. Add one!</p>
+                                            )}
+                                            {routinePreferences.map((routine) => (
+                                                <div key={routine.id} className="flex items-center gap-2">
+                                                    <input
+                                                        type="time"
+                                                        value={routine.time}
+                                                        onChange={(e) => handleRoutineChange(routine.id, 'time', e.target.value)}
+                                                        className="w-24 px-2 py-1.5 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sm text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-1 focus:ring-sage-400"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={routine.activity}
+                                                        onChange={(e) => handleRoutineChange(routine.id, 'activity', e.target.value)}
+                                                        placeholder="Activity..."
+                                                        className="flex-1 px-2 py-1.5 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sm text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-1 focus:ring-sage-400"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveRoutineSlot(routine.id)}
+                                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                    >
+                                                        <VolumeX size={14} className="rotate-45" /> {/* Using VolumeX as X icon fallback or just X */}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="submit"
+                                                className="w-full py-2 bg-sage-600 hover:bg-sage-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 mt-2"
+                                            >
+                                                <Save size={14} /> Save Schedule
+                                            </button>
+                                        </form>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {suggestedActivities.map((suggestion) => {
-                                    const Icon = suggestion.icon;
-                                    const config = categories[suggestion.category];
-                                    return (
-                                        <button
-                                            key={suggestion.id}
-                                            onClick={() => handleLogSuggestion(suggestion)}
-                                            className="flex items-center gap-3 p-3 rounded-xl border border-sage-200 dark:border-white/10 hover:border-sage-400 dark:hover:border-white/30 hover:bg-sage-50 dark:hover:bg-void-800 transition-all group text-left"
-                                        >
-                                            <div className="p-2 rounded-lg" style={{ backgroundColor: config.bg }}>
-                                                <Icon className="w-5 h-5" style={{ color: config.color }} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-sage-700 dark:text-bone-200 truncate">{suggestion.activity}</div>
-                                                <div className="text-xs text-sage-500 dark:text-bone-400">{formatDuration(suggestion.duration)}</div>
-                                            </div>
-                                            <div className="px-3 py-1 bg-sage-200 dark:bg-void-700 text-sage-600 dark:text-bone-300 text-xs font-bold rounded-lg group-hover:bg-sage-300 dark:group-hover:bg-void-600 transition-colors">
-                                                Log
-                                            </div>
-                                        </button>
-                                    );
-                                })}
+                                {isLoadingSuggestions ? (
+                                    <div className="col-span-2 py-8 flex flex-col items-center justify-center text-sage-400">
+                                        <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                                        <span className="text-sm">Consulting the oracle...</span>
+                                    </div>
+                                ) : suggestedActivities.length > 0 ? (
+                                    suggestedActivities.map((suggestion) => {
+                                        const Icon = categories[suggestion.category]?.icon || Sparkles;
+                                        const config = categories[suggestion.category] || categories.Other;
+                                        return (
+                                            <button
+                                                key={suggestion.id}
+                                                onClick={() => handleLogSuggestion(suggestion)}
+                                                className="flex items-center gap-3 p-3 rounded-xl border border-sage-200 dark:border-white/10 hover:border-sage-400 dark:hover:border-white/30 hover:bg-sage-50 dark:hover:bg-void-800 transition-all group text-left relative overflow-hidden"
+                                            >
+                                                {suggestion.isRoutine && (
+                                                    <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg">
+                                                        ROUTINE
+                                                    </div>
+                                                )}
+                                                <div className="p-2 rounded-lg" style={{ backgroundColor: config.bg }}>
+                                                    <Icon className="w-5 h-5" style={{ color: config.color }} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-bold text-sage-700 dark:text-bone-200 truncate">{suggestion.activity}</div>
+                                                    <div className="text-xs text-sage-500 dark:text-bone-400">{formatDuration(suggestion.duration)}</div>
+                                                </div>
+                                                <div className="px-3 py-1 bg-sage-200 dark:bg-void-700 text-sage-600 dark:text-bone-300 text-xs font-bold rounded-lg group-hover:bg-sage-300 dark:group-hover:bg-void-600 transition-colors">
+                                                    Log
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="col-span-2 text-center py-8 text-sage-400 italic">
+                                        No suggestions available. Try refreshing!
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -713,7 +909,7 @@ const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 };
 

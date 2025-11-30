@@ -26,12 +26,10 @@ const ProjectDetailView = ({ project, onBack }) => {
     const [sortDirection, setSortDirection] = useState('desc'); // 'desc', 'asc'
 
     const handleDragStart = (event) => {
-        if (sortBy !== 'manual') return; // Disable drag start when sorted
         setActiveId(event.active.id);
     };
 
     const handleDragEnd = (event) => {
-        if (sortBy !== 'manual') return; // Disable drag end when sorted
         const { active, over } = event;
         setActiveId(null);
 

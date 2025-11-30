@@ -213,7 +213,7 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
     };
 
     return (
-        <div className="w-full max-w-6xl mx-auto h-[calc(100vh-12rem)] flex flex-col">
+        <div className="w-full max-w-6xl mx-auto min-h-[850px] h-[calc(100vh-4rem)] flex flex-col">
             {/* Camera Modal */}
             <AnimatePresence>
                 {isCameraOpen && (

@@ -57,7 +57,11 @@ export const GoalProvider = ({ children }) => {
             if (highlightsData) {
                 const highlightsMap = {};
                 highlightsData.forEach(h => {
-                    highlightsMap[h.key] = { text: h.text, completed: h.completed };
+                    highlightsMap[h.key] = {
+                        text: h.text,
+                        completed: h.completed,
+                        status: h.status || (h.completed ? 'completed' : 'pending') // Backwards compatibility
+                    };
                 });
                 setDailyHighlights(highlightsMap);
             }
@@ -122,10 +126,15 @@ export const GoalProvider = ({ children }) => {
     };
 
     // Daily Highlight Handler
-    const updateHighlight = async (key, text, completed = false) => {
+    const updateHighlight = async (key, text, completed = false, status = 'pending') => {
+        // Auto-derive status if not explicitly provided but completed is true
+        let finalStatus = status;
+        if (completed && status === 'pending') finalStatus = 'completed';
+        if (!completed && status === 'completed') finalStatus = 'pending';
+
         setDailyHighlights(prev => ({
             ...prev,
-            [key]: { text, completed }
+            [key]: { text, completed, status: finalStatus }
         }));
 
         if (user) {
@@ -136,6 +145,7 @@ export const GoalProvider = ({ children }) => {
                     key,
                     text,
                     completed,
+                    status: finalStatus,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id, key' });
 

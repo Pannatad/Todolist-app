@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, LogIn, LogOut, Palette } from 'lucide-react';
+import { Moon, Sun, LogIn, LogOut, Palette, LayoutDashboard, Target, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, Timer, BarChart3 } from 'lucide-react';
 import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
 import Calendar from './components/Calendar';
@@ -11,6 +11,7 @@ import FocusTimer from './components/FocusTimer';
 import UserProfile from './components/UserProfile';
 import Analytics from './components/Analytics';
 import ProjectBoards from './components/ProjectBoards';
+import Overview from './components/Overview';
 import { getPersonalizedAdvice } from './services/gemini';
 
 // Import all context hooks
@@ -61,7 +62,18 @@ function App() {
       return 'cozy';
     }
   });
-  const [activeTab, setActiveTab] = useState('garden');
+  const [activeTab, setActiveTab] = useState('overview');
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
+    { id: 'vision', label: 'Vision Board', icon: <Target size={20} /> },
+    { id: 'garden', label: 'Garden', icon: <Sprout size={20} /> },
+    { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
+    { id: 'log', label: 'Daily Log', icon: <ScrollText size={20} /> },
+    { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
+    { id: 'focus', label: 'Focus', icon: <Timer size={20} /> },
+    { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={20} /> },
+  ];
   const [currentFocusTask, setCurrentFocusTask] = useState(null);
 
   // AI Help State
@@ -229,20 +241,23 @@ function App() {
           </header>
 
           <nav className="flex justify-center gap-2 sm:gap-4 mb-4 sm:mb-8 flex-wrap overflow-x-auto p-2">
-            {['garden', 'projects', 'focus', 'calendar', 'dailylog', 'analytics', 'vision'].map(tab => (
+            {tabs.map(tab => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 sm:px-6 py-2 rounded-full font-bold transition-all border capitalize text-sm sm:text-base whitespace-nowrap ${(theme === 'professional' || theme === 'pink' || theme === 'blue')
-                  ? activeTab === tab
+                  ? activeTab === tab.id
                     ? 'pro-gradient-btn-active scale-105'
                     : 'pro-gradient-btn-inactive'
-                  : activeTab === tab
+                  : activeTab === tab.id
                     ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105'
                     : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'
                   }`}
               >
-                {tab === 'dailylog' ? 'Daily Log' : tab === 'vision' ? 'Vision Board' : tab === 'garden' ? 'My Tasks' : tab === 'focus' ? 'Focus Mode' : tab === 'projects' ? 'Project Boards' : tab}
+                <div className="flex items-center gap-2">
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </div>
               </button>
             ))}
           </nav>
@@ -276,14 +291,17 @@ function App() {
                 />
               </>
             )}
+            {activeTab === 'overview' && (
+              <Overview onNavigate={setActiveTab} />
+            )}
 
-            {activeTab === 'calendar' && (
+            {activeTab === 'schedule' && (
               <Calendar
-                scheduleItems={scheduleItems}
                 onAddScheduleItem={addScheduleItem}
                 onUpdateScheduleItem={updateScheduleItem}
                 onDeleteScheduleItem={deleteScheduleItem}
                 tasks={tasks}
+                scheduleItems={scheduleItems}
                 onCompleteTask={handleCompleteTask}
               />
             )}
@@ -299,7 +317,7 @@ function App() {
               />
             )}
 
-            {activeTab === 'dailylog' && (
+            {activeTab === 'log' && (
               <DailyLog
                 logs={activityLogs}
                 onAddLog={addActivityLog}

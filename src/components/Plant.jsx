@@ -10,12 +10,23 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
     const [timeLeft, setTimeLeft] = React.useState('');
     const [showEditModal, setShowEditModal] = React.useState(false);
     const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+
+    // Helper to convert UTC/ISO date to local datetime-local string (YYYY-MM-DDTHH:MM)
+    const toLocalISOString = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        // Get offset in minutes (e.g., -420 for UTC+7)
+        const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+        // Adjust date to get local time components in UTC
+        const localDate = new Date(date.getTime() - offsetMs);
+        return localDate.toISOString().slice(0, 16);
+    };
     const [editForm, setEditForm] = React.useState({
         title: title,
         description: description || '',
         difficulty: difficulty,
         subject: subject || '',
-        deadline: deadline || '',
+        deadline: deadline ? toLocalISOString(deadline) : '',
         estimatedTime: task.estimatedTime || task.estimated_time || 0
     });
     const subjectColor = getColorForSubject(subject);
@@ -274,7 +285,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                             description: task.description || '',
                             difficulty: task.difficulty,
                             subject: task.subject || '',
-                            deadline: task.deadline || '',
+                            deadline: task.deadline ? toLocalISOString(task.deadline) : '',
                             estimatedTime: task.estimatedTime || task.estimated_time || 0
                         });
                         setShowEditModal(true);
@@ -322,9 +333,9 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 {/* Due Date & Estimate Time */}
                 <div className="flex flex-wrap gap-2 text-xs mt-auto">
                     {deadline && (
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 border ${difficultyTextColors[difficulty]}`}>
-                            <span className="font-medium">📅</span>
-                            <span className="font-medium">{timeLeft || calculateTimeLeft()}</span>
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 border ${difficultyTextColors[difficulty]} ${timeLeft === 'Expired' ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400' : ''}`}>
+                            <span className="font-medium">{timeLeft === 'Expired' ? '⚠️' : '📅'}</span>
+                            <span className={`font-medium ${timeLeft === 'Expired' ? 'font-bold' : ''}`}>{timeLeft || calculateTimeLeft()}</span>
                         </div>
                     )}
                     {task.estimatedTime && (
@@ -457,7 +468,8 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 )}
                 {status !== 'harvested' && (
                     <>
-                        <p className="text-xs font-bold text-center text-sage-500 dark:text-sage-400 w-full leading-tight">
+                        <p className={`text-xs font-bold text-center w-full leading-tight flex items-center justify-center gap-1 ${timeLeft === 'Expired' ? 'text-red-500 dark:text-red-400' : 'text-sage-500 dark:text-sage-400'}`}>
+                            {timeLeft === 'Expired' && <span>⚠️</span>}
                             {timeLeft || "No Due Date"}
                         </p>
                         {task.estimatedTime && (

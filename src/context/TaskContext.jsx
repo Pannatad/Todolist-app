@@ -91,13 +91,21 @@ export const TaskProvider = ({ children }) => {
 
     // Task Handlers
     const addTask = async ({ title, difficulty, deadline, subject, estimatedTime }) => {
+        // Convert local deadline string to UTC ISO string for storage
+        const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
+        console.log("🕒 Timezone Debug:", {
+            inputDeadline: deadline,
+            isoDeadline,
+            userTimezoneOffset: new Date().getTimezoneOffset()
+        });
+
         const newTask = {
             id: user ? undefined : Date.now(),
             title,
             description: null,
             difficulty,
             subject: subject || 'other',
-            deadline,
+            deadline: isoDeadline,
             estimated_time: estimatedTime,
             estimatedTime: estimatedTime,
             status: 'growing',
@@ -207,9 +215,16 @@ export const TaskProvider = ({ children }) => {
     };
 
     const updateTask = async (id, updates) => {
-        setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
+        // Handle deadline conversion if present in updates
+        const processedUpdates = { ...updates };
+        if (processedUpdates.deadline) {
+            processedUpdates.deadline = new Date(processedUpdates.deadline).toISOString();
+        }
+
+        setTasks(tasks.map(t => t.id === id ? { ...t, ...processedUpdates } : t));
+
         if (user) {
-            const dbUpdates = { ...updates };
+            const dbUpdates = { ...processedUpdates };
             if (dbUpdates.estimatedTime) {
                 dbUpdates.estimated_time = dbUpdates.estimatedTime;
                 delete dbUpdates.estimatedTime;

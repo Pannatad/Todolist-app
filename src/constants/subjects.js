@@ -9,12 +9,18 @@ export const SUBJECT_COLORS = [
     { color: '#F97316', bgColor: '#FFEDD5' }, // Orange
     { color: '#14B8A6', bgColor: '#CCFBF1' }, // Teal
     { color: '#EF4444', bgColor: '#FEE2E2' }, // Red
-    { color: '#6B7280', bgColor: '#F3F4F6' }, // Gray
+    { color: '#84CC16', bgColor: '#ECFCCB' }, // Lime
+    { color: '#06B6D4', bgColor: '#CFFAFE' }, // Cyan
+    { color: '#F43F5E', bgColor: '#FFE4E6' }, // Rose
+    { color: '#D946EF', bgColor: '#FAE8FF' }, // Fuchsia
+    { color: '#0EA5E9', bgColor: '#E0F2FE' }, // Sky
 ];
+
+const DEFAULT_GRAY = { color: '#6B7280', bgColor: '#F3F4F6' };
 
 // Get color for a subject based on its name (consistent hash)
 export const getColorForSubject = (subjectName) => {
-    if (!subjectName) return SUBJECT_COLORS[SUBJECT_COLORS.length - 1];
+    if (!subjectName) return DEFAULT_GRAY;
 
     // Simple hash function to consistently assign colors
     let hash = 0;

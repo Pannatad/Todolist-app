@@ -41,7 +41,7 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     // Visual Configuration
     const START_HOUR = 0; // 0 AM (Midnight)
     const END_HOUR = 24; // 12 AM (Midnight next day)
-    const PIXELS_PER_HOUR = 72; // Reduced by 40% from 120 to show more time
+    const PIXELS_PER_HOUR = 72; // Reverted to original height
     const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 
     // Helper to check if an event falls in a specific day
@@ -103,7 +103,7 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
 
                     {/* Header Row (Days) */}
                     <div className="flex border-b border-sage-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-void-900/95 z-20 backdrop-blur-sm">
-                        <div className="w-16 flex-none p-4 text-center text-xs font-bold text-sage-400 border-r border-sage-100 dark:border-white/5">
+                        <div className="w-16 flex-none p-4 text-center text-xs font-bold text-sage-400 border-r border-sage-100 dark:border-white/5 sticky left-0 z-30 bg-white/95 dark:bg-void-900/95">
                             Time
                         </div>
                         {weekDates.map((date, index) => (
@@ -125,7 +125,7 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                     <div className="flex relative" style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}>
 
                         {/* Time Labels Column */}
-                        <div className="w-16 flex-none border-r border-sage-100 dark:border-white/5 bg-white/30 dark:bg-void-900/30 z-10">
+                        <div className="w-16 flex-none border-r border-sage-100 dark:border-white/5 bg-white/95 dark:bg-void-900/95 z-30 sticky left-0">
                             {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => {
                                 const hour = START_HOUR + i;
                                 return (

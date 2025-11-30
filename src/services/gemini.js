@@ -612,3 +612,60 @@ export const parseLogInput = async (input, categories) => {
         };
     }
 };
+
+/**
+ * Generates smart activity suggestions based on tasks and time of day.
+ * @param {Array} tasks - List of user tasks.
+ * @param {string} timeOfDay - 'Morning', 'Afternoon', 'Evening', 'Night'.
+ * @returns {Promise<Array>} - Array of suggestion objects.
+ */
+export const getSmartSuggestions = async (tasks, timeOfDay) => {
+    if (!API_KEY) {
+        return [
+            { activity: "Check API Key", duration: 5, category: "Other" },
+            { activity: "Manual Planning", duration: 15, category: "Study" }
+        ];
+    }
+
+    try {
+        const tasksList = tasks.slice(0, 10).map(t => `- ${t.title} (Due: ${t.deadline || 'None'})`).join('\n');
+
+        const prompt = `
+            You are a productivity assistant.
+            Time of Day: ${timeOfDay}
+            User's Current Tasks:
+            ${tasksList}
+
+            Suggest 3 specific, actionable activities for right now.
+            1. If the user has urgent tasks, suggest working on them.
+            2. If it's Morning, suggest focus work or exercise.
+            3. If it's Evening, suggest winding down or preparation.
+            4. Mix of work and health.
+
+            Reply with a JSON array of objects:
+            [
+                {
+                    "activity": "Activity Name",
+                    "duration": 30, // minutes
+                    "category": "Work" | "Study" | "Exercise" | "Health" | "Chore" | "Other"
+                }
+            ]
+            
+            Do not include markdown.
+        `;
+
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await modelToUse.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error getting smart suggestions:", error);
+        return [];
+    }
+};

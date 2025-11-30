@@ -1,11 +1,35 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Check, X } from 'lucide-react';
 import GoalCard from './GoalCard';
 import GoalModal from './GoalModal';
 
 const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighlights, onUpdateHighlight }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingGoal, setEditingGoal] = useState(null);
+    const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return now;
+    });
+
+    const handlePreviousWeek = () => {
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() - 7);
+        setCurrentWeekStart(newDate);
+    };
+
+    const handleNextWeek = () => {
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() + 7);
+        setCurrentWeekStart(newDate);
+    };
+
+    const handleResetToToday = () => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        setCurrentWeekStart(now);
+    };
 
     const handleCardClick = (goal) => {
         setEditingGoal(goal);
@@ -62,13 +86,37 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                         </h3>
                         <p className="text-sage-500 dark:text-bone-200/60 font-medium">Plan your main goals for the week</p>
                     </div>
+                    <div className="ml-auto flex items-center gap-2">
+                        <button
+                            onClick={handlePreviousWeek}
+                            className="p-2 hover:bg-sage-100 dark:hover:bg-void-800 rounded-full transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sage-600 dark:text-sage-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                        <button
+                            onClick={handleResetToToday}
+                            className="text-sm font-bold text-sage-600 dark:text-sage-400 hover:underline"
+                        >
+                            Today
+                        </button>
+                        <button
+                            onClick={handleNextWeek}
+                            className="p-2 hover:bg-sage-100 dark:hover:bg-void-800 rounded-full transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sage-600 dark:text-sage-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 {Array.from({ length: 7 }).map((_, dayIndex) => {
-                    const date = new Date();
+                    const date = new Date(currentWeekStart);
                     date.setDate(date.getDate() + dayIndex);
                     const dateKey = date.toISOString().split('T')[0];
-                    const isToday = dayIndex === 0;
+                    const isToday = dateKey === new Date().toISOString().split('T')[0];
                     const theme = dayColors[dayIndex % dayColors.length];
 
                     return (
@@ -94,8 +142,11 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                                     const uniqueKey = `${dateKey}_${goalIndex}`;
                                     const rawData = dailyHighlights?.[uniqueKey];
                                     const goalData = typeof rawData === 'string'
-                                        ? { text: rawData, completed: false }
-                                        : (rawData || null);
+                                        ? { text: rawData, completed: false, status: 'pending' }
+                                        : (rawData ? { ...rawData, status: rawData.status || (rawData.completed ? 'completed' : 'pending') } : null);
+
+                                    const isFailed = goalData?.status === 'failed';
+                                    const isCompleted = goalData?.status === 'completed' || goalData?.completed;
 
                                     return (
                                         <div
@@ -110,37 +161,61 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                                                 if (!goalData) {
                                                     const text = prompt(`Enter goal #${goalIndex + 1} for ${date.toLocaleDateString()}:`, '');
                                                     if (text !== null) {
-                                                        onUpdateHighlight(uniqueKey, text, false);
+                                                        onUpdateHighlight(uniqueKey, text, false, 'pending');
                                                     }
                                                 }
                                             }}
                                         >
                                             {goalData ? (
                                                 <div className="w-full h-full flex items-center px-4 py-3 gap-3">
-                                                    {/* Checkbox */}
-                                                    <div
-                                                        className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors
-                                                            ${goalData.completed
-                                                                ? 'bg-orange-400 border-orange-400 text-white'
-                                                                : 'border-gray-300 text-transparent hover:border-orange-400'
-                                                            }
-                                                        `}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onUpdateHighlight(uniqueKey, goalData.text, !goalData.completed);
-                                                        }}
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                        </svg>
+                                                    {/* Status Controls */}
+                                                    <div className="flex items-center gap-1">
+                                                        {/* Check (Success) */}
+                                                        <button
+                                                            className={`p-1 rounded-full transition-all duration-200
+                                                                ${isCompleted
+                                                                    ? 'bg-emerald-500 text-white opacity-100 shadow-sm scale-110'
+                                                                    : 'text-emerald-500 hover:bg-emerald-50 opacity-30 hover:opacity-100'
+                                                                }
+                                                            `}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const newStatus = isCompleted ? 'pending' : 'completed';
+                                                                onUpdateHighlight(uniqueKey, goalData.text, newStatus === 'completed', newStatus);
+                                                            }}
+                                                            title="Mark as Completed"
+                                                        >
+                                                            <Check size={16} strokeWidth={3} />
+                                                        </button>
+
+                                                        {/* X (Failed) */}
+                                                        <button
+                                                            className={`p-1 rounded-full transition-all duration-200
+                                                                ${isFailed
+                                                                    ? 'bg-red-500 text-white opacity-100 shadow-sm scale-110'
+                                                                    : 'text-red-500 hover:bg-red-50 opacity-30 hover:opacity-100'
+                                                                }
+                                                            `}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const newStatus = isFailed ? 'pending' : 'failed';
+                                                                onUpdateHighlight(uniqueKey, goalData.text, false, newStatus);
+                                                            }}
+                                                            title="Mark as Failed"
+                                                        >
+                                                            <X size={16} strokeWidth={3} />
+                                                        </button>
                                                     </div>
 
                                                     <p
-                                                        className={`flex-1 text-sm font-medium text-gray-700 truncate cursor-pointer ${goalData.completed ? 'line-through text-gray-400' : ''}`}
+                                                        className={`flex-1 text-sm font-medium text-gray-700 truncate cursor-pointer transition-all
+                                                            ${isCompleted ? 'line-through text-gray-400' : ''}
+                                                            ${isFailed ? 'text-red-400 line-through decoration-red-400' : ''}
+                                                        `}
                                                         onClick={() => {
                                                             const text = prompt(`Edit goal #${goalIndex + 1}:`, goalData.text);
                                                             if (text !== null) {
-                                                                onUpdateHighlight(uniqueKey, text, goalData.completed);
+                                                                onUpdateHighlight(uniqueKey, text, isCompleted, goalData.status);
                                                             }
                                                         }}
                                                     >
