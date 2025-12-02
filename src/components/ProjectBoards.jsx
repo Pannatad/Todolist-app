@@ -197,6 +197,12 @@ const ProjectBoards = () => {
                                     const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
                                     return !doneColumn || task.columnId !== doneColumn.id;
                                 })
+                                .sort((a, b) => {
+                                    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+                                    const pA = priorityOrder[a.priority?.toLowerCase()] || 0;
+                                    const pB = priorityOrder[b.priority?.toLowerCase()] || 0;
+                                    return pB - pA;
+                                })
                                 .slice(0, 5)
                                 .map((task, idx) => (
                                     <div key={idx} className="flex items-center gap-2">

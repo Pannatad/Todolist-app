@@ -73,14 +73,14 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
             {...attributes}
             onClick={handleCardClick}
             className={`p-3 rounded-lg shadow-sm border group hover:border-sage-400 dark:hover:border-white/30 transition-all cursor-pointer ${isDone
-                    ? 'bg-white/40 dark:bg-void-800/40 border-sage-200/50 dark:border-white/5 opacity-60'
-                    : 'bg-white dark:bg-void-800 border-sage-200 dark:border-white/10'
+                ? 'bg-white/40 dark:bg-void-800/40 border-sage-200/50 dark:border-white/5 opacity-60'
+                : 'bg-white dark:bg-void-800 border-sage-200 dark:border-white/10'
                 }`}
         >
             <div className="flex justify-between items-start mb-2">
                 <h4 className={`font-medium text-sm flex-1 ${isDone
-                        ? 'text-sage-500 dark:text-bone-400 line-through'
-                        : 'text-sage-800 dark:text-bone-100'
+                    ? 'text-sage-500 dark:text-bone-400 line-through'
+                    : 'text-sage-800 dark:text-bone-100'
                     }`}>{task.title}</h4>
                 <div className="flex items-center gap-1">
                     <button
@@ -100,8 +100,8 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
             </div>
 
             <p className={`text-xs mb-3 line-clamp-2 ${isDone
-                    ? 'text-sage-400 dark:text-bone-500'
-                    : 'text-sage-500 dark:text-bone-400'
+                ? 'text-sage-400 dark:text-bone-500'
+                : 'text-sage-500 dark:text-bone-400'
                 }`}>{task.description}</p>
 
             <div className="flex gap-2 flex-wrap">
@@ -111,6 +111,15 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
                 {task.difficulty && (
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getDifficultyColor(task.difficulty, isDone)}`}>
                         {task.difficulty}
+                    </span>
+                )}
+                {task.subtasks && task.subtasks.length > 0 && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1 ${isDone
+                            ? 'bg-gray-100 text-gray-400 dark:bg-gray-800/10 dark:text-gray-500/50'
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        }`}>
+                        <span className="text-[8px]">✓</span>
+                        {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
                     </span>
                 )}
             </div>
