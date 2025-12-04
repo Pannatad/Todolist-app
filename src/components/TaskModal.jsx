@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Sun } from 'lucide-react';
+import { useTask } from '../context/TaskContext';
 
 const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) => {
     const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
         subtasks: []
     });
     const [newSubtask, setNewSubtask] = useState('');
+    const { addTask: addToGarden } = useTask();
 
     useEffect(() => {
         if (initialData) {
@@ -72,6 +74,20 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
         }));
     };
 
+    const handleAddToToday = async () => {
+        if (!formData.title.trim()) return;
+
+        await addToGarden({
+            title: formData.title,
+            description: formData.description,
+            difficulty: formData.difficulty.toLowerCase(),
+            subject: 'Project Task', // Or maybe the project name if we passed it
+            estimatedTime: 30 // Default or if we had it
+        });
+
+        alert('Task added to Today (Garden)!');
+    };
+
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-void-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-sage-200 dark:border-white/10 max-h-[90vh] flex flex-col">
@@ -83,6 +99,19 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                         <X className="w-5 h-5" />
                     </button>
                 </div>
+
+                {/* Add to Today Banner (Only in Edit Mode) */}
+                {mode === 'edit' && (
+                    <div className="px-6 pt-4">
+                        <button
+                            onClick={handleAddToToday}
+                            className="w-full flex items-center justify-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-medium text-sm"
+                        >
+                            <Sun className="w-4 h-4" />
+                            Add to Today's Focus
+                        </button>
+                    </div>
+                )}
 
                 <div className="overflow-y-auto p-6 space-y-4">
                     <div>
@@ -204,7 +233,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

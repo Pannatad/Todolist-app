@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare } from 'lucide-react';
+import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -86,12 +86,8 @@ const Overview = ({ onNavigate }) => {
         setQuickCaptureText('');
     };
 
-    // Get today's highlight
-    const todayKey = new Date().toISOString().split('T')[0];
-    const dailyHighlight = dailyHighlights[`${todayKey}_0`];
-
     return (
-        <div className="h-full flex flex-col p-4 md:p-6 overflow-y-auto space-y-6 custom-scrollbar">
+        <div className="h-full flex flex-col p-4 md:p-6 overflow-y-auto space-y-8 custom-scrollbar">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
@@ -127,152 +123,165 @@ const Overview = ({ onNavigate }) => {
                 </div>
             </div>
 
-            {/* Bento Grid Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                {/* HERO SECTION (Left - 8 cols) */}
-                <div className="md:col-span-8 flex flex-col gap-6">
+                {/* LEFT COLUMN: Today's Plan (Purple Gradient) */}
+                <div className="lg:col-span-1 flex flex-col h-full">
+                    <div className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[2rem] p-6 shadow-xl h-full flex flex-col relative overflow-hidden">
+                        {/* Decorative Background Elements */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
 
-                    {/* Next Up / Focus Card (The "Beautiful" one) */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden group min-h-[240px] flex flex-col justify-between"
-                    >
-                        <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-30 transition-opacity duration-500">
-                            <Clock size={120} />
+                        <div className="flex items-center gap-3 mb-6 relative z-10">
+                            <Calendar className="text-white/90" size={24} />
+                            <h2 className="text-2xl font-bold text-white">Today's Plan</h2>
                         </div>
 
-                        <div>
-                            <div className="flex items-center gap-2 text-purple-200 font-bold tracking-wider text-sm mb-4">
-                                <Clock size={16} /> NEXT UP
-                            </div>
-                            {stats.nextTask ? (
-                                <>
-                                    <h2 className="text-3xl md:text-4xl font-bold mb-2 leading-tight max-w-lg text-white">
-                                        {stats.nextTask.title}
-                                    </h2>
-                                    <div className="flex items-center gap-2 text-purple-100 text-lg font-medium">
-                                        <Calendar size={20} />
-                                        {new Date(stats.nextTask.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                </>
-                            ) : (
-                                <h2 className="text-3xl font-bold mb-2 text-white">No upcoming tasks</h2>
-                            )}
-                        </div>
+                        <div className="flex-1 relative z-10 space-y-4 overflow-y-auto custom-scrollbar pr-2">
+                            {/* Timeline Line */}
+                            <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-white/20 rounded-full"></div>
 
-                        <button
-                            onClick={() => stats.nextTask ? onNavigate('garden') : onNavigate('garden')}
-                            className="mt-6 w-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 text-white py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-                        >
-                            {stats.nextTask ? 'Start Task' : 'Add New Task'} <ChevronRight size={20} />
-                        </button>
-                    </motion.div>
+                            {tasks && tasks.filter(t => {
+                                if (!t.deadline) return true; // Show anytime tasks too? Or filter logic from stats?
+                                const today = new Date().toISOString().split('T')[0];
+                                return t.deadline.startsWith(today);
+                            }).sort((a, b) => {
+                                if (!a.deadline) return 1;
+                                if (!b.deadline) return -1;
+                                return new Date(a.deadline) - new Date(b.deadline);
+                            }).map((task, i) => (
+                                <div key={task.id} className="relative pl-10 group">
+                                    {/* Timeline Dot */}
+                                    <div className={`absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-indigo-500 z-10 ${task.status === 'harvested' ? 'bg-green-400' : 'bg-white'
+                                        }`}></div>
 
-                    {/* Quick Capture & Vision Board Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Quick Capture */}
-                        <div className="bg-white dark:bg-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-3xl shadow-sm">
-                            <h3 className="font-bold text-sage-700 dark:text-bone-200 mb-4 flex items-center gap-2">
-                                <Brain size={18} className="text-pink-500" /> Quick Capture
-                            </h3>
-                            <form onSubmit={handleQuickCapture} className="flex flex-col gap-3">
-                                <textarea
-                                    value={quickCaptureText}
-                                    onChange={(e) => setQuickCaptureText(e.target.value)}
-                                    placeholder="What's on your mind? (e.g., 'Buy milk', 'Call Mom')"
-                                    className="w-full bg-sage-50 dark:bg-black/20 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-purple-500 resize-none h-24 text-sage-800 dark:text-bone-100"
-                                />
-                                <button type="submit" className="bg-sage-800 dark:bg-bone-200 text-white dark:text-black py-2 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity">
-                                    Add to Tasks
-                                </button>
-                            </form>
-                        </div>
-
-                        {/* Vision Board Goals Mini-List */}
-                        <div className="bg-white dark:bg-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-3xl shadow-sm flex flex-col">
-                            <h3 className="font-bold text-sage-700 dark:text-bone-200 mb-4 flex items-center gap-2">
-                                <Target size={18} className="text-purple-500" /> Vision Board (Today)
-                            </h3>
-                            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar max-h-[140px]">
-                                {[0, 1, 2].map((index) => {
-                                    const todayKey = new Date().toISOString().split('T')[0];
-                                    const uniqueKey = `${todayKey}_${index}`;
-                                    const rawData = dailyHighlights?.[uniqueKey];
-                                    const highlight = typeof rawData === 'string'
-                                        ? { text: rawData, completed: false }
-                                        : rawData;
-
-                                    if (!highlight) return (
-                                        <div key={index} className="flex items-center gap-3 p-2 rounded-lg border border-dashed border-sage-200 dark:border-white/10 text-sage-400 dark:text-bone-500 text-xs italic">
-                                            <div className="w-2 h-2 rounded-full bg-sage-200 dark:bg-white/10"></div>
-                                            Empty Slot
-                                        </div>
-                                    );
-
-                                    return (
-                                        <div key={index} className="flex items-start gap-3 p-2 hover:bg-sage-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
-                                            <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${highlight.completed ? 'bg-green-500' : 'bg-purple-500'}`}></div>
+                                    <div className={`p-4 rounded-xl shadow-sm transition-all hover:scale-[1.02] ${task.status === 'harvested'
+                                            ? 'bg-white/10 text-white/60'
+                                            : 'bg-cyan-50 text-cyan-900'
+                                        }`}>
+                                        <div className="flex justify-between items-start">
                                             <div>
-                                                <p className={`text-sm font-bold leading-tight ${highlight.completed ? 'line-through text-sage-400' : 'text-sage-700 dark:text-bone-200'}`}>
-                                                    {highlight.text}
-                                                </p>
+                                                <h3 className={`font-bold text-lg leading-tight ${task.status === 'harvested' ? 'line-through' : ''}`}>
+                                                    {task.title}
+                                                </h3>
+                                                <div className="flex items-center gap-2 mt-1 opacity-80">
+                                                    {task.status === 'harvested' ? (
+                                                        <span className="flex items-center gap-1 text-xs font-bold text-green-300">
+                                                            <CheckCircle2 size={12} /> Done
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1 text-xs font-bold">
+                                                            <Clock size={12} />
+                                                            {task.deadline
+                                                                ? new Date(task.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                                : 'Anytime'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
+                                            {task.status !== 'harvested' && (
+                                                <div className="bg-green-500 text-white p-1 rounded-full shadow-sm">
+                                                    <Check size={14} strokeWidth={3} />
+                                                </div>
+                                            )}
                                         </div>
-                                    );
-                                })}
-                                <button onClick={() => onNavigate('vision')} className="text-xs text-purple-500 font-bold mt-2 hover:underline w-full text-center">
-                                    Edit Vision Board →
-                                </button>
-                            </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {(!tasks || tasks.filter(t => t.deadline && t.deadline.startsWith(new Date().toISOString().split('T')[0])).length === 0) && (
+                                <div className="pl-10 text-white/60 italic text-sm py-4">
+                                    No tasks scheduled for today.
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* SIDEBAR (Right - 4 cols) */}
-                <div className="md:col-span-4 flex flex-col gap-6">
+                {/* MIDDLE/RIGHT COLUMN: Vision Board + Widgets */}
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    {/* Avatar Card */}
-                    <div className="bg-gradient-to-b from-blue-50 to-white dark:from-void-800 dark:to-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-3xl shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-20 bg-blue-500/10"></div>
-                        <div className="relative z-10 mt-4 transform scale-125">
-                            <Penguin stage="growing" level={3} difficulty="medium" />
+                    {/* Vision Board Card (Purple/Pink Gradient) */}
+                    <div className="bg-gradient-to-br from-fuchsia-600 to-purple-700 rounded-[2rem] p-6 shadow-xl relative overflow-hidden flex flex-col">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+
+                        <div className="flex items-center gap-3 mb-6 relative z-10">
+                            <Target className="text-white/90" size={24} />
+                            <h2 className="text-2xl font-bold text-white">Vision Board (Today)</h2>
                         </div>
-                        <div className="mt-6 relative z-10">
-                            <p className="text-sm font-bold text-sage-600 dark:text-bone-200 italic">
-                                "One step at a time! You're doing great."
-                            </p>
+
+                        <div className="space-y-3 relative z-10 flex-1">
+                            {[0, 1, 2].map((index) => {
+                                const todayKey = new Date().toISOString().split('T')[0];
+                                const uniqueKey = `${todayKey}_${index}`;
+                                const rawData = dailyHighlights?.[uniqueKey];
+                                const highlight = typeof rawData === 'string'
+                                    ? { text: rawData, completed: false }
+                                    : rawData;
+
+                                if (!highlight) return (
+                                    <div key={index} className="p-4 rounded-xl bg-white/10 border border-white/5 text-white/40 text-sm italic flex items-center gap-3">
+                                        <div className="w-2 h-2 rounded-full bg-white/20"></div>
+                                        Empty Goal Slot
+                                    </div>
+                                );
+
+                                return (
+                                    <div key={index} className={`p-4 rounded-xl shadow-sm flex items-center gap-3 transition-all hover:scale-[1.02] ${highlight.completed
+                                            ? 'bg-white/10 text-white/60'
+                                            : 'bg-purple-50 text-purple-900'
+                                        }`}>
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${highlight.completed ? 'bg-green-500 text-white' : 'bg-fuchsia-500'
+                                            }`}>
+                                            {highlight.completed && <Check size={12} strokeWidth={3} />}
+                                        </div>
+                                        <span className={`font-bold text-sm ${highlight.completed ? 'line-through' : ''}`}>
+                                            {highlight.text}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
+
+                        <button onClick={() => onNavigate('vision')} className="mt-4 text-white/80 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors">
+                            Manage Goals <ChevronRight size={14} />
+                        </button>
                     </div>
 
-                    {/* Timeline Strip */}
-                    <div className="bg-white dark:bg-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-3xl shadow-sm flex-1 flex flex-col min-h-[300px]">
+                    {/* Quick Capture Widget */}
+                    <div className="bg-white dark:bg-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-[2rem] shadow-sm flex flex-col">
                         <h3 className="font-bold text-sage-700 dark:text-bone-200 mb-4 flex items-center gap-2">
-                            <Calendar size={18} className="text-blue-500" /> Today's Plan
+                            <Brain size={18} className="text-pink-500" /> Quick Capture
                         </h3>
-                        <div className="flex-1 relative">
-                            {/* Vertical Line */}
-                            <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-sage-100 dark:bg-white/10"></div>
+                        <form onSubmit={handleQuickCapture} className="flex flex-col gap-3 flex-1">
+                            <textarea
+                                value={quickCaptureText}
+                                onChange={(e) => setQuickCaptureText(e.target.value)}
+                                placeholder="What's on your mind?"
+                                className="w-full bg-sage-50 dark:bg-black/20 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-purple-500 resize-none flex-1 min-h-[100px] text-sage-800 dark:text-bone-100"
+                            />
+                            <button type="submit" className="bg-sage-800 dark:bg-bone-200 text-white dark:text-black py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                                <Plus size={16} /> Add Task
+                            </button>
+                        </form>
+                    </div>
 
-                            <div className="space-y-6 relative z-10 pl-8">
-                                {tasks && tasks.slice(0, 5).map((task, i) => (
-                                    <div key={task.id} className="relative">
-                                        <div className={`absolute -left-[29px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-void-900 ${task.status === 'harvested' ? 'bg-green-400' : 'bg-purple-500'}`}></div>
-                                        <p className="text-xs font-bold text-sage-400 dark:text-bone-500 mb-1">
-                                            {task.deadline ? new Date(task.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Anytime'}
-                                        </p>
-                                        <div className="bg-sage-50 dark:bg-black/20 p-3 rounded-xl border border-transparent hover:border-purple-200 dark:hover:border-purple-900/30 transition-colors">
-                                            <p className={`text-sm font-bold ${task.status === 'harvested' ? 'line-through text-sage-400' : 'text-sage-700 dark:text-bone-200'}`}>
-                                                {task.title}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!tasks || tasks.length === 0) && (
-                                    <p className="text-sm text-sage-400 italic">No tasks scheduled.</p>
-                                )}
-                            </div>
+                    {/* Avatar / Motivation Widget */}
+                    <div className="md:col-span-2 bg-gradient-to-r from-sky-100 to-blue-50 dark:from-void-800 dark:to-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-[2rem] shadow-sm flex items-center gap-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                        <div className="shrink-0 transform scale-110">
+                            <Penguin stage="growing" level={3} difficulty="medium" />
+                        </div>
+
+                        <div className="relative z-10">
+                            <h3 className="font-bold text-lg text-sage-800 dark:text-bone-100 mb-1">
+                                Keep going, {user?.email?.split('@')[0] || 'Friend'}!
+                            </h3>
+                            <p className="text-sage-600 dark:text-bone-300 text-sm italic">
+                                "Small steps every day lead to big results. You've completed {stats.taskProgress}% of today's tasks."
+                            </p>
                         </div>
                     </div>
 

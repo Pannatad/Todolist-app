@@ -53,6 +53,8 @@ export const ProjectProvider = ({ children }) => {
                 const formattedProjects = projectsData.map(p => ({
                     ...p,
                     isAIGenerated: p.is_ai_generated,
+                    isPinned: p.is_pinned,
+                    category: p.category || 'General', // Default to General if null
                     // Ensure all tasks have IDs
                     tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
                         ...t,
@@ -86,6 +88,7 @@ export const ProjectProvider = ({ children }) => {
             user_id: user?.id,
             created_at: new Date().toISOString(),
             progress: 0,
+            category: project.category || 'General',
             columns: project.columns || [
                 { id: 'c-1', title: 'To Do' },
                 { id: 'c-2', title: 'In Progress' },
@@ -107,6 +110,9 @@ export const ProjectProvider = ({ children }) => {
                 if (isAIGenerated !== undefined) {
                     dbProject.is_ai_generated = isAIGenerated;
                 }
+                if (newProject.isPinned !== undefined) {
+                    dbProject.is_pinned = newProject.isPinned;
+                }
 
                 const { data, error } = await supabase.from('projects').insert([dbProject]).select().single();
 
@@ -115,7 +121,10 @@ export const ProjectProvider = ({ children }) => {
                     // Convert snake_case back to camelCase for state
                     const formattedData = {
                         ...data,
+                        ...data,
                         isAIGenerated: data.is_ai_generated,
+                        isPinned: data.is_pinned,
+                        category: data.category || 'General',
                         // Ensure tasks have IDs if any returned
                         tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
                     };
@@ -151,7 +160,13 @@ export const ProjectProvider = ({ children }) => {
         setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
 
         if (user) {
-            await supabase.from('projects').update(updates).eq('id', id);
+            const dbUpdates = { ...updates };
+            if (updates.isPinned !== undefined) {
+                dbUpdates.is_pinned = updates.isPinned;
+                delete dbUpdates.isPinned;
+            }
+            // Category is a direct mapping, so no change needed for it
+            await supabase.from('projects').update(dbUpdates).eq('id', id);
         }
     };
 

@@ -78,6 +78,17 @@ GRANT ALL ON projects TO authenticated;
 GRANT ALL ON projects TO service_role;
 ```
 
+### 2. Add Category Column (Update for Project Tree)
+Run this if you already have the projects table:
+
+```sql
+ALTER TABLE projects 
+ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General';
+
+-- Optional: Update existing projects to have a default category
+UPDATE projects SET category = 'General' WHERE category IS NULL;
+```
+
 ---
 
 ## ✅ Already Synced Features

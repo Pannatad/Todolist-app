@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Calendar, X, Clock, Sparkles, Loader2, Tag } from 'lucide-react';
+import { Plus, Calendar, X, Clock, Sparkles, Loader2, Tag, Camera, Upload, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { parseTaskInput } from '../services/gemini';
+import { parseTaskInput, parseTaskImage } from '../services/gemini';
 import { getColorForSubject } from '../constants/subjects';
 
 const TaskInput = ({ onAdd, existingSubjects = [] }) => {
@@ -13,8 +13,16 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
+
+    // Camera & Image State
+    const [isScanning, setIsScanning] = useState(false);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [cameraStream, setCameraStream] = useState(null);
+
     const datePickerRef = useRef(null);
     const subjectRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const videoRef = useRef(null);
 
     // Close date picker when clicking outside
     useEffect(() => {
@@ -104,6 +112,93 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
         }
     };
 
+    // Camera & Image Handlers
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setCameraStream(stream);
+            setIsCameraOpen(true);
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            }, 100);
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Could not access camera. Please check permissions.");
+        }
+    };
+
+    const stopCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        setIsCameraOpen(false);
+    };
+
+    const capturePhoto = () => {
+        if (!videoRef.current) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoRef.current, 0, 0);
+        canvas.toBlob((blob) => {
+            const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
+            handleFileChange({ target: { files: [file] } });
+            stopCamera();
+        }, 'image/jpeg');
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsScanning(true);
+        try {
+            const parsedTasks = await parseTaskImage(file);
+            console.log("📸 Parsed Tasks from Image:", parsedTasks);
+
+            if (parsedTasks && parsedTasks.length > 0) {
+                if (parsedTasks.length === 1) {
+                    // Single task: Populate fields for review
+                    const task = parsedTasks[0];
+                    setTitle(task.title || '');
+                    setDifficulty(task.difficulty || 'medium');
+                    setSubject(task.subject || '');
+                    setEstimatedTime(task.estimatedTime ? String(task.estimatedTime) : '');
+                    if (task.deadline) {
+                        setDeadline(task.deadline);
+                    }
+                } else {
+                    // Multiple tasks: Confirm and add all
+                    const confirmAdd = window.confirm(`Found ${parsedTasks.length} tasks. Add them all?`);
+                    if (confirmAdd) {
+                        parsedTasks.forEach(task => {
+                            onAdd({
+                                title: task.title,
+                                difficulty: task.difficulty || 'medium',
+                                deadline: task.deadline || null,
+                                subject: task.subject || null,
+                                estimatedTime: task.estimatedTime || null
+                            });
+                        });
+                        alert(`Added ${parsedTasks.length} tasks!`);
+                    }
+                }
+            } else {
+                alert("Could not find any tasks in the image.");
+            }
+        } catch (error) {
+            console.error("Scan failed:", error);
+            alert("Failed to scan image.");
+        } finally {
+            setIsScanning(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     const handleDateSelect = (daysToAdd) => {
         const date = new Date();
         date.setDate(date.getDate() + daysToAdd);
@@ -137,6 +232,43 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
 
     return (
         <div className="w-full max-w-md mx-auto mb-6 sm:mb-8 relative z-20 px-2 sm:px-0">
+            {/* Camera Modal */}
+            <AnimatePresence>
+                {isCameraOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                    >
+                        <div className="bg-white dark:bg-void-900 rounded-2xl overflow-hidden shadow-2xl max-w-lg w-full relative">
+                            <div className="relative aspect-[3/4] bg-black">
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    playsInline
+                                    className="w-full h-full object-cover"
+                                />
+                                <button
+                                    onClick={stopCamera}
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                                >
+                                    <ChevronLeft className="rotate-45" size={24} />
+                                </button>
+                            </div>
+                            <div className="p-6 flex justify-center bg-white dark:bg-void-900">
+                                <button
+                                    onClick={capturePhoto}
+                                    className="w-16 h-16 rounded-full border-4 border-indigo-500 bg-white dark:bg-void-800 flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg"
+                                >
+                                    <div className="w-12 h-12 rounded-full bg-indigo-500" />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <form onSubmit={handleSubmit} className="glass-panel p-2 sm:p-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 relative bg-white dark:bg-void-900 shadow-lg border border-sage-100 dark:border-white/10 rounded-2xl sm:rounded-full pl-3 sm:pl-4">
 
                 {/* Top Row - Date, Input, AI Button */}
@@ -211,6 +343,35 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                     >
                         {isAiLoading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                     </button>
+
+                    {/* Image Upload & Camera */}
+                    <div className="flex items-center gap-1 border-l border-sage-200 dark:border-white/10 pl-2 ml-1">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isScanning}
+                            className="p-2 rounded-full text-sage-400 hover:text-sage-600 hover:bg-sage-50 dark:hover:bg-void-800 dark:hover:text-sage-300 transition-colors"
+                            title="Upload Image"
+                        >
+                            <Upload size={18} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={startCamera}
+                            disabled={isScanning}
+                            className="p-2 rounded-full text-sage-400 hover:text-sage-600 hover:bg-sage-50 dark:hover:bg-void-800 dark:hover:text-sage-300 transition-colors"
+                            title="Take Photo"
+                        >
+                            {isScanning ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Bottom Row - Subject, Time, Difficulty, Submit */}

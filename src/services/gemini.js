@@ -669,3 +669,77 @@ export const getSmartSuggestions = async (tasks, timeOfDay) => {
         return [];
     }
 };
+
+/**
+ * Parses a task image into a list of tasks.
+ * @param {File} file - The image file.
+ * @returns {Promise<Array>} - Array of task objects.
+ */
+export const parseTaskImage = async (file) => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return [];
+    }
+
+    try {
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const imagePart = await fileToGenerativePart(file);
+
+        // Get current date and time for context
+        const now = new Date();
+        const currentDateTime = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const prompt = `
+            Analyze this image to extract tasks. It could be a handwritten list, a screenshot, or a photo of a sticky note.
+            Current Date & Time: ${currentDateTime}
+
+            Extract all tasks found in the image.
+            For each task, extract:
+            1. **title**: The task description.
+            2. **difficulty**: 'easy', 'medium', or 'hard' (infer from context/complexity).
+            3. **deadline**: ISO 8601 datetime string (e.g., "2025-11-25T23:59:00") or null. 
+               - Parse relative dates like "today", "tomorrow", "tonight".
+               - "today" or "tonight" means today at 11:59 PM.
+               - "tomorrow" means tomorrow at 11:59 PM.
+            4. **subject**: Category/Subject (e.g., "Work", "Personal", "Study") or null.
+            5. **estimatedTime**: Estimated time in minutes (number) or null.
+
+            Reply with a JSON array of objects:
+            [
+                {
+                    "title": "Task Title",
+                    "difficulty": "easy",
+                    "deadline": "2025-12-01T12:00:00",
+                    "subject": "Personal",
+                    "estimatedTime": 30
+                }
+            ]
+
+            Rules:
+            - If multiple tasks are listed, extract all of them.
+            - If it's a single task, return an array with one object.
+            - Do not include markdown formatting.
+        `;
+
+        const result = await modelToUse.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error parsing task image:", error);
+        return [];
+    }
+};
