@@ -162,8 +162,8 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                                             key={uniqueKey}
                                             className={`relative group min-h-[60px] rounded-xl flex items-center justify-center transition-all 
                                                 ${goalData
-                                                    ? 'bg-white shadow-sm hover:shadow-md'
-                                                    : 'border-2 border-dashed border-white/40 hover:bg-white/10 cursor-pointer'
+                                                    ? 'bg-white/80 backdrop-blur-sm shadow-lg border border-white/50 hover:shadow-xl'
+                                                    : 'border-2 border-dashed border-white/40 hover:bg-white/20 backdrop-blur-sm cursor-pointer'
                                                 }
                                             `}
                                             onClick={() => {
@@ -268,11 +268,11 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                 <motion.div
                     whileHover={{ scale: 1.05 }}
                     onClick={handleAddNew}
-                    className="min-h-[250px] rounded-2xl bg-white/50 dark:bg-void-900/50 border-2 border-dashed border-sage-300 dark:border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/80 dark:hover:bg-void-800 transition-colors shadow-sm group"
+                    className="min-h-[250px] rounded-2xl bg-gradient-to-br from-purple-500/20 to-indigo-600/20 backdrop-blur-sm border-2 border-dashed border-purple-400/30 flex flex-col items-center justify-center cursor-pointer hover:from-purple-500/30 hover:to-indigo-600/30 transition-colors shadow-lg group"
                 >
                     <span className="text-6xl mb-3 group-hover:scale-110 transition-transform">✨</span>
-                    <span className="text-lg font-bold text-sage-600 dark:text-sage-400">Add New Goal</span>
-                    <span className="text-sm text-sage-500 dark:text-bone-200/50 mt-1">Dream big!</span>
+                    <span className="text-lg font-bold text-purple-400">Add New Goal</span>
+                    <span className="text-sm text-purple-300/70 mt-1">Dream big!</span>
                 </motion.div>
             </div>
 

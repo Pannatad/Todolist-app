@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Square, Timer, Volume2, VolumeX, Tag } from 'lucide-react';
-import { useLog } from '../context/LogContext';
 
 const FocusTimer = ({ onComplete, initialTask }) => {
-    const { addActivityLog } = useLog();
-
     const [isActive, setIsActive] = useState(false);
     const [elapsedTime, setElapsedTime] = useState(0);
     const [category, setCategory] = useState('');
@@ -55,12 +52,6 @@ const FocusTimer = ({ onComplete, initialTask }) => {
     const stopTimer = async () => {
         if (elapsedTime > 60) { // Only log if > 1 minute
             const minutes = Math.ceil(elapsedTime / 60);
-            await addActivityLog({
-                activity: `Focus Session: ${category}`,
-                duration: minutes,
-                category: category,
-                timestamp: new Date().toISOString()
-            });
             if (onComplete) onComplete(minutes);
         }
 

@@ -743,3 +743,66 @@ export const parseTaskImage = async (file) => {
         return [];
     }
 };
+
+/**
+ * Parses a natural language voice command into a schedule event.
+ * @param {string} transcript - The spoken command.
+ * @returns {Promise<Object>} - { title, startTime, duration, category }
+ */
+export const parseScheduleCommand = async (transcript) => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return null;
+    }
+
+    try {
+        const now = new Date();
+        const currentDateTime = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const prompt = `
+            You are a smart scheduling assistant.
+            Current Date & Time: ${currentDateTime}
+            User Voice Command: "${transcript}"
+
+            Extract the following details to create a schedule event:
+            1. **title**: The event name.
+            2. **startTime**: ISO 8601 datetime string (e.g., "2025-12-05T14:00:00").
+               - Handle relative times like "tomorrow at 2pm", "in 30 minutes", "next Monday".
+               - If no time is specified, default to the next logical hour (e.g., if it's 10:15, suggest 11:00).
+            3. **duration**: Duration in minutes (number). Default to 60 if not specified.
+            4. **category**: "Work", "Personal", "Study", "Health", "Other". Infer from context.
+
+            Reply with ONLY a JSON object:
+            {
+                "title": "Event Title",
+                "startTime": "2025-12-05T14:00:00",
+                "duration": 60,
+                "category": "Work"
+            }
+            
+            Do not include markdown.
+        `;
+
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await modelToUse.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error parsing schedule command:", error);
+        return null;
+    }
+};

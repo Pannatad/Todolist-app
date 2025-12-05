@@ -1,0 +1,371 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Clock, Calendar, Repeat, Palette, Check } from 'lucide-react';
+
+const PRESET_COLORS = [
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Amber', value: '#f59e0b' },
+    { name: 'Yellow', value: '#eab308' },
+    { name: 'Lime', value: '#84cc16' },
+    { name: 'Green', value: '#22c55e' },
+    { name: 'Emerald', value: '#10b981' },
+    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Cyan', value: '#06b6d4' },
+    { name: 'Sky', value: '#0ea5e9' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Violet', value: '#8b5cf6' },
+    { name: 'Purple', value: '#a855f7' },
+    { name: 'Fuchsia', value: '#d946ef' },
+    { name: 'Pink', value: '#ec4899' },
+];
+
+const RECURRENCE_OPTIONS = [
+    { value: 'none', label: 'Does not repeat' },
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+    { value: 'custom', label: 'Custom...' },
+];
+
+const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) => {
+    const [formData, setFormData] = useState({
+        title: '',
+        date: '',
+        startTime: '09:00',
+        duration: 60,
+        color: '#6366f1',
+        category: 'Other',
+        recurrenceType: 'none',
+        recurrenceInterval: 1,
+        recurrenceDaysOfWeek: [],
+        recurrenceEndDate: '',
+        notes: ''
+    });
+
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
+
+    // Initialize form with event data or defaults
+    useEffect(() => {
+        if (event) {
+            const eventDate = new Date(event.start_time || event.startTime);
+            setFormData({
+                title: event.title || '',
+                date: eventDate.toISOString().split('T')[0],
+                startTime: eventDate.toTimeString().slice(0, 5),
+                duration: event.duration || 60,
+                color: event.color || '#6366f1',
+                category: event.category || 'Other',
+                recurrenceType: event.recurrence_type || 'none',
+                recurrenceInterval: event.recurrence_interval || 1,
+                recurrenceDaysOfWeek: event.recurrence_days_of_week || [],
+                recurrenceEndDate: event.recurrence_end_date || '',
+                notes: event.notes || ''
+            });
+        } else if (selectedDate) {
+            setFormData(prev => ({
+                ...prev,
+                date: selectedDate.toISOString().split('T')[0]
+            }));
+        }
+    }, [event, selectedDate, isOpen]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!formData.title.trim()) return;
+
+        const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+
+        onSave({
+            id: event?.id,
+            title: formData.title,
+            startTime: startDateTime.toISOString(),
+            duration: formData.duration,
+            color: formData.color,
+            category: formData.category,
+            recurrenceType: formData.recurrenceType,
+            recurrenceInterval: formData.recurrenceInterval,
+            recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
+            recurrenceEndDate: formData.recurrenceEndDate || null,
+            notes: formData.notes
+        });
+        onClose();
+    };
+
+    const toggleDayOfWeek = (dayIndex) => {
+        setFormData(prev => {
+            const days = [...prev.recurrenceDaysOfWeek];
+            if (days.includes(dayIndex)) {
+                return { ...prev, recurrenceDaysOfWeek: days.filter(d => d !== dayIndex) };
+            } else {
+                return { ...prev, recurrenceDaysOfWeek: [...days, dayIndex].sort() };
+            }
+        });
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                onClick={onClose}
+            >
+                <motion.div
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 20 }}
+                    className="bg-white dark:bg-void-900 rounded-2xl w-full max-w-lg shadow-2xl border border-sage-200 dark:border-white/10 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 border-b border-sage-100 dark:border-white/10">
+                        <h2 className="text-xl font-bold text-sage-800 dark:text-bone-100">
+                            {event ? 'Edit Event' : 'New Event'}
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-sage-100 dark:hover:bg-white/10 rounded-full transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                        {/* Title */}
+                        <div>
+                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                Event Title
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.title}
+                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                placeholder="Add title"
+                                className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-lg"
+                                autoFocus
+                            />
+                        </div>
+
+                        {/* Date and Time Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                    <Calendar size={14} className="inline mr-1" /> Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData.date}
+                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                    <Clock size={14} className="inline mr-1" /> Start Time
+                                </label>
+                                <input
+                                    type="time"
+                                    value={formData.startTime}
+                                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Duration */}
+                        <div>
+                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                Duration
+                            </label>
+                            <div className="flex gap-2 flex-wrap">
+                                {[15, 30, 45, 60, 90, 120].map((mins) => (
+                                    <button
+                                        key={mins}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, duration: mins })}
+                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.duration === mins
+                                                ? 'bg-indigo-500 text-white'
+                                                : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
+                                            }`}
+                                    >
+                                        {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                                    </button>
+                                ))}
+                                <input
+                                    type="number"
+                                    value={formData.duration}
+                                    onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 60 })}
+                                    className="w-20 px-2 py-1.5 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 text-sm text-center"
+                                    min="5"
+                                    max="480"
+                                />
+                                <span className="text-sm text-sage-500 self-center">min</span>
+                            </div>
+                        </div>
+
+                        {/* Color Picker */}
+                        <div>
+                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                <Palette size={14} className="inline mr-1" /> Color
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {PRESET_COLORS.map((color) => (
+                                    <button
+                                        key={color.value}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, color: color.value })}
+                                        className={`w-8 h-8 rounded-full transition-all hover:scale-110 ${formData.color === color.value ? 'ring-2 ring-offset-2 ring-sage-400' : ''
+                                            }`}
+                                        style={{ backgroundColor: color.value }}
+                                        title={color.name}
+                                    >
+                                        {formData.color === color.value && (
+                                            <Check size={16} className="text-white m-auto" />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Recurrence */}
+                        <div>
+                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                <Repeat size={14} className="inline mr-1" /> Recurrence
+                            </label>
+                            <select
+                                value={formData.recurrenceType}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setFormData({ ...formData, recurrenceType: value });
+                                    setShowCustomRecurrence(value === 'custom');
+                                }}
+                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                {RECURRENCE_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+
+                            {/* Custom Recurrence Options */}
+                            {(formData.recurrenceType === 'custom' || formData.recurrenceType === 'weekly') && (
+                                <div className="mt-3 p-3 bg-sage-50 dark:bg-void-800 rounded-lg space-y-3">
+                                    {formData.recurrenceType === 'custom' && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-sage-600 dark:text-bone-300">Repeat every</span>
+                                            <input
+                                                type="number"
+                                                value={formData.recurrenceInterval}
+                                                onChange={(e) => setFormData({ ...formData, recurrenceInterval: parseInt(e.target.value) || 1 })}
+                                                className="w-16 px-2 py-1 bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 rounded text-center"
+                                                min="1"
+                                                max="99"
+                                            />
+                                            <span className="text-sm text-sage-600 dark:text-bone-300">week(s)</span>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <span className="text-sm text-sage-600 dark:text-bone-300 block mb-2">Repeat on:</span>
+                                        <div className="flex gap-1">
+                                            {DAYS_OF_WEEK.map((day, index) => (
+                                                <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => toggleDayOfWeek(index)}
+                                                    className={`w-9 h-9 rounded-full text-xs font-bold transition-colors ${formData.recurrenceDaysOfWeek.includes(index)
+                                                            ? 'bg-indigo-500 text-white'
+                                                            : 'bg-white dark:bg-void-900 text-sage-600 dark:text-bone-300 border border-sage-200 dark:border-white/10'
+                                                        }`}
+                                                >
+                                                    {day.charAt(0)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* End Date for Recurrence */}
+                            {formData.recurrenceType !== 'none' && (
+                                <div className="mt-3">
+                                    <label className="block text-sm text-sage-600 dark:text-bone-300 mb-1">
+                                        End date (optional)
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.recurrenceEndDate}
+                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                Notes
+                            </label>
+                            <textarea
+                                value={formData.notes}
+                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                placeholder="Add notes..."
+                                rows={2}
+                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                            />
+                        </div>
+                    </form>
+
+                    {/* Footer */}
+                    <div className="flex gap-3 p-4 border-t border-sage-100 dark:border-white/10 bg-sage-50 dark:bg-void-800/50">
+                        {event && onDelete && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (window.confirm('Delete this event?')) {
+                                        onDelete(event.id);
+                                        onClose();
+                                    }
+                                }}
+                                className="px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
+                            >
+                                Delete
+                            </button>
+                        )}
+                        <div className="flex-1" />
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2 bg-sage-200 dark:bg-void-700 text-sage-700 dark:text-bone-300 rounded-lg font-bold hover:bg-sage-300 dark:hover:bg-void-600 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            onClick={handleSubmit}
+                            disabled={!formData.title.trim()}
+                            className={`px-6 py-2 rounded-lg font-bold transition-colors ${formData.title.trim()
+                                    ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                                    : 'bg-sage-300 text-sage-500 cursor-not-allowed'
+                                }`}
+                        >
+                            {event ? 'Save Changes' : 'Create Event'}
+                        </button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
+export default ScheduleEventModal;

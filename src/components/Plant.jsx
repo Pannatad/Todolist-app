@@ -242,35 +242,54 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
 
     // Minimal Mode Rendering
     const getMinimalContent = () => {
-        const difficultyColors = {
-            easy: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700',
-            medium: 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700',
-            hard: 'bg-rose-50 dark:bg-rose-900/20 border-rose-300 dark:border-rose-700'
+        const difficultyStyles = {
+            easy: {
+                bg: 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-800/20',
+                border: 'border-emerald-400 dark:border-emerald-600',
+                text: 'text-emerald-800 dark:text-emerald-200',
+                badge: 'bg-emerald-500',
+                shadow: 'shadow-emerald-200/50 dark:shadow-emerald-900/30'
+            },
+            medium: {
+                bg: 'bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-800/20',
+                border: 'border-amber-400 dark:border-amber-600',
+                text: 'text-amber-800 dark:text-amber-200',
+                badge: 'bg-amber-500',
+                shadow: 'shadow-amber-200/50 dark:shadow-amber-900/30'
+            },
+            hard: {
+                bg: 'bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-900/40 dark:to-rose-800/20',
+                border: 'border-rose-400 dark:border-rose-600',
+                text: 'text-rose-800 dark:text-rose-200',
+                badge: 'bg-rose-500',
+                shadow: 'shadow-rose-200/50 dark:shadow-rose-900/30'
+            }
         };
 
-        const difficultyTextColors = {
-            easy: 'text-emerald-700 dark:text-emerald-300',
-            medium: 'text-amber-700 dark:text-amber-300',
-            hard: 'text-rose-700 dark:text-rose-300'
-        };
+        const style = difficultyStyles[difficulty] || difficultyStyles.medium;
 
         return (
             <motion.div
                 layout
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                whileHover={{ scale: 1.02, y: -2 }}
+                whileHover={{ scale: 1.03, y: -4 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={`relative p-4 rounded-2xl border-2 shadow-sm hover:shadow-md transition-all w-full aspect-square flex flex-col ${difficultyColors[difficulty]} ${status === 'harvested' ? 'opacity-50' : ''} group`}
+                className={`relative p-5 rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all w-full aspect-square flex flex-col ${style.bg} ${style.border} ${style.shadow} ${status === 'harvested' ? 'opacity-50 grayscale' : ''} group`}
                 onClick={() => onComplete(task.id)}
             >
+                {/* Difficulty Badge */}
+                <div className={`absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide text-white ${style.badge}`}>
+                    {difficulty}
+                </div>
+
                 {/* Delete Button */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         onDelete(task.id);
                     }}
-                    className="absolute top-2 right-2 p-1 bg-white/80 dark:bg-black/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-black/50 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50 shadow-sm"
                     title="Delete Task"
                 >
                     <X size={14} strokeWidth={2.5} />
@@ -290,7 +309,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                         });
                         setShowEditModal(true);
                     }}
-                    className="absolute top-2 right-10 p-1 bg-white/80 dark:bg-black/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                    className="absolute top-2 right-10 p-1.5 bg-white/90 dark:bg-black/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50 shadow-sm"
                     title="Edit Task"
                 >
                     <Edit2 size={14} strokeWidth={2.5} />
@@ -303,23 +322,23 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                             e.stopPropagation();
                             onStartFocus(task);
                         }}
-                        className="absolute top-2 right-20 p-1 bg-white/80 dark:bg-black/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-600 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
+                        className="absolute top-2 right-[4.5rem] p-1.5 bg-white/90 dark:bg-black/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-600 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50 shadow-sm"
                         title="Start Focus Session"
                     >
                         <Play size={14} strokeWidth={2.5} fill="currentColor" />
                     </button>
                 )}
 
-                {/* Task Title */}
-                <h3 className={`font-bold text-sm mb-2 line-clamp-2 pr-24 ${difficultyTextColors[difficulty]} ${status === 'harvested' ? 'line-through' : ''}`}>
+                {/* Task Title - LARGER FONT */}
+                <h3 className={`font-bold text-lg leading-tight mb-2 line-clamp-3 mt-6 ${style.text} ${status === 'harvested' ? 'line-through' : ''}`}>
                     {title || "Untitled Task"}
                 </h3>
 
                 {/* Subject Badge */}
                 {subject && (
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                         <span
-                            className="px-2 py-0.5 rounded-full text-xs font-bold"
+                            className="px-2.5 py-1 rounded-full text-xs font-bold shadow-sm"
                             style={{
                                 backgroundColor: subjectColor.bgColor,
                                 color: subjectColor.color
@@ -331,17 +350,17 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 )}
 
                 {/* Due Date & Estimate Time */}
-                <div className="flex flex-wrap gap-2 text-xs mt-auto">
+                <div className="flex flex-wrap gap-2 mt-auto">
                     {deadline && (
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 border ${difficultyTextColors[difficulty]} ${timeLeft === 'Expired' ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400' : ''}`}>
-                            <span className="font-medium">{timeLeft === 'Expired' ? '⚠️' : '📅'}</span>
-                            <span className={`font-medium ${timeLeft === 'Expired' ? 'font-bold' : ''}`}>{timeLeft || calculateTimeLeft()}</span>
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${timeLeft === 'Expired' ? 'bg-red-500 text-white' : 'bg-white/70 dark:bg-black/30 ' + style.text}`}>
+                            <span>{timeLeft === 'Expired' ? '⚠️' : '📅'}</span>
+                            <span>{timeLeft || calculateTimeLeft()}</span>
                         </div>
                     )}
                     {task.estimatedTime && (
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/50 dark:bg-black/20 border ${difficultyTextColors[difficulty]}`}>
-                            <span className="font-medium">⏱</span>
-                            <span className="font-medium">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-white/70 dark:bg-black/30 ${style.text}`}>
+                            <span>⏱</span>
+                            <span>
                                 {Math.floor(task.estimatedTime / 60) > 0 && `${Math.floor(task.estimatedTime / 60)}h `}
                                 {task.estimatedTime % 60}m
                             </span>

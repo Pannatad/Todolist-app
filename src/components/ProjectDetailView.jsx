@@ -110,24 +110,32 @@ const ProjectDetailView = ({ project, onBack }) => {
     };
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col relative overflow-hidden bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 rounded-2xl">
+            {/* Aurora Background Effects */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-teal-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+                <div className="absolute bottom-1/3 left-1/3 w-48 h-48 bg-pink-500/15 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '3s' }} />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="relative z-10 flex items-center justify-between p-6 border-b border-white/10">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onBack}
-                        className="p-2 rounded-full hover:bg-sage-100 dark:hover:bg-void-700 text-sage-600 dark:text-bone-200 transition-colors"
+                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors backdrop-blur-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-bold text-sage-800 dark:text-bone-100">{project.title}</h2>
-                        <div className="flex items-center gap-4 text-sm text-sage-500 dark:text-bone-400">
+                        <h2 className="text-2xl font-bold text-white">{project.title}</h2>
+                        <div className="flex items-center gap-4 text-sm text-white/60">
                             <span>{project.tasks.length} Tasks</span>
                             <div className="flex items-center gap-2">
-                                <div className="w-24 h-2 bg-sage-200 dark:bg-void-700 rounded-full overflow-hidden">
+                                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
                                     <div
-                                        className="h-full bg-sage-500 dark:bg-magma-500 transition-all duration-500"
+                                        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
                                         style={{ width: `${project.progress}%` }}
                                     />
                                 </div>
@@ -138,12 +146,12 @@ const ProjectDetailView = ({ project, onBack }) => {
                 </div>
 
                 <div className="flex gap-2">
-                    <div className="flex bg-white dark:bg-void-800 rounded-lg border border-sage-200 dark:border-white/10 p-1">
+                    <div className="flex bg-white/10 backdrop-blur-md rounded-lg border border-white/20 p-1">
                         <button
                             onClick={() => setSortBy('manual')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'manual'
-                                ? 'bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-100'
-                                : 'text-sage-500 dark:text-bone-400 hover:text-sage-700 dark:hover:text-bone-200'
+                                ? 'bg-white/20 text-white'
+                                : 'text-white/60 hover:text-white'
                                 }`}
                         >
                             Manual
@@ -151,8 +159,8 @@ const ProjectDetailView = ({ project, onBack }) => {
                         <button
                             onClick={() => setSortBy('priority')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'priority'
-                                ? 'bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-100'
-                                : 'text-sage-500 dark:text-bone-400 hover:text-sage-700 dark:hover:text-bone-200'
+                                ? 'bg-white/20 text-white'
+                                : 'text-white/60 hover:text-white'
                                 }`}
                         >
                             Priority
@@ -160,8 +168,8 @@ const ProjectDetailView = ({ project, onBack }) => {
                         <button
                             onClick={() => setSortBy('difficulty')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'difficulty'
-                                ? 'bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-100'
-                                : 'text-sage-500 dark:text-bone-400 hover:text-sage-700 dark:hover:text-bone-200'
+                                ? 'bg-white/20 text-white'
+                                : 'text-white/60 hover:text-white'
                                 }`}
                         >
                             Difficulty
@@ -171,7 +179,7 @@ const ProjectDetailView = ({ project, onBack }) => {
                     {sortBy !== 'manual' && (
                         <button
                             onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
-                            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-700 dark:text-bone-200 hover:bg-sage-50 dark:hover:bg-void-700 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-white/80 hover:bg-white/20 transition-colors"
                             title={sortDirection === 'desc' ? 'Descending (High to Low)' : 'Ascending (Low to High)'}
                         >
                             {sortDirection === 'desc' ? (
@@ -182,13 +190,13 @@ const ProjectDetailView = ({ project, onBack }) => {
                         </button>
                     )}
 
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-700 dark:text-bone-200 hover:bg-sage-50 dark:hover:bg-void-700 transition-colors">
-                        <Sparkles className="w-4 h-4 text-amber-500" />
+                    <button className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-white/80 hover:bg-white/20 transition-colors">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
                         AI Suggestions
                     </button>
                     <button
                         onClick={handleAddTask}
-                        className="flex items-center gap-2 px-4 py-2 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-colors shadow-lg shadow-purple-500/30"
                     >
                         <Plus className="w-4 h-4" />
                         Add Task
@@ -202,8 +210,8 @@ const ProjectDetailView = ({ project, onBack }) => {
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
             >
-                <div className="flex-1 overflow-x-auto pb-4">
-                    <div className="flex gap-6 h-full min-w-max px-1">
+                <div className="relative z-10 flex-1 overflow-x-auto pb-4 p-6">
+                    <div className="flex gap-6 h-full min-w-max">
                         {project.columns.map(column => (
                             <KanbanColumn
                                 key={column.id}
@@ -229,7 +237,7 @@ const ProjectDetailView = ({ project, onBack }) => {
                 initialData={editingTask}
                 mode={editingTask ? 'edit' : 'create'}
             />
-        </div >
+        </div>
     );
 };
 

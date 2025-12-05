@@ -1,22 +1,412 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check } from 'lucide-react';
+import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Edit2, Trash2, Mic, MicOff, Loader2 } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
-import { useLog } from '../context/LogContext';
+import { parseTaskInput } from '../services/gemini';
 import Penguin from './Penguin';
+import ScheduleEventModal from './ScheduleEventModal';
+import TaskModal from './TaskModal';
 
-const Overview = ({ onNavigate }) => {
-    const { tasks, addTask } = useTask();
-    const { dailyHighlights, goals } = useGoal();
+
+
+const CurrentEventWidget = ({ scheduleItems }) => {
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [currentEvent, setCurrentEvent] = useState(null);
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000 * 60); // Update every minute
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        if (!scheduleItems) return;
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        // Helper to check recurrence (reused logic for consistency)
+        const doesRecurOnToday = (item) => {
+            const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+            if (recurrenceType === 'none') return false;
+
+            const eventDate = new Date(item.startTime || item.start_time);
+            eventDate.setHours(0, 0, 0, 0);
+            const todayDate = new Date(now);
+            todayDate.setHours(0, 0, 0, 0);
+
+            if (todayDate < eventDate) return false;
+
+            const endDate = item.recurrence_end_date || item.recurrenceEndDate;
+            if (endDate && todayDate > new Date(endDate)) return false;
+
+            const interval = item.recurrence_interval || item.recurrenceInterval || 1;
+            const daysDiff = Math.floor((todayDate - eventDate) / (1000 * 60 * 60 * 24));
+
+            switch (recurrenceType) {
+                case 'daily': return daysDiff % interval === 0;
+                case 'weekly': {
+                    const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
+                    if (daysOfWeek.length > 0) return daysOfWeek.includes(todayDate.getDay());
+                    return daysDiff % (7 * interval) === 0;
+                }
+                case 'monthly': {
+                    const monthsDiff = (todayDate.getFullYear() - eventDate.getFullYear()) * 12 + (todayDate.getMonth() - eventDate.getMonth());
+                    return monthsDiff % interval === 0 && todayDate.getDate() === eventDate.getDate();
+                }
+                case 'yearly': {
+                    const yearsDiff = todayDate.getFullYear() - eventDate.getFullYear();
+                    return yearsDiff % interval === 0 && todayDate.getMonth() === eventDate.getMonth() && todayDate.getDate() === eventDate.getDate();
+                }
+                default: return false;
+            }
+        };
+
+        // Find active event
+        const active = scheduleItems.find(item => {
+            const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+            let itemStart = new Date(item.startTime || item.start_time);
+
+            // Adjust time for recurring events to today
+            if (recurrenceType !== 'none') {
+                if (!doesRecurOnToday(item)) return false;
+                const originalTime = itemStart;
+                itemStart = new Date(now);
+                itemStart.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+            } else {
+                // Non-recurring: must be today
+                if (itemStart.toISOString().split('T')[0] !== todayStr) return false;
+            }
+
+            const duration = item.duration || 60;
+            const itemEnd = new Date(itemStart.getTime() + duration * 60000);
+
+            return now >= itemStart && now < itemEnd;
+        });
+
+        if (active) {
+            // Calculate display times and progress
+            const recurrenceType = active.recurrence_type || active.recurrenceType || 'none';
+            let start = new Date(active.startTime || active.start_time);
+            if (recurrenceType !== 'none') {
+                const originalTime = start;
+                start = new Date(now);
+                start.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+            }
+
+            const duration = active.duration || 60;
+            const end = new Date(start.getTime() + duration * 60000);
+            const totalDuration = end.getTime() - start.getTime();
+            const elapsed = now.getTime() - start.getTime();
+            const prog = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+
+            setCurrentEvent({
+                ...active,
+                displayStart: start,
+                displayEnd: end
+            });
+            setProgress(prog);
+        } else {
+            setCurrentEvent(null);
+            setProgress(0);
+        }
+
+    }, [scheduleItems, currentTime]);
+
+
+
+    return (
+        <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider flex items-center gap-2">
+                            <Clock size={14} className="text-white/80" />
+                            {currentEvent ? 'Now Happening' : 'Current Status'}
+                        </h3>
+                        <div className="text-3xl font-bold text-white mt-1 font-mono">
+                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    </div>
+                    {currentEvent && (
+                        <div className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold border border-white/30">
+                            On Track
+                        </div>
+                    )}
+                </div>
+
+                {currentEvent ? (
+                    <div>
+                        <h4 className="text-xl font-bold text-white mb-1">{currentEvent.title}</h4>
+                        <div className="flex justify-between text-sm text-white/70 mb-3">
+                            <span>{currentEvent.displayStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>{currentEvent.displayEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                            <motion.div
+                                className="h-full bg-white"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                                transition={{ duration: 0.5 }}
+                            />
+                        </div>
+                        <p className="text-right text-xs text-white/60 mt-1">{Math.round(progress)}% Complete</p>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-4 py-2">
+                        <div className="p-3 bg-white/20 rounded-full text-white">
+                            <Zap size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-bold text-white">Free Time</h4>
+                            <p className="text-sm text-white/70">Recharge or pick a task from the garden.</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Quick Schedule Widget Component
+const QuickScheduleWidget = ({ addScheduleItem }) => {
+    const [title, setTitle] = useState('');
+    const [time, setTime] = useState('');
+    const [duration, setDuration] = useState('60');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!title.trim() || !time) return;
+
+        const today = new Date();
+        const [hours, minutes] = time.split(':');
+        const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+
+        addScheduleItem({
+            title: title.trim(),
+            startTime: startTime.toISOString(),
+            duration: parseInt(duration),
+            category: 'Other'
+        });
+
+        setTitle('');
+        setTime('');
+        setDuration('60');
+    };
+
+    return (
+        <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                <Calendar size={18} className="text-white/90" /> Quick Schedule
+            </h3>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Event name..."
+                    className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
+                />
+
+                <div className="flex gap-2">
+                    <input
+                        type="time"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        className="flex-1 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                    />
+                    <select
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                    >
+                        <option value="30" className="text-gray-800">30m</option>
+                        <option value="60" className="text-gray-800">1h</option>
+                        <option value="90" className="text-gray-800">1.5h</option>
+                        <option value="120" className="text-gray-800">2h</option>
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    className="w-full bg-white text-orange-600 py-2.5 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2"
+                >
+                    <Plus size={16} /> Add to Schedule
+                </button>
+            </form>
+        </div>
+    );
+};
+
+// Quick Add Task Widget with Voice Support
+const QuickAddTaskWidget = ({ addTask }) => {
+    const [input, setInput] = useState('');
+    const [isListening, setIsListening] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const recognitionRef = useRef(null);
+
+    // Initialize Speech Recognition
+    useEffect(() => {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.interimResults = true;
+            recognitionRef.current.lang = 'en-US';
+
+            recognitionRef.current.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                setInput(transcript);
+            };
+
+            recognitionRef.current.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                setIsListening(false);
+            };
+
+            recognitionRef.current.onend = () => {
+                setIsListening(false);
+            };
+        }
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+        };
+    }, []);
+
+    const toggleListening = () => {
+        if (!recognitionRef.current) {
+            alert('Speech recognition is not supported in your browser.');
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+        } else {
+            setInput('');
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!input.trim() || isProcessing) return;
+
+        setIsProcessing(true);
+        try {
+            // Use Gemini to parse the natural language input
+            const parsed = await parseTaskInput(input);
+
+            addTask({
+                title: parsed.title || input,
+                difficulty: parsed.difficulty || 'easy',
+                deadline: parsed.deadline,
+                subject: parsed.subject || "Today's Plan",
+                estimatedTime: parsed.estimatedTime
+            });
+
+            setInput('');
+        } catch (error) {
+            console.error('Error processing task:', error);
+            // Fallback to simple task creation
+            addTask({
+                title: input,
+                difficulty: 'easy',
+                subject: "Today's Plan"
+            });
+            setInput('');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    return (
+        <div className="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                <Plus size={18} className="text-white/90" /> Quick Add Task
+            </h3>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder={isListening ? 'Listening...' : 'e.g., "Math homework due tomorrow 3pm"'}
+                        className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 pr-12 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
+                        disabled={isListening}
+                    />
+                    <button
+                        type="button"
+                        onClick={toggleListening}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${isListening
+                            ? 'bg-red-500 text-white animate-pulse'
+                            : 'bg-white/20 text-white hover:bg-white/30'
+                            }`}
+                    >
+                        {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                    </button>
+                </div>
+
+                <p className="text-white/60 text-xs">
+                    🎤 Say or type: "task name, due date, difficulty"
+                </p>
+
+                <button
+                    type="submit"
+                    disabled={isProcessing || !input.trim()}
+                    className="w-full bg-white text-emerald-600 py-2.5 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isProcessing ? (
+                        <>
+                            <Loader2 size={16} className="animate-spin" /> Processing...
+                        </>
+                    ) : (
+                        <>
+                            <Plus size={16} /> Add Task
+                        </>
+                    )}
+                </button>
+            </form>
+        </div>
+    );
+};
+
+const Overview = ({ onNavigate, onStartDay }) => {
+    const { tasks, addTask, updateTask, deleteTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
+    const { dailyHighlights, goals, updateHighlight } = useGoal();
     const { user } = useAuth();
     const { coins } = useGame();
-    const { activityLogs, addActivityLog } = useLog();
 
     const [greeting, setGreeting] = useState('');
     const [quickCaptureText, setQuickCaptureText] = useState('');
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [selectedScheduleItem, setSelectedScheduleItem] = useState(null);
+    const [showTaskModal, setShowTaskModal] = useState(false);
+    const [selectedTask, setSelectedTask] = useState(null);
     const [stats, setStats] = useState({
         taskProgress: 0,
         urgentCount: 0,
@@ -81,7 +471,7 @@ const Overview = ({ onNavigate }) => {
             title: quickCaptureText,
             difficulty: 'medium',
             deadline: new Date().toISOString(), // Due today
-            subject: 'Quick Capture'
+            subject: 'Today\'s Plan'
         });
         setQuickCaptureText('');
     };
@@ -102,23 +492,23 @@ const Overview = ({ onNavigate }) => {
 
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
-                    <div className="bg-white dark:bg-void-800 p-3 rounded-2xl border border-sage-100 dark:border-white/10 shadow-sm flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-sage-800 dark:text-bone-100">{stats.tasksLeft}</span>
-                        <span className="text-xs text-sage-500 uppercase font-bold">Tasks Left</span>
+                    <div className="bg-gradient-to-br from-purple-500/80 to-indigo-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-white">{stats.tasksLeft}</span>
+                        <span className="text-xs text-white/70 uppercase font-bold">Tasks Left</span>
                     </div>
-                    <div className="bg-white dark:bg-void-800 p-3 rounded-2xl border border-sage-100 dark:border-white/10 shadow-sm flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-purple-600">{stats.taskProgress}%</span>
-                        <span className="text-xs text-sage-500 uppercase font-bold">Done</span>
+                    <div className="bg-gradient-to-br from-fuchsia-500/80 to-pink-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-white">{stats.taskProgress}%</span>
+                        <span className="text-xs text-white/70 uppercase font-bold">Done</span>
                     </div>
-                    <div className="bg-white dark:bg-void-800 p-3 rounded-2xl border border-sage-100 dark:border-white/10 shadow-sm flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-yellow-500 flex items-center gap-1">
+                    <div className="bg-gradient-to-br from-amber-500/80 to-orange-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-white flex items-center gap-1">
                             {coins} <span className="text-xs">🪙</span>
                         </span>
-                        <span className="text-xs text-sage-500 uppercase font-bold">Wealth</span>
+                        <span className="text-xs text-white/70 uppercase font-bold">Wealth</span>
                     </div>
-                    <div className="bg-white dark:bg-void-800 p-3 rounded-2xl border border-sage-100 dark:border-white/10 shadow-sm flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-blue-500">0</span>
-                        <span className="text-xs text-sage-500 uppercase font-bold">Focus (m)</span>
+                    <div className="bg-gradient-to-br from-blue-500/80 to-cyan-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-white">0</span>
+                        <span className="text-xs text-white/70 uppercase font-bold">Focus (m)</span>
                     </div>
                 </div>
             </div>
@@ -126,75 +516,144 @@ const Overview = ({ onNavigate }) => {
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                {/* LEFT COLUMN: Today's Plan (Purple Gradient) */}
+                {/* LEFT COLUMN: Today's Schedule (Indigo-Blue Gradient) */}
                 <div className="lg:col-span-1 flex flex-col h-full">
-                    <div className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[2rem] p-6 shadow-xl h-full flex flex-col relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-500 rounded-[2rem] p-6 shadow-xl h-full flex flex-col relative overflow-hidden">
                         {/* Decorative Background Elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
 
                         <div className="flex items-center gap-3 mb-6 relative z-10">
                             <Calendar className="text-white/90" size={24} />
-                            <h2 className="text-2xl font-bold text-white">Today's Plan</h2>
+                            <h2 className="text-2xl font-bold text-white">Today's Schedule</h2>
                         </div>
 
                         <div className="flex-1 relative z-10 space-y-4 overflow-y-auto custom-scrollbar pr-2">
                             {/* Timeline Line */}
                             <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-white/20 rounded-full"></div>
 
-                            {tasks && tasks.filter(t => {
-                                if (!t.deadline) return true; // Show anytime tasks too? Or filter logic from stats?
-                                const today = new Date().toISOString().split('T')[0];
-                                return t.deadline.startsWith(today);
-                            }).sort((a, b) => {
-                                if (!a.deadline) return 1;
-                                if (!b.deadline) return -1;
-                                return new Date(a.deadline) - new Date(b.deadline);
-                            }).map((task, i) => (
-                                <div key={task.id} className="relative pl-10 group">
-                                    {/* Timeline Dot */}
-                                    <div className={`absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-indigo-500 z-10 ${task.status === 'harvested' ? 'bg-green-400' : 'bg-white'
-                                        }`}></div>
+                            {(() => {
+                                const today = new Date();
+                                const todayStr = today.toISOString().split('T')[0];
 
-                                    <div className={`p-4 rounded-xl shadow-sm transition-all hover:scale-[1.02] ${task.status === 'harvested'
-                                            ? 'bg-white/10 text-white/60'
-                                            : 'bg-cyan-50 text-cyan-900'
-                                        }`}>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h3 className={`font-bold text-lg leading-tight ${task.status === 'harvested' ? 'line-through' : ''}`}>
-                                                    {task.title}
-                                                </h3>
-                                                <div className="flex items-center gap-2 mt-1 opacity-80">
-                                                    {task.status === 'harvested' ? (
-                                                        <span className="flex items-center gap-1 text-xs font-bold text-green-300">
-                                                            <CheckCircle2 size={12} /> Done
-                                                        </span>
-                                                    ) : (
+                                // Helper function for recurrence check
+                                const doesRecurOnToday = (item) => {
+                                    const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+                                    if (recurrenceType === 'none') return false;
+
+                                    const eventDate = new Date(item.startTime || item.start_time);
+                                    eventDate.setHours(0, 0, 0, 0);
+                                    const todayDate = new Date(today);
+                                    todayDate.setHours(0, 0, 0, 0);
+
+                                    if (todayDate < eventDate) return false;
+
+                                    const endDate = item.recurrence_end_date || item.recurrenceEndDate;
+                                    if (endDate && todayDate > new Date(endDate)) return false;
+
+                                    const interval = item.recurrence_interval || item.recurrenceInterval || 1;
+                                    const daysDiff = Math.floor((todayDate - eventDate) / (1000 * 60 * 60 * 24));
+
+                                    switch (recurrenceType) {
+                                        case 'daily': return daysDiff % interval === 0;
+                                        case 'weekly': {
+                                            const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
+                                            if (daysOfWeek.length > 0) return daysOfWeek.includes(todayDate.getDay());
+                                            return daysDiff % (7 * interval) === 0;
+                                        }
+                                        case 'monthly': {
+                                            const monthsDiff = (todayDate.getFullYear() - eventDate.getFullYear()) * 12 + (todayDate.getMonth() - eventDate.getMonth());
+                                            return monthsDiff % interval === 0 && todayDate.getDate() === eventDate.getDate();
+                                        }
+                                        case 'yearly': {
+                                            const yearsDiff = todayDate.getFullYear() - eventDate.getFullYear();
+                                            return yearsDiff % interval === 0 && todayDate.getMonth() === eventDate.getMonth() && todayDate.getDate() === eventDate.getDate();
+                                        }
+                                        default: return false;
+                                    }
+                                };
+
+                                // Get today's schedule items (including recurring)
+                                const todaySchedule = scheduleItems?.filter(item => {
+                                    if (!item.startTime && !item.start_time) return false;
+                                    const itemDate = new Date(item.startTime || item.start_time);
+                                    const itemDateStr = itemDate.toISOString().split('T')[0];
+                                    return itemDateStr === todayStr || doesRecurOnToday(item);
+                                }).map(item => {
+                                    const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+                                    const originalTime = new Date(item.startTime || item.start_time);
+                                    const adjustedTime = new Date(today);
+                                    adjustedTime.setHours(originalTime.getHours(), originalTime.getMinutes());
+                                    return {
+                                        ...item,
+                                        displayTime: adjustedTime,
+                                        isRecurring: recurrenceType !== 'none'
+                                    };
+                                }).sort((a, b) => a.displayTime - b.displayTime) || [];
+
+                                if (todaySchedule.length === 0) {
+                                    return (
+                                        <div className="pl-10 text-white/60 italic text-sm py-4">
+                                            No schedule for today.
+                                        </div>
+                                    );
+                                }
+
+                                return todaySchedule.map((item, i) => (
+                                    <div key={item.id || i} className="relative pl-10 group">
+                                        {/* Timeline Dot */}
+                                        <div className="absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white"
+                                            style={{ borderColor: item.color || '#6366f1' }}></div>
+
+                                        <div
+                                            onClick={() => {
+                                                setSelectedScheduleItem(item);
+                                                setShowScheduleModal(true);
+                                            }}
+                                            className="p-4 rounded-xl shadow-sm transition-all hover:scale-[1.02] bg-white/10 backdrop-blur-md border border-white/10 group-hover:bg-white/15 cursor-pointer"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                    <h3 className="font-bold text-lg leading-tight text-white">
+                                                        {item.title}
+                                                    </h3>
+                                                    <div className="flex items-center gap-2 mt-1 text-white/70">
                                                         <span className="flex items-center gap-1 text-xs font-bold">
                                                             <Clock size={12} />
-                                                            {task.deadline
-                                                                ? new Date(task.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                                                : 'Anytime'}
+                                                            {(() => {
+                                                                const startHour = String(item.displayTime.getHours()).padStart(2, '0');
+                                                                const startMin = String(item.displayTime.getMinutes()).padStart(2, '0');
+                                                                const endTime = new Date(item.displayTime.getTime() + (item.duration || 60) * 60000);
+                                                                const endHour = String(endTime.getHours()).padStart(2, '0');
+                                                                const endMin = String(endTime.getMinutes()).padStart(2, '0');
+                                                                return `${startHour}:${startMin}-${endHour}:${endMin}`;
+                                                            })()}
                                                         </span>
-                                                    )}
+                                                        {item.isRecurring && (
+                                                            <span className="text-xs text-cyan-300 px-1.5 py-0.5 bg-cyan-500/20 rounded-full">🔄</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (window.confirm(`Delete "${item.title}"?`)) {
+                                                                deleteScheduleItem(item.id);
+                                                            }
+                                                        }}
+                                                        className="p-1.5 rounded-lg bg-white/10 hover:bg-red-500/30 text-white/60 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#06b6d4' }}></div>
                                                 </div>
                                             </div>
-                                            {task.status !== 'harvested' && (
-                                                <div className="bg-green-500 text-white p-1 rounded-full shadow-sm">
-                                                    <Check size={14} strokeWidth={3} />
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-
-                            {(!tasks || tasks.filter(t => t.deadline && t.deadline.startsWith(new Date().toISOString().split('T')[0])).length === 0) && (
-                                <div className="pl-10 text-white/60 italic text-sm py-4">
-                                    No tasks scheduled for today.
-                                </div>
-                            )}
+                                ));
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -202,13 +661,27 @@ const Overview = ({ onNavigate }) => {
                 {/* MIDDLE/RIGHT COLUMN: Vision Board + Widgets */}
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    {/* Vision Board Card (Purple/Pink Gradient) */}
-                    <div className="bg-gradient-to-br from-fuchsia-600 to-purple-700 rounded-[2rem] p-6 shadow-xl relative overflow-hidden flex flex-col">
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                    {/* Current Event Widget */}
+                    <div className="md:col-span-2">
+                        <CurrentEventWidget scheduleItems={scheduleItems} />
+                    </div>
 
-                        <div className="flex items-center gap-3 mb-6 relative z-10">
-                            <Target className="text-white/90" size={24} />
-                            <h2 className="text-2xl font-bold text-white">Vision Board (Today)</h2>
+                    {/* Vision Board Card (Purple-Pink Gradient) */}
+                    <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-500 rounded-[2rem] p-6 shadow-xl relative overflow-hidden flex flex-col">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/15 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+
+                        <div className="flex items-center justify-between mb-6 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <Target className="text-white/90" size={24} />
+                                <h2 className="text-2xl font-bold text-white">Vision Board (Today)</h2>
+                            </div>
+                            <button
+                                onClick={onStartDay}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-bold transition-colors backdrop-blur-sm"
+                            >
+                                <Sun size={16} /> Start Day
+                            </button>
                         </div>
 
                         <div className="space-y-3 relative z-10 flex-1">
@@ -221,18 +694,25 @@ const Overview = ({ onNavigate }) => {
                                     : rawData;
 
                                 if (!highlight) return (
-                                    <div key={index} className="p-4 rounded-xl bg-white/10 border border-white/5 text-white/40 text-sm italic flex items-center gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-white/20"></div>
+                                    <div key={index} className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white/40 text-sm italic flex items-center gap-3">
+                                        <div className="w-2 h-2 rounded-full bg-white/30"></div>
                                         Empty Goal Slot
                                     </div>
                                 );
 
                                 return (
-                                    <div key={index} className={`p-4 rounded-xl shadow-sm flex items-center gap-3 transition-all hover:scale-[1.02] ${highlight.completed
-                                            ? 'bg-white/10 text-white/60'
-                                            : 'bg-purple-50 text-purple-900'
-                                        }`}>
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${highlight.completed ? 'bg-green-500 text-white' : 'bg-fuchsia-500'
+                                    <div
+                                        key={index}
+                                        onClick={() => {
+                                            const newCompleted = !highlight.completed;
+                                            updateHighlight(uniqueKey, highlight.text, newCompleted, newCompleted ? 'completed' : 'pending');
+                                        }}
+                                        className={`p-4 rounded-xl shadow-lg flex items-center gap-3 transition-all hover:scale-[1.02] backdrop-blur-sm border cursor-pointer ${highlight.completed
+                                            ? 'bg-white/10 border-white/20 text-white/60'
+                                            : 'bg-white/20 border-white/30 text-white'
+                                            }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${highlight.completed ? 'bg-green-500 text-white' : 'bg-white/30 hover:bg-white/50'
                                             }`}>
                                             {highlight.completed && <Check size={12} strokeWidth={3} />}
                                         </div>
@@ -249,44 +729,146 @@ const Overview = ({ onNavigate }) => {
                         </button>
                     </div>
 
-                    {/* Quick Capture Widget */}
-                    <div className="bg-white dark:bg-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-[2rem] shadow-sm flex flex-col">
-                        <h3 className="font-bold text-sage-700 dark:text-bone-200 mb-4 flex items-center gap-2">
-                            <Brain size={18} className="text-pink-500" /> Quick Capture
+                    {/* Tasks Due Today Widget (Blue-Cyan Gradient) */}
+                    <div className="bg-gradient-to-br from-blue-600 via-cyan-600 to-cyan-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+                        <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                            <Clock size={18} className="text-white/90" /> Tasks Due Today
                         </h3>
-                        <form onSubmit={handleQuickCapture} className="flex flex-col gap-3 flex-1">
-                            <textarea
-                                value={quickCaptureText}
-                                onChange={(e) => setQuickCaptureText(e.target.value)}
-                                placeholder="What's on your mind?"
-                                className="w-full bg-sage-50 dark:bg-black/20 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-purple-500 resize-none flex-1 min-h-[100px] text-sage-800 dark:text-bone-100"
-                            />
-                            <button type="submit" className="bg-sage-800 dark:bg-bone-200 text-white dark:text-black py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
-                                <Plus size={16} /> Add Task
-                            </button>
-                        </form>
+                        <div className="flex-1 space-y-2 overflow-y-auto max-h-[200px] custom-scrollbar">
+                            {(() => {
+                                const today = new Date();
+                                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                const todayEnd = new Date(todayStart);
+                                todayEnd.setDate(todayEnd.getDate() + 1);
+
+                                const todayTasks = tasks.filter(task => {
+                                    if (!task.deadline || task.status === 'harvested') return false;
+                                    const deadline = new Date(task.deadline);
+                                    return deadline >= todayStart && deadline < todayEnd;
+                                });
+
+                                if (todayTasks.length === 0) {
+                                    return (
+                                        <div className="text-white/60 text-sm italic text-center py-4">
+                                            No tasks due today! 🎉
+                                        </div>
+                                    );
+                                }
+
+                                return todayTasks.map(task => (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => {
+                                            setSelectedTask(task);
+                                            setShowTaskModal(true);
+                                        }}
+                                        className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-white/30 transition-colors group"
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${task.status === 'growing' ? 'bg-green-400' : 'bg-white/50'}`}></div>
+                                        <span className="text-white text-sm font-medium flex-1 truncate">{task.title}</span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm(`Delete "${task.title}"?`)) {
+                                                    deleteTask(task.id);
+                                                }
+                                            }}
+                                            className="p-1.5 rounded-lg bg-white/10 hover:bg-red-500/30 text-white/60 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                        <span className="text-white/60 text-xs">
+                                            {new Date(task.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
                     </div>
 
-                    {/* Avatar / Motivation Widget */}
-                    <div className="md:col-span-2 bg-gradient-to-r from-sky-100 to-blue-50 dark:from-void-800 dark:to-void-900 border border-sage-100 dark:border-white/10 p-6 rounded-[2rem] shadow-sm flex items-center gap-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    {/* Quick Add Schedule Widget (Amber-Orange Gradient) */}
+                    <QuickScheduleWidget addScheduleItem={addScheduleItem} />
 
-                        <div className="shrink-0 transform scale-110">
-                            <Penguin stage="growing" level={3} difficulty="medium" />
+                    {/* Quick Add Task Widget (Teal-Green Gradient) */}
+                    <QuickAddTaskWidget addTask={addTask} />
+
+
+                    {/* Start the Day Widget */}
+                    <div
+                        onClick={onStartDay}
+                        className="md:col-span-2 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-6 rounded-[2rem] shadow-xl flex items-center gap-6 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
+                    >
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+
+                        <div className="shrink-0 w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Sun size={32} className="text-white" />
                         </div>
 
-                        <div className="relative z-10">
-                            <h3 className="font-bold text-lg text-sage-800 dark:text-bone-100 mb-1">
-                                Keep going, {user?.email?.split('@')[0] || 'Friend'}!
+                        <div className="relative z-10 flex-1">
+                            <h3 className="font-bold text-xl text-white mb-1">
+                                Start Your Day
                             </h3>
-                            <p className="text-sage-600 dark:text-bone-300 text-sm italic">
-                                "Small steps every day lead to big results. You've completed {stats.taskProgress}% of today's tasks."
+                            <p className="text-white/70 text-sm">
+                                Set your 3 main goals and plan your focus for today
                             </p>
+                        </div>
+
+                        <div className="hidden md:flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-white font-bold text-sm group-hover:bg-white/30 transition-colors">
+                            <span>Begin</span>
+                            <ChevronRight size={16} />
                         </div>
                     </div>
 
                 </div>
             </div>
+
+            {/* Schedule Event Modal for editing */}
+            <ScheduleEventModal
+                isOpen={showScheduleModal}
+                onClose={() => {
+                    setShowScheduleModal(false);
+                    setSelectedScheduleItem(null);
+                }}
+                onSave={(eventData) => {
+                    if (selectedScheduleItem?.id) {
+                        updateScheduleItem(selectedScheduleItem.id, eventData);
+                    } else {
+                        addScheduleItem(eventData);
+                    }
+                    setShowScheduleModal(false);
+                    setSelectedScheduleItem(null);
+                }}
+                onDelete={selectedScheduleItem?.id ? () => {
+                    deleteScheduleItem(selectedScheduleItem.id);
+                    setShowScheduleModal(false);
+                    setSelectedScheduleItem(null);
+                } : null}
+                event={selectedScheduleItem}
+                selectedDate={new Date()}
+            />
+
+            {/* Task Modal for editing */}
+            <TaskModal
+                isOpen={showTaskModal}
+                onClose={() => {
+                    setShowTaskModal(false);
+                    setSelectedTask(null);
+                }}
+                onSave={(taskData) => {
+                    if (selectedTask?.id) {
+                        updateTask(selectedTask.id, taskData);
+                    } else {
+                        addTask(taskData);
+                    }
+                    setShowTaskModal(false);
+                    setSelectedTask(null);
+                }}
+                task={selectedTask}
+            />
         </div>
     );
 };

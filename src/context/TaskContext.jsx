@@ -39,14 +39,21 @@ export const TaskProvider = ({ children }) => {
 
     // Load from Supabase
     const loadTasksFromSupabase = async () => {
-        if (!user) return;
+        if (!user) {
+            console.log('🔍 No user, skipping load');
+            return;
+        }
+
+        console.log('🔍 Loading data for user:', user.id, user.email);
 
         try {
             // Load Tasks
-            const { data: tasksData } = await supabase
+            const { data: tasksData, error: tasksError } = await supabase
                 .from('tasks')
                 .select('*')
                 .order('created_at', { ascending: true });
+
+            console.log('📋 Tasks loaded:', tasksData?.length || 0, 'Error:', tasksError);
 
             if (tasksData) {
                 const formattedTasks = tasksData.map(t => ({
@@ -57,10 +64,12 @@ export const TaskProvider = ({ children }) => {
             }
 
             // Load Schedule Items
-            const { data: scheduleData } = await supabase
+            const { data: scheduleData, error: scheduleError } = await supabase
                 .from('schedule_items')
                 .select('*')
                 .order('start_time', { ascending: true });
+
+            console.log('📅 Schedule loaded:', scheduleData?.length || 0, 'Error:', scheduleError);
 
             if (scheduleData) {
                 const formattedSchedule = scheduleData.map(item => ({
@@ -70,7 +79,7 @@ export const TaskProvider = ({ children }) => {
                 setScheduleItems(formattedSchedule);
             }
         } catch (error) {
-            console.error("Error loading tasks:", error);
+            console.error("❌ Error loading tasks:", error);
         }
     };
 
@@ -241,17 +250,33 @@ export const TaskProvider = ({ children }) => {
             user_id: user?.id,
             created_at: new Date().toISOString(),
             start_time: itemData.startTime,
-            startTime: itemData.startTime
+            startTime: itemData.startTime,
+            // Map recurrence fields
+            recurrence_type: itemData.recurrenceType || 'none',
+            recurrence_interval: itemData.recurrenceInterval || 1,
+            recurrence_days_of_week: itemData.recurrenceDaysOfWeek || [],
+            recurrence_end_date: itemData.recurrenceEndDate || null,
+            color: itemData.color || '#6366f1',
+            notes: itemData.notes || null
         };
 
         const tempId = Date.now();
         setScheduleItems(prev => [...prev, { ...newItem, id: user ? tempId : newItem.id }]);
 
         if (user) {
-            const { id, startTime, ...dbItem } = newItem;
+            // Only include DB-compatible fields (exclude camelCase versions)
+            const { id, startTime, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceEndDate, ...dbItem } = newItem;
             const { data, error } = await supabase.from('schedule_items').insert([dbItem]).select().single();
             if (data) {
-                setScheduleItems(prev => prev.map(i => i.id === tempId ? { ...i, ...data, startTime: data.start_time } : i));
+                setScheduleItems(prev => prev.map(i => i.id === tempId ? {
+                    ...i,
+                    ...data,
+                    startTime: data.start_time,
+                    recurrenceType: data.recurrence_type,
+                    recurrenceInterval: data.recurrence_interval,
+                    recurrenceDaysOfWeek: data.recurrence_days_of_week,
+                    recurrenceEndDate: data.recurrence_end_date
+                } : i));
             } else if (error) {
                 console.error("Error adding schedule item:", error);
             }
@@ -259,13 +284,30 @@ export const TaskProvider = ({ children }) => {
     };
 
     const updateScheduleItem = async (id, updates) => {
-        setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+        // Map camelCase to snake_case for local state
+        const processedUpdates = { ...updates };
+        if (updates.startTime) processedUpdates.start_time = updates.startTime;
+        if (updates.recurrenceType !== undefined) processedUpdates.recurrence_type = updates.recurrenceType;
+        if (updates.recurrenceInterval !== undefined) processedUpdates.recurrence_interval = updates.recurrenceInterval;
+        if (updates.recurrenceDaysOfWeek !== undefined) processedUpdates.recurrence_days_of_week = updates.recurrenceDaysOfWeek;
+        if (updates.recurrenceEndDate !== undefined) processedUpdates.recurrence_end_date = updates.recurrenceEndDate;
+
+        setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...processedUpdates } : i));
+
         if (user) {
-            const dbUpdates = { ...updates };
-            if (dbUpdates.startTime) {
-                dbUpdates.start_time = dbUpdates.startTime;
-                delete dbUpdates.startTime;
-            }
+            // For DB, use only snake_case fields
+            const dbUpdates = {};
+            if (updates.title) dbUpdates.title = updates.title;
+            if (updates.startTime) dbUpdates.start_time = updates.startTime;
+            if (updates.duration) dbUpdates.duration = updates.duration;
+            if (updates.category) dbUpdates.category = updates.category;
+            if (updates.color) dbUpdates.color = updates.color;
+            if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+            if (updates.recurrenceType !== undefined) dbUpdates.recurrence_type = updates.recurrenceType;
+            if (updates.recurrenceInterval !== undefined) dbUpdates.recurrence_interval = updates.recurrenceInterval;
+            if (updates.recurrenceDaysOfWeek !== undefined) dbUpdates.recurrence_days_of_week = updates.recurrenceDaysOfWeek;
+            if (updates.recurrenceEndDate !== undefined) dbUpdates.recurrence_end_date = updates.recurrenceEndDate;
+
             await supabase.from('schedule_items').update(dbUpdates).eq('id', id);
         }
     };

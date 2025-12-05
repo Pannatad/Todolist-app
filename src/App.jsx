@@ -5,22 +5,30 @@ import Garden from './components/Garden';
 import Calendar from './components/Calendar';
 import AIHelpSidebar from './components/AIHelpSidebar';
 import VisionBoard from './components/VisionBoard';
-import DailyLog from './components/DailyLog';
 import AuthModal from './components/AuthModal';
 import FocusTimer from './components/FocusTimer';
 import UserProfile from './components/UserProfile';
-import Analytics from './components/Analytics';
 import ProjectBoards from './components/ProjectBoards';
 import Overview from './components/Overview';
+import StartTheDayModal from './components/StartTheDayModal';
 import { getPersonalizedAdvice } from './services/gemini';
 
 // Import all context hooks
 import { useAuth } from './context/AuthContext';
 import { useTask } from './context/TaskContext';
 import { useGame } from './context/GameContext';
-import { useLog } from './context/LogContext';
+
 import { useGoal } from './context/GoalContext';
 import { ProjectProvider } from './context/ProjectContext';
+
+const DigitalClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 function App() {
   // Context hooks
@@ -50,11 +58,11 @@ function App() {
     triggerPersonaReaction
   } = useGame();
 
-  const { activityLogs, addActivityLog, deleteActivityLog } = useLog();
   const { goals, dailyHighlights, addGoal, updateGoal, deleteGoal, updateHighlight } = useGoal();
 
   // Local UI State (not in contexts)
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showStartDayModal, setShowStartDayModal] = useState(false);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('app-theme') || 'cozy'; // 'cozy', 'professional', 'pink', 'blue'
@@ -66,13 +74,11 @@ function App() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
-    { id: 'vision', label: 'Vision Board', icon: <Target size={20} /> },
-    { id: 'garden', label: 'Garden', icon: <Sprout size={20} /> },
     { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
-    { id: 'log', label: 'Daily Log', icon: <ScrollText size={20} /> },
+    { id: 'garden', label: 'Garden', icon: <Sprout size={20} /> },
     { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
     { id: 'focus', label: 'Focus', icon: <Timer size={20} /> },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={20} /> },
+    { id: 'vision', label: 'Vision Board', icon: <Target size={20} /> },
   ];
   const [currentFocusTask, setCurrentFocusTask] = useState(null);
 
@@ -186,6 +192,12 @@ function App() {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3">
+
+                {/* Digital Clock */}
+                <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/50 dark:bg-void-800/50 backdrop-blur-md rounded-full shadow-sm border border-sage-200 dark:border-white/5 font-mono text-sage-700 dark:text-bone-200 font-bold">
+                  <DigitalClock />
+                </div>
+
                 {/* Coins Display */}
                 <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-white/50 dark:bg-void-800/50 backdrop-blur-md rounded-full shadow-sm border border-sage-200 dark:border-white/5">
                   <span className="text-base sm:text-xl">🪙</span>
@@ -292,7 +304,7 @@ function App() {
               </>
             )}
             {activeTab === 'overview' && (
-              <Overview onNavigate={setActiveTab} />
+              <Overview onNavigate={setActiveTab} onStartDay={() => setShowStartDayModal(true)} />
             )}
 
             {activeTab === 'schedule' && (
@@ -317,18 +329,7 @@ function App() {
               />
             )}
 
-            {activeTab === 'log' && (
-              <DailyLog
-                logs={activityLogs}
-                onAddLog={addActivityLog}
-                onDeleteLog={deleteActivityLog}
-                tasks={tasks}
-              />
-            )}
 
-            {activeTab === 'analytics' && (
-              <Analytics />
-            )}
 
             {activeTab === 'projects' && (
               <ProjectBoards />
@@ -358,6 +359,16 @@ function App() {
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
+        />
+
+        <StartTheDayModal
+          isOpen={showStartDayModal}
+          onClose={() => setShowStartDayModal(false)}
+          tasks={tasks}
+          goals={goals}
+          dailyHighlights={dailyHighlights}
+          scheduleItems={scheduleItems}
+          onAddScheduleItem={addScheduleItem}
         />
       </div>
     </ProjectProvider>

@@ -141,7 +141,7 @@ const ProjectBoards = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     {/* View Toggle */}
-                    <div className="flex bg-white dark:bg-void-800 rounded-lg p-1 border border-sage-200 dark:border-white/10">
+                    <div className="flex bg-gradient-to-r from-indigo-500/20 to-purple-500/20 backdrop-blur-sm rounded-lg p-1 border border-white/20">
                         <button
                             onClick={() => setViewMode('grid')}
                             className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-sage-100 dark:bg-white/10 text-sage-800 dark:text-bone-100' : 'text-sage-400 hover:text-sage-600 dark:hover:text-bone-300'}`}
@@ -316,12 +316,12 @@ const ProjectBoards = () => {
                     {/* Add New Project Card */}
                     <button
                         onClick={() => setShowNewProjectModal(true)}
-                        className="flex flex-col items-center justify-center h-full min-h-[300px] border-2 border-dashed border-sage-300 dark:border-white/10 rounded-2xl hover:border-sage-500 dark:hover:border-white/30 hover:bg-sage-50 dark:hover:bg-void-800/30 transition-all group text-sage-500 dark:text-bone-400"
+                        className="flex flex-col items-center justify-center h-full min-h-[300px] bg-gradient-to-br from-purple-500/20 to-indigo-600/20 backdrop-blur-sm border-2 border-dashed border-purple-400/30 rounded-2xl hover:from-purple-500/30 hover:to-indigo-600/30 transition-all group shadow-lg"
                     >
-                        <div className="p-3 rounded-full bg-sage-100 dark:bg-void-700 group-hover:scale-110 transition-transform mb-3">
-                            <Plus className="w-6 h-6" />
+                        <div className="p-3 rounded-full bg-purple-500/30 group-hover:scale-110 transition-transform mb-3">
+                            <Plus className="w-6 h-6 text-purple-300" />
                         </div>
-                        <span className="font-medium">Create New Board</span>
+                        <span className="font-medium text-purple-300">Create New Board</span>
                     </button>
                 </div>
             )}

@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Plus, Mic, MicOff, Loader2 } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
+import { parseScheduleCommand } from '../services/gemini';
+import ScheduleEventModal from './ScheduleEventModal';
 
 const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [weekDates, setWeekDates] = useState([]);
+    const [isListening, setIsListening] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [showEventModal, setShowEventModal] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(null);
 
     // Generate the 7 days of the current week
     useEffect(() => {
@@ -56,42 +63,124 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     };
 
     const handleTimeClick = (date, hour, minute) => {
-        const deadline = new Date(date);
-        deadline.setHours(hour);
-        deadline.setMinutes(minute);
-        deadline.setSeconds(0);
+        const clickedDate = new Date(date);
+        clickedDate.setHours(hour);
+        clickedDate.setMinutes(minute);
+        clickedDate.setSeconds(0);
 
-        const title = prompt(`Schedule event for ${date.toLocaleDateString()} at ${hour}:${minute.toString().padStart(2, '0')}?`);
-        if (title) {
-            onAddEvent({
-                title,
-                startTime: deadline.toISOString(),
-                category: 'other',
-                duration: 60
-            });
+        setSelectedDate(clickedDate);
+        setSelectedEvent(null);
+        setShowEventModal(true);
+    };
+
+    const handleEventClick = (event, e) => {
+        e.stopPropagation();
+        setSelectedEvent(event);
+        setSelectedDate(null);
+        setShowEventModal(true);
+    };
+
+    const handleSaveEvent = (eventData) => {
+        if (eventData.id) {
+            onUpdateEvent(eventData.id, eventData);
+        } else {
+            onAddEvent(eventData);
         }
     };
 
+    const handleVoiceCommand = () => {
+        if (!('webkitSpeechRecognition' in window)) {
+            alert("Voice recognition is not supported in this browser. Please use Chrome or Edge.");
+            return;
+        }
+
+        if (isListening) {
+            setIsListening(false);
+            return;
+        }
+
+        const recognition = new window.webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+            setIsListening(true);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript;
+            console.log("Voice command:", transcript);
+
+            setIsProcessing(true);
+            try {
+                const parsedEvent = await parseScheduleCommand(transcript);
+                if (parsedEvent) {
+                    onAddEvent({
+                        title: parsedEvent.title,
+                        startTime: parsedEvent.startTime,
+                        category: parsedEvent.category || 'Other',
+                        duration: parsedEvent.duration || 60
+                    });
+                    alert(`Scheduled: ${parsedEvent.title} at ${new Date(parsedEvent.startTime).toLocaleTimeString()}`);
+                } else {
+                    alert("Could not understand the command. Please try again.");
+                }
+            } catch (error) {
+                console.error("Error processing voice command:", error);
+                alert("Something went wrong. Please try again.");
+            } finally {
+                setIsProcessing(false);
+            }
+        };
+
+        recognition.start();
+    };
+
     return (
-        <div className="w-full h-full flex flex-col bg-white/50 dark:bg-void-900/50 backdrop-blur-sm rounded-2xl border border-sage-200 dark:border-white/5 shadow-xl overflow-hidden">
+        <div className="w-full h-full flex flex-col bg-gradient-to-br from-indigo-900/90 via-purple-900/90 to-violet-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
             {/* Header / Navigation */}
-            <div className="flex justify-between items-center p-4 border-b border-sage-200 dark:border-white/10 flex-none">
+            <div className="flex justify-between items-center p-4 border-b border-white/10 flex-none bg-white/5">
                 <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-serif font-bold text-sage-800 dark:text-bone-100">
+                    <h2 className="text-xl font-serif font-bold text-white">
                         {weekDates[0] && `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} - ${weekDates[6].toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
                     </h2>
                     <button
                         onClick={() => setCurrentDate(new Date())}
-                        className="text-xs px-3 py-1 rounded-full bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700 transition-colors"
+                        className="text-xs px-3 py-1 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition-colors border border-white/20"
                     >
                         Today
                     </button>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
+                <div className="flex gap-2 items-center">
+                    <button
+                        onClick={handleVoiceCommand}
+                        disabled={isProcessing}
+                        className={`p-2 rounded-full transition-all ${isListening
+                            ? 'bg-red-500 text-white animate-pulse'
+                            : isProcessing
+                                ? 'bg-indigo-400/30 text-indigo-200'
+                                : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-400 hover:to-indigo-400 shadow-lg'
+                            }`}
+                        title="Voice Command"
+                    >
+                        {isProcessing ? (
+                            <Loader2 size={20} className="animate-spin" />
+                        ) : isListening ? (
+                            <MicOff size={20} />
+                        ) : (
+                            <Mic size={20} />
+                        )}
+                    </button>
+                    <div className="w-px h-6 bg-white/20 mx-2" />
+                    <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/80 hover:text-white">
                         <ChevronLeft size={20} />
                     </button>
-                    <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
+                    <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/80 hover:text-white">
                         <ChevronRight size={20} />
                     </button>
                 </div>
@@ -102,19 +191,19 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                 <div className="min-w-[1600px] relative">
 
                     {/* Header Row (Days) */}
-                    <div className="flex border-b border-sage-200 dark:border-white/10 sticky top-0 bg-white/95 dark:bg-void-900/95 z-20 backdrop-blur-sm">
-                        <div className="w-16 flex-none p-4 text-center text-xs font-bold text-sage-400 border-r border-sage-100 dark:border-white/5 sticky left-0 z-30 bg-white/95 dark:bg-void-900/95">
+                    <div className="flex border-b border-white/10 sticky top-0 bg-indigo-900/95 z-20 backdrop-blur-sm">
+                        <div className="w-16 flex-none p-4 text-center text-xs font-bold text-white/50 border-r border-white/10 sticky left-0 z-30 bg-indigo-900/95">
                             Time
                         </div>
                         {weekDates.map((date, index) => (
                             <div
                                 key={index}
-                                className={`flex-1 p-4 text-center border-r border-sage-100 dark:border-white/5 ${isToday(date) ? 'bg-sage-50 dark:bg-sage-900/20' : ''}`}
+                                className={`flex-1 p-4 text-center border-r border-white/10 ${isToday(date) ? 'bg-purple-500/20' : ''}`}
                             >
-                                <div className={`text-xs font-bold uppercase mb-1 ${isToday(date) ? 'text-sage-600 dark:text-sage-400' : 'text-sage-400'}`}>
+                                <div className={`text-xs font-bold uppercase mb-1 ${isToday(date) ? 'text-purple-300' : 'text-white/50'}`}>
                                     {date.toLocaleDateString([], { weekday: 'short' })}
                                 </div>
-                                <div className={`text-lg font-bold ${isToday(date) ? 'text-sage-800 dark:text-bone-100' : 'text-sage-600 dark:text-bone-300'}`}>
+                                <div className={`text-lg font-bold ${isToday(date) ? 'text-white' : 'text-white/80'}`}>
                                     {date.getDate()}
                                 </div>
                             </div>
@@ -125,16 +214,16 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                     <div className="flex relative" style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}>
 
                         {/* Time Labels Column */}
-                        <div className="w-16 flex-none border-r border-sage-100 dark:border-white/5 bg-white/95 dark:bg-void-900/95 z-30 sticky left-0">
+                        <div className="w-16 flex-none border-r border-white/10 bg-indigo-900/95 z-30 sticky left-0">
                             {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => {
                                 const hour = START_HOUR + i;
                                 return (
                                     <div
                                         key={hour}
-                                        className="relative border-b border-sage-100 dark:border-white/5 w-full"
+                                        className="relative border-b border-white/5 w-full"
                                         style={{ height: PIXELS_PER_HOUR }}
                                     >
-                                        <span className="absolute -top-2.5 right-2 text-xs font-medium text-sage-400 bg-white/50 dark:bg-void-900/50 px-1">
+                                        <span className="absolute -top-2.5 right-2 text-xs font-medium text-white/40 bg-indigo-900/80 px-1">
                                             {hour > 24 ? `${hour - 24}:00` : `${hour}:00`}
                                         </span>
                                     </div>
@@ -149,13 +238,13 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                             return (
                                 <div
                                     key={dayIndex}
-                                    className={`flex-1 relative border-r border-sage-100 dark:border-white/5 ${isToday(date) ? 'bg-sage-50/30 dark:bg-sage-900/10' : ''}`}
+                                    className={`flex-1 relative border-r border-white/5 ${isToday(date) ? 'bg-purple-500/10' : ''}`}
                                 >
                                     {/* Hour Grid Lines */}
                                     {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => (
                                         <div
                                             key={i}
-                                            className="border-b border-sage-100 dark:border-white/5 w-full hover:bg-sage-50/50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                            className="border-b border-white/5 w-full hover:bg-white/5 transition-colors cursor-pointer"
                                             style={{ height: PIXELS_PER_HOUR }}
                                             onClick={() => handleTimeClick(date, START_HOUR + i, 0)}
                                         />
@@ -172,43 +261,28 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                                         const top = ((hour - START_HOUR) * 60 + minute) * PIXELS_PER_MINUTE;
                                         const duration = event.estimatedTime || event.duration || 60;
                                         const height = duration * PIXELS_PER_MINUTE;
-                                        const color = getColorForSubject(event.subject || event.category);
+                                        const eventColor = event.color || getColorForSubject(event.subject || event.category).color;
+                                        const bgColor = event.color ? `${event.color}40` : getColorForSubject(event.subject || event.category).bgColor;
 
                                         return (
                                             <motion.div
                                                 key={event.id}
                                                 initial={{ opacity: 0, scale: 0.9 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className="absolute left-1 right-1 rounded-lg p-2 shadow-sm overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 border-l-4"
+                                                className="absolute left-1 right-1 rounded-lg p-2 shadow-lg overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 border-l-4 backdrop-blur-sm"
                                                 style={{
                                                     top: `${top}px`,
-                                                    height: `${Math.max(height, 20)}px`, // Min height for visibility
-                                                    backgroundColor: color.bgColor,
-                                                    borderColor: color.color
+                                                    height: `${Math.max(height, 20)}px`,
+                                                    backgroundColor: bgColor,
+                                                    borderColor: eventColor
                                                 }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // Simple interaction for now: Prompt for action
-                                                    const action = window.prompt(
-                                                        `Event: ${event.title}\nTime: ${hour}:${minute.toString().padStart(2, '0')}\nDuration: ${duration}m\n\nType 'delete' to remove, or type a new title to rename:`
-                                                    );
-
-                                                    if (action) {
-                                                        if (action.toLowerCase() === 'delete') {
-                                                            if (window.confirm(`Are you sure you want to delete "${event.title}"?`)) {
-                                                                onDeleteEvent(event.id);
-                                                            }
-                                                        } else {
-                                                            onUpdateEvent(event.id, { title: action });
-                                                        }
-                                                    }
-                                                }}
+                                                onClick={(e) => handleEventClick(event, e)}
                                             >
-                                                <div className="text-xs font-bold truncate" style={{ color: color.color }}>
+                                                <div className="text-xs font-bold truncate" style={{ color: eventColor }}>
                                                     {event.title}
                                                 </div>
                                                 {height > 30 && (
-                                                    <div className="text-[10px] opacity-80 truncate" style={{ color: color.color }}>
+                                                    <div className="text-[10px] opacity-80 truncate" style={{ color: eventColor }}>
                                                         {duration}m
                                                     </div>
                                                 )}
@@ -221,8 +295,23 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Schedule Event Modal */}
+            <ScheduleEventModal
+                isOpen={showEventModal}
+                onClose={() => {
+                    setShowEventModal(false);
+                    setSelectedEvent(null);
+                    setSelectedDate(null);
+                }}
+                onSave={handleSaveEvent}
+                onDelete={onDeleteEvent}
+                event={selectedEvent}
+                selectedDate={selectedDate}
+            />
         </div>
     );
 };
 
 export default Schedule;
+

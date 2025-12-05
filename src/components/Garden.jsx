@@ -97,18 +97,18 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            className="absolute top-full left-0 mt-2 w-32 bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-30"
+                                            className="absolute top-full left-0 mt-2 w-32 bg-gradient-to-br from-indigo-900/95 to-purple-900/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden z-30"
                                         >
-                                            <button onClick={() => { setSortBy('deadline'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-sage-50 dark:hover:bg-white/5 ${sortBy === 'deadline' ? 'text-sage-600 dark:text-magma-400' : 'text-sage-500 dark:text-bone-200'}`}>
+                                            <button onClick={() => { setSortBy('deadline'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'deadline' ? 'text-purple-300' : 'text-white/70'}`}>
                                                 Due Date
                                             </button>
-                                            <button onClick={() => { setSortBy('difficulty'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-sage-50 dark:hover:bg-white/5 ${sortBy === 'difficulty' ? 'text-sage-600 dark:text-magma-400' : 'text-sage-500 dark:text-bone-200'}`}>
+                                            <button onClick={() => { setSortBy('difficulty'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'difficulty' ? 'text-purple-300' : 'text-white/70'}`}>
                                                 Difficulty
                                             </button>
-                                            <button onClick={() => { setSortBy('newest'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-sage-50 dark:hover:bg-white/5 ${sortBy === 'newest' ? 'text-sage-600 dark:text-magma-400' : 'text-sage-500 dark:text-bone-200'}`}>
+                                            <button onClick={() => { setSortBy('newest'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'newest' ? 'text-purple-300' : 'text-white/70'}`}>
                                                 Newest
                                             </button>
-                                            <button onClick={() => { setSortBy('estimatedTime'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-sage-50 dark:hover:bg-white/5 ${sortBy === 'estimatedTime' ? 'text-sage-600 dark:text-magma-400' : 'text-sage-500 dark:text-bone-200'}`}>
+                                            <button onClick={() => { setSortBy('estimatedTime'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'estimatedTime' ? 'text-purple-300' : 'text-white/70'}`}>
                                                 Estimated Time
                                             </button>
                                         </motion.div>
@@ -171,18 +171,18 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                             {[...Array(emptySlots)].map((_, i) => (
                                 <div
                                     key={`empty-${i}`}
-                                    className="w-full aspect-square rounded-2xl bg-white/50 dark:bg-void-900/50 border-2 border-dashed border-sage-300 dark:border-white/10 flex items-center justify-center transition-colors hover:bg-white/80 dark:hover:bg-void-800 shadow-sm"
+                                    className="w-full aspect-square rounded-2xl bg-gradient-to-br from-purple-500/20 to-indigo-600/20 backdrop-blur-sm border-2 border-dashed border-purple-400/30 flex items-center justify-center transition-colors hover:from-purple-500/30 hover:to-indigo-600/30 shadow-lg"
                                 >
-                                    <div className="text-sage-400 text-xs sm:text-sm font-medium">Empty</div>
+                                    <div className="text-purple-300/60 text-xs sm:text-sm font-medium">Empty</div>
                                 </div>
                             ))}
 
                             <div
                                 onClick={onBuyPlot}
-                                className={`w-full aspect-square rounded-2xl bg-white/50 dark:bg-void-900/50 border-2 border-dashed border-sage-300 dark:border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/80 dark:hover:bg-void-800 transition-colors group shadow-sm ${coins < 50 ? 'opacity-50' : ''}`}
+                                className={`w-full aspect-square rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-600/20 backdrop-blur-sm border-2 border-dashed border-amber-400/30 flex flex-col items-center justify-center cursor-pointer hover:from-amber-500/30 hover:to-orange-600/30 transition-colors group shadow-lg ${coins < 50 ? 'opacity-50' : ''}`}
                             >
-                                <span className="text-2xl sm:text-3xl mb-1 sm:mb-2 group-hover:scale-110 transition-transform grayscale opacity-50">🔒</span>
-                                <span className="text-xs sm:text-sm text-sage-400">50 🪙</span>
+                                <span className="text-2xl sm:text-3xl mb-1 sm:mb-2 group-hover:scale-110 transition-transform">🔒</span>
+                                <span className="text-xs sm:text-sm text-amber-300">50 🪙</span>
                             </div>
                         </motion.div>
                     </div>
@@ -209,7 +209,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
 
                     <div className="space-y-3">
                         {todayTasks.length === 0 ? (
-                            <div className="p-4 sm:p-6 text-center border-2 border-dashed border-sage-200 dark:border-white/10 rounded-xl text-sage-400 dark:text-bone-200/50 italic text-sm sm:text-base">
+                            <div className="p-4 sm:p-6 text-center bg-gradient-to-br from-purple-500/20 to-indigo-600/20 backdrop-blur-sm border border-purple-400/30 rounded-xl text-purple-200/80 italic text-sm sm:text-base">
                                 No tasks scheduled for today.
                                 <br />
                                 <span className="text-sm">Enjoy your freedom!</span>
