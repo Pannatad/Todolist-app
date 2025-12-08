@@ -59,14 +59,7 @@ const doesRecurringEventOccurOnDate = (event, targetDate) => {
     }
 };
 
-const MOTIVATIONAL_QUOTES = [
-    { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-    { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
-    { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-    { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
-    { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
-    { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
-];
+
 
 const SLEEP_OPTIONS = [
     { emoji: '😴', label: 'Poor', value: 1, color: 'from-red-500 to-orange-500' },
@@ -88,7 +81,7 @@ const StartTheDayModal = ({
     const [currentPhase, setCurrentPhase] = useState(1);
     const [sleepQuality, setSleepQuality] = useState(null);
     const [morningThoughts, setMorningThoughts] = useState('');
-    const [quote] = useState(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
+
     const [isListening, setIsListening] = useState(false);
     const [quickSchedule, setQuickSchedule] = useState([]);
     const [showEventModal, setShowEventModal] = useState(false);
@@ -574,11 +567,19 @@ const StartTheDayModal = ({
                 transition={{ delay: 0.2 }}
                 className="text-center mb-12 relative"
             >
-                <Quote className="w-12 h-12 text-purple-400/50 mx-auto mb-4" />
-                <p className="text-2xl md:text-3xl font-serif text-white italic max-w-2xl leading-relaxed">
-                    "{quote.text}"
-                </p>
-                <p className="text-white/50 mt-4">— {quote.author}</p>
+                <div className="relative z-10">
+                    <Quote className="w-12 h-12 text-purple-400/50 mx-auto mb-6" />
+                    <div className="flex flex-col gap-4 font-bold text-white uppercase tracking-wider">
+                        <p className="text-3xl md:text-5xl drop-shadow-2xl">
+                            WHERE ARE YOU WAITING FOR?
+                        </p>
+                        <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+                            YOU'LL NEVER KNOW YOUR FULL POTENTIAL UNLESS YOU PUSH YOURSELF TO IT
+                        </p>
+                    </div>
+                </div>
+                {/* Background glow for the quote */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-purple-500/10 blur-3xl -z-10 rounded-full"></div>
             </motion.div>
 
             {/* Top Goals */}
