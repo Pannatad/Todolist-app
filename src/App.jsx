@@ -11,6 +11,7 @@ import UserProfile from './components/UserProfile';
 import ProjectBoards from './components/ProjectBoards';
 import Overview from './components/Overview';
 import StartTheDayModal from './components/StartTheDayModal';
+import EndTheDayModal from './components/EndTheDayModal';
 import { getPersonalizedAdvice } from './services/gemini';
 
 // Import all context hooks
@@ -63,6 +64,7 @@ function App() {
   // Local UI State (not in contexts)
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showStartDayModal, setShowStartDayModal] = useState(false);
+  const [showEndDayModal, setShowEndDayModal] = useState(false);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('app-theme') || 'cozy'; // 'cozy', 'professional', 'pink', 'blue'
@@ -304,7 +306,11 @@ function App() {
               </>
             )}
             {activeTab === 'overview' && (
-              <Overview onNavigate={setActiveTab} onStartDay={() => setShowStartDayModal(true)} />
+              <Overview
+                onNavigate={setActiveTab}
+                onStartDay={() => setShowStartDayModal(true)}
+                onEndDay={() => setShowEndDayModal(true)}
+              />
             )}
 
             {activeTab === 'schedule' && (
@@ -369,6 +375,11 @@ function App() {
           dailyHighlights={dailyHighlights}
           scheduleItems={scheduleItems}
           onAddScheduleItem={addScheduleItem}
+        />
+
+        <EndTheDayModal
+          isOpen={showEndDayModal}
+          onClose={() => setShowEndDayModal(false)}
         />
       </div>
     </ProjectProvider>

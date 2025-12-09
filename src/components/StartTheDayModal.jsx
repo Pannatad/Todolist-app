@@ -655,10 +655,391 @@ const StartTheDayModal = ({
                             {/* Phase Content */}
                             <div className="flex-1 overflow-hidden">
                                 <AnimatePresence mode="wait">
-                                    {currentPhase === 1 && <Phase1 key="phase1" />}
-                                    {currentPhase === 2 && <Phase2 key="phase2" />}
-                                    {currentPhase === 3 && <Phase3 key="phase3" />}
-                                    {currentPhase === 4 && <Phase4 key="phase4" />}
+                                    {currentPhase === 1 && (
+                                        <motion.div
+                                            key="phase1"
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -50 }}
+                                            className="flex flex-col items-center justify-center h-full px-8 py-12"
+                                        >
+                                            {/* Sun Icon with glow */}
+                                            <motion.div
+                                                className="relative mb-8"
+                                                animate={{ rotate: [0, 5, -5, 0] }}
+                                                transition={{ duration: 4, repeat: Infinity }}
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-orange-500 blur-3xl opacity-30 rounded-full scale-150" />
+                                                <Sun className="w-24 h-24 text-amber-400 drop-shadow-[0_0_30px_rgba(251,191,36,0.5)]" />
+                                            </motion.div>
+
+                                            <h2 className="text-4xl font-serif font-bold text-white mb-2 text-center">
+                                                Good Morning! ☀️
+                                            </h2>
+                                            <p className="text-white/60 text-lg mb-10">How did you sleep last night?</p>
+
+                                            {/* Sleep Quality Options */}
+                                            <div className="flex gap-4 mb-10">
+                                                {SLEEP_OPTIONS.map((option) => (
+                                                    <motion.button
+                                                        key={option.value}
+                                                        whileHover={{ scale: 1.1, y: -5 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => setSleepQuality(option.value)}
+                                                        className={`flex flex-col items-center p-4 rounded-2xl transition-all ${sleepQuality === option.value
+                                                            ? `bg-gradient-to-br ${option.color} shadow-lg shadow-white/20`
+                                                            : 'bg-white/10 hover:bg-white/20'
+                                                            }`}
+                                                    >
+                                                        <span className="text-4xl mb-2">{option.emoji}</span>
+                                                        <span className={`text-sm font-medium ${sleepQuality === option.value ? 'text-white' : 'text-white/70'}`}>
+                                                            {option.label}
+                                                        </span>
+                                                    </motion.button>
+                                                ))}
+                                            </div>
+
+                                            {/* Morning Thoughts Input */}
+                                            <div className="w-full max-w-md">
+                                                <label className="block text-white/60 text-sm mb-2">Anything on your mind this morning?</label>
+                                                <textarea
+                                                    value={morningThoughts}
+                                                    onChange={(e) => setMorningThoughts(e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    placeholder="I'm feeling..."
+                                                    className="w-full p-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent backdrop-blur-sm resize-none h-24"
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                    {currentPhase === 2 && (
+                                        <motion.div
+                                            key="phase2"
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -50 }}
+                                            className="h-full px-8 py-8 overflow-y-auto"
+                                        >
+                                            <div className="text-center mb-8">
+                                                <h2 className="text-3xl font-serif font-bold text-white mb-2">Today's Focus 🎯</h2>
+                                                <p className="text-white/60">Here's what's on your plate</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                                                {/* Tasks Due Today */}
+                                                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <Calendar className="w-5 h-5 text-purple-400" />
+                                                        <h3 className="text-lg font-bold text-white">Tasks Due Today</h3>
+                                                    </div>
+                                                    <div className="space-y-3 max-h-48 overflow-y-auto">
+                                                        {todayTasks.length > 0 ? todayTasks.map(task => (
+                                                            <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                                                                <div className={`w-2 h-2 rounded-full ${task.difficulty === 'hard' ? 'bg-red-400' :
+                                                                    task.difficulty === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
+                                                                    }`} />
+                                                                <span className="text-white/80 text-sm truncate flex-1">{task.title}</span>
+                                                                {task.estimatedTime && (
+                                                                    <span className="text-white/40 text-xs">{task.estimatedTime}m</span>
+                                                                )}
+                                                            </div>
+                                                        )) : (
+                                                            <p className="text-white/40 text-sm italic">No tasks due today!</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Today's Vision */}
+                                                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <Target className="w-5 h-5 text-pink-400" />
+                                                        <h3 className="text-lg font-bold text-white">Today's Vision</h3>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        {todayHighlights.length > 0 ? todayHighlights.slice(0, 3).map(h => (
+                                                            <div key={h.key} className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                                                                {h.completed ? (
+                                                                    <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+                                                                ) : (
+                                                                    <Circle className="w-5 h-5 text-white/30 flex-shrink-0" />
+                                                                )}
+                                                                <span className={`text-sm ${h.completed ? 'text-white/40 line-through' : 'text-white/80'}`}>
+                                                                    {h.text}
+                                                                </span>
+                                                            </div>
+                                                        )) : (
+                                                            <p className="text-white/40 text-sm italic">No highlights set for today. Add them in Vision Board!</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Quick Habits */}
+                                                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <Zap className="w-5 h-5 text-amber-400" />
+                                                        <h3 className="text-lg font-bold text-white">Morning Habits</h3>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {[
+                                                            { emoji: '💧', label: 'Water' },
+                                                            { emoji: '🧘', label: 'Meditate' },
+                                                            { emoji: '🏃', label: 'Exercise' },
+                                                            { emoji: '📚', label: 'Read' },
+                                                            { emoji: '🍳', label: 'Breakfast' },
+                                                            { emoji: '📝', label: 'Journal' },
+                                                        ].map(habit => (
+                                                            <button
+                                                                key={habit.label}
+                                                                className="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/15 transition-colors text-left group"
+                                                            >
+                                                                <span className="text-xl">{habit.emoji}</span>
+                                                                <span className="text-white/70 text-sm group-hover:text-white transition-colors">{habit.label}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                    {currentPhase === 3 && (
+                                        <motion.div
+                                            key="phase3"
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -50 }}
+                                            className="h-full px-8 py-8 overflow-y-auto"
+                                        >
+                                            <div className="text-center mb-8">
+                                                <h2 className="text-3xl font-serif font-bold text-white mb-2">Plan Your Day 📅</h2>
+                                                <p className="text-white/60">Quick-add time blocks for today</p>
+                                            </div>
+
+                                            <div className="max-w-3xl mx-auto">
+                                                {/* Quick Add Buttons */}
+                                                <div className="flex flex-wrap justify-center gap-3 mb-8">
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => addQuickBlock('Morning Routine', 7, 60)}
+                                                        className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium text-sm flex items-center gap-2"
+                                                    >
+                                                        <Sun className="w-4 h-4" /> Morning Routine
+                                                    </motion.button>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => addQuickBlock('Deep Work', 9, 120)}
+                                                        className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium text-sm flex items-center gap-2"
+                                                    >
+                                                        <Brain className="w-4 h-4" /> Deep Work
+                                                    </motion.button>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => addQuickBlock('Lunch Break', 12, 60)}
+                                                        className="px-4 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium text-sm flex items-center gap-2"
+                                                    >
+                                                        🍽️ Lunch
+                                                    </motion.button>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => addQuickBlock('Exercise', 18, 60)}
+                                                        className="px-4 py-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium text-sm flex items-center gap-2"
+                                                    >
+                                                        🏋️ Exercise
+                                                    </motion.button>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={handleVoiceSchedule}
+                                                        disabled={isListening}
+                                                        className={`px-4 py-2 rounded-full font-medium text-sm flex items-center gap-2 ${isListening
+                                                            ? 'bg-red-500 animate-pulse'
+                                                            : 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                                                            } text-white`}
+                                                    >
+                                                        <Mic className="w-4 h-4" /> {isListening ? 'Listening...' : 'Voice Add'}
+                                                    </motion.button>
+                                                    {/* Add Custom Event Button */}
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => {
+                                                            setSelectedEventForEdit(null);
+                                                            setShowEventModal(true);
+                                                        }}
+                                                        className="px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium text-sm flex items-center gap-2"
+                                                    >
+                                                        <Plus className="w-4 h-4" /> Add Custom Event
+                                                    </motion.button>
+                                                </div>
+
+                                                {/* Schedule Preview */}
+                                                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+                                                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                                        <Clock className="w-5 h-5 text-cyan-400" />
+                                                        Today's Schedule
+                                                    </h3>
+
+                                                    {(todayScheduleItems.length > 0 || quickSchedule.length > 0) ? (
+                                                        <div className="space-y-3">
+                                                            {/* Existing schedule items */}
+                                                            {todayScheduleItems.map((item) => (
+                                                                <motion.div
+                                                                    key={item.id}
+                                                                    initial={{ opacity: 0, y: 20 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    className="flex items-center justify-between p-4 rounded-xl border"
+                                                                    style={{
+                                                                        backgroundColor: item.color ? `${item.color}20` : 'rgba(99, 102, 241, 0.1)',
+                                                                        borderColor: item.color || '#6366f1'
+                                                                    }}
+                                                                >
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className="font-mono text-sm" style={{ color: item.color || '#a5b4fc' }}>
+                                                                            {new Date(item.startTime || item.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                        <span className="text-white font-medium">{item.title}</span>
+                                                                        <span className="text-white/40 text-sm">{item.duration}m</span>
+                                                                        {(item.isRecurring || item.isRecurringInstance) && (
+                                                                            <span className="text-xs text-cyan-400 px-2 py-0.5 bg-cyan-500/20 rounded-full">🔄 Repeat</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#6366f1' }} />
+                                                                </motion.div>
+                                                            ))}
+                                                            {/* Quick schedule items (new ones being added) */}
+                                                            {quickSchedule.map((block, index) => (
+                                                                <motion.div
+                                                                    key={`quick-${index}`}
+                                                                    initial={{ opacity: 0, y: 20 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-500/30"
+                                                                >
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className="text-purple-300 font-mono text-sm">
+                                                                            {new Date(block.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                        <span className="text-white font-medium">{block.title}</span>
+                                                                        <span className="text-white/40 text-sm">{block.duration}m</span>
+                                                                        <span className="text-xs text-amber-400 px-2 py-0.5 bg-amber-500/20 rounded-full">NEW</span>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => removeQuickBlock(index)}
+                                                                        className="p-1 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                                                                    >
+                                                                        <X className="w-4 h-4" />
+                                                                    </button>
+                                                                </motion.div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-12 text-white/40">
+                                                            <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                                            <p>Use the buttons above to quickly add time blocks</p>
+                                                            <p className="text-sm mt-1">or use voice to say "Meeting at 2pm for 1 hour"</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                    {currentPhase === 4 && (
+                                        <motion.div
+                                            key="phase4"
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -50 }}
+                                            className="flex flex-col items-center justify-center h-full px-8 py-12"
+                                        >
+                                            {/* Sparkles Animation */}
+                                            <motion.div
+                                                className="absolute inset-0 overflow-hidden pointer-events-none"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                            >
+                                                {[...Array(20)].map((_, i) => (
+                                                    <motion.div
+                                                        key={i}
+                                                        className="absolute w-1 h-1 bg-white rounded-full"
+                                                        style={{
+                                                            left: `${Math.random() * 100}%`,
+                                                            top: `${Math.random() * 100}%`,
+                                                        }}
+                                                        animate={{
+                                                            opacity: [0, 1, 0],
+                                                            scale: [0, 1.5, 0],
+                                                        }}
+                                                        transition={{
+                                                            duration: 2 + Math.random() * 2,
+                                                            repeat: Infinity,
+                                                            delay: Math.random() * 2,
+                                                        }}
+                                                    />
+                                                ))}
+                                            </motion.div>
+
+                                            {/* Quote */}
+                                            <motion.div
+                                                initial={{ scale: 0.9, opacity: 0 }}
+                                                animate={{ scale: 1, opacity: 1 }}
+                                                transition={{ delay: 0.2 }}
+                                                className="text-center mb-12 relative"
+                                            >
+                                                <div className="relative z-10">
+                                                    <Quote className="w-12 h-12 text-purple-400/50 mx-auto mb-6" />
+                                                    <div className="flex flex-col gap-4 font-bold text-white uppercase tracking-wider">
+                                                        <p className="text-3xl md:text-5xl drop-shadow-2xl">
+                                                            WHERE ARE YOU WAITING FOR?
+                                                        </p>
+                                                        <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+                                                            YOU'LL NEVER KNOW YOUR FULL POTENTIAL UNLESS YOU PUSH YOURSELF TO IT
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {/* Background glow for the quote */}
+                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-purple-500/10 blur-3xl -z-10 rounded-full"></div>
+                                            </motion.div>
+
+                                            {/* Top Goals */}
+                                            {topGoals.length > 0 && (
+                                                <motion.div
+                                                    initial={{ y: 20, opacity: 0 }}
+                                                    animate={{ y: 0, opacity: 1 }}
+                                                    transition={{ delay: 0.4 }}
+                                                    className="mb-12"
+                                                >
+                                                    <h3 className="text-center text-white/60 text-sm uppercase tracking-wider mb-4">Your Goals</h3>
+                                                    <div className="flex gap-4">
+                                                        {topGoals.map((goal, index) => (
+                                                            <div
+                                                                key={goal.id || index}
+                                                                className="px-6 py-3 rounded-full bg-white/10 border border-white/20 flex items-center gap-2"
+                                                            >
+                                                                <span className="text-xl">{goal.icon || '🎯'}</span>
+                                                                <span className="text-white font-medium">{goal.title}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+
+                                            {/* Launch Button */}
+                                            <motion.button
+                                                initial={{ scale: 0.8, opacity: 0 }}
+                                                animate={{ scale: 1, opacity: 1 }}
+                                                transition={{ delay: 0.6 }}
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={handleFinish}
+                                                className="px-12 py-4 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold text-xl shadow-lg shadow-orange-500/30 flex items-center gap-3"
+                                            >
+                                                <Rocket className="w-6 h-6" />
+                                                Start Your Day!
+                                            </motion.button>
+                                        </motion.div>
+                                    )}
                                 </AnimatePresence>
                             </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Edit2, Trash2, Mic, MicOff, Loader2 } from 'lucide-react';
+import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2 } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -395,7 +395,7 @@ const QuickAddTaskWidget = ({ addTask }) => {
     );
 };
 
-const Overview = ({ onNavigate, onStartDay }) => {
+const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const { tasks, addTask, updateTask, deleteTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
     const { dailyHighlights, goals, updateHighlight } = useGoal();
     const { user } = useAuth();
@@ -819,6 +819,38 @@ const Overview = ({ onNavigate, onStartDay }) => {
 
                         <div className="hidden md:flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-white font-bold text-sm group-hover:bg-white/30 transition-colors">
                             <span>Begin</span>
+                            <ChevronRight size={16} />
+                        </div>
+                    </div>
+
+                    {/* End the Day Widget */}
+                    <div
+                        onClick={onEndDay}
+                        className="md:col-span-2 bg-gradient-to-br from-indigo-800 via-slate-800 to-purple-900 p-6 rounded-[2rem] shadow-xl flex items-center gap-6 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
+                    >
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+
+                        {/* Star decorations */}
+                        <div className="absolute top-4 right-20 w-1 h-1 bg-white rounded-full animate-pulse"></div>
+                        <div className="absolute top-8 right-32 w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                        <div className="absolute bottom-6 right-16 w-1 h-1 bg-white/80 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+
+                        <div className="shrink-0 w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-white/10">
+                            <Moon size={32} className="text-indigo-200" />
+                        </div>
+
+                        <div className="relative z-10 flex-1">
+                            <h3 className="font-bold text-xl text-white mb-1">
+                                End Your Day
+                            </h3>
+                            <p className="text-white/60 text-sm">
+                                Reflect on achievements, track habits, and set tomorrow's goals
+                            </p>
+                        </div>
+
+                        <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl text-white font-bold text-sm group-hover:bg-white/20 transition-colors border border-white/10">
+                            <span>Reflect</span>
                             <ChevronRight size={16} />
                         </div>
                     </div>
