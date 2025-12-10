@@ -153,13 +153,33 @@ export const GoalProvider = ({ children }) => {
         }
     };
 
+    // Delete Highlight Handler
+    const deleteHighlight = async (key) => {
+        setDailyHighlights(prev => {
+            const updated = { ...prev };
+            delete updated[key];
+            return updated;
+        });
+
+        if (user) {
+            const { error } = await supabase
+                .from('daily_highlights')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('key', key);
+
+            if (error) console.error("Error deleting highlight:", error);
+        }
+    };
+
     const value = {
         goals,
         dailyHighlights,
         addGoal,
         updateGoal,
         deleteGoal,
-        updateHighlight
+        updateHighlight,
+        deleteHighlight
     };
 
     return (

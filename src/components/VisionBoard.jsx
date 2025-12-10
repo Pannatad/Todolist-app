@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, X } from 'lucide-react';
+import { Check, X, Trash2 } from 'lucide-react';
 import GoalCard from './GoalCard';
 import GoalModal from './GoalModal';
 
-const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighlights, onUpdateHighlight }) => {
+const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighlights, onUpdateHighlight, onDeleteHighlight }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingGoal, setEditingGoal] = useState(null);
     const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -213,6 +213,20 @@ const VisionBoard = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal, dailyHighli
                                                             title="Mark as Failed"
                                                         >
                                                             <X size={16} strokeWidth={3} />
+                                                        </button>
+
+                                                        {/* Trash (Delete) */}
+                                                        <button
+                                                            className="p-1 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (onDeleteHighlight) {
+                                                                    onDeleteHighlight(uniqueKey);
+                                                                }
+                                                            }}
+                                                            title="Delete Goal"
+                                                        >
+                                                            <Trash2 size={14} />
                                                         </button>
                                                     </div>
 

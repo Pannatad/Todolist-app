@@ -15,27 +15,10 @@ export const useTask = () => {
 export const TaskProvider = ({ children }) => {
     const { user } = useAuth();
 
-    // Task State
-    const [tasks, setTasks] = useState(() => {
-        try {
-            const saved = localStorage.getItem('growth-tasks');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse tasks:", e);
-            return [];
-        }
-    });
-
-    // Schedule State
-    const [scheduleItems, setScheduleItems] = useState(() => {
-        try {
-            const saved = localStorage.getItem('growth-schedule');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse schedule:", e);
-            return [];
-        }
-    });
+    // Task State - start empty, load based on user state
+    const [tasks, setTasks] = useState([]);
+    const [scheduleItems, setScheduleItems] = useState([]);
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // Load from Supabase
     const loadTasksFromSupabase = async () => {
@@ -83,20 +66,40 @@ export const TaskProvider = ({ children }) => {
         }
     };
 
-    // Auto-load on user change
+    // Load from localStorage (guest mode)
+    const loadFromLocalStorage = () => {
+        try {
+            const savedTasks = localStorage.getItem('growth-tasks-guest');
+            const savedSchedule = localStorage.getItem('growth-schedule-guest');
+            if (savedTasks) setTasks(JSON.parse(savedTasks));
+            if (savedSchedule) setScheduleItems(JSON.parse(savedSchedule));
+        } catch (e) {
+            console.error("Failed to load from localStorage:", e);
+        }
+    };
+
+    // Handle user state changes - load appropriate data
     useEffect(() => {
+        setIsLoaded(false);
         if (user) {
-            loadTasksFromSupabase();
+            // User is logged in - load from Supabase
+            loadTasksFromSupabase().then(() => setIsLoaded(true));
+        } else {
+            // Guest mode - reset and load from guest-specific localStorage
+            setTasks([]);
+            setScheduleItems([]);
+            loadFromLocalStorage();
+            setIsLoaded(true);
         }
     }, [user]);
 
-    // Save to LocalStorage (Guest Mode)
+    // Save to LocalStorage (Guest Mode only)
     useEffect(() => {
-        if (!user) {
-            localStorage.setItem('growth-tasks', JSON.stringify(tasks));
-            localStorage.setItem('growth-schedule', JSON.stringify(scheduleItems));
+        if (!user && isLoaded) {
+            localStorage.setItem('growth-tasks-guest', JSON.stringify(tasks));
+            localStorage.setItem('growth-schedule-guest', JSON.stringify(scheduleItems));
         }
-    }, [tasks, scheduleItems, user]);
+    }, [tasks, scheduleItems, user, isLoaded]);
 
     // Task Handlers
     const addTask = async ({ title, difficulty, deadline, subject, estimatedTime }) => {

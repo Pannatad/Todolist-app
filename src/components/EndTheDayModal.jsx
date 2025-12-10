@@ -6,6 +6,8 @@ import {
     Target, Plus, X, ListTodo, Check
 } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
+import { useGoal } from '../context/GoalContext';
+import { useHabit } from '../context/HabitContext';
 
 const MOOD_OPTIONS = [
     { emoji: '😔', label: 'Rough', value: 1, color: 'from-slate-700 to-slate-500' },
@@ -42,6 +44,13 @@ const EndTheDayModal = ({ isOpen, onClose, onSaveRecap }) => {
     const [newTaskInput, setNewTaskInput] = useState('');
 
     const { addTask } = useTask();
+    const { updateHighlight } = useGoal();
+    const { habits, logHabit, getHabitLog, getHabitsForDate } = useHabit();
+
+    // Get today's habits from context
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const todayHabits = getHabitsForDate ? getHabitsForDate(today) : [];
 
     // Reset state when modal opens
     useEffect(() => {
@@ -97,25 +106,22 @@ const EndTheDayModal = ({ isOpen, onClose, onSaveRecap }) => {
     };
 
     const handleFinish = async () => {
-        // Save goals as tasks for tomorrow
+        // Save goals as daily highlights for tomorrow's Vision Board
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-        // Add goals
-        for (const goal of tomorrowGoals) {
+        // Add Top 3 Priorities to tomorrow's Vision Board
+        for (let i = 0; i < tomorrowGoals.length; i++) {
+            const goal = tomorrowGoals[i];
             if (goal.title.trim()) {
-                await addTask({
-                    title: goal.title,
-                    description: `Priority: ${goal.priority}`,
-                    difficulty: goal.priority === 'High' ? 'hard' : goal.priority === 'Medium' ? 'medium' : 'easy',
-                    deadline: tomorrowStr,
-                    subject: 'General'
-                });
+                // Key format must match VisionBoard: ${dateKey}_${goalIndex} where goalIndex is 0-based
+                const highlightKey = `${tomorrowStr}_${i}`;
+                await updateHighlight(highlightKey, goal.title.trim(), false, 'pending');
             }
         }
 
-        // Add quick tasks
+        // Add quick tasks as regular tasks
         for (const task of quickTasks) {
             await addTask({
                 title: task.title,
@@ -581,56 +587,88 @@ const EndTheDayModal = ({ isOpen, onClose, onSaveRecap }) => {
                                         <h2 className="text-3xl font-serif font-bold text-white mb-2 text-center">Today's Habits 📋</h2>
                                         <p className="text-white/60 mb-8">What did you stick to today?</p>
 
-                                        {/* Circular Progress */}
-                                        <div className="relative w-32 h-32 mb-10 flex items-center justify-center">
-                                            <svg className="w-full h-full transform -rotate-90">
-                                                <circle
-                                                    cx="64" cy="64" r="58"
-                                                    stroke="currentColor" strokeWidth="8"
-                                                    fill="transparent"
-                                                    className="text-white/10"
-                                                />
-                                                <circle
-                                                    cx="64" cy="64" r="58"
-                                                    stroke="currentColor" strokeWidth="8"
-                                                    fill="transparent"
-                                                    strokeDasharray={364}
-                                                    strokeDashoffset={364 - (364 * Math.round((completedHabits.length / DEFAULT_HABITS.length) * 100)) / 100}
-                                                    strokeLinecap="round"
-                                                    className="text-green-400 transition-all duration-1000 ease-out"
-                                                />
-                                            </svg>
-                                            <div className="absolute flex flex-col items-center">
-                                                <span className="text-2xl font-bold text-white">{Math.round((completedHabits.length / DEFAULT_HABITS.length) * 100)}%</span>
-                                            </div>
-                                        </div>
+                                        {/* Use real habits from context, or fallback to defaults */}
+                                        {(() => {
+                                            const displayHabits = todayHabits.length > 0
+                                                ? todayHabits.map(h => ({ id: h.id, label: h.name, icon: h.icon }))
+                                                : DEFAULT_HABITS;
 
-                                        {/* Habit Grid */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-2xl">
-                                            {DEFAULT_HABITS.map((habit) => {
-                                                const isCompleted = completedHabits.includes(habit.id);
-                                                return (
-                                                    <motion.button
-                                                        key={habit.id}
-                                                        whileHover={{ scale: 1.05 }}
-                                                        whileTap={{ scale: 0.95 }}
-                                                        onClick={() => toggleHabit(habit.id)}
-                                                        className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-3 ${isCompleted
-                                                            ? 'bg-green-500/20 border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
-                                                            : 'bg-white/5 border-white/10 hover:bg-white/10'
-                                                            }`}
-                                                    >
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${isCompleted ? 'bg-green-500 text-white' : 'bg-white/10 text-white/50'
-                                                            }`}>
-                                                            {isCompleted ? <Check size={20} /> : habit.icon}
+                                            const completedCount = displayHabits.filter(h => {
+                                                if (todayHabits.length > 0) {
+                                                    const log = getHabitLog(h.id, todayStr);
+                                                    return log?.completed;
+                                                }
+                                                return completedHabits.includes(h.id);
+                                            }).length;
+
+                                            const totalCount = displayHabits.length || 1;
+                                            const percentage = Math.round((completedCount / totalCount) * 100);
+
+                                            return (
+                                                <>
+                                                    {/* Circular Progress */}
+                                                    <div className="relative w-32 h-32 mb-10 flex items-center justify-center">
+                                                        <svg className="w-full h-full transform -rotate-90">
+                                                            <circle
+                                                                cx="64" cy="64" r="58"
+                                                                stroke="currentColor" strokeWidth="8"
+                                                                fill="transparent"
+                                                                className="text-white/10"
+                                                            />
+                                                            <circle
+                                                                cx="64" cy="64" r="58"
+                                                                stroke="currentColor" strokeWidth="8"
+                                                                fill="transparent"
+                                                                strokeDasharray={364}
+                                                                strokeDashoffset={364 - (364 * percentage) / 100}
+                                                                strokeLinecap="round"
+                                                                className="text-green-400 transition-all duration-1000 ease-out"
+                                                            />
+                                                        </svg>
+                                                        <div className="absolute flex flex-col items-center">
+                                                            <span className="text-2xl font-bold text-white">{percentage}%</span>
                                                         </div>
-                                                        <span className={`font-medium ${isCompleted ? 'text-green-200' : 'text-white/60'}`}>
-                                                            {habit.label}
-                                                        </span>
-                                                    </motion.button>
-                                                );
-                                            })}
-                                        </div>
+                                                    </div>
+
+                                                    {/* Habit Grid */}
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-2xl">
+                                                        {displayHabits.map((habit) => {
+                                                            const isCompleted = todayHabits.length > 0
+                                                                ? getHabitLog(habit.id, todayStr)?.completed
+                                                                : completedHabits.includes(habit.id);
+                                                            return (
+                                                                <motion.button
+                                                                    key={habit.id}
+                                                                    whileHover={{ scale: 1.05 }}
+                                                                    whileTap={{ scale: 0.95 }}
+                                                                    onClick={() => {
+                                                                        if (todayHabits.length > 0) {
+                                                                            // Use context logging for real habits
+                                                                            logHabit(habit.id, todayStr, isCompleted ? 0 : 1, !isCompleted);
+                                                                        } else {
+                                                                            // Use local state for defaults
+                                                                            toggleHabit(habit.id);
+                                                                        }
+                                                                    }}
+                                                                    className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-3 ${isCompleted
+                                                                        ? 'bg-green-500/20 border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
+                                                                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                                                        }`}
+                                                                >
+                                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${isCompleted ? 'bg-green-500 text-white' : 'bg-white/10 text-white/50'
+                                                                        }`}>
+                                                                        {isCompleted ? <Check size={20} /> : habit.icon}
+                                                                    </div>
+                                                                    <span className={`font-medium ${isCompleted ? 'text-green-200' : 'text-white/60'}`}>
+                                                                        {habit.label}
+                                                                    </span>
+                                                                </motion.button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
                                     </motion.div>
                                 )}
                                 {currentPhase === 3 && (
