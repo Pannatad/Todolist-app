@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2 } from 'lucide-react';
+import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2, X } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -178,11 +179,26 @@ const CurrentEventWidget = ({ scheduleItems }) => {
     );
 };
 
-// Quick Schedule Widget Component
-const QuickScheduleWidget = ({ addScheduleItem }) => {
+// Quick Schedule Widget Component (Popup Version)
+const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) => {
     const [title, setTitle] = useState('');
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('60');
+    const popupRef = useRef(null);
+
+    // Handle click outside to close
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (popupRef.current && !popupRef.current.contains(e.target) &&
+                buttonRef?.current && !buttonRef.current.contains(e.target)) {
+                onClose();
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen, onClose, buttonRef]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -202,62 +218,108 @@ const QuickScheduleWidget = ({ addScheduleItem }) => {
         setTitle('');
         setTime('');
         setDuration('60');
+        onClose();
     };
 
-    return (
-        <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+    if (!isOpen) return null;
 
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-                <Calendar size={18} className="text-white/90" /> Quick Schedule
-            </h3>
+    // Calculate position based on button ref
+    const buttonRect = buttonRef?.current?.getBoundingClientRect();
+    const style = buttonRect ? {
+        position: 'fixed',
+        top: buttonRect.bottom + 8,
+        right: window.innerWidth - buttonRect.right,
+        zIndex: 99999
+    } : {};
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Event name..."
-                    className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
-                />
+    return createPortal(
+        <motion.div
+            ref={popupRef}
+            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            style={style}
+            className="w-72"
+        >
+            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-5 rounded-2xl shadow-2xl flex flex-col relative overflow-hidden border border-white/20">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
 
-                <div className="flex gap-2">
-                    <input
-                        type="time"
-                        value={time}
-                        onChange={(e) => setTime(e.target.value)}
-                        className="flex-1 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
-                    />
-                    <select
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+                        <Calendar size={16} className="text-white/90" /> Quick Schedule
+                    </h3>
+                    <button
+                        onClick={onClose}
+                        className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
                     >
-                        <option value="30" className="text-gray-800">30m</option>
-                        <option value="60" className="text-gray-800">1h</option>
-                        <option value="90" className="text-gray-800">1.5h</option>
-                        <option value="120" className="text-gray-800">2h</option>
-                    </select>
+                        <X size={16} />
+                    </button>
                 </div>
 
-                <button
-                    type="submit"
-                    className="w-full bg-white text-orange-600 py-2.5 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2"
-                >
-                    <Plus size={16} /> Add to Schedule
-                </button>
-            </form>
-        </div>
+                <form onSubmit={handleSubmit} className="space-y-2 relative z-10">
+                    <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Event name..."
+                        className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
+                        autoFocus
+                    />
+
+                    <div className="flex gap-2">
+                        <input
+                            type="time"
+                            value={time}
+                            onChange={(e) => setTime(e.target.value)}
+                            className="flex-1 bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                        />
+                        <select
+                            value={duration}
+                            onChange={(e) => setDuration(e.target.value)}
+                            className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                        >
+                            <option value="30" className="text-gray-800">30m</option>
+                            <option value="60" className="text-gray-800">1h</option>
+                            <option value="90" className="text-gray-800">1.5h</option>
+                            <option value="120" className="text-gray-800">2h</option>
+                        </select>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full bg-white text-orange-600 py-2 rounded-lg font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Plus size={14} /> Add to Schedule
+                    </button>
+                </form>
+            </div>
+        </motion.div>,
+        document.body
     );
 };
 
-// Quick Add Task Widget with Voice Support
-const QuickAddTaskWidget = ({ addTask }) => {
+// Quick Add Task Widget with Voice Support (Popup Version)
+const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const recognitionRef = useRef(null);
+    const popupRef = useRef(null);
+
+    // Handle click outside to close
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (popupRef.current && !popupRef.current.contains(e.target) &&
+                buttonRef?.current && !buttonRef.current.contains(e.target)) {
+                onClose();
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen, onClose, buttonRef]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -326,6 +388,7 @@ const QuickAddTaskWidget = ({ addTask }) => {
             });
 
             setInput('');
+            onClose();
         } catch (error) {
             console.error('Error processing task:', error);
             // Fallback to simple task creation
@@ -335,63 +398,94 @@ const QuickAddTaskWidget = ({ addTask }) => {
                 subject: "Today's Plan"
             });
             setInput('');
+            onClose();
         } finally {
             setIsProcessing(false);
         }
     };
 
-    return (
-        <div className="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+    if (!isOpen) return null;
 
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-                <Plus size={18} className="text-white/90" /> Quick Add Task
-            </h3>
+    // Calculate position based on button ref
+    const buttonRect = buttonRef?.current?.getBoundingClientRect();
+    const style = buttonRect ? {
+        position: 'fixed',
+        top: buttonRect.bottom + 8,
+        right: window.innerWidth - buttonRect.right,
+        zIndex: 99999
+    } : {};
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="relative">
-                    <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder={isListening ? 'Listening...' : 'e.g., "Math homework due tomorrow 3pm"'}
-                        className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 pr-12 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
-                        disabled={isListening}
-                    />
+    return createPortal(
+        <motion.div
+            ref={popupRef}
+            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            style={style}
+            className="w-80"
+        >
+            <div className="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-500 p-5 rounded-2xl shadow-2xl flex flex-col relative overflow-hidden border border-white/20">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+                        <Plus size={16} className="text-white/90" /> Quick Add Task
+                    </h3>
                     <button
-                        type="button"
-                        onClick={toggleListening}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${isListening
-                            ? 'bg-red-500 text-white animate-pulse'
-                            : 'bg-white/20 text-white hover:bg-white/30'
-                            }`}
+                        onClick={onClose}
+                        className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
                     >
-                        {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                        <X size={16} />
                     </button>
                 </div>
 
-                <p className="text-white/60 text-xs">
-                    🎤 Say or type: "task name, due date, difficulty"
-                </p>
+                <form onSubmit={handleSubmit} className="space-y-2 relative z-10">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder={isListening ? 'Listening...' : 'e.g., "Math homework due tomorrow 3pm"'}
+                            className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
+                            disabled={isListening}
+                            autoFocus
+                        />
+                        <button
+                            type="button"
+                            onClick={toggleListening}
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${isListening
+                                ? 'bg-red-500 text-white animate-pulse'
+                                : 'bg-white/20 text-white hover:bg-white/30'
+                                }`}
+                        >
+                            {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                        </button>
+                    </div>
 
-                <button
-                    type="submit"
-                    disabled={isProcessing || !input.trim()}
-                    className="w-full bg-white text-emerald-600 py-2.5 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isProcessing ? (
-                        <>
-                            <Loader2 size={16} className="animate-spin" /> Processing...
-                        </>
-                    ) : (
-                        <>
-                            <Plus size={16} /> Add Task
-                        </>
-                    )}
-                </button>
-            </form>
-        </div>
+                    <p className="text-white/60 text-xs">
+                        🎤 Say or type: "task name, due date, difficulty"
+                    </p>
+
+                    <button
+                        type="submit"
+                        disabled={isProcessing || !input.trim()}
+                        className="w-full bg-white text-emerald-600 py-2 rounded-lg font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isProcessing ? (
+                            <>
+                                <Loader2 size={14} className="animate-spin" /> Processing...
+                            </>
+                        ) : (
+                            <>
+                                <Plus size={14} /> Add Task
+                            </>
+                        )}
+                    </button>
+                </form>
+            </div>
+        </motion.div>,
+        document.body
     );
 };
 
@@ -407,6 +501,10 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const [selectedScheduleItem, setSelectedScheduleItem] = useState(null);
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
+    const [showQuickSchedulePopup, setShowQuickSchedulePopup] = useState(false);
+    const [showQuickAddTaskPopup, setShowQuickAddTaskPopup] = useState(false);
+    const quickScheduleButtonRef = useRef(null);
+    const quickAddTaskButtonRef = useRef(null);
     const [stats, setStats] = useState({
         taskProgress: 0,
         urgentCount: 0,
@@ -523,9 +621,27 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
 
-                        <div className="flex items-center gap-3 mb-6 relative z-10">
-                            <Calendar className="text-white/90" size={24} />
-                            <h2 className="text-2xl font-bold text-white">Today's Schedule</h2>
+                        <div className="flex items-center justify-between mb-6 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <Calendar className="text-white/90" size={24} />
+                                <h2 className="text-2xl font-bold text-white">Today's Schedule</h2>
+                            </div>
+                            <div className="relative">
+                                <button
+                                    ref={quickScheduleButtonRef}
+                                    onClick={() => setShowQuickSchedulePopup(!showQuickSchedulePopup)}
+                                    className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105"
+                                    title="Quick Add Schedule"
+                                >
+                                    <Plus size={18} />
+                                </button>
+                                <QuickScheduleWidget
+                                    addScheduleItem={addScheduleItem}
+                                    isOpen={showQuickSchedulePopup}
+                                    onClose={() => setShowQuickSchedulePopup(false)}
+                                    buttonRef={quickScheduleButtonRef}
+                                />
+                            </div>
                         </div>
 
                         <div className="flex-1 relative z-10 space-y-4 overflow-y-auto custom-scrollbar pr-2">
@@ -666,6 +782,65 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                         <CurrentEventWidget scheduleItems={scheduleItems} />
                     </div>
 
+                    {/* Start the Day Widget */}
+                    <div
+                        onClick={onStartDay}
+                        className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-5 rounded-2xl shadow-xl flex items-center gap-4 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-400/20 rounded-full blur-2xl -ml-6 -mb-6 pointer-events-none"></div>
+
+                        <div className="shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Sun size={24} className="text-white" />
+                        </div>
+
+                        <div className="relative z-10 flex-1">
+                            <h3 className="font-bold text-lg text-white">
+                                Start Your Day
+                            </h3>
+                            <p className="text-white/70 text-xs">
+                                Set your 3 main goals and plan your focus for today
+                            </p>
+                        </div>
+
+                        <div className="hidden md:flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-bold text-sm group-hover:bg-white/30 transition-colors">
+                            <span>Begin</span>
+                            <ChevronRight size={14} />
+                        </div>
+                    </div>
+
+                    {/* End the Day Widget */}
+                    <div
+                        onClick={onEndDay}
+                        className="bg-gradient-to-br from-indigo-800 via-slate-800 to-purple-900 p-5 rounded-2xl shadow-xl flex items-center gap-4 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl -ml-6 -mb-6 pointer-events-none"></div>
+
+                        {/* Star decorations */}
+                        <div className="absolute top-3 right-16 w-1 h-1 bg-white rounded-full animate-pulse"></div>
+                        <div className="absolute top-6 right-24 w-1 h-1 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                        <div className="absolute bottom-4 right-12 w-1 h-1 bg-white/80 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+
+                        <div className="shrink-0 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform border border-white/10">
+                            <Moon size={24} className="text-indigo-200" />
+                        </div>
+
+                        <div className="relative z-10 flex-1">
+                            <h3 className="font-bold text-lg text-white">
+                                End Your Day
+                            </h3>
+                            <p className="text-white/60 text-xs">
+                                Reflect on achievements and set tomorrow's goals
+                            </p>
+                        </div>
+
+                        <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-bold text-sm group-hover:bg-white/20 transition-colors border border-white/10">
+                            <span>Reflect</span>
+                            <ChevronRight size={14} />
+                        </div>
+                    </div>
+
                     {/* Vision Board Card (Purple-Pink Gradient) */}
                     <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-500 rounded-[2rem] p-6 shadow-xl relative overflow-hidden flex flex-col">
                         <div className="absolute top-0 right-0 w-40 h-40 bg-white/15 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
@@ -733,9 +908,27 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                     <div className="bg-gradient-to-br from-blue-600 via-cyan-600 to-cyan-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
-                        <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-                            <Clock size={18} className="text-white/90" /> Tasks Due Today
-                        </h3>
+                        <div className="flex items-center justify-between mb-4 relative z-10">
+                            <h3 className="font-bold text-white flex items-center gap-2">
+                                <Clock size={18} className="text-white/90" /> Tasks Due Today
+                            </h3>
+                            <div className="relative">
+                                <button
+                                    ref={quickAddTaskButtonRef}
+                                    onClick={() => setShowQuickAddTaskPopup(!showQuickAddTaskPopup)}
+                                    className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105"
+                                    title="Quick Add Task"
+                                >
+                                    <Plus size={16} />
+                                </button>
+                                <QuickAddTaskWidget
+                                    addTask={addTask}
+                                    isOpen={showQuickAddTaskPopup}
+                                    onClose={() => setShowQuickAddTaskPopup(false)}
+                                    buttonRef={quickAddTaskButtonRef}
+                                />
+                            </div>
+                        </div>
                         <div className="flex-1 space-y-2 overflow-y-auto max-h-[200px] custom-scrollbar">
                             {(() => {
                                 const today = new Date();
@@ -786,72 +979,6 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     </div>
                                 ));
                             })()}
-                        </div>
-                    </div>
-
-                    {/* Quick Add Schedule Widget (Amber-Orange Gradient) */}
-                    <QuickScheduleWidget addScheduleItem={addScheduleItem} />
-
-                    {/* Quick Add Task Widget (Teal-Green Gradient) */}
-                    <QuickAddTaskWidget addTask={addTask} />
-
-
-                    {/* Start the Day Widget */}
-                    <div
-                        onClick={onStartDay}
-                        className="md:col-span-2 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-6 rounded-[2rem] shadow-xl flex items-center gap-6 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
-                    >
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
-
-                        <div className="shrink-0 w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Sun size={32} className="text-white" />
-                        </div>
-
-                        <div className="relative z-10 flex-1">
-                            <h3 className="font-bold text-xl text-white mb-1">
-                                Start Your Day
-                            </h3>
-                            <p className="text-white/70 text-sm">
-                                Set your 3 main goals and plan your focus for today
-                            </p>
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-white font-bold text-sm group-hover:bg-white/30 transition-colors">
-                            <span>Begin</span>
-                            <ChevronRight size={16} />
-                        </div>
-                    </div>
-
-                    {/* End the Day Widget */}
-                    <div
-                        onClick={onEndDay}
-                        className="md:col-span-2 bg-gradient-to-br from-indigo-800 via-slate-800 to-purple-900 p-6 rounded-[2rem] shadow-xl flex items-center gap-6 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
-                    >
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
-
-                        {/* Star decorations */}
-                        <div className="absolute top-4 right-20 w-1 h-1 bg-white rounded-full animate-pulse"></div>
-                        <div className="absolute top-8 right-32 w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                        <div className="absolute bottom-6 right-16 w-1 h-1 bg-white/80 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-
-                        <div className="shrink-0 w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-white/10">
-                            <Moon size={32} className="text-indigo-200" />
-                        </div>
-
-                        <div className="relative z-10 flex-1">
-                            <h3 className="font-bold text-xl text-white mb-1">
-                                End Your Day
-                            </h3>
-                            <p className="text-white/60 text-sm">
-                                Reflect on achievements, track habits, and set tomorrow's goals
-                            </p>
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl text-white font-bold text-sm group-hover:bg-white/20 transition-colors border border-white/10">
-                            <span>Reflect</span>
-                            <ChevronRight size={16} />
                         </div>
                     </div>
 

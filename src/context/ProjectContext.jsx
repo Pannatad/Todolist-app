@@ -12,13 +12,22 @@ export const ProjectProvider = ({ children }) => {
     const [projects, setProjects] = useState(() => {
         try {
             const saved = localStorage.getItem('demon-projects');
-            return saved ? JSON.parse(saved) : [
+            if (saved) {
+                // Normalize projects loaded from localStorage to ensure isPinned is a boolean
+                const parsed = JSON.parse(saved);
+                return parsed.map(p => ({
+                    ...p,
+                    isPinned: p.isPinned === true // Ensure boolean
+                }));
+            }
+            return [
                 {
                     id: 'sample-1',
                     title: 'Website Redesign',
                     description: 'Overhaul the company website with new branding.',
                     status: 'active',
                     progress: 35,
+                    isPinned: false,
                     columns: [
                         { id: 'col-1', title: 'Backlog' },
                         { id: 'col-2', title: 'To Do' },
@@ -52,8 +61,8 @@ export const ProjectProvider = ({ children }) => {
                 // Convert snake_case to camelCase
                 const formattedProjects = projectsData.map(p => ({
                     ...p,
-                    isAIGenerated: p.is_ai_generated,
-                    isPinned: p.is_pinned,
+                    isAIGenerated: p.is_ai_generated || false,
+                    isPinned: p.is_pinned === true, // Ensure boolean, null/undefined becomes false
                     category: p.category || 'General', // Default to General if null
                     // Ensure all tasks have IDs
                     tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
@@ -121,9 +130,8 @@ export const ProjectProvider = ({ children }) => {
                     // Convert snake_case back to camelCase for state
                     const formattedData = {
                         ...data,
-                        ...data,
-                        isAIGenerated: data.is_ai_generated,
-                        isPinned: data.is_pinned,
+                        isAIGenerated: data.is_ai_generated || false,
+                        isPinned: data.is_pinned === true,
                         category: data.category || 'General',
                         // Ensure tasks have IDs if any returned
                         tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
