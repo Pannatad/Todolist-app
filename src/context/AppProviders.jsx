@@ -3,6 +3,8 @@ import { AuthProvider } from './AuthContext';
 import { TaskProvider } from './TaskContext';
 import { GameProvider } from './GameContext';
 import { GoalProvider } from './GoalContext';
+import { UserProfileProvider } from './UserProfileContext';
+import { AgentMemoryProvider } from './AgentMemoryContext';
 
 /**
  * AppProviders wraps the entire app with all context providers
@@ -11,13 +13,17 @@ import { GoalProvider } from './GoalContext';
 export const AppProviders = ({ children }) => {
     return (
         <AuthProvider>
-            <TaskProvider>
-                <GameProvider>
-                    <GoalProvider>
-                        {children}
-                    </GoalProvider>
-                </GameProvider>
-            </TaskProvider>
+            <UserProfileProvider>
+                <AgentMemoryProvider>
+                    <TaskProvider>
+                        <GameProvider>
+                            <GoalProvider>
+                                {children}
+                            </GoalProvider>
+                        </GameProvider>
+                    </TaskProvider>
+                </AgentMemoryProvider>
+            </UserProfileProvider>
         </AuthProvider>
     );
 };

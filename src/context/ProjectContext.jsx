@@ -6,6 +6,22 @@ const ProjectContext = createContext();
 
 export const useProject = () => useContext(ProjectContext);
 
+// Default phases for new projects
+const DEFAULT_PHASES = [
+    { id: 'phase-1', name: 'Planning', color: 'purple', order: 0, deadline: null },
+    { id: 'phase-2', name: 'Prototype', color: 'blue', order: 1, deadline: null },
+    { id: 'phase-3', name: 'Testing', color: 'amber', order: 2, deadline: null },
+    { id: 'phase-4', name: 'Deployment', color: 'emerald', order: 3, deadline: null },
+];
+
+// Default columns (same for each phase)
+const DEFAULT_COLUMNS = [
+    { id: 'c-1', title: 'To Do' },
+    { id: 'c-2', title: 'In Progress' },
+    { id: 'c-3', title: 'Review' },
+    { id: 'c-4', title: 'Done' }
+];
+
 export const ProjectProvider = ({ children }) => {
     const { user } = useAuth();
 
@@ -13,11 +29,17 @@ export const ProjectProvider = ({ children }) => {
         try {
             const saved = localStorage.getItem('demon-projects');
             if (saved) {
-                // Normalize projects loaded from localStorage to ensure isPinned is a boolean
                 const parsed = JSON.parse(saved);
                 return parsed.map(p => ({
                     ...p,
-                    isPinned: p.isPinned === true // Ensure boolean
+                    isPinned: p.isPinned === true,
+                    // Ensure phases exist
+                    phases: p.phases || DEFAULT_PHASES,
+                    // Ensure tasks have phaseId
+                    tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
+                        ...t,
+                        phaseId: t.phaseId || (p.phases?.[0]?.id || 'phase-1')
+                    })) : []
                 }));
             }
             return [
@@ -28,16 +50,12 @@ export const ProjectProvider = ({ children }) => {
                     status: 'active',
                     progress: 35,
                     isPinned: false,
-                    columns: [
-                        { id: 'col-1', title: 'Backlog' },
-                        { id: 'col-2', title: 'To Do' },
-                        { id: 'col-3', title: 'In Progress' },
-                        { id: 'col-4', title: 'Done' }
-                    ],
+                    phases: DEFAULT_PHASES,
+                    columns: DEFAULT_COLUMNS,
                     tasks: [
-                        { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'col-3' },
-                        { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'col-4' },
-                        { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'col-2' }
+                        { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'c-2', phaseId: 'phase-1' },
+                        { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'c-4', phaseId: 'phase-1' },
+                        { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'c-1', phaseId: 'phase-2' }
                     ]
                 }
             ];
@@ -58,16 +76,16 @@ export const ProjectProvider = ({ children }) => {
                 .order('created_at', { ascending: false });
 
             if (projectsData) {
-                // Convert snake_case to camelCase
                 const formattedProjects = projectsData.map(p => ({
                     ...p,
                     isAIGenerated: p.is_ai_generated || false,
-                    isPinned: p.is_pinned === true, // Ensure boolean, null/undefined becomes false
-                    category: p.category || 'General', // Default to General if null
-                    // Ensure all tasks have IDs
+                    isPinned: p.is_pinned === true,
+                    category: p.category || 'General',
+                    phases: p.phases || DEFAULT_PHASES,
                     tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
                         ...t,
-                        id: t.id || crypto.randomUUID()
+                        id: t.id || crypto.randomUUID(),
+                        phaseId: t.phaseId || (p.phases?.[0]?.id || 'phase-1')
                     })) : []
                 }));
                 setProjects(formattedProjects);
@@ -96,14 +114,12 @@ export const ProjectProvider = ({ children }) => {
             id: user ? undefined : crypto.randomUUID(),
             user_id: user?.id,
             created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             progress: 0,
             category: project.category || 'General',
-            columns: project.columns || [
-                { id: 'c-1', title: 'To Do' },
-                { id: 'c-2', title: 'In Progress' },
-                { id: 'c-3', title: 'Review' },
-                { id: 'c-4', title: 'Done' }
-            ],
+            tags: project.tags || [],
+            phases: project.phases || DEFAULT_PHASES,
+            columns: project.columns || DEFAULT_COLUMNS,
             tasks: project.tasks || []
         };
 
@@ -112,39 +128,40 @@ export const ProjectProvider = ({ children }) => {
 
         if (user) {
             try {
-                // Convert to database format (snake_case)
-                const { id, isAIGenerated, ...dbProject } = newProject;
-
-                // Map camelCase to snake_case for database
-                if (isAIGenerated !== undefined) {
-                    dbProject.is_ai_generated = isAIGenerated;
-                }
-                if (newProject.isPinned !== undefined) {
-                    dbProject.is_pinned = newProject.isPinned;
-                }
+                // Only include columns that exist in the Supabase schema
+                const dbProject = {
+                    user_id: newProject.user_id,
+                    title: newProject.title,
+                    description: newProject.description,
+                    status: newProject.status || 'active',
+                    progress: newProject.progress || 0,
+                    is_ai_generated: newProject.isAIGenerated || false,
+                    category: newProject.category || 'General',
+                    tags: newProject.tags || [],
+                    is_pinned: newProject.isPinned || false,
+                    phases: newProject.phases || DEFAULT_PHASES,
+                    columns: newProject.columns || DEFAULT_COLUMNS,
+                    tasks: newProject.tasks || [],
+                    updated_at: newProject.updated_at
+                };
 
                 const { data, error } = await supabase.from('projects').insert([dbProject]).select().single();
 
                 if (data) {
-                    // Successfully saved to cloud - update with real ID
-                    // Convert snake_case back to camelCase for state
                     const formattedData = {
                         ...data,
                         isAIGenerated: data.is_ai_generated || false,
                         isPinned: data.is_pinned === true,
                         category: data.category || 'General',
-                        // Ensure tasks have IDs if any returned
+                        phases: data.phases || DEFAULT_PHASES,
                         tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
                     };
                     setProjects(prev => prev.map(p => p.id === tempId ? { ...p, ...formattedData } : p));
                     return formattedData;
                 } else if (error) {
                     console.error("Error saving project to cloud:", error);
-
-                    // Keep the project locally even if cloud sync fails
                     setProjects(prev => prev.map(p => p.id === tempId ? { ...p, id: tempId } : p));
 
-                    // Show user-friendly message
                     if (error.code === '42P01') {
                         alert('⚠️ Cloud sync not set up yet. Project saved locally.\n\nTo enable cloud sync, run the SQL script in SUPABASE_SETUP.md');
                     } else {
@@ -165,25 +182,96 @@ export const ProjectProvider = ({ children }) => {
     };
 
     const updateProject = async (id, updates) => {
-        setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+        const fullUpdates = { ...updates, updated_at: new Date().toISOString() };
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, ...fullUpdates } : p));
 
         if (user) {
-            const dbUpdates = { ...updates };
-            if (updates.isPinned !== undefined) {
-                dbUpdates.is_pinned = updates.isPinned;
-                delete dbUpdates.isPinned;
+            // Only include columns that exist in the Supabase schema
+            const dbUpdates = {};
+            if (updates.title !== undefined) dbUpdates.title = updates.title;
+            if (updates.description !== undefined) dbUpdates.description = updates.description;
+            if (updates.status !== undefined) dbUpdates.status = updates.status;
+            if (updates.progress !== undefined) dbUpdates.progress = updates.progress;
+            if (updates.category !== undefined) dbUpdates.category = updates.category;
+            if (updates.isPinned !== undefined) dbUpdates.is_pinned = updates.isPinned;
+            if (updates.phases !== undefined) dbUpdates.phases = updates.phases;
+            if (updates.columns !== undefined) dbUpdates.columns = updates.columns;
+            if (updates.tasks !== undefined) dbUpdates.tasks = updates.tasks;
+            if (updates.isAIGenerated !== undefined) dbUpdates.is_ai_generated = updates.isAIGenerated;
+            if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+            dbUpdates.updated_at = fullUpdates.updated_at;
+
+            // Only update if there are valid DB fields
+            if (Object.keys(dbUpdates).length > 0) {
+                await supabase.from('projects').update(dbUpdates).eq('id', id);
             }
-            // Category is a direct mapping, so no change needed for it
-            await supabase.from('projects').update(dbUpdates).eq('id', id);
         }
     };
 
+    // Phase operations
+    const addPhase = async (projectId, phaseName, deadline = null) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const newPhase = {
+            id: `phase-${crypto.randomUUID().slice(0, 8)}`,
+            name: phaseName,
+            color: ['purple', 'blue', 'teal', 'amber', 'pink', 'emerald'][project.phases.length % 6],
+            order: project.phases.length,
+            deadline: deadline || null
+        };
+
+        const updatedPhases = [...project.phases, newPhase];
+        await updateProject(projectId, { phases: updatedPhases });
+        return newPhase;
+    };
+
+    const updatePhase = async (projectId, phaseId, updates) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const updatedPhases = project.phases.map(phase =>
+            phase.id === phaseId ? { ...phase, ...updates } : phase
+        );
+        await updateProject(projectId, { phases: updatedPhases });
+    };
+
+    const deletePhase = async (projectId, phaseId) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project || project.phases.length <= 1) return; // Keep at least one phase
+
+        // Move tasks from deleted phase to first remaining phase
+        const remainingPhases = project.phases.filter(p => p.id !== phaseId);
+        const firstPhaseId = remainingPhases[0].id;
+
+        const updatedTasks = project.tasks.map(task =>
+            task.phaseId === phaseId ? { ...task, phaseId: firstPhaseId } : task
+        );
+
+        // Reorder remaining phases
+        const reorderedPhases = remainingPhases.map((phase, idx) => ({
+            ...phase,
+            order: idx
+        }));
+
+        await updateProject(projectId, { phases: reorderedPhases, tasks: updatedTasks });
+    };
+
+    const reorderPhases = async (projectId, newPhasesOrder) => {
+        const reorderedPhases = newPhasesOrder.map((phase, idx) => ({
+            ...phase,
+            order: idx
+        }));
+        await updateProject(projectId, { phases: reorderedPhases });
+    };
+
     const addTask = async (projectId, task) => {
-        // Always generate an ID for the new task
+        const project = projects.find(p => p.id === projectId);
         const newTask = {
             ...task,
             id: crypto.randomUUID(),
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            phaseId: task.phaseId || project?.phases?.[0]?.id || 'phase-1'
         };
 
         setProjects(prev => prev.map(p => {
@@ -195,10 +283,9 @@ export const ProjectProvider = ({ children }) => {
         }));
 
         if (user) {
-            const project = projects.find(p => p.id === projectId);
-            if (project) {
-                // Use the newTask with the generated ID
-                const updatedTasks = [...project.tasks, newTask];
+            const updatedProject = projects.find(p => p.id === projectId);
+            if (updatedProject) {
+                const updatedTasks = [...updatedProject.tasks, newTask];
                 await supabase.from('projects').update({ tasks: updatedTasks }).eq('id', projectId);
             }
         }
@@ -265,13 +352,16 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
-    const moveTask = async (projectId, taskId, newColumnId) => {
+    const moveTask = async (projectId, taskId, newColumnId, newPhaseId = null) => {
         setProjects(prev => prev.map(project => {
             if (project.id !== projectId) return project;
 
-            const updatedTasks = project.tasks.map(task =>
-                task.id === taskId ? { ...task, columnId: newColumnId } : task
-            );
+            const updatedTasks = project.tasks.map(task => {
+                if (task.id !== taskId) return task;
+                const updates = { columnId: newColumnId };
+                if (newPhaseId) updates.phaseId = newPhaseId;
+                return { ...task, ...updates };
+            });
 
             const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
             let progress = project.progress;
@@ -288,9 +378,12 @@ export const ProjectProvider = ({ children }) => {
         if (user) {
             const project = projects.find(p => p.id === projectId);
             if (project) {
-                const updatedTasks = project.tasks.map(task =>
-                    task.id === taskId ? { ...task, columnId: newColumnId } : task
-                );
+                const updatedTasks = project.tasks.map(task => {
+                    if (task.id !== taskId) return task;
+                    const updates = { columnId: newColumnId };
+                    if (newPhaseId) updates.phaseId = newPhaseId;
+                    return { ...task, ...updates };
+                });
 
                 const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
                 let progress = project.progress;
@@ -316,7 +409,12 @@ export const ProjectProvider = ({ children }) => {
             deleteTask,
             deleteProject,
             moveTask,
-            setProjects
+            setProjects,
+            // Phase operations
+            addPhase,
+            updatePhase,
+            deletePhase,
+            reorderPhases
         }}>
             {children}
         </ProjectContext.Provider>

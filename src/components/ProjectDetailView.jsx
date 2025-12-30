@@ -17,13 +17,18 @@ const dropAnimation = {
     }),
 };
 
-const ProjectDetailView = ({ project, onBack }) => {
-    const { moveTask, updateProject, addTask, updateTask, deleteTask } = useProject();
+const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
+    const { moveTask, updateProject, addTask, updateTask, deleteTask, addPhase, updatePhase, deletePhase, reorderPhases } = useProject();
     const [activeId, setActiveId] = useState(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
-    const [sortBy, setSortBy] = useState('manual'); // 'manual', 'priority', 'difficulty'
-    const [sortDirection, setSortDirection] = useState('desc'); // 'desc', 'asc'
+    const [sortBy, setSortBy] = useState('manual');
+    const [sortDirection, setSortDirection] = useState('desc');
+
+    // Use the passed phase ID or default to first phase
+    const sortedPhases = [...(project.phases || [])].sort((a, b) => a.order - b.order);
+    const activePhaseId = selectedPhaseId || sortedPhases[0]?.id || 'phase-1';
+    const activePhase = sortedPhases.find(p => p.id === activePhaseId);
 
     const handleDragStart = (event) => {
         setActiveId(event.active.id);
@@ -35,17 +40,13 @@ const ProjectDetailView = ({ project, onBack }) => {
 
         if (!over) return;
 
-        const activeId = active.id;
+        const activeTaskId = active.id;
         const overId = over.id;
 
-        // Find the task and its current column
-        const activeTask = project.tasks.find(t => t.id === activeId);
+        const activeTask = project.tasks.find(t => t.id === activeTaskId);
         if (!activeTask) return;
 
-        // Check if dropped over a column
         const isOverColumn = project.columns.find(c => c.id === overId);
-
-        // Check if dropped over another task
         const overTask = project.tasks.find(t => t.id === overId);
 
         let newColumnId = activeTask.columnId;
@@ -57,7 +58,7 @@ const ProjectDetailView = ({ project, onBack }) => {
         }
 
         if (activeTask.columnId !== newColumnId) {
-            moveTask(project.id, activeId, newColumnId);
+            moveTask(project.id, activeTaskId, newColumnId);
         }
     };
 
@@ -77,7 +78,12 @@ const ProjectDetailView = ({ project, onBack }) => {
         if (editingTask) {
             updateTask(project.id, editingTask.id, taskData);
         } else {
-            addTask(project.id, { ...taskData, columnId: project.columns[0].id });
+            // Add task to current phase
+            addTask(project.id, {
+                ...taskData,
+                columnId: project.columns[0].id,
+                phaseId: activePhaseId
+            });
         }
         setIsTaskModalOpen(false);
     };
@@ -85,6 +91,9 @@ const ProjectDetailView = ({ project, onBack }) => {
     const handleDeleteTask = (taskId) => {
         deleteTask(project.id, taskId);
     };
+
+    // Filter tasks by current phase
+    const phaseTasks = project.tasks.filter(t => t.phaseId === activePhaseId);
 
     // Sorting Logic
     const getSortedTasks = (tasks) => {
@@ -104,9 +113,40 @@ const ProjectDetailView = ({ project, onBack }) => {
                 const dB = difficultyOrder[b.difficulty] || 0;
                 result = dB - dA;
             }
-            // Reverse if ascending
             return sortDirection === 'asc' ? -result : result;
         });
+    };
+
+    // Phase handlers
+    const handleAddPhase = (name) => {
+        addPhase(project.id, name);
+    };
+
+    const handleUpdatePhase = (phaseId, updates) => {
+        updatePhase(project.id, phaseId, updates);
+    };
+
+    const handleDeletePhase = (phaseId) => {
+        if (confirm('Delete this phase? Tasks will be moved to the first remaining phase.')) {
+            deletePhase(project.id, phaseId);
+            // Switch to first phase if deleting active phase
+            if (phaseId === activePhaseId) {
+                const remaining = project.phases.filter(p => p.id !== phaseId);
+                setActivePhaseId(remaining[0]?.id);
+            }
+        }
+    };
+
+    const getTasksCountForPhase = (phaseId) => {
+        return project.tasks.filter(t => t.phaseId === phaseId).length;
+    };
+
+    // Calculate phase progress
+    const getPhaseProgress = () => {
+        const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
+        if (!doneColumn || phaseTasks.length === 0) return 0;
+        const doneTasks = phaseTasks.filter(t => t.columnId === doneColumn.id).length;
+        return Math.round((doneTasks / phaseTasks.length) * 100);
     };
 
     return (
@@ -129,17 +169,22 @@ const ProjectDetailView = ({ project, onBack }) => {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-bold text-white">{project.title}</h2>
-                        <div className="flex items-center gap-4 text-sm text-white/60">
-                            <span>{project.tasks.length} Tasks</span>
+                        <div className="flex items-center gap-2 text-sm text-white/50 mb-1">
+                            <span>{project.title}</span>
+                            <span>•</span>
+                            <span>Phase {(sortedPhases.findIndex(p => p.id === activePhaseId) + 1)}</span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">{activePhase?.name || 'Phase'}</h2>
+                        <div className="flex items-center gap-4 text-sm text-white/60 mt-1">
+                            <span>{phaseTasks.length} Tasks in Phase</span>
                             <div className="flex items-center gap-2">
                                 <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
                                     <div
                                         className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
-                                        style={{ width: `${project.progress}%` }}
+                                        style={{ width: `${getPhaseProgress()}%` }}
                                     />
                                 </div>
-                                <span>{project.progress}% Done</span>
+                                <span>{getPhaseProgress()}% Done</span>
                             </div>
                         </div>
                     </div>
@@ -204,6 +249,8 @@ const ProjectDetailView = ({ project, onBack }) => {
                 </div>
             </div>
 
+            {/* Phase name badge removed - navigation via PhaseSelectionView */}
+
             {/* Board */}
             <DndContext
                 collisionDetection={closestCorners}
@@ -216,7 +263,7 @@ const ProjectDetailView = ({ project, onBack }) => {
                             <KanbanColumn
                                 key={column.id}
                                 column={column}
-                                tasks={getSortedTasks(project.tasks.filter(t => t.columnId === column.id))}
+                                tasks={getSortedTasks(phaseTasks.filter(t => t.columnId === column.id))}
                                 onEditTask={handleEditTask}
                                 onDeleteTask={handleDeleteTask}
                                 isSorted={sortBy !== 'manual'}

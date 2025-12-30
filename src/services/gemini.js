@@ -806,3 +806,145 @@ export const parseScheduleCommand = async (transcript) => {
         return null;
     }
 };
+
+/**
+ * Routes a natural language command to structured actions for the AI Agent.
+ * @param {string} input - User's natural language command.
+ * @param {Object} context - Optional context about current state (tasks, schedule, user profile).
+ * @returns {Promise<Object>} - { actions: [...], summary: "..." }
+ */
+export const routeAgentCommand = async (input, context = {}) => {
+    console.log("🤖 routeAgentCommand called with input:", input);
+
+    if (!API_KEY) {
+        console.warn("⚠️ Gemini API Key is missing.");
+        return {
+            actions: [],
+            summary: "I'm unable to process your request (API Key missing)."
+        };
+    }
+
+    try {
+        const now = new Date();
+        const currentDateTime = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const { userProfile = {}, recentTasks = [], recentSchedule = [], memorySummary = '', recentInteractions = [], conversationHistory = null } = context;
+
+        const prompt = `
+            You are an intelligent AI agent for a productivity app called "All-in-One Assistant".
+            Your job is to understand the user's natural language request and determine what actions to take.
+            You have memory of past interactions and know the user's preferences.
+
+            Current Date & Time: ${currentDateTime}
+            
+            USER PROFILE:
+            ${userProfile.summary || JSON.stringify(userProfile) || 'Not set'}
+            
+            AGENT MEMORY:
+            ${memorySummary || 'No memory yet'}
+            
+            FULL TASK LIST (${recentTasks.length} tasks):
+            ${recentTasks.length > 0
+                ? recentTasks.map(t => `- "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n            ')
+                : 'No tasks'}
+            
+            FULL SCHEDULE (${recentSchedule.length} events):
+            ${recentSchedule.length > 0
+                ? recentSchedule.map(s => `- "${s.title}" at ${new Date(s.startTime || s.start_time).toLocaleString()}`).join('\n            ')
+                : 'No scheduled events'}
+            
+            ${conversationHistory ? `CONVERSATION HISTORY (ongoing clarification):\n${conversationHistory}\n` : ''}
+            
+            User Request: "${input}"
+
+            SUPPORTED ACTIONS:
+            1. add_task - Create a new task
+               Params: { title, deadline (ISO string or null), difficulty ('easy'|'medium'|'hard'), subject (optional), estimatedTime (minutes, optional) }
+               
+            2. add_schedule - Create a schedule event
+               Params: { title, startTime (ISO string), duration (minutes), category (optional) }
+               
+            3. navigate - Navigate to a specific tab (use ONLY if user explicitly asks to go somewhere)
+               Params: { tabName ('overview'|'tasks'|'schedule'|'habits'|'projects'|'vision'|'settings') }
+               
+            4. info_response - Answer a question or provide information directly (NO navigation needed)
+               Params: { message (your detailed answer), suggestedTab (optional - tab they can navigate to for more details) }
+               IMPORTANT: Use this when user asks questions like "how many tasks do I have?", "what's on my schedule?", "show me my progress", etc.
+               You have the full task and schedule data above - analyze it and provide a direct answer!
+               
+            5. set_goal - Set a daily goal/highlight
+               Params: { goalText, type ('daily'|'vision') }
+               
+            6. clarify - Ask for more information when the request is ambiguous
+               Params: { question (your clarifying question), suggestions (array of suggested options based on user history) }
+               IMPORTANT: Use this when the user's intent is unclear. Example: "add task" is too vague - ask what task.
+
+            RULES:
+            - Parse the user's intent and return appropriate actions.
+            - For INFO REQUESTS (questions about data), use info_response and provide the answer directly. DO NOT navigate unless asked.
+            - You have access to all tasks and schedule data - analyze it and answer questions!
+            - You can return multiple actions if the request requires it.
+            - For relative dates/times like "tomorrow", "next Monday", "at 3pm", calculate the exact ISO datetime.
+            - "today" or "tonight" means today at 11:59 PM.
+            - If the intent is unclear or missing key details, use the CLARIFY action to ask follow-up questions.
+            - When clarifying, suggest options based on user's recent tasks, schedule, or memory.
+            - Be helpful and proactive - if the user says "help me study for my exam", suggest both a task and schedule blocks.
+            - Use the user's profile and memory to personalize suggestions.
+
+            Reply with ONLY a JSON object in this format (no markdown, no extra text):
+            {
+                "actions": [
+                    {
+                        "type": "info_response",
+                        "params": { "message": "You have 5 tasks remaining...", "suggestedTab": "tasks" },
+                        "explanation": "Answering your question about tasks"
+                    }
+                ],
+                "summary": "A brief 1-2 sentence summary of what you'll do"
+            }
+        `;
+
+        console.log("📤 Sending agent routing request to Gemini...");
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await modelToUse.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+        console.log("📄 Raw agent response:", text);
+
+        // Clean up markdown if present
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        const parsed = JSON.parse(text);
+        console.log("✅ Parsed agent plan:", parsed);
+
+        // Validate the response structure
+        return {
+            actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+            summary: parsed.summary || "I'll help you with that."
+        };
+
+    } catch (error) {
+        console.error("❌ Error routing agent command:", error);
+        return {
+            actions: [{
+                type: 'analyze',
+                params: {
+                    analysisType: 'error',
+                    message: `I had trouble understanding that. Could you rephrase? (${error.message})`
+                },
+                explanation: "Error processing request"
+            }],
+            summary: "I encountered an issue processing your request."
+        };
+    }
+};

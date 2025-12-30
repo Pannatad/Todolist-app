@@ -6,10 +6,14 @@ import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
-import { parseTaskInput } from '../services/gemini';
+import { useUserProfile } from '../context/UserProfileContext';
+import { useAgentMemory } from '../context/AgentMemoryContext';
+import { parseTaskInput, routeAgentCommand } from '../services/gemini';
 import Penguin from './Penguin';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
+import MagicBox from './MagicBox';
+import AgentConfirmationModal from './AgentConfirmationModal';
 
 
 
@@ -122,23 +126,23 @@ const CurrentEventWidget = ({ scheduleItems }) => {
 
 
     return (
-        <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm relative overflow-hidden group border border-gray-100">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-50/50 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-50/30 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
 
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider flex items-center gap-2">
-                            <Clock size={14} className="text-white/80" />
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                            <Clock size={14} className="text-indigo-500" />
                             {currentEvent ? 'Now Happening' : 'Current Status'}
                         </h3>
-                        <div className="text-3xl font-bold text-white mt-1 font-mono">
+                        <div className="text-3xl font-bold text-gray-900 mt-1 font-mono">
                             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                     </div>
                     {currentEvent && (
-                        <div className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold border border-white/30">
+                        <div className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold border border-indigo-100">
                             On Track
                         </div>
                     )}
@@ -146,31 +150,31 @@ const CurrentEventWidget = ({ scheduleItems }) => {
 
                 {currentEvent ? (
                     <div>
-                        <h4 className="text-xl font-bold text-white mb-1">{currentEvent.title}</h4>
-                        <div className="flex justify-between text-sm text-white/70 mb-3">
+                        <h4 className="text-xl font-bold text-gray-900 mb-1">{currentEvent.title}</h4>
+                        <div className="flex justify-between text-sm text-gray-500 mb-3 font-medium">
                             <span>{currentEvent.displayStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             <span>{currentEvent.displayEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
 
                         {/* Progress Bar */}
-                        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                             <motion.div
-                                className="h-full bg-white"
+                                className="h-full bg-indigo-500"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progress}%` }}
                                 transition={{ duration: 0.5 }}
                             />
                         </div>
-                        <p className="text-right text-xs text-white/60 mt-1">{Math.round(progress)}% Complete</p>
+                        <p className="text-right text-xs text-gray-400 mt-1.5 font-medium">{Math.round(progress)}% Complete</p>
                     </div>
                 ) : (
                     <div className="flex items-center gap-4 py-2">
-                        <div className="p-3 bg-white/20 rounded-full text-white">
+                        <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-500">
                             <Zap size={24} />
                         </div>
                         <div>
-                            <h4 className="text-lg font-bold text-white">Free Time</h4>
-                            <p className="text-sm text-white/70">Recharge or pick a task from the garden.</p>
+                            <h4 className="text-lg font-bold text-gray-900">Free Time</h4>
+                            <p className="text-sm text-gray-600">Recharge or pick a task from the garden.</p>
                         </div>
                     </div>
                 )}
@@ -241,17 +245,19 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) =>
             style={style}
             className="w-72"
         >
-            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-5 rounded-2xl shadow-2xl flex flex-col relative overflow-hidden border border-white/20">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+            <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
 
                 <div className="flex items-center justify-between mb-3 relative z-10">
-                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
-                        <Calendar size={16} className="text-white/90" /> Quick Schedule
+                    <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm">
+                        <div className="bg-indigo-100 p-1 rounded-lg">
+                            <Calendar size={14} className="text-indigo-600" />
+                        </div>
+                        Quick Schedule
                     </h3>
                     <button
                         onClick={onClose}
-                        className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+                        className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                     >
                         <X size={16} />
                     </button>
@@ -263,7 +269,7 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) =>
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Event name..."
-                        className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
                         autoFocus
                     />
 
@@ -272,23 +278,23 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) =>
                             type="time"
                             value={time}
                             onChange={(e) => setTime(e.target.value)}
-                            className="flex-1 bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
                         />
                         <select
                             value={duration}
                             onChange={(e) => setDuration(e.target.value)}
-                            className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                            className="bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
                         >
-                            <option value="30" className="text-gray-800">30m</option>
-                            <option value="60" className="text-gray-800">1h</option>
-                            <option value="90" className="text-gray-800">1.5h</option>
-                            <option value="120" className="text-gray-800">2h</option>
+                            <option value="30">30m</option>
+                            <option value="60">1h</option>
+                            <option value="90">1.5h</option>
+                            <option value="120">2h</option>
                         </select>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-white text-orange-600 py-2 rounded-lg font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                         <Plus size={14} /> Add to Schedule
                     </button>
@@ -424,17 +430,19 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
             style={style}
             className="w-80"
         >
-            <div className="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-500 p-5 rounded-2xl shadow-2xl flex flex-col relative overflow-hidden border border-white/20">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+            <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-teal-50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
 
                 <div className="flex items-center justify-between mb-3 relative z-10">
-                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
-                        <Plus size={16} className="text-white/90" /> Quick Add Task
+                    <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm">
+                        <div className="bg-teal-100 p-1 rounded-lg">
+                            <Plus size={14} className="text-teal-600" />
+                        </div>
+                        Quick Add Task
                     </h3>
                     <button
                         onClick={onClose}
-                        className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+                        className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                     >
                         <X size={16} />
                     </button>
@@ -447,7 +455,7 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder={isListening ? 'Listening...' : 'e.g., "Math homework due tomorrow 3pm"'}
-                            className="w-full bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
                             disabled={isListening}
                             autoFocus
                         />
@@ -456,21 +464,21 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
                             onClick={toggleListening}
                             className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${isListening
                                 ? 'bg-red-500 text-white animate-pulse'
-                                : 'bg-white/20 text-white hover:bg-white/30'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                                 }`}
                         >
                             {isListening ? <MicOff size={14} /> : <Mic size={14} />}
                         </button>
                     </div>
 
-                    <p className="text-white/60 text-xs">
+                    <p className="text-gray-500 text-xs font-medium">
                         🎤 Say or type: "task name, due date, difficulty"
                     </p>
 
                     <button
                         type="submit"
                         disabled={isProcessing || !input.trim()}
-                        className="w-full bg-white text-emerald-600 py-2 rounded-lg font-bold text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
                         {isProcessing ? (
                             <>
@@ -494,6 +502,8 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const { dailyHighlights, goals, updateHighlight } = useGoal();
     const { user } = useAuth();
     const { coins } = useGame();
+    const { profile, getProfileSummary } = useUserProfile();
+    const { logInteraction, getMemorySummary, getRecentInteractions } = useAgentMemory();
 
     const [greeting, setGreeting] = useState('');
     const [quickCaptureText, setQuickCaptureText] = useState('');
@@ -512,6 +522,17 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
         focusMinutes: 0,
         tasksLeft: 0
     });
+
+    // Agent state
+    const [isAgentLoading, setIsAgentLoading] = useState(false);
+    const [agentPlan, setAgentPlan] = useState(null);
+    const [showAgentModal, setShowAgentModal] = useState(false);
+    const [isExecutingActions, setIsExecutingActions] = useState(false);
+    const [originalPrompt, setOriginalPrompt] = useState('');
+
+    // Clarify conversation state (for iterative prompting)
+    const [clarifyConversation, setClarifyConversation] = useState([]);
+    const [pendingClarify, setPendingClarify] = useState(null);
 
     // Time-based greeting
     useEffect(() => {
@@ -574,63 +595,184 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
         setQuickCaptureText('');
     };
 
+    // Handle Magic Box submission
+    const handleMagicBoxSubmit = async (input) => {
+        setIsAgentLoading(true);
+        // Track original prompt for edit functionality (only set on first submit)
+        if (!originalPrompt) {
+            setOriginalPrompt(input);
+        }
+        try {
+            // Build rich context for the agent
+            const context = {
+                userProfile: {
+                    name: profile.name || user?.email?.split('@')[0] || 'User',
+                    role: profile.role,
+                    workingHours: profile.workingHours,
+                    focusStyle: profile.focusStyle,
+                    goals: profile.goals,
+                    summary: getProfileSummary()
+                },
+                recentTasks: tasks?.slice(0, 10) || [],
+                recentSchedule: scheduleItems?.slice(0, 10) || [],
+                memorySummary: getMemorySummary(),
+                recentInteractions: getRecentInteractions(5),
+                // If there's an ongoing clarify conversation, include it
+                conversationHistory: clarifyConversation.length > 0
+                    ? clarifyConversation.map(c => `User: ${c.input}\nAgent: ${c.response}`).join('\n')
+                    : null
+            };
+
+            const plan = await routeAgentCommand(input, context);
+
+            // Check if agent needs clarification
+            const clarifyAction = plan.actions?.find(a => a.type === 'clarify');
+            if (clarifyAction) {
+                // Store the clarification request and wait for user response
+                setPendingClarify(clarifyAction.params);
+                setClarifyConversation(prev => [...prev, { input, response: clarifyAction.params.question }]);
+                setAgentPlan(plan);
+                setShowAgentModal(true);
+            } else {
+                // Normal action plan - log and show confirmation
+                setAgentPlan(plan);
+                setShowAgentModal(true);
+                // Clear conversation history since we got a concrete plan
+                setClarifyConversation([]);
+                setPendingClarify(null);
+            }
+        } catch (error) {
+            console.error('Error processing Magic Box input:', error);
+        } finally {
+            setIsAgentLoading(false);
+        }
+    };
+
+    // Execute confirmed agent actions
+    const executeAgentActions = async (editedPlan = null) => {
+        // Use edited plan if provided, otherwise use stored plan
+        const planToExecute = editedPlan || agentPlan;
+        if (!planToExecute?.actions) return;
+
+        setIsExecutingActions(true);
+        try {
+            for (const action of planToExecute.actions) {
+                // Skip clarify actions
+                if (action.type === 'clarify') continue;
+
+                switch (action.type) {
+                    case 'add_task':
+                        await addTask({
+                            title: action.params.title,
+                            difficulty: action.params.difficulty || 'easy',
+                            deadline: action.params.deadline,
+                            subject: action.params.subject,
+                            estimatedTime: action.params.estimatedTime
+                        });
+                        break;
+                    case 'add_schedule':
+                        await addScheduleItem({
+                            title: action.params.title,
+                            startTime: action.params.startTime,
+                            duration: action.params.duration || 60,
+                            category: action.params.category || 'Other'
+                        });
+                        break;
+                    case 'navigate':
+                        if (onNavigate && action.params.tabName) {
+                            onNavigate(action.params.tabName);
+                        }
+                        break;
+                    case 'set_goal':
+                        console.log('Set goal:', action.params);
+                        break;
+                    case 'analyze':
+                        console.log('Analysis:', action.params.message);
+                        break;
+                    default:
+                        console.log('Unknown action type:', action.type);
+                }
+            }
+            // Log successful interaction to memory
+            logInteraction({
+                input: planToExecute.summary || 'Agent command',
+                actions: planToExecute.actions,
+                outcome: 'success'
+            });
+        } catch (error) {
+            console.error('Error executing agent actions:', error);
+        } finally {
+            setIsExecutingActions(false);
+            setShowAgentModal(false);
+            setAgentPlan(null);
+            setClarifyConversation([]);
+            setPendingClarify(null);
+        }
+    };
+
     return (
-        <div className="h-full flex flex-col p-4 md:p-6 overflow-y-auto space-y-8 custom-scrollbar">
+        <div className="h-full flex flex-col p-4 md:p-6 overflow-y-auto space-y-8 custom-scrollbar bg-transparent">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-sage-800 dark:text-bone-100">
+                    <h1 className="text-3xl font-bold text-gray-900">
                         {greeting}, {user?.email?.split('@')[0] || 'Traveler'}
                     </h1>
-                    <p className="text-sage-500 dark:text-bone-400 mt-1 flex items-center gap-2">
+                    <p className="text-gray-600 mt-1 flex items-center gap-2 italic">
                         <Flame size={16} className="text-orange-500" />
-                        Your productivity engine is online.
+                        "The best way to predict the future is to create it."
                     </p>
                 </div>
 
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
-                    <div className="bg-gradient-to-br from-purple-500/80 to-indigo-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-white">{stats.tasksLeft}</span>
-                        <span className="text-xs text-white/70 uppercase font-bold">Tasks Left</span>
+                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-indigo-600">{stats.tasksLeft}</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Tasks Left</span>
                     </div>
-                    <div className="bg-gradient-to-br from-fuchsia-500/80 to-pink-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-white">{stats.taskProgress}%</span>
-                        <span className="text-xs text-white/70 uppercase font-bold">Done</span>
+                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-indigo-600">{stats.taskProgress}%</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Done</span>
                     </div>
-                    <div className="bg-gradient-to-br from-amber-500/80 to-orange-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-white flex items-center gap-1">
+                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-amber-600 flex items-center gap-1">
                             {coins} <span className="text-xs">🪙</span>
                         </span>
-                        <span className="text-xs text-white/70 uppercase font-bold">Wealth</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Wealth</span>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-500/80 to-cyan-600/80 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-lg flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-white">0</span>
-                        <span className="text-xs text-white/70 uppercase font-bold">Focus (m)</span>
+                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-teal-600">0</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Focus (m)</span>
                     </div>
                 </div>
+            </div>
+
+            {/* Magic Box - AI Agent Command Bar */}
+            <div className="py-4">
+                <MagicBox onSubmit={handleMagicBoxSubmit} isLoading={isAgentLoading} />
             </div>
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                {/* LEFT COLUMN: Today's Schedule (Indigo-Blue Gradient) */}
+                {/* LEFT COLUMN: Today's Schedule */}
                 <div className="lg:col-span-1 flex flex-col h-full">
-                    <div className="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-500 rounded-[2rem] p-6 shadow-xl h-full flex flex-col relative overflow-hidden">
-                        {/* Decorative Background Elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+                    <div className="bg-white rounded-3xl p-6 shadow-sm hover:shadow transition-shadow h-full flex flex-col relative overflow-hidden border border-gray-100">
+                        {/* Subtle accent */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-8 -mt-8 pointer-events-none"></div>
 
                         <div className="flex items-center justify-between mb-6 relative z-10">
                             <div className="flex items-center gap-3">
-                                <Calendar className="text-white/90" size={24} />
-                                <h2 className="text-2xl font-bold text-white">Today's Schedule</h2>
+                                <div className="bg-indigo-50 p-2 rounded-xl">
+                                    <Calendar className="text-indigo-600" size={20} />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-900">Today's Schedule</h2>
                             </div>
                             <div className="relative">
                                 <button
                                     ref={quickScheduleButtonRef}
                                     onClick={() => setShowQuickSchedulePopup(!showQuickSchedulePopup)}
-                                    className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105"
+                                    className="p-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-600 transition-all hover:scale-105"
                                     title="Quick Add Schedule"
                                 >
                                     <Plus size={18} />
@@ -646,7 +788,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
                         <div className="flex-1 relative z-10 space-y-4 overflow-y-auto custom-scrollbar pr-2">
                             {/* Timeline Line */}
-                            <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-white/20 rounded-full"></div>
+                            <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-indigo-200 rounded-full"></div>
 
                             {(() => {
                                 const today = new Date();
@@ -709,7 +851,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
                                 if (todaySchedule.length === 0) {
                                     return (
-                                        <div className="pl-10 text-white/60 italic text-sm py-4">
+                                        <div className="pl-10 text-gray-400 italic text-sm py-4">
                                             No schedule for today.
                                         </div>
                                     );
@@ -726,14 +868,14 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                                 setSelectedScheduleItem(item);
                                                 setShowScheduleModal(true);
                                             }}
-                                            className="p-4 rounded-xl shadow-sm transition-all hover:scale-[1.02] bg-white/10 backdrop-blur-md border border-white/10 group-hover:bg-white/15 cursor-pointer"
+                                            className="p-4 rounded-2xl transition-all hover:scale-[1.02] bg-gray-50 border border-gray-100 hover:border-indigo-200 hover:shadow-sm cursor-pointer"
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1">
-                                                    <h3 className="font-bold text-lg leading-tight text-white">
+                                                    <h3 className="font-bold text-lg leading-tight text-gray-900">
                                                         {item.title}
                                                     </h3>
-                                                    <div className="flex items-center gap-2 mt-1 text-white/70">
+                                                    <div className="flex items-center gap-2 mt-1 text-gray-500">
                                                         <span className="flex items-center gap-1 text-xs font-bold">
                                                             <Clock size={12} />
                                                             {(() => {
@@ -746,7 +888,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                                             })()}
                                                         </span>
                                                         {item.isRecurring && (
-                                                            <span className="text-xs text-cyan-300 px-1.5 py-0.5 bg-cyan-500/20 rounded-full">🔄</span>
+                                                            <span className="text-xs text-indigo-500 px-1.5 py-0.5 bg-indigo-50 rounded-full">🔄</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -758,12 +900,12 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                                                 deleteScheduleItem(item.id);
                                                             }
                                                         }}
-                                                        className="p-1.5 rounded-lg bg-white/10 hover:bg-red-500/30 text-white/60 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                                                        className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
                                                         title="Delete"
                                                     >
                                                         <Trash2 size={14} />
                                                     </button>
-                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#06b6d4' }}></div>
+                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#6366f1' }}></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -785,25 +927,24 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                     {/* Start the Day Widget */}
                     <div
                         onClick={onStartDay}
-                        className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-5 rounded-2xl shadow-xl flex items-center gap-4 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
+                        className="bg-white/95 backdrop-blur-sm p-5 rounded-3xl shadow-sm hover:shadow transition-all flex items-center gap-4 relative overflow-hidden cursor-pointer border border-gray-100 hover:border-indigo-200 group"
                     >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-8 -mt-8 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-400/20 rounded-full blur-2xl -ml-6 -mb-6 pointer-events-none"></div>
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
 
-                        <div className="shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Sun size={24} className="text-white" />
+                        <div className="shrink-0 w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Sun size={24} className="text-amber-600" />
                         </div>
 
                         <div className="relative z-10 flex-1">
-                            <h3 className="font-bold text-lg text-white">
+                            <h3 className="font-bold text-lg text-gray-900">
                                 Start Your Day
                             </h3>
-                            <p className="text-white/70 text-xs">
+                            <p className="text-gray-600 text-xs">
                                 Set your 3 main goals and plan your focus for today
                             </p>
                         </div>
 
-                        <div className="hidden md:flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-bold text-sm group-hover:bg-white/30 transition-colors">
+                        <div className="hidden md:flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-xl text-indigo-700 font-bold text-sm transition-all">
                             <span>Begin</span>
                             <ChevronRight size={14} />
                         </div>
@@ -812,48 +953,47 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                     {/* End the Day Widget */}
                     <div
                         onClick={onEndDay}
-                        className="bg-gradient-to-br from-indigo-800 via-slate-800 to-purple-900 p-5 rounded-2xl shadow-xl flex items-center gap-4 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-all group"
+                        className="bg-white/95 backdrop-blur-sm p-5 rounded-3xl shadow-sm hover:shadow transition-all flex items-center gap-4 relative overflow-hidden cursor-pointer border border-gray-100 hover:border-indigo-200 group"
                     >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-8 -mt-8 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl -ml-6 -mb-6 pointer-events-none"></div>
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
 
-                        {/* Star decorations */}
-                        <div className="absolute top-3 right-16 w-1 h-1 bg-white rounded-full animate-pulse"></div>
-                        <div className="absolute top-6 right-24 w-1 h-1 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                        <div className="absolute bottom-4 right-12 w-1 h-1 bg-white/80 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                        {/* Soft star decorations */}
+                        <div className="absolute top-3 right-16 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-pulse"></div>
+                        <div className="absolute top-6 right-24 w-1.5 h-1.5 bg-indigo-200 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                        <div className="absolute bottom-4 right-12 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
 
-                        <div className="shrink-0 w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform border border-white/10">
-                            <Moon size={24} className="text-indigo-200" />
+                        <div className="shrink-0 w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Moon size={24} className="text-indigo-600" />
                         </div>
 
                         <div className="relative z-10 flex-1">
-                            <h3 className="font-bold text-lg text-white">
+                            <h3 className="font-bold text-lg text-gray-900">
                                 End Your Day
                             </h3>
-                            <p className="text-white/60 text-xs">
+                            <p className="text-gray-600 text-xs">
                                 Reflect on achievements and set tomorrow's goals
                             </p>
                         </div>
 
-                        <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-bold text-sm group-hover:bg-white/20 transition-colors border border-white/10">
+                        <div className="hidden md:flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-xl text-indigo-700 font-bold text-sm transition-all">
                             <span>Reflect</span>
                             <ChevronRight size={14} />
                         </div>
                     </div>
 
-                    {/* Vision Board Card (Purple-Pink Gradient) */}
-                    <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-500 rounded-[2rem] p-6 shadow-xl relative overflow-hidden flex flex-col">
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/15 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+                    {/* Vision Board Card */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden flex flex-col border border-gray-100">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-rose-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-rose-50/30 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
 
                         <div className="flex items-center justify-between mb-6 relative z-10">
                             <div className="flex items-center gap-3">
-                                <Target className="text-white/90" size={24} />
-                                <h2 className="text-2xl font-bold text-white">Vision Board (Today)</h2>
+                                <Target className="text-rose-500" size={24} />
+                                <h2 className="text-2xl font-bold text-gray-900">Vision Board (Today)</h2>
                             </div>
                             <button
                                 onClick={onStartDay}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-bold transition-colors backdrop-blur-sm"
+                                className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 rounded-lg text-rose-600 text-sm font-bold transition-colors"
                             >
                                 <Sun size={16} /> Start Day
                             </button>
@@ -869,8 +1009,8 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     : rawData;
 
                                 if (!highlight) return (
-                                    <div key={index} className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white/40 text-sm italic flex items-center gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-white/30"></div>
+                                    <div key={index} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 text-gray-500 text-sm italic flex items-center gap-3">
+                                        <div className="w-2 h-2 rounded-full bg-gray-300"></div>
                                         Empty Goal Slot
                                     </div>
                                 );
@@ -882,16 +1022,16 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                             const newCompleted = !highlight.completed;
                                             updateHighlight(uniqueKey, highlight.text, newCompleted, newCompleted ? 'completed' : 'pending');
                                         }}
-                                        className={`p-4 rounded-xl shadow-lg flex items-center gap-3 transition-all hover:scale-[1.02] backdrop-blur-sm border cursor-pointer ${highlight.completed
-                                            ? 'bg-white/10 border-white/20 text-white/60'
-                                            : 'bg-white/20 border-white/30 text-white'
+                                        className={`p-4 rounded-2xl flex items-center gap-3 transition-all hover:scale-[1.02] border cursor-pointer ${highlight.completed
+                                            ? 'bg-gray-50 border-gray-100 text-gray-500'
+                                            : 'bg-rose-50 border-rose-200 hover:border-rose-300 text-gray-800'
                                             }`}
                                     >
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${highlight.completed ? 'bg-green-500 text-white' : 'bg-white/30 hover:bg-white/50'
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${highlight.completed ? 'bg-indigo-500 text-white' : 'bg-white border-2 border-rose-300 hover:border-rose-400'
                                             }`}>
                                             {highlight.completed && <Check size={12} strokeWidth={3} />}
                                         </div>
-                                        <span className={`font-bold text-sm ${highlight.completed ? 'line-through' : ''}`}>
+                                        <span className={`font-medium text-sm ${highlight.completed ? 'line-through' : ''}`}>
                                             {highlight.text}
                                         </span>
                                     </div>
@@ -899,24 +1039,24 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                             })}
                         </div>
 
-                        <button onClick={() => onNavigate('vision')} className="mt-4 text-white/80 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors">
+                        <button onClick={() => onNavigate('vision')} className="mt-4 text-gray-700 hover:text-gray-900 text-sm font-medium flex items-center gap-1 transition-colors">
                             Manage Goals <ChevronRight size={14} />
                         </button>
                     </div>
 
-                    {/* Tasks Due Today Widget (Blue-Cyan Gradient) */}
-                    <div className="bg-gradient-to-br from-blue-600 via-cyan-600 to-cyan-500 p-6 rounded-[2rem] shadow-xl flex flex-col relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+                    {/* Tasks Due Today Widget */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm flex flex-col relative overflow-hidden border border-gray-100">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-50/30 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
                         <div className="flex items-center justify-between mb-4 relative z-10">
-                            <h3 className="font-bold text-white flex items-center gap-2">
-                                <Clock size={18} className="text-white/90" /> Tasks Due Today
+                            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                <Clock size={18} className="text-teal-600" /> Tasks Due Today
                             </h3>
                             <div className="relative">
                                 <button
                                     ref={quickAddTaskButtonRef}
                                     onClick={() => setShowQuickAddTaskPopup(!showQuickAddTaskPopup)}
-                                    className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105"
+                                    className="p-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-600 transition-all hover:scale-105"
                                     title="Quick Add Task"
                                 >
                                     <Plus size={16} />
@@ -944,7 +1084,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
                                 if (todayTasks.length === 0) {
                                     return (
-                                        <div className="text-white/60 text-sm italic text-center py-4">
+                                        <div className="text-gray-400 text-sm italic text-center py-4">
                                             No tasks due today! 🎉
                                         </div>
                                     );
@@ -957,10 +1097,10 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                             setSelectedTask(task);
                                             setShowTaskModal(true);
                                         }}
-                                        className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-white/30 transition-colors group"
+                                        className="bg-gray-50 border border-gray-100 rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:border-teal-200 hover:shadow-sm transition-all group"
                                     >
-                                        <div className={`w-2 h-2 rounded-full ${task.status === 'growing' ? 'bg-green-400' : 'bg-white/50'}`}></div>
-                                        <span className="text-white text-sm font-medium flex-1 truncate">{task.title}</span>
+                                        <div className={`w-2 h-2 rounded-full ${task.status === 'growing' ? 'bg-teal-500' : 'bg-gray-300'}`}></div>
+                                        <span className="text-gray-800 text-sm font-medium flex-1 truncate">{task.title}</span>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -968,12 +1108,12 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                                     deleteTask(task.id);
                                                 }
                                             }}
-                                            className="p-1.5 rounded-lg bg-white/10 hover:bg-red-500/30 text-white/60 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                                             title="Delete"
                                         >
                                             <Trash2 size={12} />
                                         </button>
-                                        <span className="text-white/60 text-xs">
+                                        <span className="text-gray-500 text-xs">
                                             {new Date(task.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
@@ -1028,8 +1168,35 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                 }}
                 task={selectedTask}
             />
+
+            {/* Agent Confirmation Modal */}
+            <AgentConfirmationModal
+                isOpen={showAgentModal}
+                onClose={() => {
+                    setShowAgentModal(false);
+                    setAgentPlan(null);
+                    setClarifyConversation([]);
+                    setPendingClarify(null);
+                    setOriginalPrompt('');
+                }}
+                onConfirm={executeAgentActions}
+                onClarifyResponse={(response) => {
+                    setShowAgentModal(false);
+                    handleMagicBoxSubmit(response);
+                }}
+                onEditPrompt={(newPrompt) => {
+                    setShowAgentModal(false);
+                    setOriginalPrompt(newPrompt);
+                    handleMagicBoxSubmit(newPrompt);
+                }}
+                onNavigate={onNavigate}
+                actionPlan={agentPlan}
+                isExecuting={isExecutingActions}
+                originalPrompt={originalPrompt}
+            />
         </div>
     );
 };
 
 export default Overview;
+
