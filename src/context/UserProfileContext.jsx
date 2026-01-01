@@ -13,17 +13,19 @@ export const useUserProfile = () => {
 };
 
 const DEFAULT_PROFILE = {
+    nickname: '',
     name: '',
     role: '',
-    workingHours: '9am-5pm',
-    focusStyle: 'flexible',
+    workingHours: { start: '09:00', end: '17:00' },
+    focusStyle: 'flexible', // 'deep_work', 'pomodoro', 'flexible'
     routines: {
         morning: '',
         evening: ''
     },
-    goals: '',
+    goals: [],
     preferences: {
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        proactiveSuggestions: true
     }
 };
 

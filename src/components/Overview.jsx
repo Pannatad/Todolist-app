@@ -1,25 +1,80 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2, X, Sparkles, Lightbulb } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useAgentMemory } from '../context/AgentMemoryContext';
+import { useProject } from '../context/ProjectContext';
+import { useHabit } from '../context/HabitContext';
 import { parseTaskInput, routeAgentCommand } from '../services/gemini';
+import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey, clearCache } from '../services/localAgentHandler';
+import { generateProactiveSuggestions } from '../services/proactiveEngine';
 import Penguin from './Penguin';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
 import MagicBox from './MagicBox';
 import AgentConfirmationModal from './AgentConfirmationModal';
 
+// Proactive Suggestion Card Component
+const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
+    if (!suggestions || suggestions.length === 0) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="w-full max-w-2xl mx-auto mt-4"
+        >
+            <div className="space-y-2">
+                {suggestions.map((suggestion) => (
+                    <motion.div
+                        key={suggestion.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={`flex items-center gap-4 p-4 rounded-2xl border transition-all hover:shadow-md cursor-pointer ${suggestion.priority === 'urgent'
+                            ? 'bg-red-50 border-red-200'
+                            : suggestion.priority === 'high'
+                                ? 'bg-amber-50 border-amber-200'
+                                : 'bg-indigo-50 border-indigo-100'
+                            }`}
+                        onClick={() => suggestion.action && onAction(suggestion.action)}
+                    >
+                        <span className="text-2xl">{suggestion.icon}</span>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm">{suggestion.title}</p>
+                            <p className="text-gray-600 text-xs mt-0.5 truncate">{suggestion.message}</p>
+                        </div>
+                        {suggestion.action && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onAction(suggestion.action); }}
+                                className="flex-shrink-0 px-3 py-1.5 bg-white/80 hover:bg-white rounded-lg text-xs font-medium text-indigo-600 border border-indigo-200 transition-colors"
+                            >
+                                Act
+                            </button>
+                        )}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDismiss(suggestion.id); }}
+                            className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                        >
+                            <X size={14} />
+                        </button>
+                    </motion.div>
+                ))}
+            </div>
+        </motion.div>
+    );
+};
 
 
 const CurrentEventWidget = ({ scheduleItems }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [currentEvent, setCurrentEvent] = useState(null);
+    const [nextEvent, setNextEvent] = useState(null);
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
@@ -121,6 +176,32 @@ const CurrentEventWidget = ({ scheduleItems }) => {
             setProgress(0);
         }
 
+        // Find next upcoming event (after now)
+        const todayEvents = scheduleItems
+            .map(item => {
+                const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+                let itemStart = new Date(item.startTime || item.start_time);
+
+                if (recurrenceType !== 'none') {
+                    if (!doesRecurOnToday(item)) return null;
+                    const originalTime = itemStart;
+                    itemStart = new Date(now);
+                    itemStart.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                } else {
+                    if (itemStart.toISOString().split('T')[0] !== todayStr) return null;
+                }
+
+                return { ...item, adjustedStart: itemStart };
+            })
+            .filter(item => item && item.adjustedStart > now)
+            .sort((a, b) => a.adjustedStart - b.adjustedStart);
+
+        if (todayEvents.length > 0) {
+            setNextEvent(todayEvents[0]);
+        } else {
+            setNextEvent(null);
+        }
+
     }, [scheduleItems, currentTime]);
 
 
@@ -168,14 +249,31 @@ const CurrentEventWidget = ({ scheduleItems }) => {
                         <p className="text-right text-xs text-gray-400 mt-1.5 font-medium">{Math.round(progress)}% Complete</p>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-4 py-2">
-                        <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-500">
-                            <Zap size={24} />
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-4 py-2">
+                            <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-500">
+                                <Zap size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-bold text-gray-900">Free Time</h4>
+                                <p className="text-sm text-gray-600">Recharge or pick a task from the garden.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h4 className="text-lg font-bold text-gray-900">Free Time</h4>
-                            <p className="text-sm text-gray-600">Recharge or pick a task from the garden.</p>
-                        </div>
+
+                        {nextEvent && (
+                            <div className="flex items-center gap-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Up Next</p>
+                                    <p className="text-sm font-medium text-gray-900 truncate">{nextEvent.title}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-bold text-indigo-600">
+                                        {nextEvent.adjustedStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -503,7 +601,9 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const { user } = useAuth();
     const { coins } = useGame();
     const { profile, getProfileSummary } = useUserProfile();
-    const { logInteraction, getMemorySummary, getRecentInteractions } = useAgentMemory();
+    const { logInteraction, getMemorySummary, getRecentInteractions, generatePatternInsights } = useAgentMemory();
+    const { projects } = useProject();
+    const { habits, logHabit } = useHabit();
 
     const [greeting, setGreeting] = useState('');
     const [quickCaptureText, setQuickCaptureText] = useState('');
@@ -534,6 +634,32 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const [clarifyConversation, setClarifyConversation] = useState([]);
     const [pendingClarify, setPendingClarify] = useState(null);
 
+    // Proactive suggestions state
+    const [proactiveSuggestions, setProactiveSuggestions] = useState([]);
+    const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
+
+    // Generate proactive suggestions
+    useEffect(() => {
+        if (profile?.preferences?.proactiveSuggestions === false) return;
+
+        const suggestions = generateProactiveSuggestions({
+            tasks,
+            schedule: scheduleItems,
+            habits: [],
+            profile,
+            currentTime: new Date().toISOString()
+        });
+
+        // Filter out dismissed suggestions
+        const filtered = suggestions.filter(s => !dismissedSuggestions.includes(s.id));
+        setProactiveSuggestions(filtered);
+    }, [tasks, scheduleItems, profile, dismissedSuggestions]);
+
+    const handleDismissSuggestion = (suggestionId) => {
+        setDismissedSuggestions(prev => [...prev, suggestionId]);
+    };
+
+
     // Time-based greeting
     useEffect(() => {
         const hour = new Date().getHours();
@@ -541,6 +667,18 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
         else if (hour < 18) setGreeting('Good Afternoon');
         else setGreeting('Good Evening');
     }, []);
+
+    // Generate pattern insights when data changes
+    useEffect(() => {
+        if (tasks?.length > 0 || scheduleItems?.length > 0) {
+            generatePatternInsights({
+                tasks,
+                scheduleItems,
+                habits,
+                sleepData: [] // Will be enhanced later with sleep data
+            });
+        }
+    }, [tasks, scheduleItems, habits, generatePatternInsights]);
 
     // Calculate Stats
     useEffect(() => {
@@ -603,19 +741,109 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
             setOriginalPrompt(input);
         }
         try {
+            // Helper function to check if schedule item recurs on today
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+
+            const doesRecurOnToday = (item) => {
+                const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+                if (recurrenceType === 'none') return false;
+
+                const eventDate = new Date(item.startTime || item.start_time);
+                eventDate.setHours(0, 0, 0, 0);
+                const todayDate = new Date(today);
+                todayDate.setHours(0, 0, 0, 0);
+
+                if (todayDate < eventDate) return false;
+
+                const endDate = item.recurrence_end_date || item.recurrenceEndDate;
+                if (endDate && todayDate > new Date(endDate)) return false;
+
+                const interval = item.recurrence_interval || item.recurrenceInterval || 1;
+                const daysDiff = Math.floor((todayDate - eventDate) / (1000 * 60 * 60 * 24));
+
+                switch (recurrenceType) {
+                    case 'daily': return daysDiff % interval === 0;
+                    case 'weekly': {
+                        const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
+                        if (daysOfWeek.length > 0) return daysOfWeek.includes(todayDate.getDay());
+                        return daysDiff % (7 * interval) === 0;
+                    }
+                    case 'monthly': {
+                        const monthsDiff = (todayDate.getFullYear() - eventDate.getFullYear()) * 12 + (todayDate.getMonth() - eventDate.getMonth());
+                        return monthsDiff % interval === 0 && todayDate.getDate() === eventDate.getDate();
+                    }
+                    case 'yearly': {
+                        const yearsDiff = todayDate.getFullYear() - eventDate.getFullYear();
+                        return yearsDiff % interval === 0 && todayDate.getMonth() === eventDate.getMonth() && todayDate.getDate() === eventDate.getDate();
+                    }
+                    default: return false;
+                }
+            };
+
+            // Filter for today's schedule (including recurring events)
+            const todaySchedule = scheduleItems?.filter(item => {
+                if (!item.startTime && !item.start_time) return false;
+                const itemDate = new Date(item.startTime || item.start_time);
+                const itemDateStr = itemDate.toISOString().split('T')[0];
+                return itemDateStr === todayStr || doesRecurOnToday(item);
+            }).map(item => {
+                // For recurring events, adjust the date to today
+                const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
+                const originalTime = new Date(item.startTime || item.start_time);
+                const adjustedTime = new Date(today);
+                adjustedTime.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                return {
+                    ...item,
+                    displayTime: adjustedTime,
+                    isRecurring: recurrenceType !== 'none'
+                };
+            }).sort((a, b) => a.displayTime - b.displayTime) || [];
+
             // Build rich context for the agent
             const context = {
                 userProfile: {
-                    name: profile.name || user?.email?.split('@')[0] || 'User',
+                    name: profile.nickname || profile.name || user?.email?.split('@')[0] || 'User',
                     role: profile.role,
                     workingHours: profile.workingHours,
                     focusStyle: profile.focusStyle,
                     goals: profile.goals,
                     summary: getProfileSummary()
                 },
-                recentTasks: tasks?.slice(0, 10) || [],
-                recentSchedule: scheduleItems?.slice(0, 10) || [],
-                memorySummary: getMemorySummary(),
+                recentTasks: tasks?.filter(t => !t.archived && !t.completed).slice(0, 15) || [],
+                // Tasks due today for overview
+                tasksDueToday: tasks?.filter(t => {
+                    if (t.archived || t.completed) return false;
+                    if (!t.deadline) return false;
+                    const deadline = new Date(t.deadline);
+                    const today = new Date();
+                    return deadline.toDateString() === today.toDateString();
+                }).map(t => ({ title: t.title, deadline: t.deadline, difficulty: t.difficulty })) || [],
+                recentSchedule: todaySchedule, // Use filtered today's schedule including recurring events
+                // Include projects data
+                projects: projects?.map(p => ({
+                    id: p.id,
+                    title: p.title,
+                    status: p.status,
+                    progress: p.progress,
+                    category: p.category,
+                    phases: p.phases?.map(ph => ({ name: ph.name, deadline: ph.deadline })),
+                    taskCount: p.tasks?.length || 0,
+                    tasksInProgress: p.tasks?.filter(t => t.columnId === 'c-2')?.length || 0,
+                    tasksDone: p.tasks?.filter(t => t.columnId === 'c-4')?.length || 0
+                })) || [],
+                // Include habits data
+                habits: habits?.map(h => ({
+                    id: h.id,
+                    name: h.name,
+                    frequency: h.frequency,
+                    streak: h.streak || 0,
+                    completedToday: h.completedDates?.includes(new Date().toISOString().split('T')[0])
+                })) || [],
+                // Include goals data
+                visionGoals: Array.isArray(goals) ? goals.slice(0, 10) : [],
+                dailyHighlights: Array.isArray(dailyHighlights) ? dailyHighlights.slice(0, 5) : [],
+                memorySummary: getMemorySummary(profile),
                 recentInteractions: getRecentInteractions(5),
                 // If there's an ongoing clarify conversation, include it
                 conversationHistory: clarifyConversation.length > 0
@@ -623,7 +851,30 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                     : null
             };
 
-            const plan = await routeAgentCommand(input, context);
+            // Token optimization: Check if we can handle locally first
+            const patternType = canHandleLocally(input);
+            let plan;
+
+            if (patternType) {
+                // Try local handling (0 tokens!)
+                console.log('🚀 Handling locally:', patternType);
+                plan = generateLocalResponse(patternType, context);
+            } else {
+                // Check cache for similar recent queries
+                const cacheKey = generateCacheKey(input);
+                const cachedPlan = getCachedResponse(cacheKey);
+
+                if (cachedPlan) {
+                    console.log('📦 Using cached response');
+                    plan = cachedPlan;
+                } else {
+                    // Fallback to Gemini API
+                    console.log('🤖 Calling Gemini API...');
+                    plan = await routeAgentCommand(input, context);
+                    // Cache the response
+                    cacheResponse(cacheKey, plan);
+                }
+            }
 
             // Check if agent needs clarification
             const clarifyAction = plan.actions?.find(a => a.type === 'clarify');
@@ -670,6 +921,21 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                             estimatedTime: action.params.estimatedTime
                         });
                         break;
+                    case 'edit_task':
+                        if (action.params.taskId && action.params.updates) {
+                            await updateTask(action.params.taskId, action.params.updates);
+                        }
+                        break;
+                    case 'delete_task':
+                        if (action.params.taskId) {
+                            await deleteTask(action.params.taskId);
+                        }
+                        break;
+                    case 'complete_task':
+                        if (action.params.taskId) {
+                            await updateTask(action.params.taskId, { completed: true, completedAt: new Date().toISOString() });
+                        }
+                        break;
                     case 'add_schedule':
                         await addScheduleItem({
                             title: action.params.title,
@@ -677,6 +943,22 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                             duration: action.params.duration || 60,
                             category: action.params.category || 'Other'
                         });
+                        break;
+                    case 'edit_schedule':
+                        if (action.params.eventId && action.params.updates) {
+                            await updateScheduleItem(action.params.eventId, action.params.updates);
+                        }
+                        break;
+                    case 'delete_schedule':
+                        if (action.params.eventId) {
+                            await deleteScheduleItem(action.params.eventId);
+                        }
+                        break;
+                    case 'complete_habit':
+                        if (action.params.habitId) {
+                            const today = new Date().toISOString().split('T')[0];
+                            await logHabit(action.params.habitId, today, 1, true);
+                        }
                         break;
                     case 'navigate':
                         if (onNavigate && action.params.tabName) {
@@ -716,7 +998,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">
-                        {greeting}, {user?.email?.split('@')[0] || 'Traveler'}
+                        {greeting}, {profile?.nickname || user?.email?.split('@')[0] || 'Traveler'}
                     </h1>
                     <p className="text-gray-600 mt-1 flex items-center gap-2 italic">
                         <Flame size={16} className="text-orange-500" />
@@ -750,6 +1032,17 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
             {/* Magic Box - AI Agent Command Bar */}
             <div className="py-4">
                 <MagicBox onSubmit={handleMagicBoxSubmit} isLoading={isAgentLoading} />
+
+                {/* Proactive Suggestions */}
+                <AnimatePresence>
+                    {proactiveSuggestions.length > 0 && (
+                        <ProactiveSuggestionCard
+                            suggestions={proactiveSuggestions}
+                            onAction={handleMagicBoxSubmit}
+                            onDismiss={handleDismissSuggestion}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Main Content Grid */}
@@ -768,21 +1061,31 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                 </div>
                                 <h2 className="text-xl font-bold text-gray-900">Today's Schedule</h2>
                             </div>
-                            <div className="relative">
+                            <div className="flex items-center gap-2">
+                                {/* AI Quick Action */}
                                 <button
-                                    ref={quickScheduleButtonRef}
-                                    onClick={() => setShowQuickSchedulePopup(!showQuickSchedulePopup)}
-                                    className="p-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-600 transition-all hover:scale-105"
-                                    title="Quick Add Schedule"
+                                    onClick={() => handleMagicBoxSubmit("Summarize and optimize my schedule for today")}
+                                    className="p-2 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-purple-600 transition-all hover:scale-105"
+                                    title="AI Optimize Schedule"
                                 >
-                                    <Plus size={18} />
+                                    <Sparkles size={16} />
                                 </button>
-                                <QuickScheduleWidget
-                                    addScheduleItem={addScheduleItem}
-                                    isOpen={showQuickSchedulePopup}
-                                    onClose={() => setShowQuickSchedulePopup(false)}
-                                    buttonRef={quickScheduleButtonRef}
-                                />
+                                <div className="relative">
+                                    <button
+                                        ref={quickScheduleButtonRef}
+                                        onClick={() => setShowQuickSchedulePopup(!showQuickSchedulePopup)}
+                                        className="p-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-600 transition-all hover:scale-105"
+                                        title="Quick Add Schedule"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                    <QuickScheduleWidget
+                                        addScheduleItem={addScheduleItem}
+                                        isOpen={showQuickSchedulePopup}
+                                        onClose={() => setShowQuickSchedulePopup(false)}
+                                        buttonRef={quickScheduleButtonRef}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -1199,4 +1502,3 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 };
 
 export default Overview;
-

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import patternLearningService from '../services/PatternLearningService';
 
 const AgentMemoryContext = createContext();
 
@@ -22,6 +23,9 @@ export const AgentMemoryProvider = ({ children }) => {
 
     // Long-term memory: persistent patterns and insights
     const [longTermMemory, setLongTermMemory] = useState([]);
+
+    // Auto-generated pattern insights
+    const [patternInsights, setPatternInsights] = useState([]);
 
     const [isLoading, setIsLoading] = useState(true);
 
@@ -190,37 +194,62 @@ export const AgentMemoryProvider = ({ children }) => {
     };
 
     // Generate a summary of memory for agent prompts
-    const getMemorySummary = () => {
+    const getMemorySummary = (userProfile = null) => {
         const recentActions = shortTermMemory.slice(0, 5);
-        const topInsights = longTermMemory.slice(0, 3);
+        const topInsights = [...longTermMemory, ...patternInsights].slice(0, 6);
 
         let summary = '';
 
+        // Add user profile context
+        if (userProfile?.nickname) {
+            summary += `User: ${userProfile.nickname}. `;
+        }
+
         if (recentActions.length > 0) {
-            summary += 'Recent interactions: ';
+            summary += 'Recent: ';
             summary += recentActions.map(a => a.input).join('; ');
             summary += '. ';
         }
 
         if (topInsights.length > 0) {
-            summary += 'Known patterns: ';
-            summary += topInsights.map(i => i.content).join('; ');
+            const patterns = topInsights.filter(i => i.type === 'pattern');
+            const preferences = topInsights.filter(i => i.type === 'preference');
+            const insights = topInsights.filter(i => i.type === 'insight');
+
+            if (patterns.length > 0) {
+                summary += 'Patterns: ' + patterns.map(p => p.content).join('. ') + '. ';
+            }
+            if (preferences.length > 0) {
+                summary += 'Preferences: ' + preferences.map(p => p.content).join('. ') + '. ';
+            }
+            if (insights.length > 0) {
+                summary += 'Insights: ' + insights.map(i => i.content).join('. ') + '. ';
+            }
         }
 
-        return summary || 'No memory yet.';
+        return summary || 'No memory yet. Learning user patterns...';
     };
+
+    // Generate pattern insights from user data
+    const generatePatternInsights = useCallback((userData) => {
+        const insights = patternLearningService.analyzeAndGenerateInsights(userData);
+        setPatternInsights(insights);
+        return insights;
+    }, []);
 
     return (
         <AgentMemoryContext.Provider
             value={{
                 shortTermMemory,
                 longTermMemory,
+                patternInsights,
                 isLoading,
                 logInteraction,
                 addInsight,
                 getRecentInteractions,
                 getInsights,
-                getMemorySummary
+                getMemorySummary,
+                generatePatternInsights
             }}
         >
             {children}

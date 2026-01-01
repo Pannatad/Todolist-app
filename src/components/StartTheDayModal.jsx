@@ -6,6 +6,8 @@ import {
     Plus, Mic, Brain, Quote, Rocket, X
 } from 'lucide-react';
 import { parseScheduleCommand } from '../services/gemini';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
 import ScheduleEventModal from './ScheduleEventModal';
 
 // Helper function to check if a recurring event occurs on a specific date
@@ -78,8 +80,11 @@ const StartTheDayModal = ({
     scheduleItems = [],
     onAddScheduleItem
 }) => {
+    const { user } = useAuth();
     const [currentPhase, setCurrentPhase] = useState(1);
     const [sleepQuality, setSleepQuality] = useState(null);
+    const [sleepTime, setSleepTime] = useState('');
+    const [wakeUpTime, setWakeUpTime] = useState('');
     const [morningThoughts, setMorningThoughts] = useState('');
 
     const [isListening, setIsListening] = useState(false);
@@ -92,6 +97,8 @@ const StartTheDayModal = ({
         if (isOpen) {
             setCurrentPhase(1);
             setSleepQuality(null);
+            setSleepTime('');
+            setWakeUpTime('');
             setMorningThoughts('');
             setQuickSchedule([]);
         }
@@ -174,7 +181,7 @@ const StartTheDayModal = ({
         }
     };
 
-    const handleFinish = () => {
+    const handleFinish = async () => {
         // Add quick schedule items
         quickSchedule.forEach(item => {
             onAddScheduleItem({
@@ -185,8 +192,54 @@ const StartTheDayModal = ({
             });
         });
 
-        // Save morning data (could be extended to persist)
-        console.log('Morning check-in:', { sleepQuality, morningThoughts });
+        // Calculate sleep hours
+        let sleepHours = null;
+        if (sleepTime && wakeUpTime) {
+            const [sleepH, sleepM] = sleepTime.split(':').map(Number);
+            const [wakeH, wakeM] = wakeUpTime.split(':').map(Number);
+            let sleepMinutes = sleepH * 60 + sleepM;
+            let wakeMinutes = wakeH * 60 + wakeM;
+            // If wake time is before sleep time, assume sleeping past midnight
+            if (wakeMinutes < sleepMinutes) {
+                wakeMinutes += 24 * 60;
+            }
+            sleepHours = ((wakeMinutes - sleepMinutes) / 60).toFixed(1);
+        }
+
+        // Save morning check-in data to Supabase
+        const morningData = {
+            sleepQuality,
+            sleepTime,
+            wakeUpTime,
+            sleepHours: sleepHours ? parseFloat(sleepHours) : null,
+            morningThoughts,
+            timestamp: new Date().toISOString()
+        };
+
+        if (user) {
+            try {
+                const { error } = await supabase.from('daily_reflections').insert([{
+                    user_id: user.id,
+                    date: new Date().toISOString().split('T')[0],
+                    type: 'start_day',
+                    raw_data: morningData,
+                    mood_score: sleepQuality
+                }]);
+                if (error) {
+                    console.error('Error saving morning check-in:', error);
+                } else {
+                    console.log('Morning check-in saved to Supabase!', morningData);
+                }
+            } catch (err) {
+                console.error('Error saving morning check-in:', err);
+            }
+        } else {
+            // Guest mode - save to localStorage
+            const existing = JSON.parse(localStorage.getItem('morning-checkins') || '[]');
+            existing.push({ date: new Date().toISOString().split('T')[0], ...morningData });
+            localStorage.setItem('morning-checkins', JSON.stringify(existing));
+            console.log('Morning check-in saved to localStorage!', morningData);
+        }
 
         onClose();
     };
@@ -697,6 +750,64 @@ const StartTheDayModal = ({
                                                         </span>
                                                     </motion.button>
                                                 ))}
+                                            </div>
+
+                                            {/* Sleep Time Inputs */}
+                                            <div className="w-full max-w-md mb-8">
+                                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                                    {/* Sleep Time (Bedtime) */}
+                                                    <div>
+                                                        <label className="block text-white/60 text-sm mb-2">
+                                                            <Moon className="w-4 h-4 inline mr-1" />
+                                                            Bedtime
+                                                        </label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="time"
+                                                                value={sleepTime}
+                                                                onChange={(e) => setSleepTime(e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent backdrop-blur-sm text-lg font-mono"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Wake Up Time */}
+                                                    <div>
+                                                        <label className="block text-white/60 text-sm mb-2">
+                                                            <Sun className="w-4 h-4 inline mr-1" />
+                                                            Wake Time
+                                                        </label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="time"
+                                                                value={wakeUpTime}
+                                                                onChange={(e) => setWakeUpTime(e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent backdrop-blur-sm text-lg font-mono"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Sleep Hours Display */}
+                                                {sleepTime && wakeUpTime && (
+                                                    <div className="text-center p-3 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/30">
+                                                        <p className="text-white/60 text-sm">Total Sleep</p>
+                                                        <p className="text-2xl font-bold text-white">
+                                                            {(() => {
+                                                                const [sleepH, sleepM] = sleepTime.split(':').map(Number);
+                                                                const [wakeH, wakeM] = wakeUpTime.split(':').map(Number);
+                                                                let sleepMinutes = sleepH * 60 + sleepM;
+                                                                let wakeMinutes = wakeH * 60 + wakeM;
+                                                                if (wakeMinutes < sleepMinutes) wakeMinutes += 24 * 60;
+                                                                const hours = Math.floor((wakeMinutes - sleepMinutes) / 60);
+                                                                const mins = (wakeMinutes - sleepMinutes) % 60;
+                                                                return `${hours}h ${mins}m`;
+                                                            })()}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Morning Thoughts Input */}

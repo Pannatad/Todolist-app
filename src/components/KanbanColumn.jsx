@@ -10,44 +10,30 @@ export const KanbanColumn = ({ column, tasks, onEditTask, onDeleteTask, isSorted
 
     const isDoneColumn = column.title.toLowerCase() === 'done';
 
-    // Get column-specific gradient
-    const getColumnGradient = (title) => {
+    // Get column-specific color scheme
+    const getColumnColor = (title) => {
         switch (title.toLowerCase()) {
             case 'to do':
-                return 'from-purple-500/30 to-indigo-500/30';
+                return { bg: 'bg-indigo-500/90', badge: 'bg-white', text: 'text-white', badgeText: 'text-indigo-600' };
             case 'in progress':
-                return 'from-amber-500/30 to-orange-500/30';
+                return { bg: 'bg-amber-500/90', badge: 'bg-white', text: 'text-white', badgeText: 'text-amber-600' };
             case 'review':
-                return 'from-pink-500/30 to-rose-500/30';
+                return { bg: 'bg-pink-500/90', badge: 'bg-white', text: 'text-white', badgeText: 'text-pink-600' };
             case 'done':
-                return 'from-emerald-500/30 to-teal-500/30';
+                return { bg: 'bg-emerald-500/90', badge: 'bg-white', text: 'text-white', badgeText: 'text-emerald-600' };
             default:
-                return 'from-purple-500/30 to-indigo-500/30';
+                return { bg: 'bg-indigo-500/90', badge: 'bg-white', text: 'text-white', badgeText: 'text-indigo-600' };
         }
     };
 
-    // Get badge color
-    const getBadgeColor = (title) => {
-        switch (title.toLowerCase()) {
-            case 'to do':
-                return 'bg-purple-500 shadow-purple-500/50';
-            case 'in progress':
-                return 'bg-amber-500 shadow-amber-500/50';
-            case 'review':
-                return 'bg-pink-500 shadow-pink-500/50';
-            case 'done':
-                return 'bg-emerald-500 shadow-emerald-500/50';
-            default:
-                return 'bg-purple-500 shadow-purple-500/50';
-        }
-    };
+    const colors = getColumnColor(column.title);
 
     return (
-        <div className="flex flex-col h-full min-w-[280px] w-80 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-            {/* Column Header with Gradient */}
-            <div className={`p-4 border-b border-white/10 flex justify-between items-center bg-gradient-to-r ${getColumnGradient(column.title)}`}>
-                <h3 className="font-bold text-white text-lg">{column.title}</h3>
-                <span className={`text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg ${getBadgeColor(column.title)}`}>
+        <div className="flex flex-col h-full min-w-[280px] w-80 bg-white/25 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-2xl overflow-hidden">
+            {/* Column Header */}
+            <div className={`p-4 border-b border-white/20 flex justify-between items-center ${colors.bg} backdrop-blur-md`}>
+                <h3 className={`font-bold text-lg ${colors.text}`}>{column.title}</h3>
+                <span className={`${colors.badgeText} text-xs px-3 py-1 rounded-full font-bold shadow-sm ${colors.badge}`}>
                     {tasks.length}
                 </span>
             </div>
@@ -60,7 +46,7 @@ export const KanbanColumn = ({ column, tasks, onEditTask, onDeleteTask, isSorted
                 </SortableContext>
 
                 {tasks.length === 0 && (
-                    <div className="h-full flex items-center justify-center text-white/30 text-sm italic border-2 border-dashed border-white/10 rounded-xl bg-white/5 backdrop-blur-sm">
+                    <div className="h-full flex items-center justify-center text-white/60 text-sm font-medium border-2 border-dashed border-white/30 rounded-xl bg-white/5 backdrop-blur-sm p-6">
                         Drop tasks here
                     </div>
                 )}

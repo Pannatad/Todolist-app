@@ -213,14 +213,7 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
     };
 
     return (
-        <div className="w-full max-w-6xl mx-auto min-h-[850px] h-[calc(100vh-4rem)] flex flex-col relative overflow-hidden bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 rounded-2xl p-6">
-            {/* Aurora Background Effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-                <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-teal-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-                <div className="absolute bottom-1/3 left-1/3 w-48 h-48 bg-pink-500/15 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '3s' }} />
-            </div>
+        <div className="w-full max-w-6xl mx-auto min-h-[850px] h-[calc(100vh-4rem)] flex flex-col relative overflow-hidden bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl p-6">
 
             {/* Camera Modal */}
             <AnimatePresence>
@@ -261,17 +254,17 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
 
             {/* Header & Tabs */}
             <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div className="flex bg-white/10 backdrop-blur-md p-1 rounded-full border border-white/20">
+                <div className="flex bg-white/20 backdrop-blur-md p-1 rounded-full border border-white/30">
                     <button
                         onClick={() => setViewMode('month')}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'month' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/30' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'month' ? 'bg-white/40 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/20'}`}
                     >
                         <CalendarIcon size={14} />
                         Tasks Calendar
                     </button>
                     <button
                         onClick={() => setViewMode('schedule')}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'schedule' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/30' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'schedule' ? 'bg-white/40 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/20'}`}
                     >
                         <LayoutGrid size={14} />
                         Schedule
@@ -292,7 +285,7 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isScanning}
-                        className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/80 text-sm font-bold flex items-center gap-2 hover:bg-white/20 transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-sm font-bold flex items-center gap-2 hover:bg-white/30 transition-colors disabled:opacity-50"
                         title="Upload Schedule Image"
                     >
                         <Upload size={16} />
@@ -303,7 +296,7 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                     <button
                         onClick={startCamera}
                         disabled={isScanning}
-                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/30 to-indigo-500/30 backdrop-blur-md border border-purple-400/30 text-purple-300 text-sm font-bold flex items-center gap-2 hover:from-purple-500/40 hover:to-indigo-500/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 rounded-full bg-white/30 backdrop-blur-md border border-white/40 text-white text-sm font-bold flex items-center gap-2 hover:bg-white/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Scan with Camera"
                     >
                         {isScanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
@@ -319,13 +312,13 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                         <div className="flex gap-2">
                             <button
                                 onClick={() => navigateMonth(-1)}
-                                className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white/80 transition-colors"
+                                className="p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 text-white transition-colors"
                             >
                                 <ChevronLeft size={20} />
                             </button>
                             <button
                                 onClick={() => navigateMonth(1)}
-                                className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white/80 transition-colors"
+                                className="p-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 text-white transition-colors"
                             >
                                 <ChevronRight size={20} />
                             </button>
@@ -346,11 +339,11 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-y-auto">
                         {/* Calendar Grid */}
-                        <div className="lg:col-span-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-xl h-fit">
+                        <div className="lg:col-span-3 bg-white/20 backdrop-blur-2xl rounded-2xl border border-white/30 p-6 shadow-xl h-fit">
                             {/* Weekday Headers */}
                             <div className="grid grid-cols-7 mb-4 text-center">
                                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                    <div key={day} className="text-xs font-bold text-white/60 uppercase tracking-wider">
+                                    <div key={day} className="text-sm font-bold text-white uppercase tracking-wider py-2">
                                         {day}
                                     </div>
                                 ))}
@@ -360,7 +353,7 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                             <div className="grid grid-cols-7 gap-2 auto-rows-fr">
                                 {/* Empty slots for previous month */}
                                 {[...Array(firstDay)].map((_, i) => (
-                                    <div key={`empty-${i}`} className="min-h-[100px] bg-white/5 rounded-xl border border-white/5" />
+                                    <div key={`empty-${i}`} className="min-h-24" />
                                 ))}
 
                                 {/* Days */}
@@ -379,12 +372,12 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                             whileTap={{ scale: 0.98 }}
                                             onClick={() => setSelectedDate(day)}
                                             className={`
-                                                min-h-[100px] p-2 rounded-xl flex flex-col items-start justify-start relative transition-all text-left overflow-hidden backdrop-blur-sm
-                                                ${isSelected ? 'bg-purple-500/30 border-purple-400 ring-1 ring-purple-400' : 'bg-white/10 border-white/10 hover:bg-white/15'}
-                                                ${isTodayDate ? 'ring-1 ring-cyan-400' : 'border'}
+                                                min-h-40 p-3 rounded-xl flex flex-col items-start justify-start relative transition-all text-left overflow-hidden backdrop-blur-xl
+                                                ${isSelected ? 'bg-white/30 border-white/50 ring-2 ring-white/40' : 'bg-white/20 border-white/30 hover:bg-white/30'}
+                                                ${isTodayDate ? 'ring-2 ring-white/60' : 'border'}
                                             `}
                                         >
-                                            <span className={`text-sm font-bold mb-1 ${isTodayDate ? 'text-cyan-400' : 'text-white/80'}`}>
+                                            <span className={`text-sm font-bold mb-1 ${isTodayDate ? 'text-white' : 'text-white/90'}`}>
                                                 {day}
                                             </span>
 
@@ -395,8 +388,8 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                                     return (
                                                         <div
                                                             key={event.id}
-                                                            className={`w-full text-[10px] px-1.5 py-0.5 rounded-md truncate font-medium text-white shadow-sm ${event.type === 'schedule' ? 'border border-white/30' : ''}`}
-                                                            style={{ backgroundColor: color.color }}
+                                                            className={`w-full text-[10px] px-2 py-1 rounded-lg truncate font-medium text-white backdrop-blur-md border border-white/30 ${event.type === 'schedule' ? 'bg-white/20' : ''}`}
+                                                            style={{ backgroundColor: event.type === 'task' ? `${color.color}60` : undefined }}
                                                             title={event.title}
                                                         >
                                                             {event.title}
@@ -404,8 +397,8 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                                     );
                                                 })}
                                                 {remainingCount > 0 && (
-                                                    <div className="text-[10px] text-white/50 font-bold pl-1">
-                                                        +{remainingCount} more...
+                                                    <div className="text-[9px] text-white/70 text-center">
+                                                        +{remainingCount} more
                                                     </div>
                                                 )}
                                             </div>
@@ -424,9 +417,8 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                         initial={{ opacity: 0, x: 20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: 20 }}
-                                        className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 h-full sticky top-4"
-                                    >
-                                        <h3 className="text-xl font-serif text-white mb-4 border-b border-white/20 pb-2">
+                                        className="bg-white/20 backdrop-blur-2xl rounded-2xl border border-white/30 p-6 h-full sticky top-4">
+                                        <h3 className="text-xl font-bold text-white mb-4 border-b border-white/30 pb-2">
                                             {monthNames[currentDate.getMonth()]} {selectedDate}
                                         </h3>
 
@@ -435,21 +427,21 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                                 getEventsForDate(selectedDate).map(event => {
                                                     const color = getColorForSubject(event.subject || event.category);
                                                     return (
-                                                        <div key={event.id} className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/10 flex items-start gap-3 group hover:bg-white/15 transition-colors">
+                                                        <div key={event.id} className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/20 flex items-start gap-3 group hover:bg-white/20 transition-colors">
                                                             <div
                                                                 className="w-1 h-full min-h-[2rem] rounded-full"
                                                                 style={{ backgroundColor: color.color }}
                                                             />
                                                             <div className="flex-1 min-w-0">
-                                                                <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors truncate">{event.title}</h4>
+                                                                <h4 className="text-sm font-bold text-white transition-colors truncate">{event.title}</h4>
                                                                 <div className="flex items-center gap-2 mt-1">
                                                                     <span
-                                                                        className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                                                                        style={{ backgroundColor: `${color.color}30`, color: color.color }}
+                                                                        className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white border border-white/20"
+                                                                        style={{ backgroundColor: `${color.color}60` }}
                                                                     >
                                                                         {event.subject || event.category || 'Other'}
                                                                     </span>
-                                                                    <span className="text-[10px] text-white/50 flex items-center gap-1">
+                                                                    <span className="text-[10px] text-white/70 flex items-center gap-1">
                                                                         <Clock size={10} />
                                                                         {new Date(event.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                     </span>
@@ -459,8 +451,8 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                                     );
                                                 })
                                             ) : (
-                                                <div className="text-center py-8 text-white/40 italic">
-                                                    No tasks scheduled for this day...
+                                                <div className="text-center py-8 text-white/60 italic">
+                                                    No tasks scheduled for this day
                                                 </div>
                                             )}
                                         </div>
@@ -470,10 +462,10 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                         key="empty"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 h-full flex flex-col items-center justify-center text-center text-white/40 sticky top-4"
+                                        className="bg-white/10 backdrop-blur-2xl rounded-2xl border border-white/20 p-6 h-full flex flex-col items-center justify-center text-center text-white/70 sticky top-4"
                                     >
-                                        <CalendarIcon size={48} className="mb-4 opacity-30" />
-                                        <p>Select a date to view full details</p>
+                                        <CalendarIcon size={48} className="mb-4 opacity-50" />
+                                        <p>Select a date to view details</p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

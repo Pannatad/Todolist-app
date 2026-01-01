@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
-import { getPersonaReaction } from '../services/gemini';
+
 import useSound from 'use-sound';
 
 const GameContext = createContext();
@@ -139,19 +139,9 @@ export const GameProvider = ({ children }) => {
         }
     };
 
+    // Persona reaction feature removed to save API tokens
     const triggerPersonaReaction = async (action, taskTitle) => {
-        setIsPersonaTyping(true);
-        setPersonaMessage('');
-
-        setTimeout(async () => {
-            const reaction = await getPersonaReaction(action, taskTitle, displayMode === 'penguin' ? 'penguin' : 'demon');
-            setPersonaMessage(reaction);
-            setIsPersonaTyping(false);
-
-            setTimeout(() => {
-                setPersonaMessage('');
-            }, 8000);
-        }, 500);
+        // No-op - feature disabled
     };
 
     const value = {

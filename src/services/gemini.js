@@ -3,9 +3,45 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Initialize Gemini API
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model_pro = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-const model_easy = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+// Two-tier model system
+const model_intelligent = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); // For complex reasoning
+const model_normal = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // For simple queries
+const model = model_normal; // Default
+const model_easy = model_normal;
+const model_pro = model_intelligent;
+
+// Patterns that require intelligent model (complex reasoning)
+const INTELLIGENT_PATTERNS = [
+    /how should|what should|should i/i,
+    /suggest|recommend|advice|advise/i,
+    /approach|strategy|plan for|optimize|prioritize/i,
+    /best way|better way|improve/i,
+    /analyze|analysis|evaluate|assess/i,
+    /why.*should|explain.*why|reason/i,
+    /compare|versus|vs\b|difference between/i,
+    /help me (think|decide|figure|understand|plan)/i,
+    /what.*think|opinion|perspective/i
+];
+
+/**
+ * Determine which model tier to use based on query complexity
+ * @param {string} input - User's query
+ * @returns {{ model: object, tier: string }} - Model and tier name
+ */
+export const getModelTier = (input) => {
+    const trimmed = input.trim().toLowerCase();
+
+    for (const pattern of INTELLIGENT_PATTERNS) {
+        if (pattern.test(trimmed)) {
+            console.log('🧠 Using INTELLIGENT model (gemini-2.5-pro) for:', input.substring(0, 50));
+            return { model: model_intelligent, tier: 'intelligent' };
+        }
+    }
+
+    console.log('⚡ Using NORMAL model (gemini-2.5-flash) for:', input.substring(0, 50));
+    return { model: model_normal, tier: 'normal' };
+};
 
 /**
  * Suggests a difficulty level for a given task.
@@ -278,48 +314,7 @@ export const getPersonalizedAdvice = async (taskTitle, subject, instructions, fi
     }
 };
 
-/**
- * Generates a short, personality-driven reaction to a user action.
- * @param {string} action - 'add', 'complete', 'delete', 'idle'.
- * @param {string} taskTitle - The task title (if applicable).
- * @param {string} mode - 'demon' | 'penguin'.
- * @returns {Promise<string>} - The reaction text.
- */
-export const getPersonaReaction = async (action, taskTitle, mode) => {
-    if (!API_KEY) return mode === 'penguin' ? "Waddle waddle! (No API Key)" : "The void is silent... (No API Key)";
-
-    try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-        let systemPrompt = "";
-        if (mode === 'penguin') {
-            systemPrompt = `You are a cute, cheerful, fish-obsessed penguin. 
-            You love productivity and ice. You are very supportive but slightly chaotic.
-            Keep it short (max 15 words). Use emojis like 🐟, 🧊, 🐧.`;
-        } else {
-            systemPrompt = `You are a sarcastic, void-dwelling demon. 
-            You view human tasks as trivial but necessary for "soul harvesting".
-            You are demanding, slightly mean, but secretly want the user to succeed so you can feed.
-            Keep it short (max 15 words). Use emojis like 👿, 🔥, 💀.`;
-        }
-
-        const prompt = `
-            ${systemPrompt}
-            User Action: ${action}
-            Task: "${taskTitle || 'General'}"
-            
-            React to this action in character.
-        `;
-
-        const result = await modelToUse.generateContent(prompt);
-        const response = await result.response;
-        return response.text().trim();
-
-    } catch (error) {
-        console.error("Error getting persona reaction:", error);
-        return mode === 'penguin' ? "Squeak? (Error)" : "The void glitches... (Error)";
-    }
-};
+// getPersonaReaction function removed to save API tokens (demon/penguin pet feature)
 /**
  * Generates a daily schedule based on existing tasks.
  * @param {Array} tasks - List of task objects.
@@ -836,6 +831,13 @@ export const routeAgentCommand = async (input, context = {}) => {
             hour12: true
         });
 
+        // Get timezone offset for correct ISO string generation
+        const timezoneOffset = -now.getTimezoneOffset();
+        const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60).toString().padStart(2, '0');
+        const offsetMins = (Math.abs(timezoneOffset) % 60).toString().padStart(2, '0');
+        const timezoneString = `${timezoneOffset >= 0 ? '+' : '-'}${offsetHours}:${offsetMins}`;
+        const todayDateForSchedule = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
         const { userProfile = {}, recentTasks = [], recentSchedule = [], memorySummary = '', recentInteractions = [], conversationHistory = null } = context;
 
         const prompt = `
@@ -844,22 +846,73 @@ export const routeAgentCommand = async (input, context = {}) => {
             You have memory of past interactions and know the user's preferences.
 
             Current Date & Time: ${currentDateTime}
+            User's Timezone: ${timezoneString} (e.g., +07:00 means UTC+7)
+            Today's Date for Scheduling: ${todayDateForSchedule}
+            
+            IMPORTANT - TIMEZONE RULE:
+            When generating startTime for schedule events, ALWAYS use the user's timezone offset.
+            Format: "${todayDateForSchedule}T[HH:MM:00]${timezoneString}"
+            Example for 8:30 PM today: "${todayDateForSchedule}T20:30:00${timezoneString}"
             
             USER PROFILE:
             ${userProfile.summary || JSON.stringify(userProfile) || 'Not set'}
             
-            AGENT MEMORY:
-            ${memorySummary || 'No memory yet'}
+            AGENT MEMORY (use this to personalize your responses):
+            ${memorySummary || 'No memory yet. Learning patterns...'}
+            
+            INSTRUCTION: When suggesting times or actions, consider the user's patterns and preferences from memory.
+            For example, if you know they usually work at 8 PM, suggest that time. If they prefer short tasks, offer to break things up.
             
             FULL TASK LIST (${recentTasks.length} tasks):
             ${recentTasks.length > 0
-                ? recentTasks.map(t => `- "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n            ')
+                ? recentTasks.map(t => `- [ID: ${t.id}] "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n            ')
                 : 'No tasks'}
             
-            FULL SCHEDULE (${recentSchedule.length} events):
+            TASKS DUE TODAY (${context.tasksDueToday?.length || 0}):
+            ${context.tasksDueToday?.length > 0
+                ? context.tasksDueToday.map(t => `- "${t.title}" (${t.difficulty || 'medium'})`).join('\n            ')
+                : 'No tasks due today'}
+            
+            CURRENT TIME: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+            
+            TODAY'S SCHEDULE (${recentSchedule.length} events):
             ${recentSchedule.length > 0
-                ? recentSchedule.map(s => `- "${s.title}" at ${new Date(s.startTime || s.start_time).toLocaleString()}`).join('\n            ')
-                : 'No scheduled events'}
+                ? recentSchedule.map(s => {
+                    const eventTime = new Date(s.displayTime || s.startTime || s.start_time);
+                    const now = new Date();
+                    const isPassed = eventTime < now;
+                    const isUpcoming = !isPassed && (eventTime - now) < 2 * 60 * 60 * 1000; // within 2 hours
+                    const status = isPassed ? '(passed)' : isUpcoming ? '(UPCOMING)' : '';
+                    return `- [ID: ${s.id}] "${s.title}" at ${eventTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${status}${s.isRecurring ? ' (recurring)' : ''}`;
+                }).join('\n            ')
+                : 'No scheduled events for today'}
+            
+            PROJECTS (${context.projects?.length || 0} projects):
+            ${context.projects?.length > 0
+                ? context.projects.map(p => {
+                    const phasesInfo = p.phases && p.phases.length > 0
+                        ? `\n      Phases: ${p.phases.map((phase, idx) =>
+                            `${idx + 1}. "${phase.name}"${phase.deadline ? ` (due: ${new Date(phase.deadline).toLocaleDateString()})` : ''}`
+                        ).join(', ')}`
+                        : '';
+                    return `- "${p.title}" (${p.status}, ${p.progress}% done, ${p.taskCount} tasks - ${p.tasksInProgress} in progress, ${p.tasksDone} complete)${phasesInfo}`;
+                }).join('\n            ')
+                : 'No projects'}
+            
+            HABITS (${context.habits?.length || 0} habits):
+            ${context.habits?.length > 0
+                ? context.habits.map(h => `- [ID: ${h.id}] "${h.name}" (${h.frequency}, streak: ${h.streak}, ${h.completedToday ? '✓ done today' : 'not done today'})`).join('\n            ')
+                : 'No habits'}
+            
+            VISION GOALS (${context.visionGoals?.length || 0} goals):
+            ${context.visionGoals?.length > 0
+                ? context.visionGoals.map(g => `- "${g.text || g.title}" (${g.category || 'general'})`).join('\n            ')
+                : 'No vision goals'}
+            
+            DAILY HIGHLIGHTS:
+            ${context.dailyHighlights?.length > 0
+                ? context.dailyHighlights.map(h => `- "${h.text}"`).join('\n            ')
+                : 'No daily highlights'}
             
             ${conversationHistory ? `CONVERSATION HISTORY (ongoing clarification):\n${conversationHistory}\n` : ''}
             
@@ -869,21 +922,39 @@ export const routeAgentCommand = async (input, context = {}) => {
             1. add_task - Create a new task
                Params: { title, deadline (ISO string or null), difficulty ('easy'|'medium'|'hard'), subject (optional), estimatedTime (minutes, optional) }
                
-            2. add_schedule - Create a schedule event
+            2. edit_task - Edit an existing task
+               Params: { taskId (from task list), updates: { title?, deadline?, difficulty?, subject?, estimatedTime? } }
+               
+            3. delete_task - Delete a task
+               Params: { taskId (from task list), title (for confirmation) }
+               
+            4. complete_task - Mark a task as completed
+               Params: { taskId (from task list), title (for confirmation) }
+               
+            5. add_schedule - Create a schedule event
                Params: { title, startTime (ISO string), duration (minutes), category (optional) }
                
-            3. navigate - Navigate to a specific tab (use ONLY if user explicitly asks to go somewhere)
+            6. edit_schedule - Edit an existing schedule event
+               Params: { eventId (from schedule list), updates: { title?, startTime?, duration?, category? } }
+               
+            7. delete_schedule - Delete a schedule event
+               Params: { eventId (from schedule list), title (for confirmation) }
+               
+            8. complete_habit - Mark a habit as completed for today
+               Params: { habitId (from habits list), name (for confirmation) }
+               
+            9. navigate - Navigate to a specific tab (use ONLY if user explicitly asks to go somewhere)
                Params: { tabName ('overview'|'tasks'|'schedule'|'habits'|'projects'|'vision'|'settings') }
                
-            4. info_response - Answer a question or provide information directly (NO navigation needed)
+            10. info_response - Answer a question or provide information directly (NO navigation needed)
                Params: { message (your detailed answer), suggestedTab (optional - tab they can navigate to for more details) }
                IMPORTANT: Use this when user asks questions like "how many tasks do I have?", "what's on my schedule?", "show me my progress", etc.
                You have the full task and schedule data above - analyze it and provide a direct answer!
                
-            5. set_goal - Set a daily goal/highlight
+            11. set_goal - Set a daily goal/highlight
                Params: { goalText, type ('daily'|'vision') }
                
-            6. clarify - Ask for more information when the request is ambiguous
+            12. clarify - Ask for more information when the request is ambiguous
                Params: { question (your clarifying question), suggestions (array of suggested options based on user history) }
                IMPORTANT: Use this when the user's intent is unclear. Example: "add task" is too vague - ask what task.
 
@@ -898,6 +969,28 @@ export const routeAgentCommand = async (input, context = {}) => {
             - When clarifying, suggest options based on user's recent tasks, schedule, or memory.
             - Be helpful and proactive - if the user says "help me study for my exam", suggest both a task and schedule blocks.
             - Use the user's profile and memory to personalize suggestions.
+            RESPONSE FOCUS RULE (VERY IMPORTANT):
+            - ONLY respond with information relevant to what the user SPECIFICALLY asks about.
+            - If user asks about "schedule approach" → only talk about schedule and strategy.
+            - If user asks about "tasks" → only talk about tasks.
+            - Do NOT dump all sections (schedule, tasks, habits, highlights) unless user explicitly asks for "overview" or "my day".
+            - Keep responses concise and focused on the user's actual question.
+            
+            ONLY FOR EXPLICIT "OVERVIEW" REQUESTS:
+            When user says exactly "overview", "give me overview", "day summary", or "what's my day like":
+            Then generate the STRUCTURED response with all sections:
+            
+            YOUR SCHEDULE TODAY
+            [List events with time]
+            
+            TASKS DUE TODAY
+            [List tasks or "No tasks due today"]
+            
+            HABITS NOT YET DONE TODAY
+            [List incomplete habits]
+            
+            DAILY HIGHLIGHTS
+            [Show goals or "No highlights set"]
 
             Reply with ONLY a JSON object in this format (no markdown, no extra text):
             {
@@ -913,7 +1006,9 @@ export const routeAgentCommand = async (input, context = {}) => {
         `;
 
         console.log("📤 Sending agent routing request to Gemini...");
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        // Two-tier model selection based on query complexity
+        const { model: modelToUse, tier } = getModelTier(input);
+        console.log(`🎯 Using ${tier.toUpperCase()} tier for this query`);
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -945,6 +1040,162 @@ export const routeAgentCommand = async (input, context = {}) => {
                 explanation: "Error processing request"
             }],
             summary: "I encountered an issue processing your request."
+        };
+    }
+};
+
+/**
+ * Generates a personalized morning briefing for the Start Day flow.
+ * @param {object} context - User context including tasks, schedule, profile, memory
+ * @returns {Promise<object>} - Morning briefing with greeting, priorities, tips
+ */
+export const generateMorningBriefing = async (context) => {
+    if (!API_KEY) {
+        return {
+            greeting: "Good morning! Let's make today great.",
+            priorities: ["Focus on your most important task", "Take breaks when needed"],
+            tip: "Start with the hardest task when your energy is highest.",
+            suggestedSchedule: []
+        };
+    }
+
+    try {
+        const { profile, tasks, schedule, memory, currentTime } = context;
+        const pendingTasks = tasks?.filter(t => !t.completed && !t.archived) || [];
+        const todaySchedule = schedule || [];
+
+        const prompt = `
+            You are a supportive productivity coach. Generate a personalized morning briefing.
+            
+            CURRENT TIME: ${currentTime || new Date().toLocaleString()}
+            
+            USER PROFILE:
+            - Name: ${profile?.nickname || profile?.name || 'Friend'}
+            - Role: ${profile?.role || 'Not specified'}
+            - Focus Style: ${profile?.focusStyle || 'flexible'}
+            - Working Hours: ${typeof profile?.workingHours === 'object'
+                ? `${profile.workingHours.start} to ${profile.workingHours.end}`
+                : profile?.workingHours || '9am-5pm'}
+            
+            PENDING TASKS (${pendingTasks.length}):
+            ${pendingTasks.slice(0, 5).map(t => `- "${t.title}" (${t.difficulty || 'medium'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n') || 'No tasks'}
+            
+            TODAY'S SCHEDULE:
+            ${todaySchedule.slice(0, 5).map(s => `- ${s.title} at ${new Date(s.startTime || s.start_time).toLocaleTimeString()}`).join('\n') || 'Nothing scheduled'}
+            
+            RECENT MEMORY:
+            ${memory?.slice(0, 3).map(m => m.summary || m.command).join(', ') || 'No recent activity'}
+            
+            Generate a morning briefing with:
+            1. A warm, personalized greeting (use their name if available)
+            2. 2-3 key priorities for today based on tasks and schedule
+            3. One motivational tip tailored to their focus style
+            4. Optional: suggested time blocks if their schedule has gaps
+            
+            Reply in JSON format:
+            {
+                "greeting": "Good morning, [Name]! ...",
+                "priorities": ["Priority 1", "Priority 2", "Priority 3"],
+                "tip": "One actionable tip...",
+                "suggestedSchedule": [{"title": "Focus block", "suggestedTime": "9:00 AM", "duration": 60}]
+            }
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error generating morning briefing:", error);
+        return {
+            greeting: "Good morning! Ready to tackle the day?",
+            priorities: ["Review your task list", "Plan your key focus blocks"],
+            tip: "Start with a quick win to build momentum!",
+            suggestedSchedule: []
+        };
+    }
+};
+
+/**
+ * Generates an intelligent evening summary for the End Day flow.
+ * @param {object} context - User context including completed tasks, reflections, memory
+ * @returns {Promise<object>} - Evening summary with accomplishments, insights, tomorrow suggestions
+ */
+export const generateEveningSummary = async (context) => {
+    if (!API_KEY) {
+        return {
+            summary: "Great work today! Take time to rest.",
+            accomplishments: ["You showed up and did your best"],
+            insights: "Every day is progress, no matter how small.",
+            tomorrowSuggestions: ["Continue where you left off"],
+            moodAnalysis: "positive"
+        };
+    }
+
+    try {
+        const { profile, tasksCompleted, tasksRemaining, habitsCompleted, reflection, memory } = context;
+
+        const prompt = `
+            You are a supportive productivity coach. Generate an evening summary and reflection.
+            
+            USER: ${profile?.nickname || profile?.name || 'Friend'}
+            
+            TODAY'S ACCOMPLISHMENTS:
+            - Tasks completed: ${tasksCompleted?.length || 0}
+            ${tasksCompleted?.slice(0, 5).map(t => `  - "${t.title}"`).join('\n') || '  - No tasks completed'}
+            
+            - Habits completed: ${habitsCompleted?.length || 0}
+            ${habitsCompleted?.slice(0, 3).map(h => `  - ${h.name}`).join('\n') || '  - No habits tracked'}
+            
+            TASKS REMAINING: ${tasksRemaining?.length || 0}
+            
+            USER'S REFLECTION (if provided):
+            ${reflection || 'Not provided'}
+            
+            RECENT PATTERNS FROM MEMORY:
+            ${memory?.slice(0, 3).map(m => m.summary || m.command).join(', ') || 'No patterns detected'}
+            
+            Generate an evening summary with:
+            1. A warm summary of the day (2-3 sentences)
+            2. 2-3 specific accomplishments to celebrate
+            3. One insight or pattern you noticed
+            4. 1-2 suggestions for tomorrow
+            5. Overall mood analysis: 'positive', 'neutral', or 'needs_support'
+            
+            Reply in JSON format:
+            {
+                "summary": "Great job today, [Name]! ...",
+                "accomplishments": ["Accomplishment 1", "Accomplishment 2"],
+                "insights": "I noticed that...",
+                "tomorrowSuggestions": ["Suggestion 1", "Suggestion 2"],
+                "moodAnalysis": "positive"
+            }
+            
+            Be encouraging and supportive, even if not much was accomplished.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error generating evening summary:", error);
+        return {
+            summary: "Another day complete! Rest well and recharge.",
+            accomplishments: ["You made it through the day"],
+            insights: "Consistency is more important than perfection.",
+            tomorrowSuggestions: ["Start fresh with your top priority"],
+            moodAnalysis: "neutral"
         };
     }
 };

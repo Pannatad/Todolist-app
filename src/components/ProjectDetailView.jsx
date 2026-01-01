@@ -150,37 +150,29 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
     };
 
     return (
-        <div className="h-full flex flex-col relative overflow-hidden bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 rounded-2xl">
-            {/* Aurora Background Effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-                <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-teal-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-                <div className="absolute bottom-1/3 left-1/3 w-48 h-48 bg-pink-500/15 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '3s' }} />
-            </div>
-
+        <div className="h-full flex flex-col relative overflow-hidden bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl">
             {/* Header */}
-            <div className="relative z-10 flex items-center justify-between p-6 border-b border-white/10">
+            <div className="relative z-10 flex items-center justify-between p-6 border-b border-white/20 bg-white/10 backdrop-blur-xl">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onBack}
-                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors backdrop-blur-sm"
+                        className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <div className="flex items-center gap-2 text-sm text-white/50 mb-1">
+                        <div className="flex items-center gap-2 text-sm text-white/80 mb-1 font-medium">
                             <span>{project.title}</span>
                             <span>•</span>
                             <span>Phase {(sortedPhases.findIndex(p => p.id === activePhaseId) + 1)}</span>
                         </div>
                         <h2 className="text-2xl font-bold text-white">{activePhase?.name || 'Phase'}</h2>
-                        <div className="flex items-center gap-4 text-sm text-white/60 mt-1">
+                        <div className="flex items-center gap-4 text-sm text-white/80 mt-1 font-medium">
                             <span>{phaseTasks.length} Tasks in Phase</span>
                             <div className="flex items-center gap-2">
-                                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
+                                <div className="w-24 h-2 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
                                     <div
-                                        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
+                                        className="h-full bg-white transition-all duration-500"
                                         style={{ width: `${getPhaseProgress()}%` }}
                                     />
                                 </div>
@@ -191,12 +183,12 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                 </div>
 
                 <div className="flex gap-2">
-                    <div className="flex bg-white/10 backdrop-blur-md rounded-lg border border-white/20 p-1">
+                    <div className="flex bg-white/20 backdrop-blur-xl rounded-lg border border-white/30 p-1">
                         <button
                             onClick={() => setSortBy('manual')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'manual'
-                                ? 'bg-white/20 text-white'
-                                : 'text-white/60 hover:text-white'
+                                ? 'bg-white/30 backdrop-blur-md text-white shadow-sm'
+                                : 'text-white/70 hover:text-white'
                                 }`}
                         >
                             Manual
@@ -204,8 +196,8 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                         <button
                             onClick={() => setSortBy('priority')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'priority'
-                                ? 'bg-white/20 text-white'
-                                : 'text-white/60 hover:text-white'
+                                ? 'bg-white/30 backdrop-blur-md text-white shadow-sm'
+                                : 'text-white/70 hover:text-white'
                                 }`}
                         >
                             Priority
@@ -213,8 +205,8 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                         <button
                             onClick={() => setSortBy('difficulty')}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'difficulty'
-                                ? 'bg-white/20 text-white'
-                                : 'text-white/60 hover:text-white'
+                                ? 'bg-white/30 backdrop-blur-md text-white shadow-sm'
+                                : 'text-white/70 hover:text-white'
                                 }`}
                         >
                             Difficulty
@@ -224,7 +216,7 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                     {sortBy !== 'manual' && (
                         <button
                             onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
-                            className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-white/80 hover:bg-white/20 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-lg text-white hover:bg-white/30 transition-colors"
                             title={sortDirection === 'desc' ? 'Descending (High to Low)' : 'Ascending (Low to High)'}
                         >
                             {sortDirection === 'desc' ? (
@@ -235,13 +227,13 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                         </button>
                     )}
 
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-white/80 hover:bg-white/20 transition-colors">
-                        <Sparkles className="w-4 h-4 text-amber-400" />
+                    <button className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-lg text-white hover:bg-white/30 transition-colors font-medium">
+                        <Sparkles className="w-4 h-4 text-yellow-300" />
                         AI Suggestions
                     </button>
                     <button
                         onClick={handleAddTask}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-colors shadow-lg shadow-purple-500/30"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:shadow-indigo-500/30 transition-all font-semibold"
                     >
                         <Plus className="w-4 h-4" />
                         Add Task

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Check, X, Edit2, Loader2, ListTodo, Calendar, Target, Navigation, BarChart3, MessageCircle, Send, Lightbulb, Info, ArrowRight } from 'lucide-react';
+import RichTextRenderer from './RichTextRenderer';
 
 // Icon mapping for different action types
 const ACTION_ICONS = {
@@ -222,12 +223,10 @@ const AgentConfirmationModal = ({
                                         </div>
                                     </div>
                                 ) : isInfoMode ? (
-                                    /* Info Response Mode: Show answer directly */
+                                    /* Info Response Mode: Show answer with rich formatting */
                                     <div className="space-y-4">
-                                        <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100">
-                                            <p className="text-gray-800 whitespace-pre-line leading-relaxed">
-                                                {infoAction.params?.message || "Here's the information you requested."}
-                                            </p>
+                                        <div className="p-4 bg-gradient-to-br from-gray-50 to-sky-50/50 rounded-2xl border border-sky-100/50">
+                                            <RichTextRenderer text={infoAction.params?.message || "Here's the information you requested."} />
                                         </div>
 
                                         {/* Optional: Navigate to tab for more details */}
@@ -263,9 +262,9 @@ const AgentConfirmationModal = ({
                                                         <p className="font-semibold text-gray-900 text-sm">
                                                             {action.explanation || action.type}
                                                         </p>
-                                                        {action.params && (
+                                                        {(action.params?.title || action.params?.tabName || action.params?.goalText || action.params?.message) && (
                                                             <p className="text-gray-500 text-xs mt-1 truncate">
-                                                                {action.params.title || action.params.tabName || action.params.goalText || action.params.message?.slice(0, 50) || JSON.stringify(action.params)}
+                                                                {action.params.title || action.params.tabName || action.params.goalText || action.params.message?.slice(0, 50)}
                                                             </p>
                                                         )}
                                                     </div>

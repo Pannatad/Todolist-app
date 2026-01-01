@@ -18,27 +18,27 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
         opacity: isDragging ? 0.5 : 1,
     };
 
-    // Card Styles based on Priority (Glass with Glow Border)
+    // Card Styles based on Priority - solid white with colored left border
     const getPriorityStyles = (p) => {
         switch (p?.toLowerCase()) {
             case 'high':
-                return 'bg-white/15 backdrop-blur-md border-l-4 border-l-red-500 shadow-[inset_0_0_20px_rgba(239,68,68,0.15)]';
+                return 'bg-white border-2 border-l-4 border-l-red-500 border-gray-200';
             case 'medium':
-                return 'bg-white/15 backdrop-blur-md border-l-4 border-l-amber-500 shadow-[inset_0_0_20px_rgba(245,158,11,0.15)]';
+                return 'bg-white border-2 border-l-4 border-l-amber-500 border-gray-200';
             case 'low':
-                return 'bg-white/15 backdrop-blur-md border-l-4 border-l-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.15)]';
+                return 'bg-white border-2 border-l-4 border-l-emerald-500 border-gray-200';
             default:
-                return 'bg-white/15 backdrop-blur-md border-l-4 border-l-purple-500 shadow-[inset_0_0_20px_rgba(168,85,247,0.15)]';
+                return 'bg-white border-2 border-l-4 border-l-indigo-500 border-gray-200';
         }
     };
 
-    // Difficulty Badge Styles (Glowing Pills)
+    // Difficulty Badge Styles - colored badges
     const getDifficultyStyle = (d) => {
         switch (d?.toLowerCase()) {
-            case 'easy': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-            case 'medium': return 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-            case 'hard': return 'bg-red-500/20 text-red-300 border border-red-500/30';
-            default: return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+            case 'easy': return 'bg-cyan-400 text-white';
+            case 'medium': return 'bg-emerald-500 text-white';
+            case 'hard': return 'bg-red-500 text-white';
+            default: return 'bg-indigo-500 text-white';
         }
     };
 
@@ -61,29 +61,29 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
             style={style}
             {...attributes}
             onClick={handleCardClick}
-            className={`p-4 rounded-xl group transition-all cursor-pointer relative overflow-hidden border border-white/10
+            className={`p-4 rounded-xl group transition-all cursor-pointer relative overflow-hidden shadow-md
                 ${getPriorityStyles(task.priority)}
                 ${isDone ? 'opacity-50 grayscale' : ''}
-                hover:bg-white/20 hover:shadow-lg hover:scale-[1.02] hover:border-white/20
+                hover:shadow-lg hover:scale-[1.02]
             `}
         >
             <div className="flex justify-between items-start mb-2">
                 <h4 className={`font-bold text-sm flex-1 ${isDone
-                    ? 'text-white/40 line-through'
-                    : 'text-white'
+                    ? 'text-gray-400 line-through'
+                    : 'text-gray-900'
                     }`}>{task.title}</h4>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         onClick={handleDelete}
-                        className="delete-button p-1 rounded hover:bg-white/10 text-white/50 hover:text-red-400 transition-colors"
+                        className="delete-button p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
                         title="Delete task"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                         {...listeners}
-                        className="drag-handle text-white/40 hover:text-white cursor-grab active:cursor-grabbing"
+                        className="drag-handle text-gray-400 hover:text-gray-700 cursor-grab active:cursor-grabbing"
                     >
                         <GripVertical className="w-4 h-4" />
                     </button>
@@ -92,23 +92,23 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
 
             {task.description && (
                 <p className={`text-xs mb-3 line-clamp-2 ${isDone
-                    ? 'text-white/30'
-                    : 'text-white/60'
+                    ? 'text-gray-300'
+                    : 'text-gray-500'
                     }`}>{task.description}</p>
             )}
 
             {/* Subtasks List */}
             {task.subtasks && task.subtasks.length > 0 && (
-                <div className="mb-3 space-y-1.5 bg-white/5 p-2 rounded-lg border border-white/10">
+                <div className="mb-3 space-y-1.5 bg-gray-50 p-2 rounded-lg border border-gray-200">
                     {task.subtasks.map((subtask, index) => (
                         <div key={index} className="flex items-start gap-2 text-xs">
                             <div className={`mt-0.5 min-w-[12px] h-3 rounded-full border flex items-center justify-center ${subtask.completed
                                 ? 'bg-emerald-500 border-emerald-500 text-white'
-                                : 'border-white/30 bg-white/10'
+                                : 'border-gray-300 bg-white'
                                 }`}>
                                 {subtask.completed && <Check size={8} strokeWidth={4} />}
                             </div>
-                            <span className={`leading-4 ${subtask.completed ? 'text-white/40 line-through' : 'text-white/70'}`}>
+                            <span className={`leading-4 ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
                                 {subtask.title}
                             </span>
                         </div>

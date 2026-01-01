@@ -22,7 +22,11 @@ import { useGame } from './context/GameContext';
 import { useGoal } from './context/GoalContext';
 import { ProjectProvider } from './context/ProjectContext';
 import { HabitProvider } from './context/HabitContext';
+import { useUserProfile } from './context/UserProfileContext';
 import HabitTracker from './components/HabitTracker';
+import SleepTrendsDashboard from './components/SleepTrendsDashboard';
+import NotificationToast from './components/NotificationToast';
+import smartNotificationService from './services/SmartNotificationService';
 
 const DigitalClock = () => {
   const [time, setTime] = useState(new Date());
@@ -61,6 +65,7 @@ function App() {
     triggerPersonaReaction
   } = useGame();
 
+  const { profile } = useUserProfile();
   const { goals, dailyHighlights, addGoal, updateGoal, deleteGoal, updateHighlight, deleteHighlight } = useGoal();
 
   // Local UI State (not in contexts)
@@ -79,11 +84,10 @@ function App() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
     { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
-    { id: 'garden', label: 'Garden', icon: <Sprout size={20} /> },
+    { id: 'garden', label: 'Tasks', icon: <Sprout size={20} /> },
     { id: 'habits', label: 'Habits', icon: <ListChecks size={20} /> },
     { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
     { id: 'focus', label: 'Focus', icon: <Timer size={20} /> },
-    { id: 'vision', label: 'Vision Board', icon: <Target size={20} /> },
   ];
   const [currentFocusTask, setCurrentFocusTask] = useState(null);
 
@@ -92,6 +96,17 @@ function App() {
   const [currentAITask, setCurrentAITask] = useState(null);
   const [aiTips, setAiTips] = useState('');
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  // Start Smart Notification Service
+  useEffect(() => {
+    smartNotificationService.start(() => ({
+      scheduleItems,
+      tasks,
+      habits: [] // Will be connected when HabitContext is available
+    }));
+
+    return () => smartNotificationService.stop();
+  }, [scheduleItems, tasks]);
 
   // Theme effect
   useEffect(() => {
@@ -179,20 +194,14 @@ function App() {
               <div className="flex items-center justify-between mb-3 sm:mb-6">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="flex-shrink-0">
-                    <span className="text-3xl sm:text-4xl drop-shadow-md">
-                      {displayMode === 'demon' && '👿'}
-                      {displayMode === 'penguin' && '🐧'}
-                      {displayMode === 'minimal' && '📋'}
-                    </span>
+                    <span className="text-3xl sm:text-4xl drop-shadow-md">📋</span>
                   </div>
                   <div className="min-w-0">
                     <h1 className="text-2xl sm:text-4xl md:text-5xl font-serif font-bold text-sage-600 dark:text-magma-500 drop-shadow-md dark:drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] leading-tight">
-                      {displayMode === 'demon' && 'Demon'}
-                      {displayMode === 'penguin' && 'Penguin'}
-                      {displayMode === 'minimal' && 'My'} All in One Assistant
+                      Personal Agent
                     </h1>
                     <p className="text-xs sm:text-sm text-sage-500 dark:text-bone-200/60 italic mt-1">
-                      {user ? `Welcome back, ${user.email}` : 'Guest Mode'}
+                      {user ? `Welcome back, ${profile?.nickname || user.email?.split('@')[0] || 'User'}` : 'Guest Mode'}
                     </p>
                   </div>
                 </div>
@@ -209,19 +218,6 @@ function App() {
                     <span className="text-base sm:text-xl">🪙</span>
                     <span className="font-bold text-sage-700 dark:text-magma-400 text-sm sm:text-base">{coins}</span>
                   </div>
-
-                  {/* Display Mode Toggle */}
-                  <button
-                    onClick={cycleDisplayMode}
-                    className="p-2.5 sm:p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 group"
-                    title={`Mode: ${displayMode === 'demon' ? 'Demon' : displayMode === 'penguin' ? 'Penguin' : 'Minimal'} (Click to cycle)`}
-                  >
-                    <span className="text-lg sm:text-xl">
-                      {displayMode === 'demon' && '👿'}
-                      {displayMode === 'penguin' && '🐧'}
-                      {displayMode === 'minimal' && '📋'}
-                    </span>
-                  </button>
 
                   {/* User Profile Icon */}
                   {user ? (
@@ -346,6 +342,10 @@ function App() {
                 <HabitTracker />
               )}
 
+              {activeTab === 'sleep' && (
+                <SleepTrendsDashboard />
+              )}
+
               {activeTab === 'projects' && (
                 <ProjectBoards />
               )}
@@ -389,6 +389,20 @@ function App() {
           <EndTheDayModal
             isOpen={showEndDayModal}
             onClose={() => setShowEndDayModal(false)}
+          />
+
+          {/* Smart Notifications Toast */}
+          <NotificationToast
+            onAction={(action, data) => {
+              // Handle notification actions
+              if (action === 'View Schedule' || action === 'Go to Schedule') {
+                setActiveTab('schedule');
+              } else if (action === 'Go to Habits') {
+                setActiveTab('habits');
+              } else if (action === 'View tasks') {
+                setActiveTab('garden');
+              }
+            }}
           />
         </div>
       </ProjectProvider>
