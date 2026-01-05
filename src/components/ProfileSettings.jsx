@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Save, Clock, Target, Sparkles, X, Check, ChevronDown } from 'lucide-react';
+import { User, Save, Clock, Target, Sparkles, X, Check, ChevronDown, FileText } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
 
 const FOCUS_STYLES = [
@@ -14,6 +14,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
     const [formData, setFormData] = useState({
         nickname: '',
         role: '',
+        bio: '',
         workingHours: { start: '09:00', end: '17:00' },
         focusStyle: 'flexible',
         goals: []
@@ -28,6 +29,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
             setFormData({
                 nickname: profile.nickname || profile.name || '',
                 role: profile.role || '',
+                bio: profile.bio || '',
                 workingHours: typeof profile.workingHours === 'object'
                     ? profile.workingHours
                     : { start: '09:00', end: '17:00' },
@@ -67,6 +69,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
                 nickname: formData.nickname,
                 name: formData.nickname, // Keep name in sync with nickname
                 role: formData.role,
+                bio: formData.bio,
                 workingHours: formData.workingHours,
                 focusStyle: formData.focusStyle,
                 goals: formData.goals
@@ -157,6 +160,22 @@ const ProfileSettings = ({ isOpen, onClose }) => {
                                     />
                                 </div>
 
+                                {/* About Me / Bio */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        <FileText size={14} className="inline mr-2" />
+                                        About Me
+                                    </label>
+                                    <textarea
+                                        value={formData.bio}
+                                        onChange={(e) => handleChange('bio', e.target.value)}
+                                        placeholder="Tell the agent about yourself... e.g., 'I'm a high school student. I have intense schedule on Monday and Tuesday, then more free time Wednesday to Friday. I usually wake up at 7am and sleep around 11pm.'"
+                                        rows={4}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">This helps the agent personalize recommendations based on your schedule and lifestyle</p>
+                                </div>
+
                                 {/* Working Hours */}
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -192,8 +211,8 @@ const ProfileSettings = ({ isOpen, onClose }) => {
                                                 key={style.value}
                                                 onClick={() => handleChange('focusStyle', style.value)}
                                                 className={`w-full p-3 rounded-xl border-2 text-left transition-all ${formData.focusStyle === style.value
-                                                        ? 'border-indigo-500 bg-indigo-50'
-                                                        : 'border-gray-200 hover:border-gray-300'
+                                                    ? 'border-indigo-500 bg-indigo-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
                                                     }`}
                                             >
                                                 <p className="font-medium text-gray-900">{style.label}</p>

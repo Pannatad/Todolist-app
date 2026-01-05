@@ -29,7 +29,7 @@ export const KanbanColumn = ({ column, tasks, onEditTask, onDeleteTask, isSorted
     const colors = getColumnColor(column.title);
 
     return (
-        <div className="flex flex-col h-full min-w-[280px] w-80 bg-white/25 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-2xl overflow-hidden">
+        <div className="flex flex-col h-full min-w-[260px] w-72 sm:w-80 bg-white/25 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-2xl overflow-hidden">
             {/* Column Header */}
             <div className={`p-4 border-b border-white/20 flex justify-between items-center ${colors.bg} backdrop-blur-md`}>
                 <h3 className={`font-bold text-lg ${colors.text}`}>{column.title}</h3>

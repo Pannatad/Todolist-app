@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, Loader2, Mic, MicOff } from 'lucide-react';
+import { useChatContext } from '../context/ChatContext';
 
 const EXAMPLE_PROMPTS = [
     "Add a task to finish my report by Friday",
@@ -12,7 +13,9 @@ const EXAMPLE_PROMPTS = [
     "Block time for exercise this week",
 ];
 
-const MagicBox = ({ onSubmit, isLoading = false }) => {
+const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
+    const { sendMessage, openSidebar, isTyping } = useChatContext();
+    const isLoading = externalLoading || isTyping;
     const [input, setInput] = useState('');
     const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
     const [isListening, setIsListening] = useState(false);
@@ -99,7 +102,18 @@ const MagicBox = ({ onSubmit, isLoading = false }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
-        onSubmit(input.trim());
+
+        // Send message to chat conversation
+        sendMessage(input.trim());
+
+        // Open the chat sidebar to show the conversation
+        openSidebar();
+
+        // Also call the original onSubmit if provided (for backward compatibility)
+        if (onSubmit) {
+            onSubmit(input.trim());
+        }
+
         setInput('');
     };
 
@@ -193,8 +207,8 @@ const MagicBox = ({ onSubmit, isLoading = false }) => {
                                 onClick={toggleListening}
                                 disabled={isLoading}
                                 className={`flex-shrink-0 ml-2 p-2 sm:p-3 rounded-xl transition-all hover:scale-105 active:scale-95 touch-manipulation ${isListening
-                                        ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
-                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                                     }`}
                                 title={isListening ? "Stop listening" : "Voice input"}
                                 aria-label={isListening ? "Stop listening" : "Start voice input"}

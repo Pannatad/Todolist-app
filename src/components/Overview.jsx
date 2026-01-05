@@ -10,6 +10,7 @@ import { useUserProfile } from '../context/UserProfileContext';
 import { useAgentMemory } from '../context/AgentMemoryContext';
 import { useProject } from '../context/ProjectContext';
 import { useHabit } from '../context/HabitContext';
+import { useChatContext } from '../context/ChatContext';
 import { parseTaskInput, routeAgentCommand } from '../services/gemini';
 import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey, clearCache } from '../services/localAgentHandler';
 import { generateProactiveSuggestions } from '../services/proactiveEngine';
@@ -604,6 +605,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const { logInteraction, getMemorySummary, getRecentInteractions, generatePatternInsights } = useAgentMemory();
     const { projects } = useProject();
     const { habits, logHabit } = useHabit();
+    const { sendMessage, openSidebar } = useChatContext();
 
     const [greeting, setGreeting] = useState('');
     const [quickCaptureText, setQuickCaptureText] = useState('');
@@ -623,7 +625,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
         tasksLeft: 0
     });
 
-    // Agent state
+    // Agent state (kept for backward compatibility with existing modals)
     const [isAgentLoading, setIsAgentLoading] = useState(false);
     const [agentPlan, setAgentPlan] = useState(null);
     const [showAgentModal, setShowAgentModal] = useState(false);
@@ -637,6 +639,12 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     // Proactive suggestions state
     const [proactiveSuggestions, setProactiveSuggestions] = useState([]);
     const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
+
+    // Handler to route actions through chat
+    const handleChatAction = (action) => {
+        sendMessage(action);
+        openSidebar();
+    };
 
     // Generate proactive suggestions
     useEffect(() => {
@@ -1031,14 +1039,14 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
             {/* Magic Box - AI Agent Command Bar */}
             <div className="py-4">
-                <MagicBox onSubmit={handleMagicBoxSubmit} isLoading={isAgentLoading} />
+                <MagicBox />
 
                 {/* Proactive Suggestions */}
                 <AnimatePresence>
                     {proactiveSuggestions.length > 0 && (
                         <ProactiveSuggestionCard
                             suggestions={proactiveSuggestions}
-                            onAction={handleMagicBoxSubmit}
+                            onAction={handleChatAction}
                             onDismiss={handleDismissSuggestion}
                         />
                     )}

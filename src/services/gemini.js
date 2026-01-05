@@ -4,12 +4,53 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Two-tier model system
-const model_intelligent = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); // For complex reasoning
-const model_normal = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // For simple queries
-const model = model_normal; // Default
+// Available models
+const MODELS = {
+    lite: genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" }),    // Cheapest, fastest
+    flash: genAI.getGenerativeModel({ model: "gemini-2.5-flash" }),           // Balanced (default)
+    pro: genAI.getGenerativeModel({ model: "gemini-3-flash-preview" })        // Most capable
+};
+
+// Legacy aliases for backwards compatibility
+const model_intelligent = MODELS.pro;
+const model_normal = MODELS.flash;
+const model = model_normal;
 const model_easy = model_normal;
 const model_pro = model_intelligent;
+
+/**
+ * Get user's selected model preference from localStorage
+ * @returns {'lite' | 'flash'} - User's model preference
+ */
+export const getModelPreference = () => {
+    try {
+        return localStorage.getItem('ai_model_preference') || 'flash';
+    } catch {
+        return 'flash';
+    }
+};
+
+/**
+ * Set user's model preference
+ * @param {'lite' | 'flash'} preference - Model preference to save
+ */
+export const setModelPreference = (preference) => {
+    try {
+        localStorage.setItem('ai_model_preference', preference);
+    } catch (e) {
+        console.error('Error saving model preference:', e);
+    }
+};
+
+/**
+ * Get the model instance based on user preference
+ * @returns {object} - Gemini model instance
+ */
+export const getSelectedModel = () => {
+    const preference = getModelPreference();
+    console.log(`🤖 Using ${preference.toUpperCase()} model`);
+    return MODELS[preference] || MODELS.flash;
+};
 
 // Patterns that require intelligent model (complex reasoning)
 const INTELLIGENT_PATTERNS = [
@@ -31,15 +72,23 @@ const INTELLIGENT_PATTERNS = [
  */
 export const getModelTier = (input) => {
     const trimmed = input.trim().toLowerCase();
+    const preference = getModelPreference();
 
+    // If using lite mode, always use lite model (no tier switching for cost savings)
+    if (preference === 'lite') {
+        console.log('💡 LITE mode - using gemini-flash-lite-latest');
+        return { model: MODELS.lite, tier: 'lite' };
+    }
+
+    // Flash mode: use intelligent model for complex queries
     for (const pattern of INTELLIGENT_PATTERNS) {
         if (pattern.test(trimmed)) {
-            console.log('🧠 Using INTELLIGENT model (gemini-2.5-pro) for:', input.substring(0, 50));
+            console.log('🧠 Using INTELLIGENT model (gemini-3-flash-preview) for:', input.substring(0, 50));
             return { model: model_intelligent, tier: 'intelligent' };
         }
     }
 
-    console.log('⚡ Using NORMAL model (gemini-2.5-flash) for:', input.substring(0, 50));
+    console.log('⚡ Using FLASH model (gemini-2.5-flash) for:', input.substring(0, 50));
     return { model: model_normal, tier: 'normal' };
 };
 
@@ -855,13 +904,20 @@ export const routeAgentCommand = async (input, context = {}) => {
             Example for 8:30 PM today: "${todayDateForSchedule}T20:30:00${timezoneString}"
             
             USER PROFILE:
-            ${userProfile.summary || JSON.stringify(userProfile) || 'Not set'}
+            Name: ${userProfile.name || 'User'}
+            Role: ${userProfile.role || 'Not specified'}
+            Working Hours: ${typeof userProfile.workingHours === 'object' ? `${userProfile.workingHours.start} - ${userProfile.workingHours.end}` : userProfile.workingHours || 'Not set'}
+            Focus Style: ${userProfile.focusStyle || 'flexible'}
+            
+            ABOUT THE USER (Important personal context):
+            ${userProfile.bio || 'No personal description provided.'}
             
             AGENT MEMORY (use this to personalize your responses):
             ${memorySummary || 'No memory yet. Learning patterns...'}
             
-            INSTRUCTION: When suggesting times or actions, consider the user's patterns and preferences from memory.
-            For example, if you know they usually work at 8 PM, suggest that time. If they prefer short tasks, offer to break things up.
+            INSTRUCTION: When suggesting times or actions, consider the user's bio and personal context above.
+            For example, if they mention being busy on certain days, avoid scheduling heavy tasks then.
+            If they mention wake/sleep times, respect those boundaries.
             
             FULL TASK LIST (${recentTasks.length} tasks):
             ${recentTasks.length > 0
@@ -957,6 +1013,11 @@ export const routeAgentCommand = async (input, context = {}) => {
             12. clarify - Ask for more information when the request is ambiguous
                Params: { question (your clarifying question), suggestions (array of suggested options based on user history) }
                IMPORTANT: Use this when the user's intent is unclear. Example: "add task" is too vague - ask what task.
+               
+            13. remember - Save a note/memory that the user explicitly asks you to remember
+               Params: { note (the specific information to remember) }
+               Use when user says things like: "remember that...", "note this...", "save for later...", "don't forget that...", "keep in mind that..."
+               Examples: "Remember my exam is on January 15th", "Note that I prefer morning meetings", "Save this: my project deadline is next Friday"
 
             RULES:
             - Parse the user's intent and return appropriate actions.

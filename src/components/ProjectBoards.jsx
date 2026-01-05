@@ -230,34 +230,35 @@ const ProjectBoards = () => {
     return (
         <div className="h-full flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl relative">
 
-            {/* Header */}
-            <div className="relative z-10 flex justify-between items-center mb-8">
+            {/* Header - Responsive */}
+            <div className="relative z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
                 <div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                         Project Boards
                     </h2>
-                    <p className="text-white/80 mt-1">Manage your ideas and execution plans</p>
+                    <p className="text-white/80 mt-1 text-sm sm:text-base">Manage your ideas and execution plans</p>
                 </div>
-                <div className="flex items-center gap-3">
+                {/* Action buttons - horizontal scroll on mobile */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
                     <button
                         onClick={() => setView('calendar')}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all text-sm"
                     >
                         <Calendar className="w-4 h-4" />
-                        Calendar
+                        <span className="hidden sm:inline">Calendar</span>
                     </button>
                     <button
                         onClick={() => setShowManualProjectModal(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all text-sm whitespace-nowrap"
                     >
                         <Plus className="w-4 h-4" />
-                        Manual Project
+                        <span className="sm:inline">Manual</span>
                     </button>
                     <button
                         onClick={() => setShowNewProjectModal(true)}
-                        className="flex items-center gap-2 px-6 py-3 bg-white/30 backdrop-blur-md border border-white/40 text-white rounded-xl font-semibold transition-all hover:bg-white/40 hover:shadow-lg hover:shadow-white/20 hover:scale-105"
+                        className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-3 bg-white/30 backdrop-blur-md border border-white/40 text-white rounded-xl font-semibold transition-all hover:bg-white/40 hover:shadow-lg hover:shadow-white/20 text-sm whitespace-nowrap"
                     >
-                        <Sparkles className="w-5 h-5" />
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                         AI Project
                     </button>
                 </div>

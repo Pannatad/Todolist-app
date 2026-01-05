@@ -183,6 +183,39 @@ export const AgentMemoryProvider = ({ children }) => {
         });
     }, [user]);
 
+    // Remember a note from user request (explicit memory storage)
+    const rememberNote = useCallback(async (note) => {
+        const entry = {
+            id: crypto.randomUUID(),
+            type: 'user_memory', // Explicit user-requested memory
+            content: note,
+            confidence: 1.0, // User-provided = full confidence
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        if (user) {
+            try {
+                await supabase.from('agent_memory_long').insert({
+                    user_id: user.id,
+                    ...entry
+                });
+            } catch (error) {
+                console.error('Error saving user memory:', error);
+            }
+        }
+
+        setLongTermMemory(prev => {
+            const updated = [entry, ...prev];
+            if (!user) {
+                localStorage.setItem('agent_memory_long', JSON.stringify(updated));
+            }
+            return updated;
+        });
+
+        return entry;
+    }, [user]);
+
     // Get recent interactions for agent context
     const getRecentInteractions = (count = 10) => {
         return shortTermMemory.slice(0, count);
@@ -225,6 +258,12 @@ export const AgentMemoryProvider = ({ children }) => {
             if (insights.length > 0) {
                 summary += 'Insights: ' + insights.map(i => i.content).join('. ') + '. ';
             }
+
+            // Include user-provided memories (explicit "remember this")
+            const userMemories = topInsights.filter(i => i.type === 'user_memory');
+            if (userMemories.length > 0) {
+                summary += 'User notes to remember: ' + userMemories.map(m => m.content).join('. ') + '. ';
+            }
         }
 
         return summary || 'No memory yet. Learning user patterns...';
@@ -246,6 +285,7 @@ export const AgentMemoryProvider = ({ children }) => {
                 isLoading,
                 logInteraction,
                 addInsight,
+                rememberNote,
                 getRecentInteractions,
                 getInsights,
                 getMemorySummary,
