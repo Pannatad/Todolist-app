@@ -9,6 +9,7 @@ import { useUserProfile } from './UserProfileContext';
 import { useAgentMemory } from './AgentMemoryContext';
 import { routeAgentCommand } from '../services/gemini';
 import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey } from '../services/localAgentHandler';
+import { sendChatMessage, clearChatSession } from '../services/ConversationService';
 
 const ChatContext = createContext();
 
@@ -193,7 +194,7 @@ export const ChatProvider = ({ children }) => {
                 console.log('🚀 Handling locally:', patternType);
                 plan = generateLocalResponse(patternType, context);
             } else {
-                // Check cache
+                // Check cache for simple repeated queries
                 const cacheKey = generateCacheKey(text);
                 const cachedPlan = getCachedResponse(cacheKey);
 
@@ -201,10 +202,16 @@ export const ChatProvider = ({ children }) => {
                     console.log('📦 Using cached response');
                     plan = cachedPlan;
                 } else {
-                    // Call Gemini
-                    console.log('🤖 Calling Gemini API...');
-                    plan = await routeAgentCommand(text, context);
-                    cacheResponse(cacheKey, plan);
+                    // Use multi-turn chat API for better context retention
+                    console.log('🤖 Using multi-turn chat API...');
+                    plan = await sendChatMessage(text, newMessages, context);
+
+                    // Only cache non-conversational responses
+                    if (!text.toLowerCase().includes('earlier') &&
+                        !text.toLowerCase().includes('you said') &&
+                        !text.toLowerCase().includes('remember')) {
+                        cacheResponse(cacheKey, plan);
+                    }
                 }
             }
 
@@ -400,6 +407,7 @@ export const ChatProvider = ({ children }) => {
     const clearConversation = useCallback(() => {
         setMessages([]);
         setPendingActions(null);
+        clearChatSession(); // Clear the multi-turn chat session
         if (user) {
             supabase
                 .from('agent_conversations')
