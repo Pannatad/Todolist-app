@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Save, Clock, Target, Sparkles, X, Check, ChevronDown, FileText } from 'lucide-react';
+import { User, Save, Clock, Target, Sparkles, X, Check, ChevronDown, FileText, Brain } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
+import { useUserIntelligence } from '../context/UserIntelligenceContext';
+import TeachAgentModal from './TeachAgentModal';
 
 const FOCUS_STYLES = [
     { value: 'deep_work', label: 'Deep Work', description: 'Long uninterrupted focus sessions' },
@@ -11,6 +13,7 @@ const FOCUS_STYLES = [
 
 const ProfileSettings = ({ isOpen, onClose }) => {
     const { profile, updateProfile, isLoading } = useUserProfile();
+    const { intelligence } = useUserIntelligence();
     const [formData, setFormData] = useState({
         nickname: '',
         role: '',
@@ -22,6 +25,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
     const [newGoal, setNewGoal] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [showTeachModal, setShowTeachModal] = useState(false);
 
     // Load profile data when modal opens
     useEffect(() => {
@@ -268,33 +272,53 @@ const ProfileSettings = ({ isOpen, onClose }) => {
                             </div>
 
                             {/* Footer */}
-                            <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                                 <button
-                                    onClick={onClose}
-                                    className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition-colors"
+                                    onClick={() => setShowTeachModal(true)}
+                                    className="px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
                                 >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 shadow-md hover:shadow-lg flex items-center gap-2"
-                                >
-                                    {saved ? (
-                                        <>
-                                            <Check size={16} /> Saved!
-                                        </>
-                                    ) : isSaving ? (
-                                        'Saving...'
-                                    ) : (
-                                        <>
-                                            <Save size={16} /> Save Profile
-                                        </>
+                                    <Brain size={16} />
+                                    Teach Agent
+                                    {intelligence.length > 0 && (
+                                        <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-xs">
+                                            {intelligence.length}
+                                        </span>
                                     )}
                                 </button>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={onClose}
+                                        className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={isSaving}
+                                        className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 shadow-md hover:shadow-lg flex items-center gap-2"
+                                    >
+                                        {saved ? (
+                                            <>
+                                                <Check size={16} /> Saved!
+                                            </>
+                                        ) : isSaving ? (
+                                            'Saving...'
+                                        ) : (
+                                            <>
+                                                <Save size={16} /> Save Profile
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
+
+                    {/* Teach Agent Modal */}
+                    <TeachAgentModal
+                        isOpen={showTeachModal}
+                        onClose={() => setShowTeachModal(false)}
+                    />
                 </>
             )}
         </AnimatePresence>

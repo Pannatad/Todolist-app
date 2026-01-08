@@ -4,6 +4,7 @@ import { TaskProvider } from './TaskContext';
 import { GameProvider } from './GameContext';
 import { GoalProvider } from './GoalContext';
 import { UserProfileProvider } from './UserProfileContext';
+import { UserIntelligenceProvider } from './UserIntelligenceContext';
 import { AgentMemoryProvider } from './AgentMemoryContext';
 
 /**
@@ -14,15 +15,17 @@ export const AppProviders = ({ children }) => {
     return (
         <AuthProvider>
             <UserProfileProvider>
-                <AgentMemoryProvider>
-                    <TaskProvider>
-                        <GameProvider>
-                            <GoalProvider>
-                                {children}
-                            </GoalProvider>
-                        </GameProvider>
-                    </TaskProvider>
-                </AgentMemoryProvider>
+                <UserIntelligenceProvider>
+                    <AgentMemoryProvider>
+                        <TaskProvider>
+                            <GameProvider>
+                                <GoalProvider>
+                                    {children}
+                                </GoalProvider>
+                            </GameProvider>
+                        </TaskProvider>
+                    </AgentMemoryProvider>
+                </UserIntelligenceProvider>
             </UserProfileProvider>
         </AuthProvider>
     );

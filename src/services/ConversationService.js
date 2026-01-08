@@ -147,7 +147,7 @@ export const prepareConversationContext = async (allMessages) => {
  * @returns {string} - System instruction for the chat session
  */
 export const buildAgentSystemPrompt = (context, olderSummary = '') => {
-    const { userProfile = {}, memorySummary = '' } = context;
+    const { userProfile = {}, memorySummary = '', intelligenceSummary = '' } = context;
 
     const now = new Date();
     const currentDateTime = now.toLocaleString('en-US', {
@@ -177,18 +177,23 @@ Name: ${userProfile.name || 'User'}
 Role: ${userProfile.role || 'Not specified'}
 Bio: ${userProfile.bio || 'Not provided'}
 
-AGENT MEMORY (persistent patterns):
-${memorySummary || 'Learning user patterns...'}
-
+${intelligenceSummary ? `LEARNED ABOUT THIS USER:
+${intelligenceSummary}
+` : ''}${memorySummary ? `AGENT MEMORY (short-term patterns):
+${memorySummary}
+` : ''}
 ${olderSummary ? `EARLIER CONVERSATION SUMMARY (important context from past messages):
 ${olderSummary}
 
 ` : ''}CONVERSATION GUIDELINES:
 - Remember everything discussed in this conversation session
 - Reference previous messages naturally (e.g., "As you mentioned earlier...")
+- Use learned information about the user to personalize responses
+- Make suggestions based on known preferences and patterns
 - Keep track of any commitments or promises made
 - Notice patterns in user requests
 - Be conversational and helpful
+- When user shares personal information, acknowledge it naturally
 
 RESPONSE FORMAT:
 Always respond with JSON containing:

@@ -4,3 +4,4 @@ export { GameProvider, useGame } from './GameContext';
 export { LogProvider, useLog } from './LogContext';
 export { GoalProvider, useGoal } from './GoalContext';
 export { AuthProvider, useAuth } from './AuthContext';
+export { UserIntelligenceProvider, useUserIntelligence } from './UserIntelligenceContext';

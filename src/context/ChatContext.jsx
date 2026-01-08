@@ -7,9 +7,11 @@ import { useProject } from './ProjectContext';
 import { useGoal } from './GoalContext';
 import { useUserProfile } from './UserProfileContext';
 import { useAgentMemory } from './AgentMemoryContext';
+import { useUserIntelligence } from './UserIntelligenceContext';
 import { routeAgentCommand } from '../services/gemini';
 import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey } from '../services/localAgentHandler';
 import { sendChatMessage, clearChatSession } from '../services/ConversationService';
+import { extractInsightsFromExchange } from '../services/InsightExtractionService';
 
 const ChatContext = createContext();
 
@@ -40,6 +42,7 @@ export const ChatProvider = ({ children }) => {
     const { goals, dailyHighlights } = useGoal();
     const { profile, getProfileSummary } = useUserProfile();
     const { logInteraction, getMemorySummary, getRecentInteractions, rememberNote } = useAgentMemory();
+    const { intelligence, learnMultipleFacts, getIntelligenceSummary } = useUserIntelligence();
 
     // Chat state
     const [isOpen, setIsOpen] = useState(false);
@@ -161,10 +164,11 @@ export const ChatProvider = ({ children }) => {
             visionGoals: Array.isArray(goals) ? goals.slice(0, 10) : [],
             dailyHighlights: Array.isArray(dailyHighlights) ? dailyHighlights.slice(0, 5) : [],
             memorySummary: getMemorySummary?.(profile) || '',
+            intelligenceSummary: getIntelligenceSummary?.() || '',
             recentInteractions: getRecentInteractions?.(5) || [],
             conversationHistory: conversationHistory || null
         };
-    }, [tasks, scheduleItems, habits, projects, goals, dailyHighlights, profile, user, messages, getProfileSummary, getMemorySummary, getRecentInteractions]);
+    }, [tasks, scheduleItems, habits, projects, goals, dailyHighlights, profile, user, messages, getProfileSummary, getMemorySummary, getRecentInteractions, getIntelligenceSummary]);
 
     // Send a message
     const sendMessage = useCallback(async (text) => {
@@ -255,6 +259,16 @@ export const ChatProvider = ({ children }) => {
                 outcome: 'success'
             });
 
+            // Extract and save insights from user message (async, non-blocking)
+            extractInsightsFromExchange(text, messageContent, intelligence || [])
+                .then(insights => {
+                    if (insights.length > 0) {
+                        console.log('🧠 Learned new insights:', insights);
+                        learnMultipleFacts?.(insights);
+                    }
+                })
+                .catch(err => console.log('Insight extraction skipped:', err.message));
+
         } catch (error) {
             console.error('Error sending message:', error);
             const errorMessage = {
@@ -270,7 +284,7 @@ export const ChatProvider = ({ children }) => {
         } finally {
             setIsTyping(false);
         }
-    }, [messages, buildContext, saveConversation, logInteraction]);
+    }, [messages, buildContext, saveConversation, logInteraction, intelligence, learnMultipleFacts]);
 
     // Execute actions internally (for auto-execution)
     const executeActionsInternal = async (actions) => {

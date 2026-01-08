@@ -124,7 +124,12 @@ const StartTheDayModal = ({
         const items = [];
 
         scheduleItems.forEach(item => {
-            const itemDate = new Date(item.startTime || item.start_time);
+            const rawTime = item.startTime || item.start_time;
+            // Skip items with missing or invalid date values
+            if (!rawTime) return;
+            const itemDate = new Date(rawTime);
+            // Check if the date is valid before proceeding
+            if (isNaN(itemDate.getTime())) return;
             const itemDateStr = itemDate.toISOString().split('T')[0];
             const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
 
