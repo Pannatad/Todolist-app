@@ -321,9 +321,32 @@ export const ChatProvider = ({ children }) => {
                         }
                         break;
                     case 'add_schedule':
+                        // Parse and fix timezone for startTime
+                        let fixedStartTime = action.params.startTime;
+                        if (fixedStartTime) {
+                            // If the time doesn't include timezone info (no Z or +/-), treat it as local time
+                            // JavaScript Date parsing of "2026-01-08T13:00:00" treats it as UTC
+                            // We need to interpret it as local time instead
+                            if (!fixedStartTime.includes('Z') && !fixedStartTime.match(/[+-]\d{2}:\d{2}$/)) {
+                                // Parse as local time components and create a local Date
+                                const match = fixedStartTime.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+                                if (match) {
+                                    const [, year, month, day, hour, minute] = match;
+                                    const localDate = new Date(
+                                        parseInt(year),
+                                        parseInt(month) - 1, // months are 0-indexed
+                                        parseInt(day),
+                                        parseInt(hour),
+                                        parseInt(minute)
+                                    );
+                                    fixedStartTime = localDate.toISOString();
+                                    console.log('🕐 Fixed schedule time:', action.params.startTime, '->', fixedStartTime);
+                                }
+                            }
+                        }
                         await addScheduleItem({
                             title: action.params.title,
-                            startTime: action.params.startTime,
+                            startTime: fixedStartTime,
                             duration: action.params.duration || 60,
                             category: action.params.category || 'Other'
                         });

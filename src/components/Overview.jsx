@@ -96,7 +96,10 @@ const CurrentEventWidget = ({ scheduleItems }) => {
             const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
             if (recurrenceType === 'none') return false;
 
-            const eventDate = new Date(item.startTime || item.start_time);
+            const timeValue = item.startTime || item.start_time;
+            if (!timeValue) return false;
+            const eventDate = new Date(timeValue);
+            if (isNaN(eventDate.getTime())) return false;
             eventDate.setHours(0, 0, 0, 0);
             const todayDate = new Date(now);
             todayDate.setHours(0, 0, 0, 0);
@@ -130,8 +133,11 @@ const CurrentEventWidget = ({ scheduleItems }) => {
 
         // Find active event
         const active = scheduleItems.find(item => {
+            const timeValue = item.startTime || item.start_time;
+            if (!timeValue) return false;
             const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-            let itemStart = new Date(item.startTime || item.start_time);
+            let itemStart = new Date(timeValue);
+            if (isNaN(itemStart.getTime())) return false;
 
             // Adjust time for recurring events to today
             if (recurrenceType !== 'none') {
@@ -180,8 +186,11 @@ const CurrentEventWidget = ({ scheduleItems }) => {
         // Find next upcoming event (after now)
         const todayEvents = scheduleItems
             .map(item => {
+                const timeValue = item.startTime || item.start_time;
+                if (!timeValue) return null;
                 const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-                let itemStart = new Date(item.startTime || item.start_time);
+                let itemStart = new Date(timeValue);
+                if (isNaN(itemStart.getTime())) return null;
 
                 if (recurrenceType !== 'none') {
                     if (!doesRecurOnToday(item)) return null;
@@ -1144,10 +1153,21 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
                                 // Get today's schedule items (including recurring)
                                 const todaySchedule = scheduleItems?.filter(item => {
-                                    if (!item.startTime && !item.start_time) return false;
-                                    const itemDate = new Date(item.startTime || item.start_time);
-                                    const itemDateStr = itemDate.toISOString().split('T')[0];
-                                    return itemDateStr === todayStr || doesRecurOnToday(item);
+                                    const timeValue = item.startTime || item.start_time;
+                                    if (!timeValue) return false;
+                                    const itemDate = new Date(timeValue);
+                                    if (isNaN(itemDate.getTime())) return false; // Skip invalid dates
+
+                                    // Use local date comparison (not UTC-based toISOString)
+                                    const itemYear = itemDate.getFullYear();
+                                    const itemMonth = itemDate.getMonth();
+                                    const itemDay = itemDate.getDate();
+                                    const todayYear = today.getFullYear();
+                                    const todayMonth = today.getMonth();
+                                    const todayDay = today.getDate();
+                                    const isToday = itemYear === todayYear && itemMonth === todayMonth && itemDay === todayDay;
+
+                                    return isToday || doesRecurOnToday(item);
                                 }).map(item => {
                                     const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
                                     const originalTime = new Date(item.startTime || item.start_time);

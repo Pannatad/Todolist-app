@@ -124,7 +124,10 @@ class SmartNotificationService {
 
         // Show upcoming events
         const upcomingEvents = (scheduleItems || []).filter(e => {
-            const eventDate = new Date(e.startTime || e.start_time);
+            const timeValue = e.startTime || e.start_time;
+            if (!timeValue) return false;
+            const eventDate = new Date(timeValue);
+            if (isNaN(eventDate.getTime())) return false;
             return eventDate > new Date();
         }).slice(0, 1);
         if (upcomingEvents.length > 0) {
@@ -234,7 +237,10 @@ class SmartNotificationService {
         const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
 
         scheduleItems.forEach(event => {
-            const eventStart = new Date(event.startTime || event.start_time);
+            const timeValue = event.startTime || event.start_time;
+            if (!timeValue) return; // Skip items without a valid time
+            const eventStart = new Date(timeValue);
+            if (isNaN(eventStart.getTime())) return; // Skip invalid dates
             const eventId = event.id || `${event.title}-${eventStart.getTime()}`;
             const minutesUntil = Math.round((eventStart - now) / (60 * 1000));
 
@@ -263,7 +269,10 @@ class SmartNotificationService {
         // Clean up old notified events (older than 1 hour)
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         scheduleItems.forEach(event => {
-            const eventStart = new Date(event.startTime || event.start_time);
+            const timeValue = event.startTime || event.start_time;
+            if (!timeValue) return;
+            const eventStart = new Date(timeValue);
+            if (isNaN(eventStart.getTime())) return;
             const eventId = event.id || `${event.title}-${eventStart.getTime()}`;
             if (eventStart < oneHourAgo) {
                 this.notifiedEvents.delete(eventId);
@@ -373,7 +382,10 @@ class SmartNotificationService {
 
         const todayStr = now.toISOString().split('T')[0];
         const todayEvents = scheduleItems.filter(e => {
-            const eventDate = new Date(e.startTime || e.start_time);
+            const timeValue = e.startTime || e.start_time;
+            if (!timeValue) return false; // Skip items without a valid time
+            const eventDate = new Date(timeValue);
+            if (isNaN(eventDate.getTime())) return false; // Skip invalid dates
             return eventDate.toISOString().split('T')[0] === todayStr;
         });
 

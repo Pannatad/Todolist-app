@@ -202,7 +202,22 @@ Always respond with JSON containing:
     "summary": "Brief description"
 }
 
-Supported action types: add_task, edit_task, delete_task, complete_task, add_schedule, edit_schedule, delete_schedule, complete_habit, navigate, info_response, clarify, remember, set_goal`;
+Supported action types:
+- add_task: params { title, deadline (ISO string like "${new Date().toISOString().split('T')[0]}T23:59:00"), difficulty, subject, estimatedTime }
+- edit_task: params { taskId, updates }
+- delete_task: params { taskId }
+- complete_task: params { taskId }
+- add_schedule: params { title, startTime (MUST be full ISO string with date, e.g., "${new Date().toISOString().split('T')[0]}T13:00:00"), duration (minutes), category }
+- edit_schedule: params { eventId, updates }
+- delete_schedule: params { eventId }
+- complete_habit: params { habitId }
+- navigate: params { tabName }
+- info_response: params { message, suggestedTab }
+- clarify: params { question, suggestions }
+- remember: params { note }
+- set_goal: params { goalText, type }
+
+CRITICAL: For add_schedule, startTime MUST include the full date (not just time). Use format: YYYY-MM-DDTHH:MM:SS`;
 };
 
 /**
@@ -355,6 +370,8 @@ ${projects.slice(0, 5).map(p => `- "${p.title}" (${p.progress}% done)`).join('\n
 ---
 
 USER MESSAGE: ${userMessage}
+
+IMPORTANT: If creating a schedule event for today, use startTime format: "${todayDateForSchedule}T[HH:MM:00]" (e.g., "${todayDateForSchedule}T13:00:00" for 1 PM today)
 
 Respond with JSON: { "actions": [...], "summary": "..." }`;
 };
