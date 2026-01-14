@@ -21,16 +21,65 @@ const ACTION_DISPLAY = {
 const ActionCard = ({ action, showDetails = true }) => {
     const display = ACTION_DISPLAY[action.type] || { icon: '📋', label: action.type, color: 'bg-gray-50 border-gray-200' };
 
+    // For clarify actions, show the actual question as the label
+    const displayLabel = action.type === 'clarify' && action.params?.question
+        ? action.params.question
+        : display.label;
+
+    // Helper to format time from ISO string
+    const formatScheduleTime = (isoString) => {
+        if (!isoString) return null;
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return null;
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return null;
+        }
+    };
+
+    // Helper to format date
+    const formatScheduleDate = (isoString) => {
+        if (!isoString) return null;
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return null;
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+            return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        } catch {
+            return null;
+        }
+    };
+
+    // Check if this is a schedule action
+    const isScheduleAction = ['add_schedule', 'edit_schedule'].includes(action.type);
+    const scheduleTime = formatScheduleTime(action.params?.startTime);
+    const scheduleDate = formatScheduleDate(action.params?.startTime);
+    const duration = action.params?.duration;
+
     return (
         <div className={`p-2 rounded-lg border ${display.color} text-sm`}>
             <div className="flex items-center gap-2 font-medium text-gray-700">
                 <span>{display.icon}</span>
-                <span>{display.label}</span>
+                <span>{displayLabel}</span>
             </div>
-            {showDetails && action.params && (
-                <div className="mt-1 text-gray-600 text-xs">
-                    {action.params.title && <span>"{action.params.title}"</span>}
+            {showDetails && action.params && action.type !== 'clarify' && (
+                <div className="mt-1 text-gray-600 text-xs space-y-0.5">
+                    {action.params.title && <div>"{action.params.title}"</div>}
                     {action.params.message && <span>{action.params.message}</span>}
+                    {/* Show time and duration for schedule actions */}
+                    {isScheduleAction && (scheduleTime || duration) && (
+                        <div className="flex items-center gap-2 text-purple-600 font-medium">
+                            {scheduleDate && <span>📆 {scheduleDate}</span>}
+                            {scheduleTime && <span>🕐 {scheduleTime}</span>}
+                            {duration && <span>⏱️ {duration} min</span>}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -64,8 +113,8 @@ const ChatMessage = ({
         >
             {/* Avatar */}
             <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isUser
-                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                    : 'bg-gradient-to-br from-emerald-400 to-teal-500'
+                ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                : 'bg-gradient-to-br from-emerald-400 to-teal-500'
                 }`}>
                 {isUser ? (
                     <User size={16} className="text-white" />
@@ -78,8 +127,8 @@ const ChatMessage = ({
             <div className={`flex flex-col max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
                 {/* Main bubble */}
                 <div className={`px-4 py-2.5 rounded-2xl ${isUser
-                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-md'
-                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm'
+                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-md'
+                    : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm'
                     } ${message.isError ? 'border-red-200 bg-red-50' : ''}`}>
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                 </div>

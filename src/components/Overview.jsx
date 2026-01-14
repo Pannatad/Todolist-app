@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2, X, Sparkles, Lightbulb } from 'lucide-react';
+import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2, X, Sparkles, Lightbulb } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -626,6 +626,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const [showQuickAddTaskPopup, setShowQuickAddTaskPopup] = useState(false);
     const quickScheduleButtonRef = useRef(null);
     const quickAddTaskButtonRef = useRef(null);
+    const [scheduleDate, setScheduleDate] = useState(new Date()); // Date for schedule navigation
     const [stats, setStats] = useState({
         taskProgress: 0,
         urgentCount: 0,
@@ -1076,7 +1077,64 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                 <div className="bg-indigo-50 p-2 rounded-xl">
                                     <Calendar className="text-indigo-600" size={20} />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">Today's Schedule</h2>
+                                {/* Navigation Arrows and Date Display */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setScheduleDate(prev => {
+                                            const newDate = new Date(prev);
+                                            newDate.setDate(newDate.getDate() - 1);
+                                            return newDate;
+                                        })}
+                                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                                        title="Previous Day"
+                                    >
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <h2 className="text-lg font-bold text-gray-900 min-w-[120px] text-center">
+                                        {(() => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const selected = new Date(scheduleDate);
+                                            selected.setHours(0, 0, 0, 0);
+                                            const diffDays = Math.round((selected - today) / (1000 * 60 * 60 * 24));
+
+                                            if (diffDays === 0) return "Today's Schedule";
+                                            if (diffDays === 1) return "Tomorrow";
+                                            if (diffDays === -1) return "Yesterday";
+                                            return scheduleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                                        })()}
+                                    </h2>
+                                    <button
+                                        onClick={() => setScheduleDate(prev => {
+                                            const newDate = new Date(prev);
+                                            newDate.setDate(newDate.getDate() + 1);
+                                            return newDate;
+                                        })}
+                                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                                        title="Next Day"
+                                    >
+                                        <ChevronRight size={18} />
+                                    </button>
+                                    {/* Today Button - only show if not on today */}
+                                    {(() => {
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const selected = new Date(scheduleDate);
+                                        selected.setHours(0, 0, 0, 0);
+                                        if (today.getTime() !== selected.getTime()) {
+                                            return (
+                                                <button
+                                                    onClick={() => setScheduleDate(new Date())}
+                                                    className="ml-1 px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                    title="Go to Today"
+                                                >
+                                                    Today
+                                                </button>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 {/* AI Quick Action */}
@@ -1111,48 +1169,46 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                             <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-indigo-200 rounded-full"></div>
 
                             {(() => {
-                                const today = new Date();
-                                const todayStr = today.toISOString().split('T')[0];
+                                const selectedDate = new Date(scheduleDate);
+                                selectedDate.setHours(0, 0, 0, 0);
 
                                 // Helper function for recurrence check
-                                const doesRecurOnToday = (item) => {
+                                const doesRecurOnSelectedDate = (item) => {
                                     const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
                                     if (recurrenceType === 'none') return false;
 
                                     const eventDate = new Date(item.startTime || item.start_time);
                                     eventDate.setHours(0, 0, 0, 0);
-                                    const todayDate = new Date(today);
-                                    todayDate.setHours(0, 0, 0, 0);
 
-                                    if (todayDate < eventDate) return false;
+                                    if (selectedDate < eventDate) return false;
 
                                     const endDate = item.recurrence_end_date || item.recurrenceEndDate;
-                                    if (endDate && todayDate > new Date(endDate)) return false;
+                                    if (endDate && selectedDate > new Date(endDate)) return false;
 
                                     const interval = item.recurrence_interval || item.recurrenceInterval || 1;
-                                    const daysDiff = Math.floor((todayDate - eventDate) / (1000 * 60 * 60 * 24));
+                                    const daysDiff = Math.floor((selectedDate - eventDate) / (1000 * 60 * 60 * 24));
 
                                     switch (recurrenceType) {
                                         case 'daily': return daysDiff % interval === 0;
                                         case 'weekly': {
                                             const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
-                                            if (daysOfWeek.length > 0) return daysOfWeek.includes(todayDate.getDay());
+                                            if (daysOfWeek.length > 0) return daysOfWeek.includes(selectedDate.getDay());
                                             return daysDiff % (7 * interval) === 0;
                                         }
                                         case 'monthly': {
-                                            const monthsDiff = (todayDate.getFullYear() - eventDate.getFullYear()) * 12 + (todayDate.getMonth() - eventDate.getMonth());
-                                            return monthsDiff % interval === 0 && todayDate.getDate() === eventDate.getDate();
+                                            const monthsDiff = (selectedDate.getFullYear() - eventDate.getFullYear()) * 12 + (selectedDate.getMonth() - eventDate.getMonth());
+                                            return monthsDiff % interval === 0 && selectedDate.getDate() === eventDate.getDate();
                                         }
                                         case 'yearly': {
-                                            const yearsDiff = todayDate.getFullYear() - eventDate.getFullYear();
-                                            return yearsDiff % interval === 0 && todayDate.getMonth() === eventDate.getMonth() && todayDate.getDate() === eventDate.getDate();
+                                            const yearsDiff = selectedDate.getFullYear() - eventDate.getFullYear();
+                                            return yearsDiff % interval === 0 && selectedDate.getMonth() === eventDate.getMonth() && selectedDate.getDate() === eventDate.getDate();
                                         }
                                         default: return false;
                                     }
                                 };
 
-                                // Get today's schedule items (including recurring)
-                                const todaySchedule = scheduleItems?.filter(item => {
+                                // Get selected day's schedule items (including recurring)
+                                const daySchedule = scheduleItems?.filter(item => {
                                     const timeValue = item.startTime || item.start_time;
                                     if (!timeValue) return false;
                                     const itemDate = new Date(timeValue);
@@ -1162,16 +1218,16 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     const itemYear = itemDate.getFullYear();
                                     const itemMonth = itemDate.getMonth();
                                     const itemDay = itemDate.getDate();
-                                    const todayYear = today.getFullYear();
-                                    const todayMonth = today.getMonth();
-                                    const todayDay = today.getDate();
-                                    const isToday = itemYear === todayYear && itemMonth === todayMonth && itemDay === todayDay;
+                                    const selectedYear = selectedDate.getFullYear();
+                                    const selectedMonth = selectedDate.getMonth();
+                                    const selectedDay = selectedDate.getDate();
+                                    const isSelectedDay = itemYear === selectedYear && itemMonth === selectedMonth && itemDay === selectedDay;
 
-                                    return isToday || doesRecurOnToday(item);
+                                    return isSelectedDay || doesRecurOnSelectedDate(item);
                                 }).map(item => {
                                     const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
                                     const originalTime = new Date(item.startTime || item.start_time);
-                                    const adjustedTime = new Date(today);
+                                    const adjustedTime = new Date(scheduleDate);
                                     adjustedTime.setHours(originalTime.getHours(), originalTime.getMinutes());
                                     return {
                                         ...item,
@@ -1180,15 +1236,18 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     };
                                 }).sort((a, b) => a.displayTime - b.displayTime) || [];
 
-                                if (todaySchedule.length === 0) {
+                                if (daySchedule.length === 0) {
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0);
+                                    const isToday = selectedDate.getTime() === today.getTime();
                                     return (
                                         <div className="pl-10 text-gray-400 italic text-sm py-4">
-                                            No schedule for today.
+                                            No schedule for {isToday ? 'today' : 'this day'}.
                                         </div>
                                     );
                                 }
 
-                                return todaySchedule.map((item, i) => (
+                                return daySchedule.map((item, i) => (
                                     <div key={item.id || i} className="relative pl-10 group">
                                         {/* Timeline Dot */}
                                         <div className="absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white"
