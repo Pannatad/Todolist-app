@@ -208,7 +208,7 @@ Supported action types:
 - delete_task: params { taskId }
 - complete_task: params { taskId }
 - add_schedule: params { title, startTime (MUST be full ISO string with date, e.g., "${new Date().toISOString().split('T')[0]}T13:00:00"), duration (minutes), category }
-- edit_schedule: params { eventId, updates }
+- edit_schedule: params { eventId, updates } - ONLY use if you have a valid eventId from an existing item
 - delete_schedule: params { eventId }
 - complete_habit: params { habitId }
 - navigate: params { tabName }
@@ -217,7 +217,10 @@ Supported action types:
 - remember: params { note }
 - set_goal: params { goalText, type }
 
-CRITICAL: For add_schedule, startTime MUST include the full date (not just time). Use format: YYYY-MM-DDTHH:MM:SS`;
+CRITICAL RULES:
+1. For add_schedule, startTime MUST include the full date (not just time). Use format: YYYY-MM-DDTHH:MM:SS
+2. If user REJECTS a pending action and provides new details (e.g., "No, at 8 AM instead"), use add_schedule with the corrected params, NOT edit_schedule. The previous action was never executed, so there's nothing to edit.
+3. Only use edit_schedule when modifying an EXISTING item that has a valid ID from the schedule list above.`;
 };
 
 /**
@@ -334,7 +337,7 @@ export const sendChatMessage = async (userMessage, allMessages, context) => {
  * Build message with current dynamic context (tasks, schedule, etc.)
  */
 const buildMessageWithContext = (userMessage, context) => {
-    const { recentTasks = [], tasksDueToday = [], recentSchedule = [], habits = [], projects = [] } = context;
+    const { recentTasks = [], tasksDueToday = [], recentSchedule = [], habits = [], projects = [], activeSubject = null, pendingActions = null } = context;
 
     const now = new Date();
     const todayDateForSchedule = now.toISOString().split('T')[0];
@@ -345,12 +348,53 @@ const buildMessageWithContext = (userMessage, context) => {
     const offsetMins = (Math.abs(timezoneOffset) % 60).toString().padStart(2, '0');
     const timezoneString = `${timezoneOffset >= 0 ? '+' : '-'}${offsetHours}:${offsetMins}`;
 
+    // Build active subject section if present
+    let activeSubjectSection = '';
+    if (activeSubject) {
+        activeSubjectSection = `
+⚠️ ACTIVE SUBJECT (the item user is currently discussing):
+Type: ${activeSubject.type}
+Title: "${activeSubject.title}"
+${activeSubject.id ? `ID: ${activeSubject.id}` : '(New item - not yet created)'}
+Last Action: ${activeSubject.action || 'referenced'}
+
+CRITICAL: If the user's message refers to "it", "this", "the time", "the duration", or makes any follow-up request without naming a specific item, they are referring to THIS active subject. Do NOT modify any other item!
+
+`;
+    }
+
+    // Build pending actions section - CRITICAL for handling modifications before confirmation
+    let pendingActionsSection = '';
+    if (pendingActions && pendingActions.length > 0) {
+        const pendingSchedule = pendingActions.find(a => a.type === 'add_schedule');
+        const pendingTask = pendingActions.find(a => a.type === 'add_task');
+
+        if (pendingSchedule || pendingTask) {
+            pendingActionsSection = `
+🔴 PENDING UNCONFIRMED ACTIONS (waiting for user to confirm - NOT YET CREATED):
+${pendingSchedule ? `- add_schedule: "${pendingSchedule.params?.title}" at ${pendingSchedule.params?.startTime} for ${pendingSchedule.params?.duration || 60} min` : ''}
+${pendingTask ? `- add_task: "${pendingTask.params?.title}"` : ''}
+
+⚠️ CRITICAL RULES FOR MODIFYING PENDING ACTIONS:
+1. NEVER use edit_schedule or edit_task - the item doesn't exist yet!
+2. If user says "change the name" or "rename it" WITHOUT providing the new name:
+   → Use clarify action to ask: "What would you like to call it instead?"
+3. If user provides new details (e.g., "make it 45 mins", "change to 8 AM", "call it Study Session"):
+   → Propose a NEW add_schedule with ALL parameters:
+   → Keep ORIGINAL values for unchanged fields + apply user's changes
+   → Example: Pending is "Deep Work" at ${pendingSchedule?.params?.startTime || '9AM'} for ${pendingSchedule?.params?.duration || 30} min
+     User says "call it Focus Time" → add_schedule: title="Focus Time", startTime=${pendingSchedule?.params?.startTime || 'ORIGINAL'}, duration=${pendingSchedule?.params?.duration || 'ORIGINAL'}
+
+`
+        }
+    }
+
     return `CURRENT STATE (use this for your response):
 
 TODAY: ${todayDateForSchedule}
 CURRENT TIME: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
 TIMEZONE: ${timezoneString}
-
+${pendingActionsSection}${activeSubjectSection}
 TASKS (${recentTasks.length} total, ${tasksDueToday?.length || 0} due today):
 ${recentTasks.slice(0, 10).map(t => `- [ID: ${t.id}] "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n') || 'No tasks'}
 

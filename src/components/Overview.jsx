@@ -628,11 +628,10 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const quickAddTaskButtonRef = useRef(null);
     const [scheduleDate, setScheduleDate] = useState(new Date()); // Date for schedule navigation
     const [stats, setStats] = useState({
-        taskProgress: 0,
-        urgentCount: 0,
-        nextTask: null,
-        focusMinutes: 0,
-        tasksLeft: 0
+        eventsToday: 0,
+        habitCompletion: { completed: 0, total: 0 },
+        streakDays: 0,
+        tasksDueSoon: 0
     });
 
     // Agent state (kept for backward compatibility with existing modals)
@@ -698,45 +697,71 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
         }
     }, [tasks, scheduleItems, habits, generatePatternInsights]);
 
-    // Calculate Stats
+    // Calculate Stats - New useful metrics
     useEffect(() => {
-        if (!tasks) return;
+        // Events Today - count schedule items for today
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
 
-        const today = new Date().toISOString().split('T')[0];
-        const todaysTasks = tasks.filter(t => {
-            if (!t.deadline) return false;
-            return t.deadline.startsWith(today);
-        });
+        const eventsToday = scheduleItems?.filter(item => {
+            const timeValue = item.startTime || item.start_time;
+            if (!timeValue) return false;
+            const itemDate = new Date(timeValue);
+            if (isNaN(itemDate.getTime())) return false;
+            return itemDate.toISOString().split('T')[0] === todayStr;
+        }).length || 0;
 
-        const completed = todaysTasks.filter(t => t.status === 'harvested').length;
-        const total = todaysTasks.length;
-        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const left = total - completed;
+        // Habit Completion - X of Y completed today
+        const todayDate = today.toISOString().split('T')[0];
+        const totalHabits = habits?.length || 0;
+        const completedHabits = habits?.filter(h =>
+            h.completedDates?.includes(todayDate)
+        ).length || 0;
 
-        const urgent = tasks.filter(t => {
-            if (!t.deadline || t.status === 'harvested') return false;
-            const now = new Date();
-            const due = new Date(t.deadline);
-            const diff = due - now;
-            return diff > 0 && diff < 1000 * 60 * 60 * 24; // Due within 24h
-        }).length;
+        // Streak Days - consecutive days with activity (tasks completed or habits done)
+        const calculateStreak = () => {
+            // Simple implementation: count consecutive days with dailyHighlights or completed tasks
+            let streak = 0;
+            const checkDate = new Date();
 
-        // Find next upcoming task
-        const next = tasks
-            .filter(t => {
-                if (t.status === 'harvested' || !t.deadline) return false;
-                return new Date(t.deadline) > new Date(); // Only future tasks
-            })
-            .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))[0];
+            for (let i = 0; i < 365; i++) { // Max 365 days lookback
+                const dateStr = checkDate.toISOString().split('T')[0];
+
+                // Check if there's any activity on this day
+                const hasActivity =
+                    // Check if any daily highlights exist for this day
+                    (dailyHighlights && Object.keys(dailyHighlights).some(key => key.startsWith(dateStr))) ||
+                    // Or check if any tasks were completed on this day
+                    (tasks && tasks.some(t => t.completedAt?.startsWith(dateStr)));
+
+                if (hasActivity) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        };
+
+        // Tasks Due Soon - within next 3 days
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+        threeDaysFromNow.setHours(23, 59, 59, 999);
+
+        const tasksDueSoon = tasks?.filter(t => {
+            if (!t.deadline || t.status === 'harvested' || t.archived) return false;
+            const deadline = new Date(t.deadline);
+            return deadline >= today && deadline <= threeDaysFromNow;
+        }).length || 0;
 
         setStats({
-            taskProgress: progress,
-            urgentCount: urgent,
-            nextTask: next,
-            focusMinutes: 0, // Placeholder until FocusContext is integrated if needed
-            tasksLeft: left
+            eventsToday,
+            habitCompletion: { completed: completedHabits, total: totalHabits },
+            streakDays: calculateStreak(),
+            tasksDueSoon
         });
-    }, [tasks]);
+    }, [tasks, scheduleItems, habits, dailyHighlights]);
 
     const handleQuickCapture = (e) => {
         e.preventDefault();
@@ -1027,22 +1052,24 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-indigo-600">{stats.tasksLeft}</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Tasks Left</span>
+                        <span className="text-2xl font-bold text-purple-600">{stats.eventsToday}</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Events Today</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-indigo-600">{stats.taskProgress}%</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Done</span>
-                    </div>
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-amber-600 flex items-center gap-1">
-                            {coins} <span className="text-xs">🪙</span>
+                        <span className="text-2xl font-bold text-teal-600">
+                            {stats.habitCompletion.completed}/{stats.habitCompletion.total}
                         </span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Wealth</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Habits</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-teal-600">0</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Focus (m)</span>
+                        <span className="text-2xl font-bold text-orange-600 flex items-center gap-1">
+                            {stats.streakDays} <span className="text-sm">🔥</span>
+                        </span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Streak</span>
+                    </div>
+                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                        <span className="text-2xl font-bold text-red-600">{stats.tasksDueSoon}</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Due Soon</span>
                     </div>
                 </div>
             </div>

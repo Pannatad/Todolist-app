@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, Loader2, Mic, MicOff } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
+import { useTask } from '../context/TaskContext';
+import { useHabit } from '../context/HabitContext';
+import { useUserIntelligence } from '../context/UserIntelligenceContext';
+import { useGoal } from '../context/GoalContext';
 
-const EXAMPLE_PROMPTS = [
+// Fallback prompts if no personalized data
+const FALLBACK_PROMPTS = [
     "Add a task to finish my report by Friday",
     "Schedule a 1-hour focus block tomorrow at 9am",
     "What did I accomplish this week?",
@@ -15,6 +20,10 @@ const EXAMPLE_PROMPTS = [
 
 const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     const { sendMessage, openSidebar, isTyping } = useChatContext();
+    const { tasks, scheduleItems } = useTask();
+    const { habits } = useHabit();
+    const { intelligence } = useUserIntelligence();
+    const { goals } = useGoal();
     const isLoading = externalLoading || isTyping;
     const [input, setInput] = useState('');
     const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
@@ -22,6 +31,78 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     const [speechSupported, setSpeechSupported] = useState(false);
     const inputRef = useRef(null);
     const recognitionRef = useRef(null);
+
+    // Generate personalized suggestions based on user data
+    const personalizedPrompts = useMemo(() => {
+        const suggestions = [];
+        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+
+        // 1. Incomplete habits for today
+        const incompleteHabits = (habits || []).filter(h => {
+            const completedDates = h.completedDates || [];
+            return !completedDates.includes(todayStr);
+        });
+        if (incompleteHabits.length > 0) {
+            const habit = incompleteHabits[0];
+            suggestions.push(`Complete my habit: ${habit.name}`);
+            if (incompleteHabits.length > 1) {
+                suggestions.push(`Log my ${incompleteHabits.length} incomplete habits for today`);
+            }
+        }
+
+        // 2. Tasks due soon (within 2 days)
+        const twoDaysFromNow = new Date();
+        twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+        const tasksDueSoon = (tasks || []).filter(t => {
+            if (t.status === 'harvested' || t.archived || !t.deadline) return false;
+            const deadline = new Date(t.deadline);
+            return deadline >= now && deadline <= twoDaysFromNow;
+        });
+        if (tasksDueSoon.length > 0) {
+            const task = tasksDueSoon[0];
+            suggestions.push(`Help me finish "${task.title}"`);
+            if (tasksDueSoon.length > 1) {
+                suggestions.push(`Show my ${tasksDueSoon.length} tasks due soon`);
+            }
+        }
+
+        // 3. Today's schedule
+        const todayEvents = (scheduleItems || []).filter(e => {
+            const timeValue = e.startTime || e.start_time;
+            if (!timeValue) return false;
+            const eventDate = new Date(timeValue);
+            return eventDate.toDateString() === now.toDateString() && eventDate > now;
+        });
+        if (todayEvents.length > 0) {
+            suggestions.push("What's on my schedule today?");
+        } else {
+            suggestions.push("Schedule a focus block for today");
+        }
+
+        // 4. Learned intelligence/preferences
+        if (intelligence && intelligence.length > 0) {
+            const randomFact = intelligence[Math.floor(Math.random() * intelligence.length)];
+            if (randomFact?.category === 'schedule' || randomFact?.category === 'routine') {
+                suggestions.push("Help me optimize my daily routine");
+            }
+            if (randomFact?.category === 'preferences') {
+                suggestions.push("What do you know about my preferences?");
+            }
+        }
+
+        // 5. Goals
+        if (goals && goals.length > 0) {
+            suggestions.push("Update on my goals progress");
+        }
+
+        // 6. Generic productive suggestions
+        suggestions.push("Block time for exercise this week");
+        suggestions.push("Plan my priorities for tomorrow");
+
+        // Return personalized prompts or fallback
+        return suggestions.length > 3 ? suggestions : [...suggestions, ...FALLBACK_PROMPTS];
+    }, [habits, tasks, scheduleItems, intelligence, goals]);
 
     // Initialize speech recognition with mobile support
     useEffect(() => {
@@ -91,13 +172,13 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
         };
     }, []);
 
-    // Rotate example prompts every 3 seconds
+    // Rotate personalized prompts every 4 seconds
     useEffect(() => {
         const interval = setInterval(() => {
-            setCurrentExampleIndex((prev) => (prev + 1) % EXAMPLE_PROMPTS.length);
-        }, 3000);
+            setCurrentExampleIndex((prev) => (prev + 1) % personalizedPrompts.length);
+        }, 4000);
         return () => clearInterval(interval);
-    }, []);
+    }, [personalizedPrompts.length]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -118,7 +199,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     };
 
     const handleExampleClick = () => {
-        setInput(EXAMPLE_PROMPTS[currentExampleIndex]);
+        setInput(personalizedPrompts[currentExampleIndex] || '');
         inputRef.current?.focus();
     };
 
@@ -230,7 +311,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                 </div>
             </form>
 
-            {/* Animated Example Prompts */}
+            {/* Animated Personalized Suggestions */}
             <div className="mt-4 text-center">
                 <span className="text-gray-500 text-sm">Try: </span>
                 <AnimatePresence mode="wait">
@@ -243,7 +324,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                         onClick={handleExampleClick}
                         className="text-indigo-600 hover:text-indigo-800 text-sm font-medium italic cursor-pointer hover:underline"
                     >
-                        "{EXAMPLE_PROMPTS[currentExampleIndex]}"
+                        "{personalizedPrompts[currentExampleIndex] || FALLBACK_PROMPTS[0]}"
                     </motion.button>
                 </AnimatePresence>
             </div>

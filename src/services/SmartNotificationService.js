@@ -173,10 +173,11 @@ class SmartNotificationService {
      * Emit notification to all listeners
      */
     emit(notification) {
+        // Always notify in-app listeners (for toast display)
         this.listeners.forEach(callback => callback(notification));
 
-        // Also try browser notification if permitted
-        if (this.permissionGranted && document.hidden) {
+        // Always show browser notification if permitted (not just when tab hidden)
+        if (this.permissionGranted) {
             this.showBrowserNotification(notification);
         }
     }
