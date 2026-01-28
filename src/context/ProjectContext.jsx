@@ -129,6 +129,7 @@ export const ProjectProvider = ({ children }) => {
         if (user) {
             try {
                 // Only include columns that exist in the Supabase schema
+                // Note: 'tags' is NOT in the schema, so we exclude it
                 const dbProject = {
                     user_id: newProject.user_id,
                     title: newProject.title,
@@ -137,7 +138,6 @@ export const ProjectProvider = ({ children }) => {
                     progress: newProject.progress || 0,
                     is_ai_generated: newProject.isAIGenerated || false,
                     category: newProject.category || 'General',
-                    tags: newProject.tags || [],
                     is_pinned: newProject.isPinned || false,
                     phases: newProject.phases || DEFAULT_PHASES,
                     columns: newProject.columns || DEFAULT_COLUMNS,
@@ -198,7 +198,7 @@ export const ProjectProvider = ({ children }) => {
             if (updates.columns !== undefined) dbUpdates.columns = updates.columns;
             if (updates.tasks !== undefined) dbUpdates.tasks = updates.tasks;
             if (updates.isAIGenerated !== undefined) dbUpdates.is_ai_generated = updates.isAIGenerated;
-            if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+            // Note: 'tags' is excluded as it's not in the Supabase schema
             dbUpdates.updated_at = fullUpdates.updated_at;
 
             // Only update if there are valid DB fields
@@ -267,6 +267,8 @@ export const ProjectProvider = ({ children }) => {
 
     const addTask = async (projectId, task) => {
         const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
         const newTask = {
             ...task,
             id: crypto.randomUUID(),
@@ -274,72 +276,90 @@ export const ProjectProvider = ({ children }) => {
             phaseId: task.phaseId || project?.phases?.[0]?.id || 'phase-1'
         };
 
+        // Create the updated tasks array BEFORE updating state
+        const updatedTasks = [...project.tasks, newTask];
+
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
             return {
                 ...p,
-                tasks: [...p.tasks, newTask]
+                tasks: updatedTasks
             };
         }));
 
         if (user) {
-            const updatedProject = projects.find(p => p.id === projectId);
-            if (updatedProject) {
-                const updatedTasks = [...updatedProject.tasks, newTask];
-                await supabase.from('projects').update({ tasks: updatedTasks }).eq('id', projectId);
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+                console.log('✅ Task synced to cloud');
+            } catch (error) {
+                console.error('❌ Failed to sync task to cloud:', error);
             }
         }
+
+        return newTask;
     };
 
     const updateTask = async (projectId, taskId, updates) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        // Compute updated tasks BEFORE updating state
+        const updatedTasks = project.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
+
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
             return {
                 ...p,
-                tasks: p.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
+                tasks: updatedTasks
             };
         }));
 
         if (user) {
-            const project = projects.find(p => p.id === projectId);
-            if (project) {
-                const updatedTasks = project.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
-                await supabase.from('projects').update({ tasks: updatedTasks }).eq('id', projectId);
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+                console.log('✅ Task update synced to cloud');
+            } catch (error) {
+                console.error('❌ Failed to sync task update to cloud:', error);
             }
         }
     };
 
     const deleteTask = async (projectId, taskId) => {
-        setProjects(prev => prev.map(project => {
-            if (project.id !== projectId) return project;
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
 
-            const updatedTasks = project.tasks.filter(t => t.id !== taskId);
-            const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
-            let progress = project.progress;
+        // Compute updated data BEFORE state update
+        const updatedTasks = project.tasks.filter(t => t.id !== taskId);
+        const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
+        let progress = project.progress;
 
-            if (doneColumn) {
-                const totalTasks = updatedTasks.length;
-                const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
-                progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-            }
+        if (doneColumn) {
+            const totalTasks = updatedTasks.length;
+            const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
+            progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
+        }
 
-            return { ...project, tasks: updatedTasks, progress };
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks, progress };
         }));
 
         if (user) {
-            const project = projects.find(p => p.id === projectId);
-            if (project) {
-                const updatedTasks = project.tasks.filter(t => t.id !== taskId);
-                const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
-                let progress = project.progress;
-
-                if (doneColumn) {
-                    const totalTasks = updatedTasks.length;
-                    const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
-                    progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-                }
-
-                await supabase.from('projects').update({ tasks: updatedTasks, progress }).eq('id', projectId);
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    progress,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+                console.log('✅ Task deletion synced to cloud');
+            } catch (error) {
+                console.error('❌ Failed to sync task deletion to cloud:', error);
             }
         }
     };
@@ -353,48 +373,200 @@ export const ProjectProvider = ({ children }) => {
     };
 
     const moveTask = async (projectId, taskId, newColumnId, newPhaseId = null) => {
-        setProjects(prev => prev.map(project => {
-            if (project.id !== projectId) return project;
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
 
-            const updatedTasks = project.tasks.map(task => {
-                if (task.id !== taskId) return task;
-                const updates = { columnId: newColumnId };
-                if (newPhaseId) updates.phaseId = newPhaseId;
-                return { ...task, ...updates };
-            });
+        // Compute updated data BEFORE state update
+        const updatedTasks = project.tasks.map(task => {
+            if (task.id !== taskId) return task;
+            const updates = { columnId: newColumnId };
+            if (newPhaseId) updates.phaseId = newPhaseId;
+            return { ...task, ...updates };
+        });
 
-            const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
-            let progress = project.progress;
+        const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
+        let progress = project.progress;
 
-            if (doneColumn) {
-                const totalTasks = updatedTasks.length;
-                const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
-                progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-            }
+        if (doneColumn) {
+            const totalTasks = updatedTasks.length;
+            const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
+            progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
+        }
 
-            return { ...project, tasks: updatedTasks, progress };
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks, progress };
         }));
 
         if (user) {
-            const project = projects.find(p => p.id === projectId);
-            if (project) {
-                const updatedTasks = project.tasks.map(task => {
-                    if (task.id !== taskId) return task;
-                    const updates = { columnId: newColumnId };
-                    if (newPhaseId) updates.phaseId = newPhaseId;
-                    return { ...task, ...updates };
-                });
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    progress,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+                console.log('✅ Task move synced to cloud');
+            } catch (error) {
+                console.error('❌ Failed to sync task move to cloud:', error);
+            }
+        }
+    };
 
-                const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
-                let progress = project.progress;
+    // Toggle task completion
+    const toggleTaskComplete = async (projectId, taskId) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
 
-                if (doneColumn) {
-                    const totalTasks = updatedTasks.length;
-                    const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
-                    progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-                }
+        const updatedTasks = project.tasks.map(t =>
+            t.id === taskId ? { ...t, completed: !t.completed } : t
+        );
 
-                await supabase.from('projects').update({ tasks: updatedTasks, progress }).eq('id', projectId);
+        // Recalculate progress
+        const completedCount = updatedTasks.filter(t => t.completed).length;
+        const progress = updatedTasks.length > 0 ? Math.round((completedCount / updatedTasks.length) * 100) : 0;
+
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks, progress };
+        }));
+
+        if (user) {
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    progress,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+            } catch (error) {
+                console.error('❌ Failed to sync task toggle:', error);
+            }
+        }
+    };
+
+    // Add subtask to a task
+    const addSubtask = async (projectId, taskId, subtaskTitle) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const newSubtask = {
+            id: crypto.randomUUID(),
+            title: subtaskTitle,
+            completed: false,
+            created_at: new Date().toISOString()
+        };
+
+        const updatedTasks = project.tasks.map(t => {
+            if (t.id !== taskId) return t;
+            return {
+                ...t,
+                subtasks: [...(t.subtasks || []), newSubtask]
+            };
+        });
+
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks };
+        }));
+
+        if (user) {
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+            } catch (error) {
+                console.error('❌ Failed to sync subtask:', error);
+            }
+        }
+
+        return newSubtask;
+    };
+
+    // Toggle subtask completion
+    const toggleSubtaskComplete = async (projectId, taskId, subtaskId) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const updatedTasks = project.tasks.map(t => {
+            if (t.id !== taskId) return t;
+            return {
+                ...t,
+                subtasks: (t.subtasks || []).map(st =>
+                    st.id === subtaskId ? { ...st, completed: !st.completed } : st
+                )
+            };
+        });
+
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks };
+        }));
+
+        if (user) {
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+            } catch (error) {
+                console.error('❌ Failed to sync subtask toggle:', error);
+            }
+        }
+    };
+
+    // Delete subtask
+    const deleteSubtask = async (projectId, taskId, subtaskId) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const updatedTasks = project.tasks.map(t => {
+            if (t.id !== taskId) return t;
+            return {
+                ...t,
+                subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId)
+            };
+        });
+
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks };
+        }));
+
+        if (user) {
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+            } catch (error) {
+                console.error('❌ Failed to sync subtask delete:', error);
+            }
+        }
+    };
+
+    // Reorder tasks (for drag-and-drop)
+    const reorderTasks = async (projectId, newTaskOrder) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        // Recalculate progress
+        const completedCount = newTaskOrder.filter(t => t.completed).length;
+        const progress = newTaskOrder.length > 0 ? Math.round((completedCount / newTaskOrder.length) * 100) : 0;
+
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: newTaskOrder, progress };
+        }));
+
+        if (user) {
+            try {
+                await supabase.from('projects').update({
+                    tasks: newTaskOrder,
+                    progress,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+            } catch (error) {
+                console.error('❌ Failed to sync task reorder:', error);
             }
         }
     };
@@ -414,7 +586,13 @@ export const ProjectProvider = ({ children }) => {
             addPhase,
             updatePhase,
             deletePhase,
-            reorderPhases
+            reorderPhases,
+            // Mind map operations
+            toggleTaskComplete,
+            addSubtask,
+            toggleSubtaskComplete,
+            deleteSubtask,
+            reorderTasks
         }}>
             {children}
         </ProjectContext.Provider>

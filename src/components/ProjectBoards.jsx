@@ -2,18 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Plus, MoreHorizontal, Sparkles, Loader2, Check, Trash2, X, Pin, PinOff, ChevronDown, ChevronRight, Calendar, ListTodo, Dumbbell, Brain, Briefcase, Rocket, Folder, Trophy, GraduationCap } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { useAIProjectArchitect } from '../hooks/useAIProjectArchitect';
-import PhaseSelectionView from './PhaseSelectionView';
-import ProjectDetailView from './ProjectDetailView';
+import ProjectMindMap from './ProjectMindMap';
 import { ProjectCalendar } from './ProjectCalendar';
+
 
 const ProjectBoards = () => {
     const { projects, addProject, updateProject, deleteProject } = useProject();
     const { generateProjectPlan, isGenerating } = useAIProjectArchitect();
 
-    // Navigation state: 'list' -> 'calendar' -> 'phases' -> 'kanban'
+    // Navigation state: 'list' -> 'mindmap' or 'calendar'
     const [view, setView] = useState('list');
     const [selectedProjectId, setSelectedProjectId] = useState(null);
-    const [selectedPhaseId, setSelectedPhaseId] = useState(null);
 
     // Modal states
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -30,23 +29,12 @@ const ProjectBoards = () => {
     // Navigation handlers
     const handleSelectProject = (projectId) => {
         setSelectedProjectId(projectId);
-        setView('phases');
-    };
-
-    const handleSelectPhase = (phaseId) => {
-        setSelectedPhaseId(phaseId);
-        setView('kanban');
+        setView('mindmap');
     };
 
     const handleBackToList = () => {
         setView('list');
         setSelectedProjectId(null);
-        setSelectedPhaseId(null);
-    };
-
-    const handleBackToPhases = () => {
-        setView('phases');
-        setSelectedPhaseId(null);
     };
 
     // Toggle project expansion in table
@@ -201,32 +189,21 @@ const ProjectBoards = () => {
     };
 
     // Render based on current view
-    if (view === 'kanban' && selectedProject) {
+    if (view === 'mindmap' && selectedProject) {
         return (
-            <ProjectDetailView
-                project={selectedProject}
-                onBack={handleBackToPhases}
-                selectedPhaseId={selectedPhaseId}
-            />
-        );
-    }
-
-    if (view === 'phases' && selectedProject) {
-        return (
-            <PhaseSelectionView
+            <ProjectMindMap
                 project={selectedProject}
                 onBack={handleBackToList}
-                onSelectPhase={handleSelectPhase}
             />
         );
     }
 
-    // View 0: Calendar View
+    // Calendar View
     if (view === 'calendar') {
-        return <ProjectCalendar />;
+        return <ProjectCalendar onBack={handleBackToList} />;
     }
 
-    // View 1: Project List Table
+    // Project List View
     return (
         <div className="h-full flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl relative">
 

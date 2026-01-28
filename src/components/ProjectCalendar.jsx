@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, ArrowLeft } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 
-export const ProjectCalendar = () => {
+export const ProjectCalendar = ({ onBack }) => {
     const { projects } = useProject();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedProjects, setSelectedProjects] = useState([]);
@@ -140,6 +140,16 @@ export const ProjectCalendar = () => {
             <div className="relative z-10 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
+                        {/* Back Button */}
+                        {onBack && (
+                            <button
+                                onClick={onBack}
+                                className="p-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
+                                title="Back to Projects"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                        )}
                         <CalendarIcon className="w-8 h-8 text-white" />
                         <h1 className="text-3xl font-bold text-white">Project Calendar</h1>
                     </div>

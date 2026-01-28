@@ -1274,60 +1274,72 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     );
                                 }
 
-                                return daySchedule.map((item, i) => (
-                                    <div key={item.id || i} className="relative pl-10 group">
-                                        {/* Timeline Dot */}
-                                        <div className="absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white"
-                                            style={{ borderColor: item.color || '#6366f1' }}></div>
+                                return daySchedule.map((item, i) => {
+                                    // Calculate height based on duration (min: 60px for <30min, scales up)
+                                    const duration = item.duration || 60;
+                                    // Height formula: base 50px + 1.5px per minute, min 50px, max 200px
+                                    const minHeight = Math.min(200, Math.max(50, 50 + (duration - 30) * 1.5));
+                                    // Adjust padding based on height
+                                    const paddingY = duration <= 30 ? 'py-2' : duration <= 60 ? 'py-3' : 'py-4';
+                                    const paddingX = 'px-4';
 
-                                        <div
-                                            onClick={() => {
-                                                setSelectedScheduleItem(item);
-                                                setShowScheduleModal(true);
-                                            }}
-                                            className="p-4 rounded-2xl transition-all hover:scale-[1.02] bg-gray-50 border border-gray-100 hover:border-indigo-200 hover:shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                    <h3 className="font-bold text-lg leading-tight text-gray-900">
-                                                        {item.title}
-                                                    </h3>
-                                                    <div className="flex items-center gap-2 mt-1 text-gray-500">
-                                                        <span className="flex items-center gap-1 text-xs font-bold">
-                                                            <Clock size={12} />
-                                                            {(() => {
-                                                                const startHour = String(item.displayTime.getHours()).padStart(2, '0');
-                                                                const startMin = String(item.displayTime.getMinutes()).padStart(2, '0');
-                                                                const endTime = new Date(item.displayTime.getTime() + (item.duration || 60) * 60000);
-                                                                const endHour = String(endTime.getHours()).padStart(2, '0');
-                                                                const endMin = String(endTime.getMinutes()).padStart(2, '0');
-                                                                return `${startHour}:${startMin}-${endHour}:${endMin}`;
-                                                            })()}
-                                                        </span>
-                                                        {item.isRecurring && (
-                                                            <span className="text-xs text-indigo-500 px-1.5 py-0.5 bg-indigo-50 rounded-full">🔄</span>
-                                                        )}
+                                    return (
+                                        <div key={item.id || i} className="relative pl-10 group">
+                                            {/* Timeline Dot */}
+                                            <div className="absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white"
+                                                style={{ borderColor: item.color || '#6366f1' }}></div>
+
+                                            <div
+                                                onClick={() => {
+                                                    setSelectedScheduleItem(item);
+                                                    setShowScheduleModal(true);
+                                                }}
+                                                className={`${paddingX} ${paddingY} rounded-2xl transition-all hover:scale-[1.02] bg-gray-50 border border-gray-100 hover:border-indigo-200 hover:shadow-sm cursor-pointer flex items-center`}
+                                                style={{ minHeight: `${minHeight}px` }}
+                                            >
+                                                <div className="flex justify-between items-start w-full">
+                                                    <div className="flex-1">
+                                                        <h3 className={`font-bold leading-tight text-gray-900 ${duration <= 30 ? 'text-base' : 'text-lg'}`}>
+                                                            {item.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-2 mt-1 text-gray-500">
+                                                            <span className="flex items-center gap-1 text-xs font-bold">
+                                                                <Clock size={12} />
+                                                                {(() => {
+                                                                    const startHour = String(item.displayTime.getHours()).padStart(2, '0');
+                                                                    const startMin = String(item.displayTime.getMinutes()).padStart(2, '0');
+                                                                    const endTime = new Date(item.displayTime.getTime() + (item.duration || 60) * 60000);
+                                                                    const endHour = String(endTime.getHours()).padStart(2, '0');
+                                                                    const endMin = String(endTime.getMinutes()).padStart(2, '0');
+                                                                    return `${startHour}:${startMin}-${endHour}:${endMin}`;
+                                                                })()}
+                                                            </span>
+                                                            <span className="text-xs text-gray-400">({duration} min)</span>
+                                                            {item.isRecurring && (
+                                                                <span className="text-xs text-indigo-500 px-1.5 py-0.5 bg-indigo-50 rounded-full">🔄</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (window.confirm(`Delete "${item.title}"?`)) {
-                                                                deleteScheduleItem(item.id);
-                                                            }
-                                                        }}
-                                                        className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#6366f1' }}></div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm(`Delete "${item.title}"?`)) {
+                                                                    deleteScheduleItem(item.id);
+                                                                }
+                                                            }}
+                                                            className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#6366f1' }}></div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ));
+                                    );
+                                });
                             })()}
                         </div>
                     </div>
