@@ -6,9 +6,11 @@ const ProjectMindMap = ({ project, onBack }) => {
     const {
         toggleTaskComplete,
         addSubtask,
+        updateSubtask,
         toggleSubtaskComplete,
         deleteSubtask,
         addTask,
+        updateTask,
         deleteTask,
         reorderTasks
     } = useProject();
@@ -25,6 +27,12 @@ const ProjectMindMap = ({ project, onBack }) => {
     const [highlightedTasks, setHighlightedTasks] = useState(new Set());
     const [highlightedSubtasks, setHighlightedSubtasks] = useState(new Set()); // Format: "taskId-subtaskId"
     const [showHighlightedOnly, setShowHighlightedOnly] = useState(false);
+
+    // Editing state for inline title editing
+    const [editingTaskId, setEditingTaskId] = useState(null);
+    const [editingTaskTitle, setEditingTaskTitle] = useState('');
+    const [editingSubtaskKey, setEditingSubtaskKey] = useState(null); // Format: "taskId-subtaskId"
+    const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
 
     // Zoom state
     const [zoom, setZoom] = useState(1);
@@ -58,6 +66,48 @@ const ProjectMindMap = ({ project, onBack }) => {
             }
             return newSet;
         });
+    };
+
+    // Start editing a task title
+    const startEditingTask = (task) => {
+        setEditingTaskId(task.id);
+        setEditingTaskTitle(task.title);
+    };
+
+    // Save task title edit
+    const saveTaskEdit = async () => {
+        if (editingTaskId && editingTaskTitle.trim()) {
+            await updateTask(project.id, editingTaskId, { title: editingTaskTitle.trim() });
+        }
+        setEditingTaskId(null);
+        setEditingTaskTitle('');
+    };
+
+    // Cancel task title edit
+    const cancelTaskEdit = () => {
+        setEditingTaskId(null);
+        setEditingTaskTitle('');
+    };
+
+    // Start editing a subtask title
+    const startEditingSubtask = (taskId, subtask) => {
+        setEditingSubtaskKey(`${taskId}-${subtask.id}`);
+        setEditingSubtaskTitle(subtask.title);
+    };
+
+    // Save subtask title edit
+    const saveSubtaskEdit = async (taskId, subtaskId) => {
+        if (editingSubtaskTitle.trim()) {
+            await updateSubtask(project.id, taskId, subtaskId, { title: editingSubtaskTitle.trim() });
+        }
+        setEditingSubtaskKey(null);
+        setEditingSubtaskTitle('');
+    };
+
+    // Cancel subtask title edit
+    const cancelSubtaskEdit = () => {
+        setEditingSubtaskKey(null);
+        setEditingSubtaskTitle('');
     };
 
     // Check if any item is highlighted
@@ -421,9 +471,32 @@ const ProjectMindMap = ({ project, onBack }) => {
                                                         }`}>
                                                         {subtask.completed && <Check className="w-2.5 h-2.5 text-white" />}
                                                     </div>
-                                                    <span className={`text-xs text-white font-medium whitespace-nowrap ${subtask.completed ? 'line-through opacity-60' : ''}`}>
-                                                        {subtask.title}
-                                                    </span>
+                                                    {editingSubtaskKey === `${task.id}-${subtask.id}` ? (
+                                                        <input
+                                                            type="text"
+                                                            value={editingSubtaskTitle}
+                                                            onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') saveSubtaskEdit(task.id, subtask.id);
+                                                                if (e.key === 'Escape') cancelSubtaskEdit();
+                                                            }}
+                                                            onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
+                                                            autoFocus
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="flex-1 px-1 py-0.5 bg-white/30 backdrop-blur rounded text-xs text-white font-medium outline-none border border-white/40 min-w-[60px]"
+                                                        />
+                                                    ) : (
+                                                        <span
+                                                            className={`text-xs text-white font-medium whitespace-nowrap cursor-text hover:underline ${subtask.completed ? 'line-through opacity-60' : ''}`}
+                                                            onDoubleClick={(e) => {
+                                                                e.stopPropagation();
+                                                                startEditingSubtask(task.id, subtask);
+                                                            }}
+                                                            title="Double-click to edit"
+                                                        >
+                                                            {subtask.title}
+                                                        </span>
+                                                    )}
                                                     {/* Delete subtask on hover */}
                                                     <button
                                                         onClick={(e) => {
@@ -499,9 +572,32 @@ const ProjectMindMap = ({ project, onBack }) => {
 
                                                     {/* Task Title */}
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className={`font-bold text-white text-base leading-tight ${task.completed ? 'line-through opacity-70' : ''}`}>
-                                                            {task.title}
-                                                        </h3>
+                                                        {editingTaskId === task.id ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editingTaskTitle}
+                                                                onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') saveTaskEdit();
+                                                                    if (e.key === 'Escape') cancelTaskEdit();
+                                                                }}
+                                                                onBlur={saveTaskEdit}
+                                                                autoFocus
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="w-full px-2 py-1 bg-white/30 backdrop-blur rounded-lg text-white font-bold text-base outline-none border border-white/50"
+                                                            />
+                                                        ) : (
+                                                            <h3
+                                                                className={`font-bold text-white text-base leading-tight cursor-text hover:underline ${task.completed ? 'line-through opacity-70' : ''}`}
+                                                                onDoubleClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    startEditingTask(task);
+                                                                }}
+                                                                title="Double-click to edit"
+                                                            >
+                                                                {task.title}
+                                                            </h3>
+                                                        )}
                                                         {hasSubtasks && (
                                                             <p className="text-xs text-white/60 mt-1 flex items-center gap-1">
                                                                 {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}

@@ -1581,6 +1581,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
             {/* Task Modal for editing */}
             <TaskModal
+                key={selectedTask?.id || 'new'}
                 isOpen={showTaskModal}
                 onClose={() => {
                     setShowTaskModal(false);
@@ -1595,7 +1596,8 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                     setShowTaskModal(false);
                     setSelectedTask(null);
                 }}
-                task={selectedTask}
+                initialData={selectedTask}
+                mode={selectedTask ? 'edit' : 'create'}
             />
 
             {/* Agent Confirmation Modal */}

@@ -86,6 +86,7 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
             });
         }
         setIsTaskModalOpen(false);
+        setEditingTask(null);
     };
 
     const handleDeleteTask = (taskId) => {
@@ -280,8 +281,12 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
             </DndContext>
 
             <TaskModal
+                key={editingTask?.id || 'new'}
                 isOpen={isTaskModalOpen}
-                onClose={() => setIsTaskModalOpen(false)}
+                onClose={() => {
+                    setIsTaskModalOpen(false);
+                    setEditingTask(null);
+                }}
                 onSave={handleSaveTask}
                 initialData={editingTask}
                 mode={editingTask ? 'edit' : 'create'}

@@ -544,6 +544,39 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
+    // Update subtask (for editing subtask title)
+    const updateSubtask = async (projectId, taskId, subtaskId, updates) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const updatedTasks = project.tasks.map(t => {
+            if (t.id !== taskId) return t;
+            return {
+                ...t,
+                subtasks: (t.subtasks || []).map(st =>
+                    st.id === subtaskId ? { ...st, ...updates } : st
+                )
+            };
+        });
+
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return { ...p, tasks: updatedTasks };
+        }));
+
+        if (user) {
+            try {
+                await supabase.from('projects').update({
+                    tasks: updatedTasks,
+                    updated_at: new Date().toISOString()
+                }).eq('id', projectId);
+                console.log('✅ Subtask update synced to cloud');
+            } catch (error) {
+                console.error('❌ Failed to sync subtask update:', error);
+            }
+        }
+    };
+
     // Reorder tasks (for drag-and-drop)
     const reorderTasks = async (projectId, newTaskOrder) => {
         const project = projects.find(p => p.id === projectId);
@@ -590,6 +623,7 @@ export const ProjectProvider = ({ children }) => {
             // Mind map operations
             toggleTaskComplete,
             addSubtask,
+            updateSubtask,
             toggleSubtaskComplete,
             deleteSubtask,
             reorderTasks
