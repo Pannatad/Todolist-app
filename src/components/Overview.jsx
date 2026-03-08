@@ -72,7 +72,7 @@ const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
 };
 
 
-const CurrentEventWidget = ({ scheduleItems }) => {
+const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [currentEvent, setCurrentEvent] = useState(null);
     const [nextEvent, setNextEvent] = useState(null);
@@ -131,7 +131,7 @@ const CurrentEventWidget = ({ scheduleItems }) => {
             }
         };
 
-        // Find active event
+        // Find active event (schedule items)
         const active = scheduleItems.find(item => {
             const timeValue = item.startTime || item.start_time;
             if (!timeValue) return false;
@@ -156,26 +156,44 @@ const CurrentEventWidget = ({ scheduleItems }) => {
             return now >= itemStart && now < itemEnd;
         });
 
-        if (active) {
+        // If no active schedule event, check habits
+        const activeHabit = !active && habitItems ? habitItems.find(h => {
+            if (!h.startTime) return false;
+            const itemStart = new Date(h.startTime);
+            const duration = h.duration || 30;
+            const itemEnd = new Date(itemStart.getTime() + duration * 60000);
+            return now >= itemStart && now < itemEnd;
+        }) : null;
+
+        const activeItem = active || activeHabit;
+
+        if (activeItem) {
             // Calculate display times and progress
-            const recurrenceType = active.recurrence_type || active.recurrenceType || 'none';
-            let start = new Date(active.startTime || active.start_time);
-            if (recurrenceType !== 'none') {
-                const originalTime = start;
-                start = new Date(now);
-                start.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+            const isHabitEvent = !!activeHabit;
+            let start;
+            if (isHabitEvent) {
+                start = new Date(activeItem.startTime);
+            } else {
+                const recurrenceType = activeItem.recurrence_type || activeItem.recurrenceType || 'none';
+                start = new Date(activeItem.startTime || activeItem.start_time);
+                if (recurrenceType !== 'none') {
+                    const originalTime = start;
+                    start = new Date(now);
+                    start.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
+                }
             }
 
-            const duration = active.duration || 60;
+            const duration = activeItem.duration || (isHabitEvent ? 30 : 60);
             const end = new Date(start.getTime() + duration * 60000);
             const totalDuration = end.getTime() - start.getTime();
             const elapsed = now.getTime() - start.getTime();
             const prog = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 
             setCurrentEvent({
-                ...active,
+                ...activeItem,
                 displayStart: start,
-                displayEnd: end
+                displayEnd: end,
+                isHabit: !!isHabitEvent,
             });
             setProgress(prog);
         } else {
@@ -206,13 +224,27 @@ const CurrentEventWidget = ({ scheduleItems }) => {
             .filter(item => item && item.adjustedStart > now)
             .sort((a, b) => a.adjustedStart - b.adjustedStart);
 
-        if (todayEvents.length > 0) {
-            setNextEvent(todayEvents[0]);
+        // Also include habit items for next event check
+        const allUpcoming = [...todayEvents];
+        if (habitItems) {
+            habitItems.forEach(h => {
+                if (h.startTime) {
+                    const hStart = new Date(h.startTime);
+                    if (hStart > now) {
+                        allUpcoming.push({ ...h, adjustedStart: hStart, isHabit: true });
+                    }
+                }
+            });
+        }
+        allUpcoming.sort((a, b) => a.adjustedStart - b.adjustedStart);
+
+        if (allUpcoming.length > 0) {
+            setNextEvent(allUpcoming[0]);
         } else {
             setNextEvent(null);
         }
 
-    }, [scheduleItems, currentTime]);
+    }, [scheduleItems, habitItems, currentTime]);
 
 
 
@@ -225,16 +257,16 @@ const CurrentEventWidget = ({ scheduleItems }) => {
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                            <Clock size={14} className="text-indigo-500" />
-                            {currentEvent ? 'Now Happening' : 'Current Status'}
+                            <Clock size={14} className={currentEvent?.isHabit ? 'text-teal-500' : 'text-indigo-500'} />
+                            {currentEvent ? (currentEvent.isHabit ? 'Current Habit' : 'Now Happening') : 'Current Status'}
                         </h3>
                         <div className="text-3xl font-bold text-gray-900 mt-1 font-mono">
                             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                     </div>
                     {currentEvent && (
-                        <div className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold border border-indigo-100">
-                            On Track
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold border ${currentEvent.isHabit ? 'bg-teal-50 text-teal-600 border-teal-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
+                            {currentEvent.isHabit ? 'Habit' : 'On Track'}
                         </div>
                     )}
                 </div>
@@ -250,7 +282,7 @@ const CurrentEventWidget = ({ scheduleItems }) => {
                         {/* Progress Bar */}
                         <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                             <motion.div
-                                className="h-full bg-indigo-500"
+                                className={`h-full ${currentEvent.isHabit ? 'bg-teal-500' : 'bg-indigo-500'}`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progress}%` }}
                                 transition={{ duration: 0.5 }}
@@ -274,7 +306,9 @@ const CurrentEventWidget = ({ scheduleItems }) => {
                             <div className="flex items-center gap-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
                                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Up Next</p>
+                                    <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">
+                                        {nextEvent.isHabit ? 'Up Next (Habit)' : 'Up Next'}
+                                    </p>
                                     <p className="text-sm font-medium text-gray-900 truncate">{nextEvent.title}</p>
                                 </div>
                                 <div className="text-right">
@@ -605,7 +639,7 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
     );
 };
 
-const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
+const Overview = ({ onNavigate }) => {
     const { tasks, addTask, updateTask, deleteTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
     const { dailyHighlights, goals, updateHighlight } = useGoal();
     const { user } = useAuth();
@@ -613,7 +647,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
     const { profile, getProfileSummary } = useUserProfile();
     const { logInteraction, getMemorySummary, getRecentInteractions, generatePatternInsights } = useAgentMemory();
     const { projects } = useProject();
-    const { habits, logHabit } = useHabit();
+    const { habits, logHabit, getHabitsForDate, getHabitLog } = useHabit();
     const { sendMessage, openSidebar } = useChatContext();
 
     const [greeting, setGreeting] = useState('');
@@ -1263,7 +1297,32 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     };
                                 }).sort((a, b) => a.displayTime - b.displayTime) || [];
 
-                                if (daySchedule.length === 0) {
+                                // Merge habits with reminder_time into the schedule
+                                const dayHabits = getHabitsForDate(new Date(scheduleDate));
+                                const scheduleDateStr = scheduleDate.toISOString().split('T')[0];
+                                const habitTimelineItems = dayHabits
+                                    .filter(h => h.reminder_time)
+                                    .map(h => {
+                                        const [hours, minutes] = h.reminder_time.split(':').map(Number);
+                                        const displayTime = new Date(scheduleDate);
+                                        displayTime.setHours(hours, minutes, 0, 0);
+                                        const log = getHabitLog(h.id, scheduleDateStr);
+                                        return {
+                                            id: `habit_${h.id}`,
+                                            title: h.name,
+                                            icon: h.icon || '✨',
+                                            displayTime,
+                                            duration: 30,
+                                            isHabit: true,
+                                            completed: log?.completed || false,
+                                            color: '#14B8A6',
+                                        };
+                                    });
+
+                                const mergedSchedule = [...daySchedule, ...habitTimelineItems]
+                                    .sort((a, b) => a.displayTime - b.displayTime);
+
+                                if (mergedSchedule.length === 0) {
                                     const today = new Date();
                                     today.setHours(0, 0, 0, 0);
                                     const isToday = selectedDate.getTime() === today.getTime();
@@ -1274,7 +1333,8 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     );
                                 }
 
-                                return daySchedule.map((item, i) => {
+                                return mergedSchedule.map((item, i) => {
+                                    const isHabitItem = item.isHabit;
                                     // Calculate height based on duration (min: 60px for <30min, scales up)
                                     const duration = item.duration || 60;
                                     // Height formula: base 50px + 1.5px per minute, min 50px, max 200px
@@ -1286,20 +1346,26 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                     return (
                                         <div key={item.id || i} className="relative pl-10 group">
                                             {/* Timeline Dot */}
-                                            <div className="absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white"
-                                                style={{ borderColor: item.color || '#6366f1' }}></div>
+                                            <div className={`absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white`}
+                                                style={{ borderColor: isHabitItem ? '#14B8A6' : (item.color || '#6366f1') }}></div>
 
                                             <div
                                                 onClick={() => {
-                                                    setSelectedScheduleItem(item);
-                                                    setShowScheduleModal(true);
+                                                    if (!isHabitItem) {
+                                                        setSelectedScheduleItem(item);
+                                                        setShowScheduleModal(true);
+                                                    }
                                                 }}
-                                                className={`${paddingX} ${paddingY} rounded-2xl transition-all hover:scale-[1.02] bg-gray-50 border border-gray-100 hover:border-indigo-200 hover:shadow-sm cursor-pointer flex items-center`}
+                                                className={`${paddingX} ${paddingY} rounded-2xl transition-all hover:scale-[1.02] border ${isHabitItem
+                                                    ? 'bg-teal-50/50 border-teal-100 hover:border-teal-200'
+                                                    : 'bg-gray-50 border-gray-100 hover:border-indigo-200'
+                                                    } hover:shadow-sm cursor-pointer flex items-center ${isHabitItem && item.completed ? 'opacity-60' : ''}`}
                                                 style={{ minHeight: `${minHeight}px` }}
                                             >
                                                 <div className="flex justify-between items-start w-full">
                                                     <div className="flex-1">
-                                                        <h3 className={`font-bold leading-tight text-gray-900 ${duration <= 30 ? 'text-base' : 'text-lg'}`}>
+                                                        <h3 className={`font-bold leading-tight ${isHabitItem && item.completed ? 'line-through text-gray-400' : 'text-gray-900'} ${duration <= 30 ? 'text-base' : 'text-lg'}`}>
+                                                            {isHabitItem && <span className="mr-1">{item.icon}</span>}
                                                             {item.title}
                                                         </h3>
                                                         <div className="flex items-center gap-2 mt-1 text-gray-500">
@@ -1318,22 +1384,29 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                                             {item.isRecurring && (
                                                                 <span className="text-xs text-indigo-500 px-1.5 py-0.5 bg-indigo-50 rounded-full">🔄</span>
                                                             )}
+                                                            {isHabitItem && (
+                                                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.completed ? 'text-teal-600 bg-teal-50' : 'text-gray-500 bg-gray-100'}`}>
+                                                                    {item.completed ? '✅ Done' : '○ Habit'}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (window.confirm(`Delete "${item.title}"?`)) {
-                                                                    deleteScheduleItem(item.id);
-                                                                }
-                                                            }}
-                                                            className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#6366f1' }}></div>
+                                                        {!isHabitItem && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (window.confirm(`Delete "${item.title}"?`)) {
+                                                                        deleteScheduleItem(item.id);
+                                                                    }
+                                                                }}
+                                                                className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
+                                                                title="Delete"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isHabitItem ? '#14B8A6' : (item.color || '#6366f1') }}></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1350,64 +1423,29 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
 
                     {/* Current Event Widget */}
                     <div className="md:col-span-2">
-                        <CurrentEventWidget scheduleItems={scheduleItems} />
-                    </div>
-
-                    {/* Start the Day Widget */}
-                    <div
-                        onClick={onStartDay}
-                        className="bg-white/95 backdrop-blur-sm p-5 rounded-3xl shadow-sm hover:shadow transition-all flex items-center gap-4 relative overflow-hidden cursor-pointer border border-gray-100 hover:border-indigo-200 group"
-                    >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
-
-                        <div className="shrink-0 w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Sun size={24} className="text-amber-600" />
-                        </div>
-
-                        <div className="relative z-10 flex-1">
-                            <h3 className="font-bold text-lg text-gray-900">
-                                Start Your Day
-                            </h3>
-                            <p className="text-gray-600 text-xs">
-                                Set your 3 main goals and plan your focus for today
-                            </p>
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-xl text-indigo-700 font-bold text-sm transition-all">
-                            <span>Begin</span>
-                            <ChevronRight size={14} />
-                        </div>
-                    </div>
-
-                    {/* End the Day Widget */}
-                    <div
-                        onClick={onEndDay}
-                        className="bg-white/95 backdrop-blur-sm p-5 rounded-3xl shadow-sm hover:shadow transition-all flex items-center gap-4 relative overflow-hidden cursor-pointer border border-gray-100 hover:border-indigo-200 group"
-                    >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
-
-                        {/* Soft star decorations */}
-                        <div className="absolute top-3 right-16 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-pulse"></div>
-                        <div className="absolute top-6 right-24 w-1.5 h-1.5 bg-indigo-200 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                        <div className="absolute bottom-4 right-12 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-
-                        <div className="shrink-0 w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Moon size={24} className="text-indigo-600" />
-                        </div>
-
-                        <div className="relative z-10 flex-1">
-                            <h3 className="font-bold text-lg text-gray-900">
-                                End Your Day
-                            </h3>
-                            <p className="text-gray-600 text-xs">
-                                Reflect on achievements and set tomorrow's goals
-                            </p>
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-xl text-indigo-700 font-bold text-sm transition-all">
-                            <span>Reflect</span>
-                            <ChevronRight size={14} />
-                        </div>
+                        <CurrentEventWidget
+                            scheduleItems={scheduleItems}
+                            habitItems={(() => {
+                                const today = new Date();
+                                const todayStr = today.toISOString().split('T')[0];
+                                return getHabitsForDate(today)
+                                    .filter(h => h.reminder_time)
+                                    .map(h => {
+                                        const [hours, minutes] = h.reminder_time.split(':').map(Number);
+                                        const start = new Date(today);
+                                        start.setHours(hours, minutes, 0, 0);
+                                        const log = getHabitLog(h.id, todayStr);
+                                        return {
+                                            id: `habit_${h.id}`,
+                                            title: `${h.icon || '✨'} ${h.name}`,
+                                            startTime: start.toISOString(),
+                                            duration: 30,
+                                            isHabit: true,
+                                            completed: log?.completed || false,
+                                        };
+                                    });
+                            })()}
+                        />
                     </div>
 
                     {/* Vision Board Card */}
@@ -1420,12 +1458,7 @@ const Overview = ({ onNavigate, onStartDay, onEndDay }) => {
                                 <Target className="text-rose-500" size={24} />
                                 <h2 className="text-2xl font-bold text-gray-900">Vision Board (Today)</h2>
                             </div>
-                            <button
-                                onClick={onStartDay}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 rounded-lg text-rose-600 text-sm font-bold transition-colors"
-                            >
-                                <Sun size={16} /> Start Day
-                            </button>
+
                         </div>
 
                         <div className="space-y-3 relative z-10 flex-1">

@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 const CONFIG = {
     RECENT_MESSAGES_WINDOW: 20,  // Keep last 20 messages in full detail
     SUMMARY_BATCH_SIZE: 10,      // Summarize 10 messages at a time
-    MODEL_NAME: "gemini-2.0-flash"
+    MODEL_NAME: "gemini-3.1-flash-lite-preview"
 };
 
 // Active chat session cache (per-session, not persisted)
@@ -82,7 +82,7 @@ export const summarizeOlderMessages = async (oldMessages) => {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
 
         const conversationText = oldMessages.map(m =>
             `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`

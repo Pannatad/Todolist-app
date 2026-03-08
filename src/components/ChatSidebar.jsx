@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Mic, MicOff, Trash2, Sparkles, MessageCircle, Zap, Lightbulb } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
 import ChatMessage, { TypingIndicator } from './ChatMessage';
-import { getModelPreference, setModelPreference } from '../services/gemini';
 
 const ChatSidebar = () => {
     const {
@@ -20,7 +19,6 @@ const ChatSidebar = () => {
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [speechSupported, setSpeechSupported] = useState(false);
-    const [modelMode, setModelMode] = useState(getModelPreference());
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const recognitionRef = useRef(null);
@@ -120,12 +118,6 @@ const ChatSidebar = () => {
         }
     };
 
-    const handleModelToggle = () => {
-        const newMode = modelMode === 'lite' ? 'flash' : 'lite';
-        setModelMode(newMode);
-        setModelPreference(newMode);
-    };
-
     // Quick action suggestions
     const quickActions = [
         "What's on my schedule today?",
@@ -167,27 +159,6 @@ const ChatSidebar = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* Model Toggle Switch */}
-                                <button
-                                    onClick={handleModelToggle}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${modelMode === 'lite'
-                                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                            : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                        }`}
-                                    title={modelMode === 'lite' ? 'Lite mode (cheaper, faster)' : 'Flash mode (smarter)'}
-                                >
-                                    {modelMode === 'lite' ? (
-                                        <>
-                                            <Lightbulb size={14} />
-                                            Lite
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Zap size={14} />
-                                            Flash
-                                        </>
-                                    )}
-                                </button>
                                 <button
                                     onClick={handleClearChat}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-red-500"

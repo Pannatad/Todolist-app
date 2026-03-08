@@ -186,16 +186,29 @@ export const HabitProvider = ({ children }) => {
         return habitLogs[key] || null;
     };
 
-    // Get habits scheduled for a specific date
+    // Get habits scheduled for a specific date, sorted by reminder_time
     const getHabitsForDate = (date) => {
         const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
-        return habits.filter(habit => {
+        const filtered = habits.filter(habit => {
             if (habit.frequency === 'daily') return true;
             if (habit.frequency === 'weekly' || habit.frequency === 'custom') {
                 return habit.schedule_days?.includes(dayOfWeek);
             }
             return true;
+        });
+
+        // Sort by time_of_day order, then by reminder_time
+        const timeOrder = { morning: 0, afternoon: 1, evening: 2, night: 3, anytime: 4 };
+        return filtered.sort((a, b) => {
+            const orderA = timeOrder[a.time_of_day] ?? 4;
+            const orderB = timeOrder[b.time_of_day] ?? 4;
+            if (orderA !== orderB) return orderA - orderB;
+            // Within same time_of_day, sort by reminder_time
+            if (a.reminder_time && b.reminder_time) return a.reminder_time.localeCompare(b.reminder_time);
+            if (a.reminder_time) return -1;
+            if (b.reminder_time) return 1;
+            return 0;
         });
     };
 

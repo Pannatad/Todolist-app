@@ -12,7 +12,10 @@ const ProjectMindMap = ({ project, onBack }) => {
         addTask,
         updateTask,
         deleteTask,
-        reorderTasks
+        reorderTasks,
+        loadProjectHighlights,
+        addHighlight,
+        removeHighlight
     } = useProject();
 
     const [expandedTasks, setExpandedTasks] = useState({});
@@ -41,31 +44,63 @@ const ProjectMindMap = ({ project, onBack }) => {
 
     const tasks = project?.tasks || [];
 
-    // Toggle highlight for a task
-    const toggleTaskHighlight = (taskId) => {
+    // Load highlights from Supabase on mount
+    useEffect(() => {
+        const loadHighlights = async () => {
+            if (project?.id) {
+                const { tasks: taskSet, subtasks: subtaskSet } = await loadProjectHighlights(project.id);
+                setHighlightedTasks(taskSet);
+                setHighlightedSubtasks(subtaskSet);
+            }
+        };
+        loadHighlights();
+    }, [project?.id]);
+
+    // Toggle highlight for a task (with Supabase persistence)
+    const toggleTaskHighlight = async (taskId) => {
+        const isHighlighted = highlightedTasks.has(taskId);
+
+        // Update local state first for responsiveness
         setHighlightedTasks(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(taskId)) {
+            if (isHighlighted) {
                 newSet.delete(taskId);
             } else {
                 newSet.add(taskId);
             }
             return newSet;
         });
+
+        // Sync to Supabase
+        if (isHighlighted) {
+            await removeHighlight(project.id, taskId, null);
+        } else {
+            await addHighlight(project.id, taskId, null);
+        }
     };
 
-    // Toggle highlight for a subtask
-    const toggleSubtaskHighlight = (taskId, subtaskId) => {
+    // Toggle highlight for a subtask (with Supabase persistence)
+    const toggleSubtaskHighlight = async (taskId, subtaskId) => {
         const key = `${taskId}-${subtaskId}`;
+        const isHighlighted = highlightedSubtasks.has(key);
+
+        // Update local state first for responsiveness
         setHighlightedSubtasks(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(key)) {
+            if (isHighlighted) {
                 newSet.delete(key);
             } else {
                 newSet.add(key);
             }
             return newSet;
         });
+
+        // Sync to Supabase
+        if (isHighlighted) {
+            await removeHighlight(project.id, taskId, subtaskId);
+        } else {
+            await addHighlight(project.id, taskId, subtaskId);
+        }
     };
 
     // Start editing a task title

@@ -254,18 +254,6 @@ const ProjectBoards = () => {
                             const showStatusBadge = shouldShowStatus();
                             const progress = project.progress || 0;
 
-                            // Category color mapping for left border
-                            const getCategoryColor = (category) => {
-                                const colorMap = {
-                                    'Work Projects': 'border-l-blue-500',
-                                    'Personal Growth': 'border-l-emerald-500',
-                                    'Side Hustles': 'border-l-amber-500',
-                                    'Learning': 'border-l-purple-500',
-                                    'General': 'border-l-gray-400'
-                                };
-                                return colorMap[category] || 'border-l-gray-400';
-                            };
-
                             // Progress color based on percentage
                             const getProgressColor = (pct) => {
                                 if (pct < 30) return '#6366f1'; // Indigo
@@ -277,7 +265,7 @@ const ProjectBoards = () => {
                                 <div key={project.id} className="group">
                                     {/* Project Card */}
                                     <div
-                                        className={`relative bg-white/25 backdrop-blur-2xl p-6 rounded-[2rem] cursor-pointer transition-all duration-300 hover:bg-white/30 hover:shadow-2xl hover:shadow-white/20 border border-white/30 ${getCategoryColor(project.category)} border-l-4 overflow-hidden`}
+                                        className={`relative bg-white/25 backdrop-blur-2xl p-6 rounded-[2rem] cursor-pointer transition-all duration-300 hover:bg-white/30 hover:shadow-2xl hover:shadow-white/20 border border-white/30 overflow-hidden`}
                                         onClick={() => handleSelectProject(project.id)}
                                     >
 

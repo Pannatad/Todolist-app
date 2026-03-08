@@ -4,93 +4,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Available models
-const MODELS = {
-    lite: genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" }),    // Cheapest, fastest
-    flash: genAI.getGenerativeModel({ model: "gemini-2.5-flash" }),           // Balanced (default)
-    pro: genAI.getGenerativeModel({ model: "gemini-3-flash-preview" })        // Most capable
-};
+// Initialize single model instance
+const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
 
 // Legacy aliases for backwards compatibility
-const model_intelligent = MODELS.pro;
-const model_normal = MODELS.flash;
-const model = model_normal;
-const model_easy = model_normal;
-const model_pro = model_intelligent;
-
-/**
- * Get user's selected model preference from localStorage
- * @returns {'lite' | 'flash'} - User's model preference
- */
-export const getModelPreference = () => {
-    try {
-        return localStorage.getItem('ai_model_preference') || 'flash';
-    } catch {
-        return 'flash';
-    }
-};
-
-/**
- * Set user's model preference
- * @param {'lite' | 'flash'} preference - Model preference to save
- */
-export const setModelPreference = (preference) => {
-    try {
-        localStorage.setItem('ai_model_preference', preference);
-    } catch (e) {
-        console.error('Error saving model preference:', e);
-    }
-};
-
-/**
- * Get the model instance based on user preference
- * @returns {object} - Gemini model instance
- */
-export const getSelectedModel = () => {
-    const preference = getModelPreference();
-    console.log(`🤖 Using ${preference.toUpperCase()} model`);
-    return MODELS[preference] || MODELS.flash;
-};
-
-// Patterns that require intelligent model (complex reasoning)
-const INTELLIGENT_PATTERNS = [
-    /how should|what should|should i/i,
-    /suggest|recommend|advice|advise/i,
-    /approach|strategy|plan for|optimize|prioritize/i,
-    /best way|better way|improve/i,
-    /analyze|analysis|evaluate|assess/i,
-    /why.*should|explain.*why|reason/i,
-    /compare|versus|vs\b|difference between/i,
-    /help me (think|decide|figure|understand|plan)/i,
-    /what.*think|opinion|perspective/i
-];
-
-/**
- * Determine which model tier to use based on query complexity
- * @param {string} input - User's query
- * @returns {{ model: object, tier: string }} - Model and tier name
- */
-export const getModelTier = (input) => {
-    const trimmed = input.trim().toLowerCase();
-    const preference = getModelPreference();
-
-    // If using lite mode, always use lite model (no tier switching for cost savings)
-    if (preference === 'lite') {
-        console.log('💡 LITE mode - using gemini-flash-lite-latest');
-        return { model: MODELS.lite, tier: 'lite' };
-    }
-
-    // Flash mode: use intelligent model for complex queries
-    for (const pattern of INTELLIGENT_PATTERNS) {
-        if (pattern.test(trimmed)) {
-            console.log('🧠 Using INTELLIGENT model (gemini-3-flash-preview) for:', input.substring(0, 50));
-            return { model: model_intelligent, tier: 'intelligent' };
-        }
-    }
-
-    console.log('⚡ Using FLASH model (gemini-2.5-flash) for:', input.substring(0, 50));
-    return { model: model_normal, tier: 'normal' };
-};
+const model_intelligent = model;
+const model_normal = model;
+const model_easy = model;
+const model_pro = model;
 
 /**
  * Suggests a difficulty level for a given task.
@@ -187,7 +108,7 @@ export const getTaskTips = async (taskTitle, subject) => {
         `;
 
         // Use gemini-3-pro-preview as requested
-        const adviceModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const adviceModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
 
         const result = await adviceModel.generateContent(prompt);
         const response = await result.response;
@@ -246,10 +167,10 @@ export const analyzeFile = async (file, instructions) => {
         // Try the requested model first
         let visionModel;
         try {
-            visionModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            visionModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         } catch (e) {
-            console.warn("gemini-3-pro-image not available, falling back to gemini-2.5-flash");
-            visionModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            console.warn("gemini-3-pro-image not available, falling back to gemini-3.1-flash-lite-preview");
+            visionModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         }
 
         // Fallback logic if the first model instantiation doesn't throw but the request fails
@@ -274,7 +195,7 @@ export const analyzeFile = async (file, instructions) => {
         if (error.message.includes('model') || error.message.includes('not found') || error.status === 404) {
             console.log("Attempting fallback to gemini-1.5-pro...");
             try {
-                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
                 const imagePart = await fileToGenerativePart(file);
                 const prompt = instructions || "Analyze this file.";
                 const result = await fallbackModel.generateContent([prompt, imagePart]);
@@ -310,12 +231,12 @@ export const getPersonalizedAdvice = async (taskTitle, subject, instructions, fi
     try {
         // Select model
         let modelToUse;
-        const modelName = "gemini-2.5-flash"; // Use the requested model
+        const modelName = "gemini-3.1-flash-lite-preview"; // Use the requested model
         try {
             modelToUse = genAI.getGenerativeModel({ model: modelName });
         } catch (e) {
-            console.warn(`${modelName} not available, falling back to gemini-2.5-flash`);
-            modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            console.warn(`${modelName} not available, falling back to gemini-3.1-flash-lite-preview`);
+            modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         }
 
         // Construct Prompt
@@ -407,7 +328,7 @@ export const generateDailySchedule = async (tasks) => {
             Do not include markdown formatting in the JSON output.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -436,7 +357,7 @@ export const parseScheduleImage = async (file) => {
     }
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const imagePart = await fileToGenerativePart(file);
 
         const prompt = `
@@ -539,7 +460,7 @@ export const parseTaskInput = async (input) => {
         `;
 
         console.log("📤 Sending request to Gemini API...");
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const result = await modelToUse.generateContent(prompt);
         console.log("📥 Received response from Gemini");
         const response = await result.response;
@@ -626,7 +547,7 @@ export const parseLogInput = async (input, categories) => {
         `;
 
         console.log("📤 Sending request to Gemini API...");
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const result = await modelToUse.generateContent(prompt);
         console.log("📥 Received response from Gemini");
 
@@ -698,7 +619,7 @@ export const getSmartSuggestions = async (tasks, timeOfDay) => {
             Do not include markdown.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -726,7 +647,7 @@ export const parseTaskImage = async (file) => {
     }
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const imagePart = await fileToGenerativePart(file);
 
         // Get current date and time for context
@@ -835,7 +756,7 @@ export const parseScheduleCommand = async (transcript) => {
             Do not include markdown.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -1067,10 +988,7 @@ export const routeAgentCommand = async (input, context = {}) => {
         `;
 
         console.log("📤 Sending agent routing request to Gemini...");
-        // Two-tier model selection based on query complexity
-        const { model: modelToUse, tier } = getModelTier(input);
-        console.log(`🎯 Using ${tier.toUpperCase()} tier for this query`);
-        const result = await modelToUse.generateContent(prompt);
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
         console.log("📄 Raw agent response:", text);
@@ -1258,5 +1176,123 @@ export const generateEveningSummary = async (context) => {
             tomorrowSuggestions: ["Start fresh with your top priority"],
             moodAnalysis: "neutral"
         };
+    }
+};
+
+/**
+ * Generates learning topics from a text description.
+ * @param {string} description - Learning goal or topic description.
+ * @param {string} pathName - Name of the learning path for context.
+ * @returns {Promise<Array>} - Array of { title, description, difficulty }
+ */
+export const generateTopicsFromDescription = async (description, pathName = '') => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return [];
+    }
+
+    try {
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+
+        const prompt = `
+            You are an expert curriculum designer. A user wants to learn about the following topic.
+            
+            Learning Path: "${pathName}"
+            User's Description: "${description}"
+            
+            Create a structured, ordered list of learning topics that would help someone master this subject.
+            Order them from fundamental/beginner concepts to advanced topics — like a course syllabus.
+            
+            Rules:
+            - Generate 5-15 topics depending on the scope of the subject.
+            - Each topic should be a specific, focused concept (not too broad, not too narrow).
+            - Assign difficulty: 'beginner', 'intermediate', or 'advanced'.
+            - Keep titles concise (3-8 words).
+            - Descriptions should be 1 sentence explaining what the topic covers.
+            - Order matters: foundational topics first, advanced topics last.
+            
+            Reply with ONLY a JSON array (no markdown):
+            [
+                {
+                    "title": "Topic Title",
+                    "description": "Brief description of what this covers",
+                    "difficulty": "beginner|intermediate|advanced"
+                }
+            ]
+        `;
+
+        const result = await modelToUse.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error generating topics from description:", error);
+        return [];
+    }
+};
+
+/**
+ * Generates learning topics from an image (course outline, TOC, screenshot).
+ * @param {File} file - Image file to analyze.
+ * @param {string} pathName - Name of the learning path for context.
+ * @returns {Promise<Array>} - Array of { title, description, difficulty }
+ */
+export const generateTopicsFromImage = async (file, pathName = '') => {
+    if (!API_KEY) {
+        console.warn("Gemini API Key is missing.");
+        return [];
+    }
+
+    try {
+        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const imagePart = await fileToGenerativePart(file);
+
+        const prompt = `
+            Analyze this image to extract learning topics. It could be:
+            - A course outline or syllabus
+            - A textbook table of contents
+            - A screenshot of a curriculum or roadmap
+            - A mind map or diagram of concepts
+            - Any image showing topics to learn
+            
+            Learning Path context: "${pathName}"
+            
+            Extract all the learning topics visible in the image and organize them logically.
+            
+            Rules:
+            - Extract topics in order from basic to advanced.
+            - If the image shows a clear order, preserve it.
+            - Assign difficulty: 'beginner', 'intermediate', or 'advanced'.
+            - Keep titles concise (3-8 words).
+            - Add a brief 1-sentence description for each topic.
+            - Generate 3-20 topics depending on what's in the image.
+            
+            Reply with ONLY a JSON array (no markdown):
+            [
+                {
+                    "title": "Topic Title",
+                    "description": "Brief description of what this covers",
+                    "difficulty": "beginner|intermediate|advanced"
+                }
+            ]
+        `;
+
+        const result = await modelToUse.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        let text = response.text().trim();
+
+        if (text.startsWith('```')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Error generating topics from image:", error);
+        return [];
     }
 };

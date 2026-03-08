@@ -4,8 +4,10 @@ import { ChevronLeft, ChevronRight, Clock, Plus, Mic, MicOff, Loader2 } from 'lu
 import { getColorForSubject } from '../constants/subjects';
 import { parseScheduleCommand } from '../services/gemini';
 import ScheduleEventModal from './ScheduleEventModal';
+import { useHabit } from '../context/HabitContext';
 
 const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
+    const { habits, getHabitsForDate, getHabitLog } = useHabit();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [weekDates, setWeekDates] = useState([]);
     const [isListening, setIsListening] = useState(false);
@@ -60,6 +62,29 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                 eventDate.getMonth() === date.getMonth() &&
                 eventDate.getFullYear() === date.getFullYear();
         });
+    };
+
+    // Get habits with reminder_time scheduled for a given day, formatted as pseudo-events
+    const getHabitBlocksForDay = (date) => {
+        const dayHabits = getHabitsForDate(date);
+        const dateStr = date.toISOString().split('T')[0];
+        return dayHabits
+            .filter(h => h.reminder_time) // Only habits with a specific time
+            .map(h => {
+                const [hours, minutes] = h.reminder_time.split(':').map(Number);
+                const start = new Date(date);
+                start.setHours(hours, minutes, 0, 0);
+                const log = getHabitLog(h.id, dateStr);
+                return {
+                    id: `habit_${h.id}`,
+                    title: `${h.icon || '✨'} ${h.name}`,
+                    startTime: start.toISOString(),
+                    duration: 30, // default 30min block
+                    isHabit: true,
+                    completed: log?.completed || false,
+                    habitColor: '#14B8A6', // teal
+                };
+            });
     };
 
     const handleTimeClick = (date, hour, minute) => {
@@ -233,7 +258,7 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
 
                         {/* Day Columns */}
                         {weekDates.map((date, dayIndex) => {
-                            const dayEvents = getEventsForDay(date);
+                            const dayEvents = [...getEventsForDay(date), ...getHabitBlocksForDay(date)];
 
                             return (
                                 <div
@@ -264,26 +289,38 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
                                         const eventColor = event.color || getColorForSubject(event.subject || event.category).color;
                                         const bgColor = event.color ? `${event.color}40` : getColorForSubject(event.subject || event.category).bgColor;
 
+                                        const isHabit = event.isHabit;
+                                        const finalColor = isHabit ? event.habitColor : eventColor;
+                                        const finalBg = isHabit ? 'rgba(20, 184, 166, 0.15)' : bgColor;
+
                                         return (
                                             <motion.div
                                                 key={event.id}
                                                 initial={{ opacity: 0, scale: 0.9 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className="absolute left-1 right-1 rounded-lg p-2 shadow-lg overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 border-l-4 backdrop-blur-sm"
+                                                className={`absolute left-1 right-1 rounded-lg p-2 shadow-lg overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 backdrop-blur-sm ${isHabit ? 'border-l-4 border-dashed' : 'border-l-4'}`}
                                                 style={{
                                                     top: `${top}px`,
                                                     height: `${Math.max(height, 20)}px`,
-                                                    backgroundColor: bgColor,
-                                                    borderColor: eventColor
+                                                    backgroundColor: finalBg,
+                                                    borderColor: finalColor,
+                                                    opacity: isHabit && event.completed ? 0.5 : 1,
                                                 }}
-                                                onClick={(e) => handleEventClick(event, e)}
+                                                onClick={(e) => {
+                                                    if (isHabit) {
+                                                        e.stopPropagation();
+                                                        // Habits are view-only on the schedule
+                                                    } else {
+                                                        handleEventClick(event, e);
+                                                    }
+                                                }}
                                             >
-                                                <div className="text-xs font-bold truncate" style={{ color: eventColor }}>
+                                                <div className={`text-xs font-bold truncate ${isHabit && event.completed ? 'line-through' : ''}`} style={{ color: finalColor }}>
                                                     {event.title}
                                                 </div>
                                                 {height > 30 && (
-                                                    <div className="text-[10px] opacity-80 truncate" style={{ color: eventColor }}>
-                                                        {duration}m
+                                                    <div className="text-[10px] opacity-80 truncate" style={{ color: finalColor }}>
+                                                        {isHabit ? (event.completed ? '✅ Done' : '○ Habit') : `${duration}m`}
                                                     </div>
                                                 )}
                                             </motion.div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, LayoutGrid, Sparkles } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Sparkles, ListChecks } from 'lucide-react';
 import TodayHabits from './TodayHabits';
 import WeeklyGrid from './WeeklyGrid';
 
@@ -9,17 +9,19 @@ const HabitTracker = () => {
 
     const views = [
         { id: 'today', label: 'Today', icon: Sparkles },
-        { id: 'weekly', label: 'Weekly', icon: LayoutGrid },
+        { id: 'weekly', label: 'Weekly', icon: CalendarDays },
     ];
 
     return (
         <div className="w-full max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-6 text-center">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 bg-clip-text text-transparent mb-2">
-                    Habit Tracker
-                </h1>
-                <p className="text-sage-500 dark:text-white/50">Build better habits, one day at a time</p>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                    <ListChecks size={28} className="text-teal-500" />
+                    <h1 className="text-2xl font-bold text-gray-800">
+                        Habit Tracker
+                    </h1>
+                </div>
             </div>
 
             {/* Sub-tabs */}
@@ -30,12 +32,12 @@ const HabitTracker = () => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setActiveView(view.id)}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all ${activeView === view.id
-                                ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/30'
-                                : 'bg-sage-100 dark:bg-white/10 text-sage-600 dark:text-white/60 hover:bg-sage-200 dark:hover:bg-white/20 hover:text-sage-800 dark:hover:text-white/80'
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-sm transition-all ${activeView === view.id
+                            ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                             }`}
                     >
-                        <view.icon size={18} />
+                        <view.icon size={16} />
                         {view.label}
                     </motion.button>
                 ))}

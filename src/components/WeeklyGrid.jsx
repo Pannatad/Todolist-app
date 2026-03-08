@@ -6,14 +6,14 @@ import { useHabit } from '../context/HabitContext';
 
 // Color configurations for variety
 const COLOR_CONFIGS = {
-    purple: { border: 'border-purple-300', bg: 'bg-purple-100', check: 'from-purple-500 to-indigo-600' },
-    pink: { border: 'border-pink-300', bg: 'bg-pink-100', check: 'from-pink-500 to-rose-600' },
-    teal: { border: 'border-teal-300', bg: 'bg-teal-100', check: 'from-teal-500 to-cyan-600' },
-    amber: { border: 'border-amber-300', bg: 'bg-amber-100', check: 'from-amber-500 to-orange-600' },
-    emerald: { border: 'border-emerald-300', bg: 'bg-emerald-100', check: 'from-emerald-500 to-green-600' },
+    purple: { border: 'border-purple-300', bg: 'bg-purple-100', check: 'bg-purple-500' },
+    pink: { border: 'border-pink-300', bg: 'bg-pink-100', check: 'bg-pink-500' },
+    teal: { border: 'border-teal-300', bg: 'bg-teal-100', check: 'bg-teal-500' },
+    amber: { border: 'border-amber-300', bg: 'bg-amber-100', check: 'bg-amber-500' },
+    emerald: { border: 'border-emerald-300', bg: 'bg-emerald-100', check: 'bg-emerald-500' },
 };
 
-const INDEX_COLORS = ['purple', 'teal', 'pink', 'emerald', 'amber'];
+const INDEX_COLORS = ['teal', 'purple', 'pink', 'emerald', 'amber'];
 
 const WeeklyGrid = () => {
     const [weekOffset, setWeekOffset] = useState(0);
@@ -86,7 +86,7 @@ const WeeklyGrid = () => {
     return (
         <div className="space-y-6">
             {/* Week Navigation - Gradient Header */}
-            <div className="bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600 rounded-2xl p-4 shadow-lg shadow-purple-500/20">
+            <div className="bg-teal-500 rounded-2xl p-4 shadow-md shadow-teal-500/15">
                 <div className="flex items-center justify-between">
                     <button
                         onClick={() => setWeekOffset(prev => prev - 1)}
@@ -118,20 +118,20 @@ const WeeklyGrid = () => {
             </div>
 
             {/* Grid */}
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-purple-100 dark:border-purple-500/20 overflow-hidden shadow-lg">
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                 {/* Day Headers */}
-                <div className="grid grid-cols-8 border-b border-purple-100 dark:border-purple-500/20">
-                    <div className="p-3 text-sm font-bold text-purple-600 dark:text-purple-300">Habit</div>
+                <div className="grid grid-cols-8 border-b border-gray-100">
+                    <div className="p-3 text-sm font-bold text-teal-600">Habit</div>
                     {weekDates.map((date, idx) => {
                         const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
                         const dayNum = date.getDate();
                         return (
                             <div
                                 key={idx}
-                                className={`p-3 text-center ${isToday(date) ? 'bg-gradient-to-b from-purple-500 to-indigo-600' : ''}`}
+                                className={`p-3 text-center ${isToday(date) ? 'bg-teal-500' : ''}`}
                             >
-                                <div className={`text-xs uppercase font-medium ${isToday(date) ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>{dayLabel}</div>
-                                <div className={`text-sm font-bold ${isToday(date) ? 'text-white' : 'text-gray-700 dark:text-gray-200'}`}>
+                                <div className={`text-xs uppercase font-medium ${isToday(date) ? 'text-white/80' : 'text-gray-500'}`}>{dayLabel}</div>
+                                <div className={`text-sm font-bold ${isToday(date) ? 'text-white' : 'text-gray-700'}`}>
                                     {dayNum}
                                 </div>
                             </div>
@@ -141,20 +141,20 @@ const WeeklyGrid = () => {
 
                 {/* Habit Rows */}
                 {habits.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    <div className="p-8 text-center text-gray-400">
                         No habits created yet. Add your first habit!
                     </div>
                 ) : (
                     habits.map((habit, habitIndex) => {
                         const colorKey = habit.color || INDEX_COLORS[habitIndex % INDEX_COLORS.length];
-                        const colorConfig = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.purple;
+                        const colorConfig = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.teal;
 
                         return (
-                            <div key={habit.id} className="grid grid-cols-8 border-b border-purple-50 dark:border-purple-500/10 hover:bg-purple-50/50 dark:hover:bg-purple-500/5">
+                            <div key={habit.id} className="grid grid-cols-8 border-b border-gray-50 hover:bg-gray-50/50">
                                 {/* Habit Name */}
                                 <div className="p-3 flex items-center gap-2 truncate">
                                     <span className="text-lg">{habit.icon}</span>
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{habit.name}</span>
+                                    <span className="text-sm font-medium text-gray-700 truncate">{habit.name}</span>
                                 </div>
 
                                 {/* Day Cells */}
@@ -168,7 +168,7 @@ const WeeklyGrid = () => {
                                     return (
                                         <div
                                             key={idx}
-                                            className={`p-2 flex items-center justify-center ${isToday(date) ? 'bg-purple-500/10' : ''}`}
+                                            className={`p-2 flex items-center justify-center ${isToday(date) ? 'bg-teal-50' : ''}`}
                                         >
                                             {isScheduled ? (
                                                 <motion.button
@@ -183,15 +183,15 @@ const WeeklyGrid = () => {
                                                         }
                                                     }}
                                                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border-2 ${isCompleted
-                                                            ? `bg-gradient-to-br ${colorConfig.check} border-transparent shadow-md`
-                                                            : `bg-white ${colorConfig.border} hover:${colorConfig.bg}`
+                                                        ? `${colorConfig.check} border-transparent shadow-md`
+                                                        : `bg-white ${colorConfig.border} hover:${colorConfig.bg}`
                                                         }`}
                                                 >
                                                     {isCompleted && <Check size={16} className="text-white" strokeWidth={3} />}
                                                 </motion.button>
                                             ) : (
-                                                <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700/30 flex items-center justify-center">
-                                                    <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                                                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                                                    <span className="text-gray-300 text-xs">—</span>
                                                 </div>
                                             )}
                                         </div>
@@ -204,7 +204,7 @@ const WeeklyGrid = () => {
             </div>
 
             {/* Week Stats - Gradient Bar */}
-            <div className="bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600 rounded-2xl p-4 shadow-lg shadow-purple-500/20 flex items-center justify-between">
+            <div className="bg-teal-500 rounded-2xl p-4 shadow-md shadow-teal-500/15 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <TrendingUp className="text-white/80" size={20} />
                     <span className="text-white font-bold">This Week</span>

@@ -13,11 +13,11 @@ const COLOR_OPTIONS = [
 ];
 
 const TIME_OF_DAY_OPTIONS = [
-    { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-amber-400' },
-    { value: 'afternoon', label: 'Afternoon', icon: Sun, color: 'text-yellow-400' },
-    { value: 'evening', label: 'Evening', icon: Sunset, color: 'text-orange-400' },
-    { value: 'night', label: 'Night', icon: Moon, color: 'text-indigo-400' },
-    { value: 'anytime', label: 'Anytime', icon: Clock, color: 'text-gray-400' },
+    { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-amber-400', defaultTime: '07:00' },
+    { value: 'afternoon', label: 'Afternoon', icon: Sun, color: 'text-yellow-400', defaultTime: '12:00' },
+    { value: 'evening', label: 'Evening', icon: Sunset, color: 'text-orange-400', defaultTime: '18:00' },
+    { value: 'night', label: 'Night', icon: Moon, color: 'text-indigo-400', defaultTime: '21:00' },
+    { value: 'anytime', label: 'Anytime', icon: Clock, color: 'text-gray-400', defaultTime: '' },
 ];
 
 const DAYS = [
@@ -38,7 +38,8 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
     const [frequency, setFrequency] = useState(habit?.frequency || 'daily');
     const [scheduleDays, setScheduleDays] = useState(habit?.schedule_days || [0, 1, 2, 3, 4, 5, 6]);
     const [timeOfDay, setTimeOfDay] = useState(habit?.time_of_day || 'anytime');
-    const [color, setColor] = useState(habit?.color || 'purple');
+    const [reminderTime, setReminderTime] = useState(habit?.reminder_time || '');
+    const [color, setColor] = useState(habit?.color || 'teal');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     // Reset form when habit prop changes (for editing different habits)
@@ -51,10 +52,20 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
             setFrequency(habit?.frequency || 'daily');
             setScheduleDays(habit?.schedule_days || [0, 1, 2, 3, 4, 5, 6]);
             setTimeOfDay(habit?.time_of_day || 'anytime');
-            setColor(habit?.color || 'purple');
+            setReminderTime(habit?.reminder_time || '');
+            setColor(habit?.color || 'teal');
             setShowEmojiPicker(false);
         }
     }, [habit, isOpen]);
+
+    const handleTimeOfDayChange = (value) => {
+        setTimeOfDay(value);
+        // Auto-suggest a default time unless user already set one
+        const option = TIME_OF_DAY_OPTIONS.find(o => o.value === value);
+        if (option?.defaultTime && !reminderTime) {
+            setReminderTime(option.defaultTime);
+        }
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -69,6 +80,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
             frequency,
             schedule_days: frequency === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : scheduleDays,
             time_of_day: timeOfDay,
+            reminder_time: reminderTime || null,
             color
         });
 
@@ -80,7 +92,8 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
         setFrequency('daily');
         setScheduleDays([0, 1, 2, 3, 4, 5, 6]);
         setTimeOfDay('anytime');
-        setColor('purple');
+        setReminderTime('');
+        setColor('teal');
         onClose();
     };
 
@@ -94,7 +107,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
 
     if (!isOpen) return null;
 
-    const selectedColorGradient = COLOR_OPTIONS.find(c => c.name === color)?.gradient || COLOR_OPTIONS[0].gradient;
+    const selectedColorGradient = COLOR_OPTIONS.find(c => c.name === color)?.gradient || COLOR_OPTIONS[2].gradient;
 
     return (
         <AnimatePresence>
@@ -149,7 +162,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="e.g., Drink 8 glasses of water"
-                                    className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                                    className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
                                     autoFocus
                                 />
                             </div>
@@ -170,7 +183,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                                     setIcon(emoji);
                                                     setShowEmojiPicker(false);
                                                 }}
-                                                className={`w-10 h-10 flex items-center justify-center text-xl rounded-lg hover:bg-white/20 transition-colors ${icon === emoji ? 'bg-white/30 ring-2 ring-purple-400' : 'bg-white/10'}`}
+                                                className={`w-10 h-10 flex items-center justify-center text-xl rounded-lg hover:bg-white/20 transition-colors ${icon === emoji ? 'bg-white/30 ring-2 ring-teal-400' : 'bg-white/10'}`}
                                             >
                                                 {emoji}
                                             </button>
@@ -180,7 +193,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </AnimatePresence>
                         </div>
 
-                        {/* Time of Day */}
+                        {/* Time of Day + Specific Time */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70">Time of Day</label>
                             <div className="grid grid-cols-5 gap-2">
@@ -188,7 +201,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                     <button
                                         key={option.value}
                                         type="button"
-                                        onClick={() => setTimeOfDay(option.value)}
+                                        onClick={() => handleTimeOfDayChange(option.value)}
                                         className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl font-medium transition-all ${timeOfDay === option.value
                                             ? `bg-gradient-to-r ${selectedColorGradient} text-white shadow-lg`
                                             : 'bg-white/10 text-white/60 hover:bg-white/20'
@@ -198,6 +211,27 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                         <span className="text-xs">{option.label}</span>
                                     </button>
                                 ))}
+                            </div>
+
+                            {/* Specific Time Picker */}
+                            <div className="flex items-center gap-3 mt-3">
+                                <Clock size={16} className="text-white/50" />
+                                <span className="text-sm text-white/60">Scheduled time</span>
+                                <input
+                                    type="time"
+                                    value={reminderTime}
+                                    onChange={(e) => setReminderTime(e.target.value)}
+                                    className="ml-auto bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 [color-scheme:dark]"
+                                />
+                                {reminderTime && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setReminderTime('')}
+                                        className="text-white/40 hover:text-white/70 transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -242,7 +276,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                     max={type === 'duration' ? 120 : 20}
                                     value={target}
                                     onChange={(e) => setTarget(parseInt(e.target.value))}
-                                    className="w-full accent-purple-500"
+                                    className="w-full accent-teal-500"
                                 />
                                 <div className="flex justify-between text-xs text-white/40">
                                     <span>1</span>

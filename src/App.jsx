@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, LogIn, LogOut, Palette, LayoutDashboard, Target, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, Timer, BarChart3, ListChecks } from 'lucide-react';
+import { Moon, Sun, LogIn, LogOut, Palette, LayoutDashboard, Target, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, BarChart3, ListChecks, GraduationCap } from 'lucide-react';
 import TaskInput from './components/TaskInput';
 import Garden from './components/Garden';
 import Calendar from './components/Calendar';
 import AIHelpSidebar from './components/AIHelpSidebar';
 import VisionBoard from './components/VisionBoard';
 import AuthModal from './components/AuthModal';
-import FocusTimer from './components/FocusTimer';
 import UserProfile from './components/UserProfile';
 import ProjectBoards from './components/ProjectBoards';
 import Overview from './components/Overview';
-import StartTheDayModal from './components/StartTheDayModal';
-import EndTheDayModal from './components/EndTheDayModal';
 import ChatSidebar, { FloatingChatButton } from './components/ChatSidebar';
 import { getPersonalizedAdvice } from './services/gemini';
 
@@ -26,6 +23,7 @@ import { HabitProvider } from './context/HabitContext';
 import { ChatProvider } from './context/ChatContext';
 import { useUserProfile } from './context/UserProfileContext';
 import HabitTracker from './components/HabitTracker';
+import LearningTracker from './components/LearningTracker';
 import SleepTrendsDashboard from './components/SleepTrendsDashboard';
 import NotificationToast from './components/NotificationToast';
 import smartNotificationService from './services/SmartNotificationService';
@@ -72,8 +70,6 @@ function App() {
 
   // Local UI State (not in contexts)
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showStartDayModal, setShowStartDayModal] = useState(false);
-  const [showEndDayModal, setShowEndDayModal] = useState(false);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('app-theme') || 'cozy'; // 'cozy', 'professional', 'pink', 'blue'
@@ -88,10 +84,9 @@ function App() {
     { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
     { id: 'garden', label: 'Tasks', icon: <Sprout size={20} /> },
     { id: 'habits', label: 'Habits', icon: <ListChecks size={20} /> },
+    { id: 'learning', label: 'Learning', icon: <GraduationCap size={20} /> },
     { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
-    { id: 'focus', label: 'Focus', icon: <Timer size={20} /> },
   ];
-  const [currentFocusTask, setCurrentFocusTask] = useState(null);
 
   // AI Help State
   const [showAISidebar, setShowAISidebar] = useState(false);
@@ -169,19 +164,6 @@ function App() {
     } finally {
       setIsLoadingAI(false);
     }
-  };
-
-  // Focus Mode handler
-  const handleStartFocus = (task) => {
-    setCurrentFocusTask(task);
-    setActiveTab('focus');
-  };
-
-  // Focus completion handler
-  const handleFocusComplete = async (minutes) => {
-    const reward = minutes;
-    await earnCoins(reward);
-    triggerPersonaReaction('complete', `Focus Session (${minutes}m)`);
   };
 
   return (
@@ -304,15 +286,12 @@ function App() {
                       unlockedPlots={unlockedPlots}
                       onBuyPlot={buyPlot}
                       displayMode={displayMode}
-                      onStartFocus={handleStartFocus}
                     />
                   </>
                 )}
                 {activeTab === 'overview' && (
                   <Overview
                     onNavigate={setActiveTab}
-                    onStartDay={() => setShowStartDayModal(true)}
-                    onEndDay={() => setShowEndDayModal(true)}
                   />
                 )}
 
@@ -345,6 +324,10 @@ function App() {
                   <HabitTracker />
                 )}
 
+                {activeTab === 'learning' && (
+                  <LearningTracker />
+                )}
+
                 {activeTab === 'sleep' && (
                   <SleepTrendsDashboard />
                 )}
@@ -353,14 +336,6 @@ function App() {
                   <ProjectBoards />
                 )}
 
-                {activeTab === 'focus' && (
-                  <div className="max-w-2xl mx-auto">
-                    <FocusTimer
-                      onComplete={handleFocusComplete}
-                      initialTask={currentFocusTask}
-                    />
-                  </div>
-                )}
               </main>
             </div>
 
@@ -377,21 +352,6 @@ function App() {
             <AuthModal
               isOpen={showAuthModal}
               onClose={() => setShowAuthModal(false)}
-            />
-
-            <StartTheDayModal
-              isOpen={showStartDayModal}
-              onClose={() => setShowStartDayModal(false)}
-              tasks={tasks}
-              goals={goals}
-              dailyHighlights={dailyHighlights}
-              scheduleItems={scheduleItems}
-              onAddScheduleItem={addScheduleItem}
-            />
-
-            <EndTheDayModal
-              isOpen={showEndDayModal}
-              onClose={() => setShowEndDayModal(false)}
             />
 
             {/* Smart Notifications Toast */}

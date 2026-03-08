@@ -604,6 +604,89 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
+    // ============ Highlight/Star Functions ============
+
+    // Load highlights for a project
+    const loadProjectHighlights = async (projectId) => {
+        if (!user) return { tasks: new Set(), subtasks: new Set() };
+
+        try {
+            const { data, error } = await supabase
+                .from('project_highlights')
+                .select('task_id, subtask_id')
+                .eq('project_id', projectId)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            const taskHighlights = new Set();
+            const subtaskHighlights = new Set();
+
+            data.forEach(item => {
+                if (item.subtask_id) {
+                    subtaskHighlights.add(`${item.task_id}-${item.subtask_id}`);
+                } else {
+                    taskHighlights.add(item.task_id);
+                }
+            });
+
+            console.log('✅ Loaded highlights:', { tasks: taskHighlights.size, subtasks: subtaskHighlights.size });
+            return { tasks: taskHighlights, subtasks: subtaskHighlights };
+        } catch (error) {
+            console.error('❌ Failed to load highlights:', error);
+            return { tasks: new Set(), subtasks: new Set() };
+        }
+    };
+
+    // Add a highlight
+    const addHighlight = async (projectId, taskId, subtaskId = null) => {
+        if (!user) return;
+
+        try {
+            const { error } = await supabase
+                .from('project_highlights')
+                .insert({
+                    user_id: user.id,
+                    project_id: projectId,
+                    task_id: taskId,
+                    subtask_id: subtaskId
+                });
+
+            if (error && error.code !== '23505') { // Ignore duplicate key errors
+                throw error;
+            }
+            console.log('✅ Highlight added');
+        } catch (error) {
+            console.error('❌ Failed to add highlight:', error);
+        }
+    };
+
+    // Remove a highlight
+    const removeHighlight = async (projectId, taskId, subtaskId = null) => {
+        if (!user) return;
+
+        try {
+            let query = supabase
+                .from('project_highlights')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('project_id', projectId)
+                .eq('task_id', taskId);
+
+            if (subtaskId) {
+                query = query.eq('subtask_id', subtaskId);
+            } else {
+                query = query.is('subtask_id', null);
+            }
+
+            const { error } = await query;
+            if (error) throw error;
+            console.log('✅ Highlight removed');
+        } catch (error) {
+            console.error('❌ Failed to remove highlight:', error);
+        }
+    };
+
     return (
         <ProjectContext.Provider value={{
             projects,
@@ -626,7 +709,11 @@ export const ProjectProvider = ({ children }) => {
             updateSubtask,
             toggleSubtaskComplete,
             deleteSubtask,
-            reorderTasks
+            reorderTasks,
+            // Highlight operations
+            loadProjectHighlights,
+            addHighlight,
+            removeHighlight
         }}>
             {children}
         </ProjectContext.Provider>

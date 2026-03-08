@@ -36,7 +36,7 @@ export const extractInsightsFromExchange = async (userMessage, assistantResponse
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
 
         // Build context of what we already know
         const knownFacts = existingIntelligence.map(i => i.content).join('; ');
@@ -121,7 +121,7 @@ export const extractInsightsFromConversation = async (messages, existingIntellig
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
 
         const conversationText = userMessages.map(m => `User: ${m.content}`).join('\n');
         const knownFacts = existingIntelligence.map(i => i.content).join('; ');

@@ -1,61 +1,115 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Check, Minus, Plus, Clock, Trash2, Edit2, Sunrise, Sun, Sunset, Moon } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Minus, Plus, Clock, Trash2, Edit2, Sunrise, Sun, Sunset, Moon, Flame } from 'lucide-react';
 
-// Gradient configurations for different colors
+// Color configurations for accent colors
 const COLOR_CONFIGS = {
     purple: {
-        gradient: 'from-purple-400/30 via-purple-200/20 to-transparent',
+        accent: '#8B5CF6',
+        bg: 'bg-purple-50',
         border: 'border-purple-200',
-        icon: 'from-purple-400 to-indigo-500',
-        button: 'from-purple-500 to-indigo-600',
-        text: 'text-purple-600',
+        text: 'text-purple-700',
+        lightText: 'text-purple-500',
+        check: 'bg-purple-500',
+        checkHover: 'hover:bg-purple-600',
+        progressBg: 'bg-purple-100',
+        progressFill: 'bg-purple-500',
+        dot: 'bg-purple-500',
+        dotEmpty: 'bg-purple-200',
+        logBtn: 'bg-purple-500 hover:bg-purple-600',
     },
     pink: {
-        gradient: 'from-pink-400/30 via-pink-200/20 to-transparent',
+        accent: '#EC4899',
+        bg: 'bg-pink-50',
         border: 'border-pink-200',
-        icon: 'from-pink-400 to-rose-500',
-        button: 'from-pink-500 to-rose-600',
-        text: 'text-pink-600',
+        text: 'text-pink-700',
+        lightText: 'text-pink-500',
+        check: 'bg-pink-500',
+        checkHover: 'hover:bg-pink-600',
+        progressBg: 'bg-pink-100',
+        progressFill: 'bg-pink-500',
+        dot: 'bg-pink-500',
+        dotEmpty: 'bg-pink-200',
+        logBtn: 'bg-pink-500 hover:bg-pink-600',
     },
     teal: {
-        gradient: 'from-teal-400/30 via-teal-200/20 to-transparent',
+        accent: '#14B8A6',
+        bg: 'bg-teal-50',
         border: 'border-teal-200',
-        icon: 'from-teal-400 to-cyan-500',
-        button: 'from-teal-500 to-cyan-600',
-        text: 'text-teal-600',
+        text: 'text-teal-700',
+        lightText: 'text-teal-500',
+        check: 'bg-teal-500',
+        checkHover: 'hover:bg-teal-600',
+        progressBg: 'bg-teal-100',
+        progressFill: 'bg-teal-500',
+        dot: 'bg-teal-500',
+        dotEmpty: 'bg-teal-200',
+        logBtn: 'bg-teal-500 hover:bg-teal-600',
     },
     amber: {
-        gradient: 'from-amber-400/30 via-amber-200/20 to-transparent',
+        accent: '#F59E0B',
+        bg: 'bg-amber-50',
         border: 'border-amber-200',
-        icon: 'from-amber-400 to-orange-500',
-        button: 'from-amber-500 to-orange-600',
-        text: 'text-amber-600',
+        text: 'text-amber-700',
+        lightText: 'text-amber-500',
+        check: 'bg-amber-500',
+        checkHover: 'hover:bg-amber-600',
+        progressBg: 'bg-amber-100',
+        progressFill: 'bg-amber-500',
+        dot: 'bg-amber-500',
+        dotEmpty: 'bg-amber-200',
+        logBtn: 'bg-amber-500 hover:bg-amber-600',
     },
     emerald: {
-        gradient: 'from-emerald-400/30 via-emerald-200/20 to-transparent',
+        accent: '#10B981',
+        bg: 'bg-emerald-50',
         border: 'border-emerald-200',
-        icon: 'from-emerald-400 to-green-500',
-        button: 'from-emerald-500 to-green-600',
-        text: 'text-emerald-600',
+        text: 'text-emerald-700',
+        lightText: 'text-emerald-500',
+        check: 'bg-emerald-500',
+        checkHover: 'hover:bg-emerald-600',
+        progressBg: 'bg-emerald-100',
+        progressFill: 'bg-emerald-500',
+        dot: 'bg-emerald-500',
+        dotEmpty: 'bg-emerald-200',
+        logBtn: 'bg-emerald-500 hover:bg-emerald-600',
     },
 };
 
-// Assign colors based on index for variety
-const INDEX_COLORS = ['purple', 'teal', 'pink', 'emerald', 'amber'];
+const INDEX_COLORS = ['teal', 'purple', 'pink', 'emerald', 'amber'];
 
 const TIME_OF_DAY_CONFIG = {
-    morning: { label: 'Morning', icon: Sunrise, bgColor: 'bg-amber-100', textColor: 'text-amber-600' },
-    afternoon: { label: 'Afternoon', icon: Sun, bgColor: 'bg-yellow-100', textColor: 'text-yellow-600' },
-    evening: { label: 'Evening', icon: Sunset, bgColor: 'bg-orange-100', textColor: 'text-orange-600' },
-    night: { label: 'Night', icon: Moon, bgColor: 'bg-indigo-100', textColor: 'text-indigo-600' },
-    anytime: { label: 'Anytime', icon: Clock, bgColor: 'bg-gray-100', textColor: 'text-gray-500' },
+    morning: { label: 'Morning', icon: Sunrise },
+    afternoon: { label: 'Afternoon', icon: Sun },
+    evening: { label: 'Evening', icon: Sunset },
+    night: { label: 'Night', icon: Moon },
+    anytime: { label: 'Anytime', icon: Clock },
 };
 
-const HabitCard = ({ habit, log, onLog, onEdit, onDelete, compact = false, index = 0 }) => {
-    // Use habit color or assign based on index for variety
+const formatTime12h = (timeStr) => {
+    if (!timeStr) return null;
+    const [h, m] = timeStr.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${m} ${ampm}`;
+};
+
+const getFrequencyLabel = (habit) => {
+    if (habit.frequency === 'daily') return 'Daily';
+    if (habit.schedule_days && habit.schedule_days.length > 0) {
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        return habit.schedule_days.map(d => dayNames[d]).join(', ');
+    }
+    return 'Custom';
+};
+
+const HabitCard = ({ habit, log, onLog, onEdit, onDelete, streak, compact = false, index = 0 }) => {
+    const [showActions, setShowActions] = useState(false);
+    const [justCompleted, setJustCompleted] = useState(false);
+
     const colorKey = habit.color || INDEX_COLORS[index % INDEX_COLORS.length];
-    const colorConfig = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.purple;
+    const cc = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.teal;
 
     const currentValue = log?.value || 0;
     const isCompleted = log?.completed || false;
@@ -63,35 +117,32 @@ const HabitCard = ({ habit, log, onLog, onEdit, onDelete, compact = false, index
         ? (isCompleted ? 100 : 0)
         : Math.min((currentValue / habit.target) * 100, 100);
 
-    const timeConfig = TIME_OF_DAY_CONFIG[habit.time_of_day] || TIME_OF_DAY_CONFIG.anytime;
-    const TimeIcon = timeConfig.icon;
+    const currentStreak = streak?.current || 0;
 
     const handleIncrement = (e) => {
-        e.stopPropagation();
+        e?.stopPropagation();
         if (habit.type === 'check') {
+            if (!isCompleted) {
+                setJustCompleted(true);
+                setTimeout(() => setJustCompleted(false), 1000);
+            }
             onLog(habit.id, isCompleted ? 0 : 1, !isCompleted);
         } else {
             const newValue = Math.min(currentValue + 1, habit.target);
+            if (newValue >= habit.target && !isCompleted) {
+                setJustCompleted(true);
+                setTimeout(() => setJustCompleted(false), 1000);
+            }
             onLog(habit.id, newValue, newValue >= habit.target);
         }
     };
 
     const handleDecrement = (e) => {
-        e.stopPropagation();
+        e?.stopPropagation();
         if (habit.type !== 'check' && currentValue > 0) {
             const newValue = currentValue - 1;
             onLog(habit.id, newValue, newValue >= habit.target);
         }
-    };
-
-    const getProgressLabel = () => {
-        if (habit.type === 'check') {
-            return isCompleted ? 'Completed!' : 'Tap to complete';
-        }
-        if (habit.type === 'duration') {
-            return `${currentValue}/${habit.target} min`;
-        }
-        return `${currentValue}/${habit.target}`;
     };
 
     if (compact) {
@@ -102,8 +153,8 @@ const HabitCard = ({ habit, log, onLog, onEdit, onDelete, compact = false, index
                 whileTap={{ scale: 0.95 }}
                 onClick={handleIncrement}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border-2 ${isCompleted
-                        ? `bg-gradient-to-br ${colorConfig.button} border-transparent shadow-lg`
-                        : `bg-white/50 ${colorConfig.border} hover:bg-white/80`
+                    ? `${cc.check} border-transparent shadow-lg`
+                    : `bg-white ${cc.border} hover:bg-gray-50`
                     }`}
             >
                 {isCompleted && <Check size={16} className="text-white" strokeWidth={3} />}
@@ -113,111 +164,191 @@ const HabitCard = ({ habit, log, onLog, onEdit, onDelete, compact = false, index
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative rounded-2xl overflow-hidden transition-all group border ${colorConfig.border} bg-white shadow-sm hover:shadow-md ${isCompleted ? 'ring-2 ring-green-400/50' : ''
-                }`}
+            transition={{ delay: index * 0.05 }}
+            onHoverStart={() => setShowActions(true)}
+            onHoverEnd={() => setShowActions(false)}
+            className={`relative bg-white rounded-2xl border ${isCompleted ? 'border-green-200' : cc.border} shadow-sm hover:shadow-md transition-all group overflow-hidden`}
         >
-            {/* Left Gradient Background */}
-            <div className={`absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r ${colorConfig.gradient}`} />
+            {/* Completion glow animation */}
+            <AnimatePresence>
+                {justCompleted && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-green-100/50 z-0 rounded-2xl"
+                    />
+                )}
+            </AnimatePresence>
 
-            {/* Content */}
-            <div className="relative p-4 flex items-center gap-4">
-                {/* Icon with gradient background */}
-                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorConfig.icon} flex items-center justify-center text-2xl shadow-md`}>
-                    <span className="drop-shadow-sm">{habit.icon}</span>
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className={`font-bold text-gray-800 truncate ${isCompleted ? 'line-through opacity-60' : ''}`}>
-                            {habit.name}
-                        </h3>
-                        {/* Time of Day Badge */}
-                        {habit.time_of_day && habit.time_of_day !== 'anytime' && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${timeConfig.bgColor} ${timeConfig.textColor}`}>
-                                <TimeIcon size={10} />
-                                {timeConfig.label}
-                            </span>
-                        )}
+            <div className="relative z-10 p-4">
+                <div className="flex items-start gap-4">
+                    {/* Icon */}
+                    <div className={`w-12 h-12 rounded-2xl ${cc.bg} flex items-center justify-center text-2xl flex-shrink-0`}>
+                        {habit.icon}
                     </div>
-                    <p className={`text-sm ${colorConfig.text} flex items-center gap-1`}>
-                        {habit.type === 'duration' && <Clock size={12} />}
-                        {getProgressLabel()}
-                    </p>
-                </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                    {habit.type !== 'check' && (
-                        <>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                        {/* Title Row */}
+                        <div className="flex items-center gap-2">
+                            <h3 className={`font-bold text-gray-800 uppercase tracking-wide text-sm ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+                                {habit.name}
+                            </h3>
+                        </div>
+
+                        {/* Subtitle: frequency, streak, time */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-gray-500">
+                            <span>{getFrequencyLabel(habit)}</span>
+                            {habit.reminder_time && (
+                                <>
+                                    <span className="text-gray-300">•</span>
+                                    <span className={cc.lightText}>{formatTime12h(habit.reminder_time)}</span>
+                                </>
+                            )}
+                            {currentStreak > 0 && (
+                                <>
+                                    <span className="text-gray-300">•</span>
+                                    <span className="flex items-center gap-0.5 text-orange-500 font-medium">
+                                        {currentStreak} days streak
+                                        <Flame size={11} className="text-orange-400" />
+                                    </span>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Progress Info */}
+                        <div className="mt-2">
+                            {habit.type === 'check' && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-xs text-gray-500">Progress:</span>
+                                    {isCompleted ? (
+                                        <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                                            Completed
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">○ Mark Complete</span>
+                                    )}
+                                </div>
+                            )}
+
+                            {habit.type === 'count' && (
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                        {/* Visual dots */}
+                                        <div className="flex items-center gap-1">
+                                            {Array.from({ length: Math.min(habit.target, 10) }).map((_, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`w-4 h-4 rounded-sm transition-all ${i < currentValue ? cc.dot : cc.dotEmpty}`}
+                                                />
+                                            ))}
+                                        </div>
+                                        {habit.target > 10 && (
+                                            <span className="text-xs text-gray-400">
+                                                {currentValue}/{habit.target}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                        {habit.type === 'count' ? `${currentValue}/${habit.target} done` : ''}
+                                    </div>
+                                </div>
+                            )}
+
+                            {habit.type === 'duration' && (
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <Clock size={11} />
+                                        <span>{currentValue}/{habit.target} min</span>
+                                    </div>
+                                    <div className={`h-1.5 rounded-full ${cc.progressBg}`}>
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${progress}%` }}
+                                            className={`h-full rounded-full ${cc.progressFill}`}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Action Area — Right Side */}
+                    <div className="flex-shrink-0 flex items-center gap-2 self-center">
+                        {habit.type === 'check' && (
                             <motion.button
-                                whileTap={{ scale: 0.9 }}
-                                onClick={handleDecrement}
-                                className={`w-9 h-9 rounded-full bg-gradient-to-br ${colorConfig.button} flex items-center justify-center text-white shadow-md hover:shadow-lg transition-all ${currentValue === 0 ? 'opacity-50' : ''}`}
-                                disabled={currentValue === 0}
+                                whileTap={{ scale: 0.85 }}
+                                onClick={handleIncrement}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border-2 ${isCompleted
+                                    ? 'bg-teal-500 border-teal-500 text-white shadow-md'
+                                    : `bg-white ${cc.border} text-gray-300 hover:border-teal-400 hover:text-teal-400`
+                                    }`}
                             >
-                                <Minus size={18} strokeWidth={3} />
+                                <Check size={20} strokeWidth={3} />
                             </motion.button>
+                        )}
+
+                        {habit.type === 'count' && (
                             <motion.button
                                 whileTap={{ scale: 0.9 }}
                                 onClick={handleIncrement}
-                                className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md hover:shadow-lg transition-all ${isCompleted
-                                        ? 'bg-gradient-to-br from-green-400 to-emerald-500'
-                                        : `bg-gradient-to-br ${colorConfig.button}`
-                                    }`}
+                                className={`px-4 py-2 rounded-xl text-white text-sm font-bold shadow-sm transition-all ${cc.logBtn}`}
                             >
-                                <Plus size={18} strokeWidth={3} />
+                                Log
                             </motion.button>
-                        </>
-                    )}
+                        )}
 
-                    {habit.type === 'check' && (
-                        <motion.button
-                            whileTap={{ scale: 0.9 }}
-                            onClick={handleIncrement}
-                            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md hover:shadow-lg ${isCompleted
-                                    ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
-                                    : `bg-gradient-to-br ${colorConfig.button} text-white`
-                                }`}
-                        >
-                            <Check size={22} strokeWidth={3} />
-                        </motion.button>
-                    )}
+                        {habit.type === 'duration' && (
+                            <div className="flex items-center gap-1">
+                                <motion.button
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleDecrement}
+                                    disabled={currentValue === 0}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${currentValue === 0 ? 'bg-gray-100 text-gray-300' : `${cc.bg} ${cc.text}`}`}
+                                >
+                                    <Minus size={14} strokeWidth={3} />
+                                </motion.button>
+                                <motion.button
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleIncrement}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${cc.logBtn}`}
+                                >
+                                    <Plus size={14} strokeWidth={3} />
+                                </motion.button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
-                    {/* Edit/Delete buttons - show on hover */}
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Edit/Delete overlay */}
+            <AnimatePresence>
+                {showActions && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="absolute top-2 right-2 flex gap-1 z-20"
+                    >
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit && onEdit(habit);
-                            }}
-                            className="p-1.5 rounded-lg bg-white/80 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors shadow-sm"
+                            onClick={(e) => { e.stopPropagation(); onEdit?.(habit); }}
+                            className="p-1.5 rounded-lg bg-white/90 hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors shadow-sm border border-gray-100"
                         >
                             <Edit2 size={12} />
                         </button>
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete && onDelete(habit.id);
-                            }}
-                            className="p-1.5 rounded-lg bg-white/80 hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors shadow-sm"
+                            onClick={(e) => { e.stopPropagation(); onDelete?.(habit.id); }}
+                            className="p-1.5 rounded-lg bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shadow-sm border border-gray-100"
                         >
                             <Trash2 size={12} />
                         </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom Progress Bar */}
-            <div className="h-1 bg-gray-100">
-                <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    className={`h-full bg-gradient-to-r ${colorConfig.button}`}
-                />
-            </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 };

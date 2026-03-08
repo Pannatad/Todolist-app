@@ -3,6 +3,7 @@ import { AuthProvider } from './AuthContext';
 import { TaskProvider } from './TaskContext';
 import { GameProvider } from './GameContext';
 import { GoalProvider } from './GoalContext';
+import { LearningProvider } from './LearningContext';
 import { UserProfileProvider } from './UserProfileContext';
 import { UserIntelligenceProvider } from './UserIntelligenceContext';
 import { AgentMemoryProvider } from './AgentMemoryContext';
@@ -20,7 +21,9 @@ export const AppProviders = ({ children }) => {
                         <TaskProvider>
                             <GameProvider>
                                 <GoalProvider>
-                                    {children}
+                                    <LearningProvider>
+                                        {children}
+                                    </LearningProvider>
                                 </GoalProvider>
                             </GameProvider>
                         </TaskProvider>
