@@ -15,13 +15,15 @@ const COLOR_OPTIONS = [
     { name: 'indigo', gradient: 'from-indigo-500 to-violet-600', bg: 'bg-indigo-500' },
 ];
 
-const LearningPathModal = ({ isOpen, onClose, onSave, path = null }) => {
+const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCategories = [] }) => {
     const [name, setName] = useState(path?.name || '');
     const [description, setDescription] = useState(path?.description || '');
     const [icon, setIcon] = useState(path?.icon || '📚');
     const [color, setColor] = useState(path?.color || 'purple');
+    const [category, setCategory] = useState(path?.category || '');
     const [targetDate, setTargetDate] = useState(path?.target_completion_date || '');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
 
     // Reset form when path prop changes
     React.useEffect(() => {
@@ -30,8 +32,10 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null }) => {
             setDescription(path?.description || '');
             setIcon(path?.icon || '📚');
             setColor(path?.color || 'purple');
+            setCategory(path?.category || '');
             setTargetDate(path?.target_completion_date || '');
             setShowEmojiPicker(false);
+            setShowCategorySuggestions(false);
         }
     }, [path, isOpen]);
 
@@ -45,6 +49,7 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null }) => {
             description: description.trim(),
             icon,
             color,
+            category: category.trim(),
             target_completion_date: targetDate || null,
         });
 
@@ -149,6 +154,36 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null }) => {
                                 rows={3}
                                 className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
                             />
+                        </div>
+
+                        {/* Category */}
+                        <div className="space-y-2 relative">
+                            <label className="text-sm font-medium text-white/70">Category</label>
+                            <input
+                                type="text"
+                                value={category}
+                                onChange={(e) => { setCategory(e.target.value); setShowCategorySuggestions(true); }}
+                                onFocus={() => setShowCategorySuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                                placeholder="e.g., Programming, Languages, Music"
+                                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                            />
+                            {showCategorySuggestions && existingCategories.length > 0 && (
+                                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-xl overflow-hidden shadow-xl">
+                                    {existingCategories
+                                        .filter(c => c.toLowerCase().includes(category.toLowerCase()))
+                                        .map((cat) => (
+                                            <button
+                                                key={cat}
+                                                type="button"
+                                                onMouseDown={(e) => { e.preventDefault(); setCategory(cat); setShowCategorySuggestions(false); }}
+                                                className="w-full text-left px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Target Date */}

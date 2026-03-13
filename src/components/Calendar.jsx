@@ -332,9 +332,11 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                 {viewMode === 'schedule' ? (
                     <Schedule
                         events={scheduleItems}
+                        tasks={tasks}
                         onAddEvent={onAddScheduleItem}
                         onUpdateEvent={onUpdateScheduleItem}
                         onDeleteEvent={onDeleteScheduleItem}
+                        onCompleteTask={onCompleteTask}
                     />
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-y-auto">

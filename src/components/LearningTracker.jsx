@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive } from 'lucide-react';
+import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
 import LearningPathDetailView from './LearningPathDetailView';
+import { COLOR_OPTIONS } from './LearningPathModal';
 
 const LearningTracker = () => {
     const {
@@ -18,7 +19,8 @@ const LearningTracker = () => {
         deleteLearningPath,
         archiveLearningPath,
         getPathProgress,
-        getPathTotalTime,
+        getCategories,
+        getInProgressTopicsWithPaths,
     } = useLearning();
 
     const [showPathModal, setShowPathModal] = useState(false);
@@ -39,11 +41,35 @@ const LearningTracker = () => {
             const q = searchQuery.toLowerCase();
             paths = paths.filter(p =>
                 p.name.toLowerCase().includes(q) ||
-                p.description?.toLowerCase().includes(q)
+                p.description?.toLowerCase().includes(q) ||
+                p.category?.toLowerCase().includes(q)
             );
         }
         return paths;
     }, [learningPaths, showArchived, searchQuery]);
+
+    // Group by category
+    const groupedPaths = useMemo(() => {
+        const groups = {};
+        filteredPaths.forEach(path => {
+            const cat = path.category && path.category.trim() !== '' ? path.category.trim() : 'Uncategorized';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(path);
+        });
+        // Sort categories alphabetically, but Uncategorized last
+        const sortedKeys = Object.keys(groups).sort((a, b) => {
+            if (a === 'Uncategorized') return 1;
+            if (b === 'Uncategorized') return -1;
+            return a.localeCompare(b);
+        });
+        return sortedKeys.map(key => ({ category: key, paths: groups[key] }));
+    }, [filteredPaths]);
+
+    // In-progress topics
+    const inProgressTopics = useMemo(() => getInProgressTopicsWithPaths(), [getInProgressTopicsWithPaths]);
+
+    // Existing categories for autocomplete
+    const existingCategories = useMemo(() => getCategories(), [getCategories]);
 
     // Overall stats
     const stats = useMemo(() => {
@@ -51,7 +77,13 @@ const LearningTracker = () => {
         const allTopics = topics;
         const completed = allTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
         const inProgress = allTopics.filter(t => t.status === 'in_progress').length;
-        const totalTime = activePaths.reduce((sum, p) => sum + getPathTotalTime(p.id), 0);
+        const activePathIds = activePaths.map(p => p.id);
+        const totalTime = allTopics
+            .filter(t => activePathIds.includes(t.learning_path_id))
+            .reduce((sum, t) => sum + (t.estimated_time || 0), 0);
+        const learnedTime = allTopics
+            .filter(t => activePathIds.includes(t.learning_path_id) && (t.status === 'completed' || t.status === 'mastered'))
+            .reduce((sum, t) => sum + (t.estimated_time || 0), 0);
 
         return {
             totalPaths: activePaths.length,
@@ -59,8 +91,9 @@ const LearningTracker = () => {
             completed,
             inProgress,
             totalTime,
+            learnedTime,
         };
-    }, [learningPaths, topics, getPathTotalTime]);
+    }, [learningPaths, topics]);
 
     const formatTime = (minutes) => {
         if (!minutes) return '0h';
@@ -159,11 +192,58 @@ const LearningTracker = () => {
                 >
                     <div className="flex items-center gap-2 text-white/80 mb-1">
                         <Clock size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Total Time</span>
+                        <span className="text-xs font-bold uppercase tracking-wide">Learned</span>
                     </div>
-                    <div className="text-3xl font-bold text-white">{formatTime(stats.totalTime)}</div>
+                    <div className="text-3xl font-bold text-white">{formatTime(stats.learnedTime)}</div>
+                    {stats.totalTime > 0 && (
+                        <div className="text-xs text-white/60 font-medium mt-0.5">of {formatTime(stats.totalTime)} total</div>
+                    )}
                 </motion.div>
             </div>
+
+            {/* ── Continue Learning Block ─────────────────────── */}
+            {inProgressTopics.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <Zap size={18} className="text-amber-500" />
+                        <h3 className="text-base font-bold text-gray-800">Continue Learning</h3>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                            {inProgressTopics.length} in progress
+                        </span>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                        {inProgressTopics.map((topic, idx) => {
+                            const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
+                            return (
+                                <motion.button
+                                    key={topic.id}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.2 + idx * 0.05 }}
+                                    onClick={() => setCurrentPathId(topic.learning_path_id)}
+                                    className="flex-shrink-0 min-w-[240px] max-w-[300px] bg-white border border-amber-200/80 rounded-2xl p-4 text-left hover:shadow-md hover:border-amber-300 hover:scale-[1.02] transition-all group"
+                                >
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${pathColor.gradient} flex items-center justify-center text-sm shadow-sm`}>
+                                            {topic.path?.icon || '📚'}
+                                        </div>
+                                        <span className="text-xs text-gray-400 font-medium truncate">{topic.path?.name}</span>
+                                    </div>
+                                    <h4 className="font-semibold text-sm text-gray-800 truncate mb-2">{topic.title}</h4>
+                                    <div className="flex items-center gap-1.5 text-xs text-amber-600 font-semibold group-hover:text-amber-700">
+                                        <span>Continue</span>
+                                        <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                                    </div>
+                                </motion.button>
+                            );
+                        })}
+                    </div>
+                </motion.div>
+            )}
 
             {/* Search & Filter Bar */}
             <div className="flex items-center gap-3">
@@ -190,7 +270,7 @@ const LearningTracker = () => {
                 </button>
             </div>
 
-            {/* Learning Paths Grid */}
+            {/* Learning Paths — Grouped by Category */}
             {isLoading ? (
                 <div className="text-center py-16">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-500 border-t-transparent mx-auto mb-3" />
@@ -223,40 +303,55 @@ const LearningTracker = () => {
                     )}
                 </motion.div>
             ) : (
-                <motion.div
-                    layout
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                >
-                    <AnimatePresence>
-                        {filteredPaths.map((path, index) => {
-                            const pathTopics = topics.filter(t => t.learning_path_id === path.id);
-                            const completedCount = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
+                <div className="space-y-8">
+                    {groupedPaths.map(({ category, paths: catPaths }) => (
+                        <div key={category}>
+                            {/* Category Header */}
+                            {groupedPaths.length > 1 || category !== 'Uncategorized' ? (
+                                <div className="flex items-center gap-2.5 mb-4">
+                                    <div className="w-1 h-6 bg-gradient-to-b from-purple-400 to-indigo-500 rounded-full" />
+                                    <FolderOpen size={16} className="text-gray-400" />
+                                    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">{category}</h3>
+                                    <span className="text-xs text-gray-400 font-medium">{catPaths.length}</span>
+                                </div>
+                            ) : null}
 
-                            return (
-                                <motion.div
-                                    key={path.id}
-                                    layout
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.9 }}
-                                    transition={{ delay: index * 0.05 }}
-                                >
-                                    <LearningPathCard
-                                        path={path}
-                                        progress={getPathProgress(path.id)}
-                                        topicCount={pathTopics.length}
-                                        completedCount={completedCount}
-                                        totalTime={getPathTotalTime(path.id)}
-                                        onClick={() => setCurrentPathId(path.id)}
-                                        onEdit={(p) => { setEditingPath(p); setShowPathModal(true); }}
-                                        onDelete={deleteLearningPath}
-                                        onArchive={archiveLearningPath}
-                                    />
-                                </motion.div>
-                            );
-                        })}
-                    </AnimatePresence>
-                </motion.div>
+                            {/* Path Cards Grid */}
+                            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <AnimatePresence>
+                                    {catPaths.map((path, index) => {
+                                        const pathTopics = topics.filter(t => t.learning_path_id === path.id);
+                                        const completedCount = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
+                                        const pathTotalTime = pathTopics.reduce((sum, t) => sum + (t.estimated_time || 0), 0);
+
+                                        return (
+                                            <motion.div
+                                                key={path.id}
+                                                layout
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.9 }}
+                                                transition={{ delay: index * 0.05 }}
+                                            >
+                                                <LearningPathCard
+                                                    path={path}
+                                                    progress={getPathProgress(path.id)}
+                                                    topicCount={pathTopics.length}
+                                                    completedCount={completedCount}
+                                                    totalTime={pathTotalTime}
+                                                    onClick={() => setCurrentPathId(path.id)}
+                                                    onEdit={(p) => { setEditingPath(p); setShowPathModal(true); }}
+                                                    onDelete={deleteLearningPath}
+                                                    onArchive={archiveLearningPath}
+                                                />
+                                            </motion.div>
+                                        );
+                                    })}
+                                </AnimatePresence>
+                            </motion.div>
+                        </div>
+                    ))}
+                </div>
             )}
 
             {/* Path Modal */}
@@ -265,6 +360,7 @@ const LearningTracker = () => {
                 onClose={() => { setShowPathModal(false); setEditingPath(null); }}
                 onSave={handleSavePath}
                 path={editingPath}
+                existingCategories={existingCategories}
             />
         </div>
     );

@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Clock, Plus, Mic, MicOff, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { parseScheduleCommand } from '../services/gemini';
 import ScheduleEventModal from './ScheduleEventModal';
-import { useHabit } from '../context/HabitContext';
 
-const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
-    const { habits, getHabitsForDate, getHabitLog } = useHabit();
+const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent, onCompleteTask }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [weekDates, setWeekDates] = useState([]);
     const [isListening, setIsListening] = useState(false);
@@ -16,12 +14,10 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [selectedDate, setSelectedDate] = useState(null);
 
-    // Generate the 7 days of the current week
+    // Generate the 7 days of the current week (Sunday to Saturday)
     useEffect(() => {
         const startOfWeek = new Date(currentDate);
-        const day = startOfWeek.getDay(); // 0 (Sun) to 6 (Sat)
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust to start on Monday (or Sunday if preferred)
-        // Let's start on Sunday for consistency with Calendar
+        const day = startOfWeek.getDay();
         const firstDay = new Date(currentDate);
         firstDay.setDate(currentDate.getDate() - day);
 
@@ -47,62 +43,73 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
             date.getFullYear() === today.getFullYear();
     };
 
-    // Visual Configuration
-    const START_HOUR = 0; // 0 AM (Midnight)
-    const END_HOUR = 24; // 12 AM (Midnight next day)
-    const PIXELS_PER_HOUR = 72; // Reverted to original height
-    const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
+    // Gather events + tasks for a day (no habits)
+    const getCombinedItemsForDay = (date) => {
+        const dateStr = date.toISOString().split('T')[0];
 
-    // Helper to check if an event falls in a specific day
-    const getEventsForDay = (date) => {
-        return events.filter(event => {
+        // Events
+        const dayEvents = events.filter(event => {
             if ((!event.deadline && !event.startTime && !event.start_time)) return false;
             const eventDate = new Date(event.deadline || event.startTime || event.start_time);
             return eventDate.getDate() === date.getDate() &&
                 eventDate.getMonth() === date.getMonth() &&
                 eventDate.getFullYear() === date.getFullYear();
+        }).map(e => ({
+            ...e,
+            _type: 'event',
+            _sortTime: e.startTime || e.start_time || e.deadline ? new Date(e.startTime || e.start_time || e.deadline).getTime() : null,
+            _hasTime: !!(e.startTime || e.start_time)
+        }));
+
+        // Tasks (with deadline, not harvested)
+        const dayTasks = tasks.filter(task => {
+            if (!task.deadline || task.status === 'harvested') return false;
+            const taskDate = new Date(task.deadline);
+            return taskDate.getDate() === date.getDate() &&
+                taskDate.getMonth() === date.getMonth() &&
+                taskDate.getFullYear() === date.getFullYear();
+        }).map(t => {
+            const tDate = new Date(t.deadline);
+            const hasTime = tDate.getHours() !== 0 || tDate.getMinutes() !== 0;
+            return {
+                ...t,
+                _type: 'task',
+                _sortTime: tDate.getTime(),
+                _hasTime: hasTime
+            };
         });
+
+        const allItems = [...dayEvents, ...dayTasks];
+
+        // Sort: no-time first, then chronological
+        allItems.sort((a, b) => {
+            if (!a._hasTime && b._hasTime) return -1;
+            if (a._hasTime && !b._hasTime) return 1;
+            return (a._sortTime || 0) - (b._sortTime || 0);
+        });
+
+        return allItems;
     };
 
-    // Get habits with reminder_time scheduled for a given day, formatted as pseudo-events
-    const getHabitBlocksForDay = (date) => {
-        const dayHabits = getHabitsForDate(date);
-        const dateStr = date.toISOString().split('T')[0];
-        return dayHabits
-            .filter(h => h.reminder_time) // Only habits with a specific time
-            .map(h => {
-                const [hours, minutes] = h.reminder_time.split(':').map(Number);
-                const start = new Date(date);
-                start.setHours(hours, minutes, 0, 0);
-                const log = getHabitLog(h.id, dateStr);
-                return {
-                    id: `habit_${h.id}`,
-                    title: `${h.icon || '✨'} ${h.name}`,
-                    startTime: start.toISOString(),
-                    duration: 30, // default 30min block
-                    isHabit: true,
-                    completed: log?.completed || false,
-                    habitColor: '#14B8A6', // teal
-                };
-            });
-    };
-
-    const handleTimeClick = (date, hour, minute) => {
+    const handleColumnClick = (date) => {
         const clickedDate = new Date(date);
-        clickedDate.setHours(hour);
-        clickedDate.setMinutes(minute);
-        clickedDate.setSeconds(0);
-
+        clickedDate.setHours(12, 0, 0, 0);
         setSelectedDate(clickedDate);
         setSelectedEvent(null);
         setShowEventModal(true);
     };
 
-    const handleEventClick = (event, e) => {
+    const handleItemClick = (item, e) => {
         e.stopPropagation();
-        setSelectedEvent(event);
-        setSelectedDate(null);
-        setShowEventModal(true);
+        if (item._type === 'task') {
+            if (window.confirm(`Complete task "${item.title}"?`)) {
+                if (onCompleteTask) onCompleteTask(item.id);
+            }
+        } else {
+            setSelectedEvent(item);
+            setSelectedDate(null);
+            setShowEventModal(true);
+        }
     };
 
     const handleSaveEvent = (eventData) => {
@@ -129,13 +136,8 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
         recognition.lang = 'en-US';
         recognition.interimResults = false;
 
-        recognition.onstart = () => {
-            setIsListening(true);
-        };
-
-        recognition.onend = () => {
-            setIsListening(false);
-        };
+        recognition.onstart = () => setIsListening(true);
+        recognition.onend = () => setIsListening(false);
 
         recognition.onresult = async (event) => {
             const transcript = event.results[0][0].transcript;
@@ -166,166 +168,223 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
         recognition.start();
     };
 
+    const formatTime = (timestamp) => {
+        const d = new Date(timestamp);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatDuration = (mins) => {
+        if (!mins) return '';
+        if (mins >= 60) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return m > 0 ? `${h}h ${m}m` : `${h}h`;
+        }
+        return `${mins}m`;
+    };
+
+    // Count items across the week for header stats
+    const weekItemCount = weekDates.reduce((sum, d) => sum + getCombinedItemsForDay(d).length, 0);
+
     return (
-        <div className="w-full h-full flex flex-col bg-gradient-to-br from-indigo-900/90 via-purple-900/90 to-violet-900/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-            {/* Header / Navigation */}
-            <div className="flex justify-between items-center p-4 border-b border-white/10 flex-none bg-white/5">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-serif font-bold text-white">
-                        {weekDates[0] && `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} - ${weekDates[6].toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                        <div className="bg-indigo-100 p-2 rounded-xl">
+                            <Calendar className="text-indigo-600" size={24} />
+                        </div>
+                        Schedule
                     </h2>
-                    <button
-                        onClick={() => setCurrentDate(new Date())}
-                        className="text-xs px-3 py-1 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition-colors border border-white/20"
-                    >
-                        Today
-                    </button>
+                    <p className="text-sm text-gray-500 mt-1 ml-14">
+                        Your weekly overview of events and tasks
+                    </p>
                 </div>
-                <div className="flex gap-2 items-center">
+
+                <div className="flex items-center gap-3">
+                    {/* Voice Command */}
                     <button
                         onClick={handleVoiceCommand}
                         disabled={isProcessing}
-                        className={`p-2 rounded-full transition-all ${isListening
-                            ? 'bg-red-500 text-white animate-pulse'
+                        className={`p-2.5 rounded-xl border transition-all shadow-sm ${isListening
+                            ? 'bg-red-50 border-red-200 text-red-500 animate-pulse'
                             : isProcessing
-                                ? 'bg-indigo-400/30 text-indigo-200'
-                                : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-400 hover:to-indigo-400 shadow-lg'
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-400'
+                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600'
                             }`}
                         title="Voice Command"
                     >
                         {isProcessing ? (
-                            <Loader2 size={20} className="animate-spin" />
+                            <Loader2 size={18} className="animate-spin" />
                         ) : isListening ? (
-                            <MicOff size={20} />
+                            <MicOff size={18} />
                         ) : (
-                            <Mic size={20} />
+                            <Mic size={18} />
                         )}
                     </button>
-                    <div className="w-px h-6 bg-white/20 mx-2" />
-                    <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/80 hover:text-white">
-                        <ChevronLeft size={20} />
-                    </button>
-                    <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/80 hover:text-white">
-                        <ChevronRight size={20} />
-                    </button>
+
+                    {/* Week Navigation */}
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl shadow-sm">
+                        <button
+                            onClick={() => navigateWeek(-1)}
+                            className="p-2 hover:bg-gray-50 rounded-l-xl transition-colors text-gray-500 hover:text-gray-700"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <button
+                            onClick={() => setCurrentDate(new Date())}
+                            className="px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        >
+                            Today
+                        </button>
+                        <button
+                            onClick={() => navigateWeek(1)}
+                            className="p-2 hover:bg-gray-50 rounded-r-xl transition-colors text-gray-500 hover:text-gray-700"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Schedule Grid */}
-            <div className="flex-1 overflow-auto custom-scrollbar relative">
-                <div className="min-w-[1600px] relative">
+            {/* Week Range Label */}
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-800">
+                    {weekDates[0] && `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} — ${weekDates[6]?.toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+                </h3>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-semibold">
+                    {weekItemCount} item{weekItemCount !== 1 ? 's' : ''} this week
+                </span>
+            </div>
 
-                    {/* Header Row (Days) */}
-                    <div className="flex border-b border-white/10 sticky top-0 bg-indigo-900/95 z-20 backdrop-blur-sm">
-                        <div className="w-16 flex-none p-4 text-center text-xs font-bold text-white/50 border-r border-white/10 sticky left-0 z-30 bg-indigo-900/95">
-                            Time
-                        </div>
-                        {weekDates.map((date, index) => (
-                            <div
-                                key={index}
-                                className={`flex-1 p-4 text-center border-r border-white/10 ${isToday(date) ? 'bg-purple-500/20' : ''}`}
-                            >
-                                <div className={`text-xs font-bold uppercase mb-1 ${isToday(date) ? 'text-purple-300' : 'text-white/50'}`}>
-                                    {date.toLocaleDateString([], { weekday: 'short' })}
-                                </div>
-                                <div className={`text-lg font-bold ${isToday(date) ? 'text-white' : 'text-white/80'}`}>
-                                    {date.getDate()}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+            {/* Weekly Grid */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <div className="grid grid-cols-7 min-w-[840px]">
 
-                    {/* Main Grid Area */}
-                    <div className="flex relative" style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}>
-
-                        {/* Time Labels Column */}
-                        <div className="w-16 flex-none border-r border-white/10 bg-indigo-900/95 z-30 sticky left-0">
-                            {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => {
-                                const hour = START_HOUR + i;
-                                return (
-                                    <div
-                                        key={hour}
-                                        className="relative border-b border-white/5 w-full"
-                                        style={{ height: PIXELS_PER_HOUR }}
-                                    >
-                                        <span className="absolute -top-2.5 right-2 text-xs font-medium text-white/40 bg-indigo-900/80 px-1">
-                                            {hour > 24 ? `${hour - 24}:00` : `${hour}:00`}
-                                        </span>
+                        {/* Day Headers */}
+                        {weekDates.map((date, index) => {
+                            const isTodayDate = isToday(date);
+                            return (
+                                <div
+                                    key={`header-${index}`}
+                                    className={`px-2 py-3 text-center border-b border-r border-gray-100 last:border-r-0
+                                        ${isTodayDate ? 'bg-indigo-50' : 'bg-gray-50/50'}`}
+                                >
+                                    <div className={`text-[10px] font-bold uppercase tracking-widest mb-1
+                                        ${isTodayDate ? 'text-indigo-500' : 'text-gray-400'}`}>
+                                        {date.toLocaleDateString([], { weekday: 'short' })}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
+                                        ${isTodayDate
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
+                                            : 'text-gray-700'
+                                        }`}>
+                                        {date.getDate()}
+                                    </div>
+                                </div>
+                            );
+                        })}
 
-                        {/* Day Columns */}
-                        {weekDates.map((date, dayIndex) => {
-                            const dayEvents = [...getEventsForDay(date), ...getHabitBlocksForDay(date)];
+                        {/* Day Columns — Items */}
+                        {weekDates.map((date, index) => {
+                            const isTodayDate = isToday(date);
+                            const items = getCombinedItemsForDay(date);
 
                             return (
                                 <div
-                                    key={dayIndex}
-                                    className={`flex-1 relative border-r border-white/5 ${isToday(date) ? 'bg-purple-500/10' : ''}`}
+                                    key={`col-${index}`}
+                                    className={`min-h-[320px] border-r border-gray-100 last:border-r-0 p-1.5 cursor-pointer hover:bg-gray-50/50 transition-colors
+                                        ${isTodayDate ? 'bg-indigo-50/30' : ''}`}
+                                    onClick={() => handleColumnClick(date)}
                                 >
-                                    {/* Hour Grid Lines */}
-                                    {Array.from({ length: END_HOUR - START_HOUR }).map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className="border-b border-white/5 w-full hover:bg-white/5 transition-colors cursor-pointer"
-                                            style={{ height: PIXELS_PER_HOUR }}
-                                            onClick={() => handleTimeClick(date, START_HOUR + i, 0)}
-                                        />
-                                    ))}
+                                    <div className="space-y-1.5">
+                                        <AnimatePresence>
+                                            {items.map(item => {
+                                                const isTask = item._type === 'task';
+                                                const isCompleted = isTask && (item.status === 'completed' || item.status === 'harvested');
 
-                                    {/* Events */}
-                                    {dayEvents.map(event => {
-                                        const eventDate = new Date(event.deadline || event.startTime || event.start_time);
-                                        const hour = eventDate.getHours();
-                                        const minute = eventDate.getMinutes();
+                                                // Get color
+                                                const colorInfo = item.color
+                                                    ? { color: item.color, bgColor: `${item.color}18` }
+                                                    : getColorForSubject(item.subject || item.category);
 
-                                        if (hour < START_HOUR || hour >= END_HOUR) return null;
+                                                const timeString = item._hasTime && item._sortTime ? formatTime(item._sortTime) : '';
+                                                const duration = item.estimatedTime || item.duration || null;
 
-                                        const top = ((hour - START_HOUR) * 60 + minute) * PIXELS_PER_MINUTE;
-                                        const duration = event.estimatedTime || event.duration || 60;
-                                        const height = duration * PIXELS_PER_MINUTE;
-                                        const eventColor = event.color || getColorForSubject(event.subject || event.category).color;
-                                        const bgColor = event.color ? `${event.color}40` : getColorForSubject(event.subject || event.category).bgColor;
+                                                return (
+                                                    <motion.div
+                                                        key={item.id}
+                                                        initial={{ opacity: 0, y: 6 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95 }}
+                                                        onClick={(e) => handleItemClick(item, e)}
+                                                        className={`group relative rounded-xl p-2.5 cursor-pointer transition-all duration-200
+                                                            hover:shadow-md hover:scale-[1.02]
+                                                            ${isCompleted ? 'opacity-50' : ''}`}
+                                                        style={{
+                                                            backgroundColor: colorInfo.bgColor,
+                                                            borderLeft: `3px solid ${colorInfo.color}`,
+                                                        }}
+                                                        title={isTask ? "Click to Complete Task" : "Edit Event"}
+                                                    >
+                                                        {/* Title */}
+                                                        <h4 className={`text-xs font-bold leading-tight line-clamp-2 mb-1
+                                                            ${isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                                            {item.title}
+                                                        </h4>
 
-                                        const isHabit = event.isHabit;
-                                        const finalColor = isHabit ? event.habitColor : eventColor;
-                                        const finalBg = isHabit ? 'rgba(20, 184, 166, 0.15)' : bgColor;
+                                                        {/* Time & Duration */}
+                                                        {(timeString || duration) && (
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                {timeString && (
+                                                                    <span className="text-[10px] font-semibold flex items-center gap-0.5"
+                                                                        style={{ color: colorInfo.color }}>
+                                                                        <Clock size={9} />
+                                                                        {timeString}
+                                                                    </span>
+                                                                )}
+                                                                {duration && (
+                                                                    <span className="text-[10px] font-medium text-gray-400">
+                                                                        {formatDuration(duration)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
 
-                                        return (
-                                            <motion.div
-                                                key={event.id}
-                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                className={`absolute left-1 right-1 rounded-lg p-2 shadow-lg overflow-hidden cursor-pointer hover:brightness-110 transition-all z-10 backdrop-blur-sm ${isHabit ? 'border-l-4 border-dashed' : 'border-l-4'}`}
-                                                style={{
-                                                    top: `${top}px`,
-                                                    height: `${Math.max(height, 20)}px`,
-                                                    backgroundColor: finalBg,
-                                                    borderColor: finalColor,
-                                                    opacity: isHabit && event.completed ? 0.5 : 1,
-                                                }}
-                                                onClick={(e) => {
-                                                    if (isHabit) {
-                                                        e.stopPropagation();
-                                                        // Habits are view-only on the schedule
-                                                    } else {
-                                                        handleEventClick(event, e);
-                                                    }
-                                                }}
-                                            >
-                                                <div className={`text-xs font-bold truncate ${isHabit && event.completed ? 'line-through' : ''}`} style={{ color: finalColor }}>
-                                                    {event.title}
-                                                </div>
-                                                {height > 30 && (
-                                                    <div className="text-[10px] opacity-80 truncate" style={{ color: finalColor }}>
-                                                        {isHabit ? (event.completed ? '✅ Done' : '○ Habit') : `${duration}m`}
-                                                    </div>
-                                                )}
-                                            </motion.div>
-                                        );
-                                    })}
+                                                        {/* Category / Type Badge */}
+                                                        {(item.subject || item.category || isTask) && (
+                                                            <div className="mt-1.5">
+                                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide"
+                                                                    style={{
+                                                                        backgroundColor: `${colorInfo.color}15`,
+                                                                        color: colorInfo.color,
+                                                                    }}>
+                                                                    {isTask ? 'Task' : (item.subject || item.category)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Completed check overlay for tasks */}
+                                                        {isTask && !isCompleted && (
+                                                            <CheckCircle2
+                                                                size={12}
+                                                                className="absolute top-2 right-2 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            />
+                                                        )}
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </AnimatePresence>
+
+                                        {/* Empty state — subtle add hint */}
+                                        {items.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center h-16 opacity-0 hover:opacity-100 transition-opacity">
+                                                <Plus size={14} className="text-gray-300" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
@@ -351,4 +410,3 @@ const Schedule = ({ events, onAddEvent, onUpdateEvent, onDeleteEvent }) => {
 };
 
 export default Schedule;
-

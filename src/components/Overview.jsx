@@ -1151,7 +1151,7 @@ const Overview = ({ onNavigate }) => {
                                     >
                                         <ChevronLeft size={18} />
                                     </button>
-                                    <h2 className="text-lg font-bold text-gray-900 min-w-[120px] text-center">
+                                    <h2 className="text-xl font-bold text-gray-900 mx-2 text-center flex-1">
                                         {(() => {
                                             const today = new Date();
                                             today.setHours(0, 0, 0, 0);
@@ -1160,9 +1160,9 @@ const Overview = ({ onNavigate }) => {
                                             const diffDays = Math.round((selected - today) / (1000 * 60 * 60 * 24));
 
                                             if (diffDays === 0) return "Today's Schedule";
-                                            if (diffDays === 1) return "Tomorrow";
-                                            if (diffDays === -1) return "Yesterday";
-                                            return scheduleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                                            if (diffDays === 1) return "Tomorrow's Schedule";
+                                            if (diffDays === -1) return "Yesterday's Schedule";
+                                            return `${scheduleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} Schedule`;
                                         })()}
                                     </h2>
                                     <button
@@ -1310,9 +1310,9 @@ const Overview = ({ onNavigate }) => {
                                         return {
                                             id: `habit_${h.id}`,
                                             title: h.name,
-                                            icon: h.icon || '✨',
+                                            icon: h.icon || '',
                                             displayTime,
-                                            duration: 30,
+                                            duration: h.type === 'duration' ? h.target : 30,
                                             isHabit: true,
                                             completed: log?.completed || false,
                                             color: '#14B8A6',
@@ -1337,15 +1337,13 @@ const Overview = ({ onNavigate }) => {
                                     const isHabitItem = item.isHabit;
                                     // Calculate height based on duration (min: 60px for <30min, scales up)
                                     const duration = item.duration || 60;
-                                    // Height formula: base 50px + 1.5px per minute, min 50px, max 200px
-                                    const minHeight = Math.min(200, Math.max(50, 50 + (duration - 30) * 1.5));
                                     // Adjust padding based on height
                                     const paddingY = duration <= 30 ? 'py-2' : duration <= 60 ? 'py-3' : 'py-4';
                                     const paddingX = 'px-4';
 
                                     return (
-                                        <div key={item.id || i} className="relative pl-10 group">
-                                            {/* Timeline Dot */}
+                                        <div key={item.id || i} className="relative pl-10 group flex items-center">
+                                            {/* Timeline Dot (Centered to card) */}
                                             <div className={`absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white`}
                                                 style={{ borderColor: isHabitItem ? '#14B8A6' : (item.color || '#6366f1') }}></div>
 
@@ -1356,16 +1354,12 @@ const Overview = ({ onNavigate }) => {
                                                         setShowScheduleModal(true);
                                                     }
                                                 }}
-                                                className={`${paddingX} ${paddingY} rounded-2xl transition-all hover:scale-[1.02] border ${isHabitItem
-                                                    ? 'bg-teal-50/50 border-teal-100 hover:border-teal-200'
-                                                    : 'bg-gray-50 border-gray-100 hover:border-indigo-200'
-                                                    } hover:shadow-sm cursor-pointer flex items-center ${isHabitItem && item.completed ? 'opacity-60' : ''}`}
-                                                style={{ minHeight: `${minHeight}px` }}
+                                                className={`w-full ${paddingX} py-3 rounded-2xl transition-all hover:scale-[1.02] border border-transparent bg-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),_0_0_2px_rgba(0,0,0,0.02)] hover:shadow-md cursor-pointer flex items-center ${isHabitItem && item.completed ? 'opacity-60' : ''}`}
                                             >
-                                                <div className="flex justify-between items-start w-full">
+                                                <div className="flex justify-between items-center w-full">
                                                     <div className="flex-1">
-                                                        <h3 className={`font-bold leading-tight ${isHabitItem && item.completed ? 'line-through text-gray-400' : 'text-gray-900'} ${duration <= 30 ? 'text-base' : 'text-lg'}`}>
-                                                            {isHabitItem && <span className="mr-1">{item.icon}</span>}
+                                                        <h3 className={`font-bold leading-tight ${isHabitItem && item.completed ? 'line-through text-gray-400' : 'text-gray-900'} text-base flex items-center gap-1.5`}>
+                                                            {isHabitItem && item.icon && <span>{item.icon}</span>}
                                                             {item.title}
                                                         </h3>
                                                         <div className="flex items-center gap-2 mt-1 text-gray-500">
@@ -1385,7 +1379,7 @@ const Overview = ({ onNavigate }) => {
                                                                 <span className="text-xs text-indigo-500 px-1.5 py-0.5 bg-indigo-50 rounded-full">🔄</span>
                                                             )}
                                                             {isHabitItem && (
-                                                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.completed ? 'text-teal-600 bg-teal-50' : 'text-gray-500 bg-gray-100'}`}>
+                                                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.completed ? 'text-teal-600 bg-teal-50' : 'text-teal-600 bg-teal-50 border border-teal-100'}`}>
                                                                     {item.completed ? '✅ Done' : '○ Habit'}
                                                                 </span>
                                                             )}
@@ -1439,7 +1433,7 @@ const Overview = ({ onNavigate }) => {
                                             id: `habit_${h.id}`,
                                             title: `${h.icon || '✨'} ${h.name}`,
                                             startTime: start.toISOString(),
-                                            duration: 30,
+                                            duration: h.type === 'duration' ? h.target : 30,
                                             isHabit: true,
                                             completed: log?.completed || false,
                                         };

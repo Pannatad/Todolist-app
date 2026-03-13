@@ -475,6 +475,23 @@ export const LearningProvider = ({ children }) => {
         return learningPaths.filter(p => !p.archived);
     }, [learningPaths]);
 
+    const getCategories = useCallback(() => {
+        const cats = learningPaths
+            .map(p => p.category)
+            .filter(c => c && c.trim() !== '');
+        return [...new Set(cats)].sort();
+    }, [learningPaths]);
+
+    const getInProgressTopicsWithPaths = useCallback(() => {
+        return topics
+            .filter(t => t.status === 'in_progress')
+            .map(t => {
+                const path = learningPaths.find(p => p.id === t.learning_path_id);
+                return { ...t, path };
+            })
+            .filter(t => t.path && !t.path.archived);
+    }, [topics, learningPaths]);
+
     // ── Context Value ──────────────────────────────────────
     const value = {
         // State
@@ -521,6 +538,8 @@ export const LearningProvider = ({ children }) => {
         getLearningStreak,
         getWeeklyStats,
         getActivePaths,
+        getCategories,
+        getInProgressTopicsWithPaths,
     };
 
     return (

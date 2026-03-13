@@ -105,19 +105,19 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, totalTim
             {/* Stats Footer */}
             <div className="bg-white p-4">
                 <div className="flex items-center justify-between">
-                    <div className="flex gap-4">
-                        {/* Topics Count */}
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                            <BookOpen size={12} />
-                            <span>
-                                <span className="text-gray-700 font-medium">{completedCount}</span>/{topicCount}
+                    <div className="flex gap-3 items-center">
+                        {/* Topics Count — Prominent Badge */}
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r ${colorConfig.gradient} shadow-sm`}>
+                            <BookOpen size={14} className="text-white/80" />
+                            <span className="text-sm font-bold text-white">
+                                {completedCount}<span className="text-white/60 font-medium">/{topicCount}</span>
                             </span>
                         </div>
 
                         {/* Time Spent */}
                         <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                            <Clock size={12} />
-                            <span>{formatTime(totalTime)}</span>
+                            <Clock size={13} />
+                            <span className="font-medium text-gray-500">{formatTime(totalTime)}</span>
                         </div>
                     </div>
 

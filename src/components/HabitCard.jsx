@@ -107,11 +107,13 @@ const getFrequencyLabel = (habit) => {
 const HabitCard = ({ habit, log, onLog, onEdit, onDelete, streak, compact = false, index = 0 }) => {
     const [showActions, setShowActions] = useState(false);
     const [justCompleted, setJustCompleted] = useState(false);
+    const [localDuration, setLocalDuration] = useState(null); // Used for smooth sliding
 
     const colorKey = habit.color || INDEX_COLORS[index % INDEX_COLORS.length];
     const cc = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.teal;
 
-    const currentValue = log?.value || 0;
+    const actualValue = log?.value || 0;
+    const currentValue = localDuration !== null ? localDuration : actualValue;
     const isCompleted = log?.completed || false;
     const progress = habit.type === 'check'
         ? (isCompleted ? 100 : 0)
@@ -139,9 +141,26 @@ const HabitCard = ({ habit, log, onLog, onEdit, onDelete, streak, compact = fals
 
     const handleDecrement = (e) => {
         e?.stopPropagation();
-        if (habit.type !== 'check' && currentValue > 0) {
-            const newValue = currentValue - 1;
+        if (habit.type !== 'check' && actualValue > 0) {
+            const newValue = actualValue - 1;
             onLog(habit.id, newValue, newValue >= habit.target);
+        }
+    };
+
+    const handleDurationChange = (e) => {
+        e.stopPropagation();
+        setLocalDuration(parseInt(e.target.value));
+    };
+
+    const handleDurationComplete = (e) => {
+        e.stopPropagation();
+        if (localDuration !== null) {
+            if (localDuration >= habit.target && actualValue < habit.target) {
+                setJustCompleted(true);
+                setTimeout(() => setJustCompleted(false), 1000);
+            }
+            onLog(habit.id, localDuration, localDuration >= habit.target);
+            setLocalDuration(null); // Reset local state, rely on actual log value
         }
     };
 
@@ -303,22 +322,19 @@ const HabitCard = ({ habit, log, onLog, onEdit, onDelete, streak, compact = fals
                         )}
 
                         {habit.type === 'duration' && (
-                            <div className="flex items-center gap-1">
-                                <motion.button
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={handleDecrement}
-                                    disabled={currentValue === 0}
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${currentValue === 0 ? 'bg-gray-100 text-gray-300' : `${cc.bg} ${cc.text}`}`}
-                                >
-                                    <Minus size={14} strokeWidth={3} />
-                                </motion.button>
-                                <motion.button
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={handleIncrement}
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${cc.logBtn}`}
-                                >
-                                    <Plus size={14} strokeWidth={3} />
-                                </motion.button>
+                            <div className="w-24 sm:w-32 flex items-center shrink-0">
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max={habit.target}
+                                    value={currentValue}
+                                    onChange={handleDurationChange}
+                                    onMouseUp={handleDurationComplete}
+                                    onTouchEnd={handleDurationComplete}
+                                    className={`w-full h-2 rounded-full cursor-pointer appearance-none bg-gray-100 accent-[${cc.accent}]`}
+                                    style={{ accentColor: cc.accent }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
                             </div>
                         )}
                     </div>
