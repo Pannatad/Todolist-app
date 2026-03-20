@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 
+// Default limit if not configured
+const DEFAULT_MAX_PATHS = 3;
+
 const LearningContext = createContext();
 
 export const useLearning = () => {
@@ -58,6 +61,21 @@ export const LearningProvider = ({ children }) => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [currentPathId, setCurrentPathId] = useState(null);
+
+    // Configurable Settings
+    const [maxConcurrentPaths, setMaxConcurrentPaths] = useState(() => {
+        try {
+            const saved = localStorage.getItem('learning-max-concurrent');
+            return saved ? parseInt(saved, 10) : DEFAULT_MAX_PATHS;
+        } catch (e) {
+            return DEFAULT_MAX_PATHS;
+        }
+    });
+
+    // Save settings when they change
+    useEffect(() => {
+        localStorage.setItem('learning-max-concurrent', maxConcurrentPaths.toString());
+    }, [maxConcurrentPaths]);
 
     // ── Load from Supabase ─────────────────────────────────
     const loadFromSupabase = async () => {
@@ -167,6 +185,9 @@ export const LearningProvider = ({ children }) => {
             estimated_time: topicData.estimated_time || 0,
             actual_time: 0,
             notes: topicData.notes || '',
+            exercise_completed: false,
+            revision_completed: false,
+            prerequisite_topic_ids: topicData.prerequisite_topic_ids || [],
             display_order: pathTopics.length,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -264,6 +285,11 @@ export const LearningProvider = ({ children }) => {
         } else if (newStatus === 'mastered') {
             updates.mastered_at = new Date().toISOString();
         }
+        // Reset exercise/revision when going back from completed
+        if (newStatus !== 'completed' && newStatus !== 'mastered') {
+            updates.exercise_completed = false;
+            updates.revision_completed = false;
+        }
 
         await updateTopic(id, updates);
     };
@@ -274,9 +300,42 @@ export const LearningProvider = ({ children }) => {
 
         const statusOrder = ['not_started', 'in_progress', 'completed', 'mastered'];
         const currentIndex = statusOrder.indexOf(topic.status);
-        const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+        let nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+
+        // Block mastered if exercise or revision not done
+        if (nextStatus === 'mastered' && (!topic.exercise_completed || !topic.revision_completed)) {
+            return; // Can't advance to mastered yet
+        }
+
+
 
         await updateTopicStatus(id, nextStatus);
+    };
+
+    const toggleExerciseCompleted = async (id) => {
+        const topic = topics.find(t => t.id === id);
+        if (!topic || topic.status !== 'completed') return;
+
+        const newVal = !topic.exercise_completed;
+        await updateTopic(id, { exercise_completed: newVal });
+
+        // Auto-advance to mastered if both done
+        if (newVal && topic.revision_completed) {
+            await updateTopicStatus(id, 'mastered');
+        }
+    };
+
+    const toggleRevisionCompleted = async (id) => {
+        const topic = topics.find(t => t.id === id);
+        if (!topic || topic.status !== 'completed') return;
+
+        const newVal = !topic.revision_completed;
+        await updateTopic(id, { revision_completed: newVal });
+
+        // Auto-advance to mastered if both done
+        if (newVal && topic.exercise_completed) {
+            await updateTopicStatus(id, 'mastered');
+        }
     };
 
     const moveTopicToSection = async (id, newSection) => {
@@ -492,6 +551,123 @@ export const LearningProvider = ({ children }) => {
             .filter(t => t.path && !t.path.archived);
     }, [topics, learningPaths]);
 
+    // ── Path Dependency / Concurrent Limit ─────────────
+    const getActiveInProgressPathCount = useCallback(() => {
+        const activePaths = learningPaths.filter(p => !p.archived);
+        return activePaths.filter(p => getPathProgress(p.id) < 100).length;
+    }, [learningPaths, getPathProgress]);
+
+    const canStartNewPath = useCallback(() => {
+        return getActiveInProgressPathCount() < maxConcurrentPaths;
+    }, [getActiveInProgressPathCount, maxConcurrentPaths]);
+
+    // ── Timetable Helpers ──────────────────────────────
+    const getTimetableForDay = useCallback((dayOfWeek, date = null) => {
+        // Returns all timetable entries across active paths for a given day (0=Sun...6=Sat)
+        // If date is provided, also filters by startDate/endDate range
+        const activePaths = learningPaths.filter(p => !p.archived);
+        const entries = [];
+        const dateStr = date ? date.toISOString().split('T')[0] : null;
+
+        activePaths.forEach(path => {
+            const timetable = path.timetable || [];
+            timetable.forEach(slot => {
+                if (slot.day !== dayOfWeek) return;
+
+                // Check date range if present
+                if (dateStr) {
+                    if (slot.startDate && dateStr < slot.startDate) return;
+                    if (slot.endDate && dateStr > slot.endDate) return;
+                }
+
+                entries.push({
+                    ...slot,
+                    pathId: path.id,
+                    pathName: path.name,
+                    pathIcon: path.icon,
+                    pathColor: path.color,
+                });
+            });
+        });
+        return entries;
+    }, [learningPaths]);
+
+    const getAllTimetableEntries = useCallback(() => {
+        const activePaths = learningPaths.filter(p => !p.archived);
+        const entries = [];
+        activePaths.forEach(path => {
+            const timetable = path.timetable || [];
+            timetable.forEach(slot => {
+                entries.push({
+                    ...slot,
+                    pathId: path.id,
+                    pathName: path.name,
+                    pathIcon: path.icon,
+                    pathColor: path.color,
+                });
+            });
+        });
+        return entries;
+    }, [learningPaths]);
+
+    // ── File Upload Helpers (Supabase Storage) ─────────
+    const uploadMaterial = async (topicId, file) => {
+        if (!user || !supabase) return null;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${file.name}`;
+        const filePath = `${user.id}/${topicId}/${fileName}`;
+
+        const { data, error } = await supabase.storage
+            .from('learning-materials')
+            .upload(filePath, file);
+
+        if (error) {
+            console.error('Error uploading material:', error);
+            return null;
+        }
+
+        return {
+            file_path: data.path,
+            file_size: file.size,
+            file_type: file.type || fileExt,
+        };
+    };
+
+    const deleteMaterial = async (filePath) => {
+        if (!user || !supabase || !filePath) return;
+
+        const { error } = await supabase.storage
+            .from('learning-materials')
+            .remove([filePath]);
+
+        if (error) console.error('Error deleting material:', error);
+    };
+
+    const getMaterialUrl = (filePath) => {
+        if (!supabase || !filePath) return null;
+
+        const { data } = supabase.storage
+            .from('learning-materials')
+            .getPublicUrl(filePath);
+
+        return data?.publicUrl || null;
+    };
+
+    const getMaterialSignedUrl = async (filePath) => {
+        if (!supabase || !filePath) return null;
+
+        const { data, error } = await supabase.storage
+            .from('learning-materials')
+            .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+        if (error) {
+            console.error('Error getting signed URL:', error);
+            return null;
+        }
+        return data?.signedUrl || null;
+    };
+
     // ── Context Value ──────────────────────────────────────
     const value = {
         // State
@@ -502,6 +678,10 @@ export const LearningProvider = ({ children }) => {
         isLoading,
         currentPathId,
         setCurrentPathId,
+
+        // Settings
+        maxConcurrentPaths,
+        setMaxConcurrentPaths,
 
         // Path operations
         addLearningPath,
@@ -518,6 +698,8 @@ export const LearningProvider = ({ children }) => {
         cycleTopicStatus,
         moveTopicToSection,
         reorderTopics,
+        toggleExerciseCompleted,
+        toggleRevisionCompleted,
 
         // Resource operations
         addResource,
@@ -526,6 +708,12 @@ export const LearningProvider = ({ children }) => {
 
         // Time tracking
         logTime,
+
+        // File operations
+        uploadMaterial,
+        deleteMaterial,
+        getMaterialUrl,
+        getMaterialSignedUrl,
 
         // Computed
         getTopicsByPath,
@@ -540,6 +728,10 @@ export const LearningProvider = ({ children }) => {
         getActivePaths,
         getCategories,
         getInProgressTopicsWithPaths,
+        getActiveInProgressPathCount,
+        canStartNewPath,
+        getTimetableForDay,
+        getAllTimetableEntries,
     };
 
     return (

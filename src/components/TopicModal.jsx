@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Clock, BookOpen, Link as LinkIcon, Plus, Trash2, ExternalLink, FileText, Video, BookMarked, GraduationCap, StickyNote } from 'lucide-react';
-
-
-
-
+import { X, Sparkles, Clock, BookOpen, Link as LinkIcon, Plus, Trash2, ExternalLink, FileText, Video, BookMarked, GraduationCap, StickyNote, Upload, Download, File, Dumbbell, BookCheck, Check } from 'lucide-react';
+import { useLearning } from '../context/LearningContext';
 
 const RESOURCE_TYPE_OPTIONS = [
     { value: 'link', label: 'Link', icon: LinkIcon },
@@ -13,13 +10,21 @@ const RESOURCE_TYPE_OPTIONS = [
     { value: 'course', label: 'Course', icon: GraduationCap },
     { value: 'book', label: 'Book', icon: BookMarked },
     { value: 'note', label: 'Note', icon: StickyNote },
+    { value: 'file', label: 'File', icon: File },
 ];
 
+const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, resources = [], onAddResource, onDeleteResource }) => {
+    const { uploadMaterial, deleteMaterial, getMaterialSignedUrl } = useLearning();
+
     const [title, setTitle] = useState(topic?.title || '');
     const [description, setDescription] = useState(topic?.description || '');
-
-
     const [estimatedTime, setEstimatedTime] = useState(topic?.estimated_time || 0);
     const [notes, setNotes] = useState(topic?.notes || '');
 
@@ -28,14 +33,15 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
     const [resourceTitle, setResourceTitle] = useState('');
     const [resourceUrl, setResourceUrl] = useState('');
     const [resourceType, setResourceType] = useState('link');
+    const [isUploading, setIsUploading] = useState(false);
+
+    const fileInputRef = React.useRef(null);
 
     // Reset form when topic prop changes
     React.useEffect(() => {
         if (isOpen) {
             setTitle(topic?.title || '');
             setDescription(topic?.description || '');
-
-
             setEstimatedTime(topic?.estimated_time || 0);
             setNotes(topic?.notes || '');
             setShowResourceForm(false);
@@ -78,9 +84,50 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
         setShowResourceForm(false);
     };
 
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !topic?.id) return;
+
+        setIsUploading(true);
+        try {
+            const result = await uploadMaterial(topic.id, file);
+            if (result) {
+                onAddResource({
+                    topic_id: topic.id,
+                    title: file.name,
+                    url: '',
+                    resource_type: 'file',
+                    file_path: result.file_path,
+                    file_size: result.file_size,
+                    file_type: result.file_type,
+                });
+            }
+        } catch (err) {
+            console.error('File upload failed:', err);
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleDownloadFile = async (resource) => {
+        if (!resource.file_path) return;
+        const url = await getMaterialSignedUrl(resource.file_path);
+        if (url) {
+            window.open(url, '_blank');
+        }
+    };
+
+    const handleDeleteFileResource = async (resource) => {
+        if (resource.file_path) {
+            await deleteMaterial(resource.file_path);
+        }
+        onDeleteResource(resource.id);
+    };
+
+
+
     if (!isOpen) return null;
-
-
 
     return (
         <AnimatePresence>
@@ -144,10 +191,6 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
                             />
                         </div>
 
-
-
-
-
                         {/* Estimated Time */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70 flex items-center gap-2">
@@ -166,6 +209,37 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
                                 <span className="text-white/50 text-sm">minutes</span>
                             </div>
                         </div>
+
+
+
+                        {/* Exercise & Revision Status (when completed) */}
+                        {topic && topic.status === 'completed' && (
+                            <div className="space-y-2 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                                <label className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                                    🎯 Complete these to achieve Mastery
+                                </label>
+                                <div className="flex gap-3">
+                                    <div className={`flex-1 flex items-center gap-2 p-3 rounded-lg border transition-colors ${
+                                        topic.exercise_completed
+                                            ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300'
+                                            : 'bg-white/5 border-white/10 text-white/50'
+                                    }`}>
+                                        <Dumbbell size={16} />
+                                        <span className="text-sm font-medium">Exercise</span>
+                                        {topic.exercise_completed && <Check size={14} className="ml-auto" strokeWidth={3} />}
+                                    </div>
+                                    <div className={`flex-1 flex items-center gap-2 p-3 rounded-lg border transition-colors ${
+                                        topic.revision_completed
+                                            ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300'
+                                            : 'bg-white/5 border-white/10 text-white/50'
+                                    }`}>
+                                        <BookCheck size={16} />
+                                        <span className="text-sm font-medium">Revision</span>
+                                        {topic.revision_completed && <Check size={14} className="ml-auto" strokeWidth={3} />}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Notes */}
                         <div className="space-y-2">
@@ -187,29 +261,55 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
                                         <LinkIcon size={14} />
                                         Resources ({resources.length})
                                     </label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowResourceForm(!showResourceForm)}
-                                        className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors flex items-center gap-1"
-                                    >
-                                        <Plus size={12} /> Add
-                                    </button>
+                                    <div className="flex gap-2">
+                                        {/* File Upload Button */}
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            onChange={handleFileUpload}
+                                            accept=".pdf,.doc,.docx,.pptx,.ppt,.txt,.md,.jpg,.jpeg,.png,.mp4,.mp3,.zip"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isUploading}
+                                            className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 hover:text-blue-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                        >
+                                            {isUploading ? (
+                                                <span className="animate-spin">⏳</span>
+                                            ) : (
+                                                <Upload size={12} />
+                                            )}
+                                            {isUploading ? 'Uploading...' : 'Upload'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowResourceForm(!showResourceForm)}
+                                            className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors flex items-center gap-1"
+                                        >
+                                            <Plus size={12} /> Add
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Resource List */}
                                 {resources.length > 0 && (
                                     <div className="space-y-2">
                                         {resources.map((resource) => {
+                                            const isFile = resource.resource_type === 'file';
                                             const TypeIcon = RESOURCE_TYPE_OPTIONS.find(r => r.value === resource.resource_type)?.icon || LinkIcon;
                                             return (
                                                 <div
                                                     key={resource.id}
                                                     className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group"
                                                 >
-                                                    <TypeIcon size={16} className="text-white/40 flex-shrink-0" />
+                                                    <TypeIcon size={16} className={`flex-shrink-0 ${isFile ? 'text-blue-400' : 'text-white/40'}`} />
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm text-white/80 truncate">{resource.title}</p>
-                                                        {resource.url && (
+                                                        {isFile && resource.file_size ? (
+                                                            <span className="text-xs text-blue-400/60">{formatFileSize(resource.file_size)}</span>
+                                                        ) : resource.url ? (
                                                             <a
                                                                 href={resource.url}
                                                                 target="_blank"
@@ -219,10 +319,19 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
                                                             >
                                                                 {resource.url}
                                                             </a>
-                                                        )}
+                                                        ) : null}
                                                     </div>
                                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {resource.url && (
+                                                        {isFile && resource.file_path ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDownloadFile(resource)}
+                                                                className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-blue-400 transition-colors"
+                                                                title="Download file"
+                                                            >
+                                                                <Download size={14} />
+                                                            </button>
+                                                        ) : resource.url ? (
                                                             <a
                                                                 href={resource.url}
                                                                 target="_blank"
@@ -232,10 +341,10 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
                                                             >
                                                                 <ExternalLink size={14} />
                                                             </a>
-                                                        )}
+                                                        ) : null}
                                                         <button
                                                             type="button"
-                                                            onClick={() => onDeleteResource(resource.id)}
+                                                            onClick={() => isFile ? handleDeleteFileResource(resource) : onDeleteResource(resource.id)}
                                                             className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
                                                         >
                                                             <Trash2 size={14} />
@@ -257,7 +366,7 @@ const TopicModal = ({ isOpen, onClose, onSave, onDelete, topic = null, pathId, r
                                             className="space-y-3 p-4 bg-white/5 rounded-xl border border-white/10"
                                         >
                                             <div className="flex gap-2 flex-wrap">
-                                                {RESOURCE_TYPE_OPTIONS.map((type) => (
+                                                {RESOURCE_TYPE_OPTIONS.filter(t => t.value !== 'file').map((type) => (
                                                     <button
                                                         key={type.value}
                                                         type="button"

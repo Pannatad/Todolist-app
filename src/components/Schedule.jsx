@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus, GraduationCap } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { parseScheduleCommand } from '../services/gemini';
 import ScheduleEventModal from './ScheduleEventModal';
+import { useLearning } from '../context/LearningContext';
 
 const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent, onCompleteTask }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -13,6 +14,8 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
     const [showEventModal, setShowEventModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [selectedDate, setSelectedDate] = useState(null);
+
+    const { getTimetableForDay } = useLearning();
 
     // Generate the 7 days of the current week (Sunday to Saturday)
     useEffect(() => {
@@ -81,6 +84,34 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
 
         const allItems = [...dayEvents, ...dayTasks];
 
+        // Timetable learning entries (recurring)
+        const dayOfWeek = date.getDay();
+        const timetableEntries = getTimetableForDay(dayOfWeek, date);
+        timetableEntries.forEach((slot, idx) => {
+            const [startH, startM] = (slot.start || '09:00').split(':').map(Number);
+            const startDate = new Date(date);
+            startDate.setHours(startH, startM, 0, 0);
+
+            // Calculate duration from start/end
+            const [endH, endM] = (slot.end || '10:00').split(':').map(Number);
+            const durationMins = (endH * 60 + endM) - (startH * 60 + startM);
+
+            allItems.push({
+                id: `timetable-${slot.pathId}-${dayOfWeek}-${idx}`,
+                title: `📖 ${slot.pathName}`,
+                _type: 'timetable',
+                _sortTime: startDate.getTime(),
+                _hasTime: true,
+                startTime: startDate.toISOString(),
+                duration: durationMins > 0 ? durationMins : 60,
+                category: 'Study',
+                subject: 'Study',
+                color: null,
+                _pathColor: slot.pathColor,
+                _pathIcon: slot.pathIcon,
+            });
+        });
+
         // Sort: no-time first, then chronological
         allItems.sort((a, b) => {
             if (!a._hasTime && b._hasTime) return -1;
@@ -101,6 +132,9 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
 
     const handleItemClick = (item, e) => {
         e.stopPropagation();
+        if (item._type === 'timetable') {
+            return; // Timetable items are read-only in the schedule
+        }
         if (item._type === 'task') {
             if (window.confirm(`Complete task "${item.title}"?`)) {
                 if (onCompleteTask) onCompleteTask(item.id);

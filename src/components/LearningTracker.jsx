@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen } from 'lucide-react';
+import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
 import LearningPathDetailView from './LearningPathDetailView';
+import TimetableSummary from './TimetableSummary';
 import { COLOR_OPTIONS } from './LearningPathModal';
 
 const LearningTracker = () => {
@@ -21,12 +22,17 @@ const LearningTracker = () => {
         getPathProgress,
         getCategories,
         getInProgressTopicsWithPaths,
+        canStartNewPath,
+        getActiveInProgressPathCount,
+        maxConcurrentPaths,
+        setMaxConcurrentPaths,
     } = useLearning();
 
     const [showPathModal, setShowPathModal] = useState(false);
     const [editingPath, setEditingPath] = useState(null);
     const [showArchived, setShowArchived] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showSettings, setShowSettings] = useState(false);
 
     // Get current detail path
     const currentPath = useMemo(() =>
@@ -67,6 +73,8 @@ const LearningTracker = () => {
 
     // In-progress topics
     const inProgressTopics = useMemo(() => getInProgressTopicsWithPaths(), [getInProgressTopicsWithPaths]);
+    const canStart = canStartNewPath();
+    const activeCount = getActiveInProgressPathCount();
 
     // Existing categories for autocomplete
     const existingCategories = useMemo(() => getCategories(), [getCategories]);
@@ -137,14 +145,94 @@ const LearningTracker = () => {
                     </p>
                 </div>
 
-                <button
-                    onClick={() => { setEditingPath(null); setShowPathModal(true); }}
-                    className="px-5 py-2.5 rounded-2xl font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                >
-                    <Plus size={18} />
-                    New Learning Path
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2.5 rounded-2xl transition-all ${
+                            showSettings
+                                ? 'bg-gray-200 text-gray-800'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                        }`}
+                        title="Learning Tracker Settings"
+                    >
+                        <Settings size={20} />
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (canStart) {
+                                setEditingPath(null);
+                                setShowPathModal(true);
+                            }
+                        }}
+                        disabled={!canStart}
+                        className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all
+                            ${canStart
+                                ? 'text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 active:scale-95'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                            }`}
+                    >
+                        <Plus size={18} />
+                        New Learning Path
+                    </button>
+                </div>
             </div>
+
+            {/* Settings Panel */}
+            <AnimatePresence>
+                {showSettings && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-800">Concurrent Learning Paths Limit</h3>
+                                <p className="text-xs text-gray-500 mt-1 max-w-lg">
+                                    Set the maximum number of courses you want to focus on at the same time. This encourages completing ongoing paths before starting new ones.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                                <button
+                                    onClick={() => setMaxConcurrentPaths(Math.max(1, maxConcurrentPaths - 1))}
+                                    className="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all text-gray-600 disabled:opacity-50"
+                                    disabled={maxConcurrentPaths <= 1}
+                                >
+                                    <Minus size={16} />
+                                </button>
+                                <span className="w-8 text-center font-bold text-gray-800 text-lg">
+                                    {maxConcurrentPaths}
+                                </span>
+                                <button
+                                    onClick={() => setMaxConcurrentPaths(maxConcurrentPaths + 1)}
+                                    className="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all text-gray-600"
+                                >
+                                    <Plus size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Concurrent Path Limit Banner */}
+            {!canStart && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl"
+                >
+                    <div className="text-2xl">🔒</div>
+                    <div className="flex-1">
+                        <p className="text-sm font-bold text-amber-800">Focus Mode Active</p>
+                        <p className="text-xs text-amber-600">
+                            You have {activeCount} of {maxConcurrentPaths} courses in progress.
+                            Complete or master an ongoing course to start a new one.
+                        </p>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Stats Overview - Vibrant Gradient Cards like Habit Tracker */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -245,6 +333,9 @@ const LearningTracker = () => {
                 </motion.div>
             )}
 
+            {/* Weekly Study Schedule Overview */}
+            <TimetableSummary />
+
             {/* Search & Filter Bar */}
             <div className="flex items-center gap-3">
                 <div className="flex-1 relative">
@@ -294,8 +385,18 @@ const LearningTracker = () => {
                     </p>
                     {!searchQuery && !showArchived && (
                         <button
-                            onClick={() => { setEditingPath(null); setShowPathModal(true); }}
-                            className="px-6 py-3 rounded-2xl font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 transition-all inline-flex items-center gap-2"
+                            onClick={() => {
+                                if (canStart) {
+                                    setEditingPath(null);
+                                    setShowPathModal(true);
+                                }
+                            }}
+                            disabled={!canStart}
+                            className={`px-6 py-3 rounded-2xl font-bold inline-flex items-center gap-2 transition-all
+                                ${canStart
+                                    ? 'text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105'
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                                }`}
                         >
                             <Plus size={18} />
                             Create Learning Path

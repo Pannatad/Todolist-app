@@ -29,6 +29,51 @@ const extractPlaylistId = (url) => {
 };
 
 /**
+ * Fetches full playlist videos using the YouTube Data API.
+ * Supports pagination up to 200 videos.
+ * @param {string} playlistId - The playlist ID
+ * @returns {Promise<Array>} - Array of { title, videoUrl, videoId }
+ */
+const fetchFromAPI = async (playlistId) => {
+    let videos = [];
+    let nextPageToken = '';
+    
+    try {
+        do {
+            const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
+            const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            
+            if (!response.ok) {
+                console.warn('YouTube API playlist fetch failed', await response.text());
+                return []; // Fall back to RSS
+            }
+            
+            const data = await response.json();
+            
+            data.items?.forEach(item => {
+                const title = item.snippet?.title;
+                const videoId = item.snippet?.resourceId?.videoId;
+                if (title && videoId && title !== 'Private video' && title !== 'Deleted video') {
+                    videos.push({
+                        title,
+                        videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+                        videoId,
+                    });
+                }
+            });
+            
+            nextPageToken = data.nextPageToken;
+            // Hard cap at 200 videos to keep things manageable
+        } while (nextPageToken && videos.length < 200);
+        
+        return videos;
+    } catch (error) {
+        console.warn('YouTube API fetch error:', error);
+        return [];
+    }
+};
+
+/**
  * Fetches playlist video titles using YouTube's RSS/Atom feed.
  * This approach doesn't require an API key.
  * Note: YouTube RSS feeds only return the latest ~15 videos.
@@ -179,7 +224,8 @@ const fetchVideoDurations = async (videos) => {
     try {
         const videoIds = videos.map(v => v.videoId).join(',');
         const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YT_API_KEY}`
+            `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YT_API_KEY}`,
+            { signal: AbortSignal.timeout(10000) }
         );
 
         if (!response.ok) {
@@ -226,12 +272,24 @@ export const parseYouTubePlaylist = async (url) => {
 
     console.log(`📺 Parsing YouTube playlist: ${playlistId}`);
 
-    // Try RSS feed first (fastest, no API key needed)
-    const rssVideos = await fetchFromRSS(playlistId);
-    if (rssVideos.length > 0) {
-        console.log(`✅ Found ${rssVideos.length} videos via RSS`);
-        const cleaned = cleanVideoTitles(rssVideos);
-        // Try to fetch durations if API key is available
+    let videos = [];
+
+    // 1. Try API first (can fetch >15 videos)
+    if (YT_API_KEY) {
+        console.log('🔑 Using YouTube API...');
+        videos = await fetchFromAPI(playlistId);
+    }
+
+    // 2. Try RSS feed fallback (fastest, no API key needed, but max 15)
+    if (videos.length === 0) {
+        console.log('📡 Using RSS fallback...');
+        videos = await fetchFromRSS(playlistId);
+    }
+
+    if (videos.length > 0) {
+        console.log(`✅ Found ${videos.length} videos`);
+        const cleaned = cleanVideoTitles(videos);
+        // Fetch durations
         const withDurations = await fetchVideoDurations(cleaned);
         return { videos: withDurations, error: null };
     }

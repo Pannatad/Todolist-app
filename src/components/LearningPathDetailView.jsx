@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { ArrowLeft, Plus, Clock, BookOpen, Target, TrendingUp, Flame, Check, Star, Zap, ChevronRight, GripVertical, Sparkles, ArrowUpDown, Play } from 'lucide-react';
+import { ArrowLeft, Plus, Clock, BookOpen, Target, TrendingUp, Flame, Check, Star, Zap, ChevronRight, GripVertical, Sparkles, ArrowUpDown, Play, Calendar, Lock, Unlock, Dumbbell, BookCheck, MoreVertical } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import TopicModal from './TopicModal';
 import AITopicGenerator from './AITopicGenerator';
+import TimetableEditor from './TimetableEditor';
 import { COLOR_OPTIONS } from './LearningPathModal';
 
 const STATUS_CONFIG = {
@@ -24,7 +25,8 @@ const STATUS_CONFIG = {
         label: 'Completed',
         dot: 'bg-emerald-50 border border-emerald-300 hover:bg-emerald-100',
         dotInner: <Check size={18} className="text-emerald-500" strokeWidth={3} />,
-        textClass: 'text-gray-400 line-through',
+        textClass: 'text-gray-800',
+        rowHighlight: 'border-l-4 border-l-emerald-400 bg-emerald-50/20',
     },
     mastered: {
         label: 'Mastered',
@@ -34,6 +36,8 @@ const STATUS_CONFIG = {
         rowHighlight: 'ring-1 ring-yellow-300/50 border-yellow-200',
     },
 };
+
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const LearningPathDetailView = ({ path, onBack }) => {
     const {
@@ -49,12 +53,29 @@ const LearningPathDetailView = ({ path, onBack }) => {
         addResource,
         deleteResource,
         reorderTopics,
+        updateLearningPath,
+        toggleExerciseCompleted,
+        toggleRevisionCompleted,
         topics,
     } = useLearning();
 
     const [showTopicModal, setShowTopicModal] = useState(false);
     const [editingTopic, setEditingTopic] = useState(null);
     const [showAIGenerator, setShowAIGenerator] = useState(false);
+    const [showTimetableEditor, setShowTimetableEditor] = useState(false);
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const addMenuRef = useRef(null);
+
+    // Close add menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (addMenuRef.current && !addMenuRef.current.contains(event.target)) {
+                setShowAddMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Computed values
     const progress = getPathProgress(path.id);
@@ -100,7 +121,32 @@ const LearningPathDetailView = ({ path, onBack }) => {
         reorderTopics(path.id, reorderedTopics.map(t => t.id));
     };
 
+    const handleSaveTimetable = async (timetableData) => {
+        await updateLearningPath(path.id, { timetable: timetableData });
+    };
+
     const topicResources = editingTopic ? getResourcesByTopic(editingTopic.id) : [];
+    const timetable = path.timetable || [];
+    const isSequentialLocked = !!path.sequential_lock;
+
+    const handleToggleSequentialLock = async () => {
+        await updateLearningPath(path.id, { sequential_lock: !isSequentialLocked });
+    };
+
+    // Sequential lock: a topic is locked if the previous topic in order isn't completed/mastered yet
+    const isTopicLocked = (topic, index) => {
+        if (!isSequentialLocked) return false;
+        // First topic is always unlocked
+        if (index === 0) return false;
+        // If this topic is already completed or mastered, it stays accessible
+        if (topic.status === 'completed' || topic.status === 'mastered') return false;
+        // If this topic is in_progress, don't lock it
+        if (topic.status === 'in_progress') return false;
+        // Check if the previous topic is completed or mastered
+        const prevTopic = pathTopics[index - 1];
+        if (!prevTopic) return false;
+        return prevTopic.status !== 'completed' && prevTopic.status !== 'mastered';
+    };
 
     return (
         <div className="space-y-6">
@@ -165,6 +211,18 @@ const LearningPathDetailView = ({ path, onBack }) => {
                                 />
                             </div>
                         </div>
+
+                        {/* Timetable Preview */}
+                        {timetable.length > 0 && (
+                            <div className="mt-4 flex items-center gap-2 flex-wrap">
+                                <Calendar size={14} className="text-white/50" />
+                                {timetable.map((slot, idx) => (
+                                    <span key={idx} className="text-xs bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full text-white/70 font-medium">
+                                        {DAYS_SHORT[slot.day]} {slot.start}-{slot.end}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -181,6 +239,31 @@ const LearningPathDetailView = ({ path, onBack }) => {
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Sequential Lock Toggle */}
+                        <button
+                            onClick={handleToggleSequentialLock}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1
+                                ${isSequentialLocked
+                                    ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                                } active:scale-95`}
+                            title={isSequentialLocked ? 'Sequential mode ON — click to unlock all' : 'Lock topics sequentially'}
+                        >
+                            {isSequentialLocked ? <Lock size={12} /> : <Unlock size={12} />}
+                            {isSequentialLocked ? 'Sequential' : 'Lock Order'}
+                        </button>
+                        {/* Timetable Button */}
+                        <button
+                            onClick={() => setShowTimetableEditor(true)}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1
+                                ${timetable.length > 0
+                                    ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                                } active:scale-95`}
+                            title="Set study timetable"
+                        >
+                            <Calendar size={12} /> {timetable.length > 0 ? `${timetable.length} slots` : 'Timetable'}
+                        </button>
                         {pathTopics.length > 1 && (
                             <button
                                 onClick={() => reorderTopics(path.id, [...pathTopics].reverse().map(t => t.id))}
@@ -191,20 +274,54 @@ const LearningPathDetailView = ({ path, onBack }) => {
                                 <ArrowUpDown size={12} /> Reverse
                             </button>
                         )}
-                        <button
-                            onClick={() => setShowAIGenerator(true)}
-                            className="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1
-                                bg-gradient-to-r from-amber-400 to-orange-500 text-white hover:shadow-md hover:scale-105 active:scale-95"
-                        >
-                            <Sparkles size={12} /> AI Generate
-                        </button>
-                        <button
-                            onClick={handleAddTopic}
-                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1
-                                bg-gradient-to-r ${colorConfig.gradient} text-white hover:shadow-md hover:scale-105 active:scale-95`}
-                        >
-                            <Plus size={12} /> Add Topic
-                        </button>
+                        <div className="relative" ref={addMenuRef}>
+                            <button
+                                onClick={() => setShowAddMenu(!showAddMenu)}
+                                className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1
+                                    bg-gradient-to-r ${colorConfig.gradient} text-white hover:shadow-md hover:scale-105 active:scale-95`}
+                            >
+                                <Plus size={12} /> Add Topic
+                            </button>
+
+                            <AnimatePresence>
+                                {showAddMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-20"
+                                    >
+                                        <div className="py-1">
+                                            <button
+                                                onClick={() => {
+                                                    setShowAddMenu(false);
+                                                    handleAddTopic();
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                                                    <Plus size={16} className="text-gray-500" />
+                                                </div>
+                                                Add Manually
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowAddMenu(false);
+                                                    setShowAIGenerator(true);
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-amber-50 flex items-center gap-2 transition-colors"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                                                    <Sparkles size={16} className="text-orange-500" />
+                                                </div>
+                                                AI Generate Topics
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </div>
 
@@ -235,7 +352,9 @@ const LearningPathDetailView = ({ path, onBack }) => {
                             {pathTopics.map((topic, index) => {
                                 const status = STATUS_CONFIG[topic.status] || STATUS_CONFIG.not_started;
                                 const resourceCount = getResourcesByTopic(topic.id).length;
-                                const isCompleted = topic.status === 'completed' || topic.status === 'mastered';
+                                const isCompleted = topic.status === 'completed';
+                                const isMastered = topic.status === 'mastered';
+                                const isLocked = isTopicLocked(topic, index);
 
                                 return (
                                     <Reorder.Item
@@ -247,7 +366,8 @@ const LearningPathDetailView = ({ path, onBack }) => {
                                         transition={{ delay: index * 0.03 }}
                                         className={`group flex items-center gap-3 px-5 py-3.5 cursor-grab active:cursor-grabbing
                                             hover:bg-gray-50/80 transition-colors
-                                            ${isCompleted ? 'opacity-60' : ''}
+                                            ${isMastered ? 'opacity-60' : ''}
+                                            ${isLocked ? 'opacity-50' : ''}
                                             ${status.rowHighlight || ''}`}
                                     >
                                         {/* Drag Handle */}
@@ -262,13 +382,22 @@ const LearningPathDetailView = ({ path, onBack }) => {
                                         </span>
 
                                         {/* Status Indicator */}
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); cycleTopicStatus(topic.id); }}
-                                            className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${status.dot}`}
-                                            title={`${status.label} — click to change`}
-                                        >
-                                            {status.dotInner}
-                                        </button>
+                                        {isLocked ? (
+                                            <div
+                                                className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 border border-gray-200"
+                                                title="Topic locked — complete the previous topic first"
+                                            >
+                                                <Lock size={16} className="text-gray-400" />
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); cycleTopicStatus(topic.id); }}
+                                                className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${status.dot}`}
+                                                title={`${status.label} — click to change`}
+                                            >
+                                                {status.dotInner}
+                                            </button>
+                                        )}
 
                                         {/* Content */}
                                         <div
@@ -296,6 +425,36 @@ const LearningPathDetailView = ({ path, onBack }) => {
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* Exercise & Revision Buttons (only when completed) */}
+                                        {isCompleted && (
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleExerciseCompleted(topic.id); }}
+                                                    className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all
+                                                        ${topic.exercise_completed
+                                                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                            : 'bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 animate-pulse'
+                                                        }`}
+                                                    title={topic.exercise_completed ? 'Exercise done ✓' : 'Mark exercise as done'}
+                                                >
+                                                    <Dumbbell size={12} />
+                                                    {topic.exercise_completed ? <Check size={10} strokeWidth={3} /> : 'Exercise'}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleRevisionCompleted(topic.id); }}
+                                                    className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all
+                                                        ${topic.revision_completed
+                                                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                            : 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 animate-pulse'
+                                                        }`}
+                                                    title={topic.revision_completed ? 'Revision done ✓' : 'Mark revision as done'}
+                                                >
+                                                    <BookCheck size={12} />
+                                                    {topic.revision_completed ? <Check size={10} strokeWidth={3} /> : 'Revise'}
+                                                </button>
+                                            </div>
+                                        )}
 
                                         {/* Play Button (YouTube links) */}
                                         {topic.description && topic.description.includes('youtube.com/watch') && (
@@ -354,6 +513,15 @@ const LearningPathDetailView = ({ path, onBack }) => {
                 pathName={path.name}
                 pathGradient={colorConfig.gradient}
                 onAddTopics={addTopicsBatch}
+            />
+
+            {/* Timetable Editor Modal */}
+            <TimetableEditor
+                isOpen={showTimetableEditor}
+                onClose={() => setShowTimetableEditor(false)}
+                timetable={timetable}
+                onSave={handleSaveTimetable}
+                pathGradient={colorConfig.gradient}
             />
         </div>
     );
