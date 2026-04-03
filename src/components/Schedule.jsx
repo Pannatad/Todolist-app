@@ -82,6 +82,10 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
             const eventDate = new Date(event.deadline || event.startTime || event.start_time);
             const recurrenceType = event.recurrence_type || event.recurrenceType || 'none';
             const recurrenceEndDate = event.recurrence_end_date || event.recurrenceEndDate;
+            const recurrenceExceptions = event.recurrence_exceptions || event.recurrenceExceptions || [];
+            const targetDateKey = date.toISOString().split('T')[0];
+
+            if (recurrenceExceptions.includes(targetDateKey)) return false;
 
             // Check end date
             if (recurrenceEndDate) {
@@ -165,6 +169,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                 _type: 'event',
                 _sortTime: occurrenceTime,
                 _hasTime: !!(e.startTime || e.start_time),
+                _occurrenceDate: dateStr,
                 _isRecurrence: !(originalDate.getDate() === date.getDate() &&
                     originalDate.getMonth() === date.getMonth() &&
                     originalDate.getFullYear() === date.getFullYear()),
@@ -309,6 +314,10 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         }
     };
 
+    const handleDeleteEvent = (eventId, options) => {
+        onDeleteEvent?.(eventId, options);
+    };
+
     const handleVoiceCommand = () => {
         if (!('webkitSpeechRecognition' in window)) {
             alert("Voice recognition is not supported in this browser. Please use Chrome or Edge.");
@@ -428,6 +437,9 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
             : getColorForSubject(item.subject || item.category);
 
         const timeString = item._sortTime ? formatTime(item._sortTime) : '';
+        const isCompactBlock = style.height < 72;
+        const showTimeRow = style.height >= 38 && (timeString || dur);
+        const showCategoryTag = style.height >= 68 && (item.subject || item.category || isTask);
 
         return (
             <motion.div
@@ -449,12 +461,13 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                 }}
                 title={isTask ? "Click to Complete Task" : "Edit Event"}
             >
-                <div className="p-1.5 h-full flex flex-col justify-center">
-                    <h4 className={`text-[11px] font-bold leading-tight truncate
+                <div className={`p-1.5 h-full flex flex-col overflow-hidden ${isCompactBlock ? 'justify-start' : 'justify-center'}`}>
+                    <h4 className={`font-bold leading-tight truncate
+                        ${isCompactBlock ? 'text-[10px]' : 'text-[11px]'}
                         ${isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                         {item.title}
                     </h4>
-                    {style.height >= 40 && (timeString || dur) && (
+                    {showTimeRow && (
                         <div className="flex items-center gap-1.5 mt-0.5">
                             {timeString && (
                                 <span className="text-[9px] font-semibold flex items-center gap-0.5"
@@ -470,7 +483,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                             )}
                         </div>
                     )}
-                    {style.height >= 56 && (item.subject || item.category || isTask) && (
+                    {showCategoryTag && (
                         <div className="mt-0.5">
                             <span className="text-[8px] font-bold px-1 py-0.5 rounded-md uppercase tracking-wide"
                                 style={{
@@ -755,7 +768,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                     setSelectedDate(null);
                 }}
                 onSave={handleSaveEvent}
-                onDelete={onDeleteEvent}
+                onDelete={handleDeleteEvent}
                 event={selectedEvent}
                 selectedDate={selectedDate}
             />

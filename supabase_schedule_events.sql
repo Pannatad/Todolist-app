@@ -7,6 +7,7 @@ ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS recurrence_type TEXT DEFAULT
 ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS recurrence_interval INTEGER DEFAULT 1;
 ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS recurrence_days_of_week INTEGER[];
 ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS recurrence_end_date DATE;
+ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS recurrence_exceptions TEXT[] DEFAULT '{}';
 ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- Optional: If you don't have a schedule_items table yet, create it
@@ -23,6 +24,7 @@ ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAU
 --     recurrence_interval INTEGER DEFAULT 1,
 --     recurrence_days_of_week INTEGER[],
 --     recurrence_end_date DATE,
+--     recurrence_exceptions TEXT[] DEFAULT '{}',
 --     created_at TIMESTAMPTZ DEFAULT NOW(),
 --     updated_at TIMESTAMPTZ DEFAULT NOW()
 -- );

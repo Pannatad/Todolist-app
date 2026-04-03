@@ -32,6 +32,12 @@ const RECURRENCE_OPTIONS = [
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const formatOccurrenceLabel = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(`${dateString}T12:00:00`);
+    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
 const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) => {
     const [formData, setFormData] = useState({
         title: '',
@@ -49,6 +55,9 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
 
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
+    const occurrenceDate = event?._occurrenceDate;
+    const isRecurringSeries = !!event && (event.recurrence_type || event.recurrenceType || 'none') !== 'none';
+    const canDeleteSingleOccurrence = isRecurringSeries && !!occurrenceDate;
 
     // Initialize form with event data or defaults
     useEffect(() => {
@@ -332,14 +341,26 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (window.confirm('Delete this event?')) {
+                                    if (canDeleteSingleOccurrence) {
+                                        const deleteSingle = window.confirm(
+                                            `Delete only ${formatOccurrenceLabel(occurrenceDate)}?\n\nClick OK to remove just this occurrence.\nClick Cancel to choose whether to delete the entire recurring event.`
+                                        );
+
+                                        if (deleteSingle) {
+                                            onDelete(event.id, { occurrenceDate });
+                                            onClose();
+                                            return;
+                                        }
+                                    }
+
+                                    if (window.confirm(isRecurringSeries ? 'Delete the entire recurring event?' : 'Delete this event?')) {
                                         onDelete(event.id);
                                         onClose();
                                     }
                                 }}
                                 className="px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
                             >
-                                Delete
+                                {canDeleteSingleOccurrence ? 'Delete...' : 'Delete'}
                             </button>
                         )}
                         <div className="flex-1" />

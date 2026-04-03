@@ -57,7 +57,8 @@ export const TaskProvider = ({ children }) => {
             if (scheduleData) {
                 const formattedSchedule = scheduleData.map(item => ({
                     ...item,
-                    startTime: item.start_time
+                    startTime: item.start_time,
+                    recurrenceExceptions: item.recurrence_exceptions || []
                 }));
                 setScheduleItems(formattedSchedule);
             }
@@ -259,6 +260,8 @@ export const TaskProvider = ({ children }) => {
             recurrence_interval: itemData.recurrenceInterval || 1,
             recurrence_days_of_week: itemData.recurrenceDaysOfWeek || [],
             recurrence_end_date: itemData.recurrenceEndDate || null,
+            recurrence_exceptions: itemData.recurrenceExceptions || [],
+            recurrenceExceptions: itemData.recurrenceExceptions || [],
             color: itemData.color || '#6366f1',
             notes: itemData.notes || null
         };
@@ -278,7 +281,8 @@ export const TaskProvider = ({ children }) => {
                     recurrenceType: data.recurrence_type,
                     recurrenceInterval: data.recurrence_interval,
                     recurrenceDaysOfWeek: data.recurrence_days_of_week,
-                    recurrenceEndDate: data.recurrence_end_date
+                    recurrenceEndDate: data.recurrence_end_date,
+                    recurrenceExceptions: data.recurrence_exceptions || []
                 } : i));
             } else if (error) {
                 console.error("Error adding schedule item:", error);
@@ -294,6 +298,7 @@ export const TaskProvider = ({ children }) => {
         if (updates.recurrenceInterval !== undefined) processedUpdates.recurrence_interval = updates.recurrenceInterval;
         if (updates.recurrenceDaysOfWeek !== undefined) processedUpdates.recurrence_days_of_week = updates.recurrenceDaysOfWeek;
         if (updates.recurrenceEndDate !== undefined) processedUpdates.recurrence_end_date = updates.recurrenceEndDate;
+        if (updates.recurrenceExceptions !== undefined) processedUpdates.recurrence_exceptions = updates.recurrenceExceptions;
 
         setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...processedUpdates } : i));
 
@@ -310,12 +315,25 @@ export const TaskProvider = ({ children }) => {
             if (updates.recurrenceInterval !== undefined) dbUpdates.recurrence_interval = updates.recurrenceInterval;
             if (updates.recurrenceDaysOfWeek !== undefined) dbUpdates.recurrence_days_of_week = updates.recurrenceDaysOfWeek;
             if (updates.recurrenceEndDate !== undefined) dbUpdates.recurrence_end_date = updates.recurrenceEndDate;
+            if (updates.recurrenceExceptions !== undefined) dbUpdates.recurrence_exceptions = updates.recurrenceExceptions;
 
             await supabase.from('schedule_items').update(dbUpdates).eq('id', id);
         }
     };
 
-    const deleteScheduleItem = async (id) => {
+    const deleteScheduleItem = async (id, options = {}) => {
+        const { occurrenceDate } = options;
+        const existingItem = scheduleItems.find(item => item.id === id);
+
+        if (!existingItem) return;
+
+        if (occurrenceDate && (existingItem.recurrence_type || existingItem.recurrenceType) !== 'none') {
+            const currentExceptions = existingItem.recurrence_exceptions || existingItem.recurrenceExceptions || [];
+            const nextExceptions = Array.from(new Set([...currentExceptions, occurrenceDate])).sort();
+            await updateScheduleItem(id, { recurrenceExceptions: nextExceptions });
+            return;
+        }
+
         setScheduleItems(prev => prev.filter(i => i.id !== id));
         if (user) {
             await supabase.from('schedule_items').delete().eq('id', id);
