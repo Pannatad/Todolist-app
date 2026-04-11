@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Check, Clock, Hash, Calendar, Sparkles, Sun, Sunrise, Sunset, Moon } from 'lucide-react';
+import { X, Plus, Check, Clock, Hash, Sparkles, Sun, Sunrise, Sunset, Moon, Sprout } from 'lucide-react';
+import { DEFAULT_SEED_DURATION_DAYS } from '../constants/habitSeeds';
 
 const EMOJI_OPTIONS = ['💧', '🧘', '🏃', '📚', '📝', '💪', '🎯', '⏰', '🌟', '❤️', '🧠', '🎨', '🎵', '💤', '🥗', '🚶', '✨'];
 
@@ -30,41 +31,84 @@ const DAYS = [
     { value: 6, label: 'S', full: 'Saturday' },
 ];
 
+const SEED_DURATION_OPTIONS = [21, 42, 90];
+
+const getInitialFormState = (habit) => ({
+    name: habit?.name || '',
+    icon: habit?.icon || '✨',
+    type: habit?.type || 'check',
+    target: habit?.target || 1,
+    frequency: habit?.frequency || 'daily',
+    scheduleDays: habit?.schedule_days || [0, 1, 2, 3, 4, 5, 6],
+    timeOfDay: habit?.time_of_day || 'anytime',
+    reminderTime: habit?.reminder_time || '',
+    color: habit?.color || 'teal',
+    isSeed: Boolean(habit?.is_seed),
+    seedDurationDays: Number(habit?.seed_duration_days) > 0
+        ? Number(habit.seed_duration_days)
+        : DEFAULT_SEED_DURATION_DAYS,
+    seedWhy: habit?.seed_why || '',
+});
+
 const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
-    const [name, setName] = useState(habit?.name || '');
-    const [icon, setIcon] = useState(habit?.icon || '✨');
-    const [type, setType] = useState(habit?.type || 'check');
-    const [target, setTarget] = useState(habit?.target || 1);
-    const [frequency, setFrequency] = useState(habit?.frequency || 'daily');
-    const [scheduleDays, setScheduleDays] = useState(habit?.schedule_days || [0, 1, 2, 3, 4, 5, 6]);
-    const [timeOfDay, setTimeOfDay] = useState(habit?.time_of_day || 'anytime');
-    const [reminderTime, setReminderTime] = useState(habit?.reminder_time || '');
-    const [color, setColor] = useState(habit?.color || 'teal');
+    const initialState = getInitialFormState(habit);
+
+    const [name, setName] = useState(initialState.name);
+    const [icon, setIcon] = useState(initialState.icon);
+    const [type, setType] = useState(initialState.type);
+    const [target, setTarget] = useState(initialState.target);
+    const [frequency, setFrequency] = useState(initialState.frequency);
+    const [scheduleDays, setScheduleDays] = useState(initialState.scheduleDays);
+    const [timeOfDay, setTimeOfDay] = useState(initialState.timeOfDay);
+    const [reminderTime, setReminderTime] = useState(initialState.reminderTime);
+    const [color, setColor] = useState(initialState.color);
+    const [isSeed, setIsSeed] = useState(initialState.isSeed);
+    const [seedDurationDays, setSeedDurationDays] = useState(initialState.seedDurationDays);
+    const [seedWhy, setSeedWhy] = useState(initialState.seedWhy);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-    // Reset form when habit prop changes (for editing different habits)
     React.useEffect(() => {
-        if (isOpen) {
-            setName(habit?.name || '');
-            setIcon(habit?.icon || '✨');
-            setType(habit?.type || 'check');
-            setTarget(habit?.target || 1);
-            setFrequency(habit?.frequency || 'daily');
-            setScheduleDays(habit?.schedule_days || [0, 1, 2, 3, 4, 5, 6]);
-            setTimeOfDay(habit?.time_of_day || 'anytime');
-            setReminderTime(habit?.reminder_time || '');
-            setColor(habit?.color || 'teal');
-            setShowEmojiPicker(false);
-        }
+        if (!isOpen) return;
+
+        const nextState = getInitialFormState(habit);
+        setName(nextState.name);
+        setIcon(nextState.icon);
+        setType(nextState.type);
+        setTarget(nextState.target);
+        setFrequency(nextState.frequency);
+        setScheduleDays(nextState.scheduleDays);
+        setTimeOfDay(nextState.timeOfDay);
+        setReminderTime(nextState.reminderTime);
+        setColor(nextState.color);
+        setIsSeed(nextState.isSeed);
+        setSeedDurationDays(nextState.seedDurationDays);
+        setSeedWhy(nextState.seedWhy);
+        setShowEmojiPicker(false);
     }, [habit, isOpen]);
 
     const handleTimeOfDayChange = (value) => {
         setTimeOfDay(value);
-        // Auto-suggest a default time unless user already set one
-        const option = TIME_OF_DAY_OPTIONS.find(o => o.value === value);
+        const option = TIME_OF_DAY_OPTIONS.find((item) => item.value === value);
         if (option?.defaultTime && !reminderTime) {
             setReminderTime(option.defaultTime);
         }
+    };
+
+    const resetForm = () => {
+        const nextState = getInitialFormState(null);
+        setName(nextState.name);
+        setIcon(nextState.icon);
+        setType(nextState.type);
+        setTarget(nextState.target);
+        setFrequency(nextState.frequency);
+        setScheduleDays(nextState.scheduleDays);
+        setTimeOfDay(nextState.timeOfDay);
+        setReminderTime(nextState.reminderTime);
+        setColor(nextState.color);
+        setIsSeed(nextState.isSeed);
+        setSeedDurationDays(nextState.seedDurationDays);
+        setSeedWhy(nextState.seedWhy);
+        setShowEmojiPicker(false);
     };
 
     const handleSubmit = (e) => {
@@ -76,38 +120,39 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
             name: name.trim(),
             icon,
             type,
-            target: type === 'check' ? 1 : parseInt(target) || 1,
+            target: type === 'check' ? 1 : parseInt(target, 10) || 1,
             frequency,
             schedule_days: frequency === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : scheduleDays,
             time_of_day: timeOfDay,
             reminder_time: reminderTime || null,
-            color
+            color,
+            is_seed: isSeed,
+            seed_duration_days: isSeed ? seedDurationDays : null,
+            seed_why: isSeed ? seedWhy.trim() : null,
+            seed_started_at: isSeed
+                ? (habit?.is_seed ? habit.seed_started_at : new Date().toISOString())
+                : null,
+            seed_stage: isSeed
+                ? (habit?.is_seed ? habit.seed_stage || 'seed' : 'seed')
+                : null,
         });
 
-        // Reset form
-        setName('');
-        setIcon('✨');
-        setType('check');
-        setTarget(1);
-        setFrequency('daily');
-        setScheduleDays([0, 1, 2, 3, 4, 5, 6]);
-        setTimeOfDay('anytime');
-        setReminderTime('');
-        setColor('teal');
+        resetForm();
         onClose();
     };
 
     const toggleDay = (day) => {
         if (scheduleDays.includes(day)) {
-            setScheduleDays(scheduleDays.filter(d => d !== day));
-        } else {
-            setScheduleDays([...scheduleDays, day].sort());
+            setScheduleDays(scheduleDays.filter((d) => d !== day));
+            return;
         }
+
+        setScheduleDays([...scheduleDays, day].sort());
     };
 
     if (!isOpen) return null;
 
-    const selectedColorGradient = COLOR_OPTIONS.find(c => c.name === color)?.gradient || COLOR_OPTIONS[2].gradient;
+    const selectedColorGradient = COLOR_OPTIONS.find((item) => item.name === color)?.gradient || COLOR_OPTIONS[2].gradient;
 
     return (
         <AnimatePresence>
@@ -125,7 +170,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                     className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 w-full max-w-md max-h-[90vh] rounded-3xl shadow-2xl border border-white/10 overflow-hidden flex flex-col"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Header */}
                     <div className={`bg-gradient-to-r ${selectedColorGradient} p-6 relative overflow-hidden flex-shrink-0`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
                         <div className="flex items-center justify-between relative z-10">
@@ -144,9 +188,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                         </div>
                     </div>
 
-                    {/* Form - Scrollable */}
                     <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
-                        {/* Name & Icon */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70">Habit Name</label>
                             <div className="flex gap-2">
@@ -166,7 +208,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                     autoFocus
                                 />
                             </div>
-                            {/* Emoji Picker */}
+
                             <AnimatePresence>
                                 {showEmojiPicker && (
                                     <motion.div
@@ -193,7 +235,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </AnimatePresence>
                         </div>
 
-                        {/* Time of Day + Specific Time */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70">Time of Day</label>
                             <div className="grid grid-cols-5 gap-2">
@@ -213,7 +254,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                 ))}
                             </div>
 
-                            {/* Specific Time Picker */}
                             <div className="flex items-center gap-3 mt-3">
                                 <Clock size={16} className="text-white/50" />
                                 <span className="text-sm text-white/60">Scheduled time</span>
@@ -235,7 +275,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </div>
                         </div>
 
-                        {/* Type */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70">Type</label>
                             <div className="flex gap-2">
@@ -260,7 +299,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </div>
                         </div>
 
-                        {/* Target (for count/duration) */}
                         {type !== 'check' && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
@@ -275,7 +313,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                     min="1"
                                     max={type === 'duration' ? 120 : 20}
                                     value={target}
-                                    onChange={(e) => setTarget(parseInt(e.target.value))}
+                                    onChange={(e) => setTarget(parseInt(e.target.value, 10))}
                                     className="w-full accent-teal-500"
                                 />
                                 <div className="flex justify-between text-xs text-white/40">
@@ -285,7 +323,81 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </motion.div>
                         )}
 
-                        {/* Frequency */}
+                        <div className="space-y-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
+                            <button
+                                type="button"
+                                onClick={() => setIsSeed((prev) => !prev)}
+                                className={`w-full rounded-2xl border p-4 text-left transition-all ${isSeed
+                                    ? 'border-emerald-300/40 bg-emerald-400/15 shadow-lg shadow-emerald-950/20'
+                                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                                    }`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className={`mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl ${isSeed ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-white/60'}`}>
+                                        <Sprout size={18} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <div className="text-sm font-semibold text-white">Start as a seed</div>
+                                                <p className="mt-1 text-xs text-white/60">
+                                                    Keep it small, keep it patient, and let this habit take root over time.
+                                                </p>
+                                            </div>
+                                            <div className={`h-6 w-11 rounded-full p-1 transition-all ${isSeed ? 'bg-emerald-400' : 'bg-white/15'}`}>
+                                                <div className={`h-4 w-4 rounded-full bg-white transition-transform ${isSeed ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            <AnimatePresence>
+                                {isSeed && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="space-y-4 overflow-hidden"
+                                    >
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-white/70">Patience window</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {SEED_DURATION_OPTIONS.map((days) => (
+                                                    <button
+                                                        key={days}
+                                                        type="button"
+                                                        onClick={() => setSeedDurationDays(days)}
+                                                        className={`rounded-xl px-3 py-3 text-sm font-medium transition-all ${seedDurationDays === days
+                                                            ? 'bg-emerald-400 text-slate-900 shadow-lg'
+                                                            : 'bg-white/10 text-white/70 hover:bg-white/20'
+                                                            }`}
+                                                    >
+                                                        {days} days
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-white/70">Why plant this?</label>
+                                            <textarea
+                                                value={seedWhy}
+                                                onChange={(e) => setSeedWhy(e.target.value)}
+                                                placeholder="e.g., I want reading to feel natural every day, even if it starts with one page."
+                                                rows={3}
+                                                className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                                            />
+                                        </div>
+
+                                        <div className="rounded-xl border border-emerald-200/10 bg-black/10 px-4 py-3 text-xs text-emerald-50/80">
+                                            Seed habits are measured by consistency, not intensity. Start tiny now, grow later.
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70">Frequency</label>
                             <div className="flex gap-2">
@@ -308,7 +420,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </div>
                         </div>
 
-                        {/* Schedule Days */}
                         {frequency !== 'daily' && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
@@ -335,7 +446,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </motion.div>
                         )}
 
-                        {/* Color Theme */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-white/70">Color Theme</label>
                             <div className="flex gap-3">
@@ -353,7 +463,6 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             </div>
                         </div>
 
-                        {/* Actions */}
                         <div className="flex gap-3 pt-4">
                             <button
                                 type="button"
