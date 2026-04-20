@@ -27,6 +27,8 @@ import LearningTracker from './components/LearningTracker';
 import SleepTrendsDashboard from './components/SleepTrendsDashboard';
 import NotificationToast from './components/NotificationToast';
 import smartNotificationService from './services/SmartNotificationService';
+import { IdeaBoardProvider } from './context/IdeaBoardContext';
+import IdeasBoard from './components/IdeasBoard';
 
 const DigitalClock = () => {
   const [time, setTime] = useState(new Date());
@@ -84,6 +86,7 @@ function App() {
     { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
     { id: 'garden', label: 'Tasks', icon: <Sprout size={20} /> },
     { id: 'habits', label: 'Habits', icon: <ListChecks size={20} /> },
+    { id: 'ideas', label: 'Ideas', icon: <ScrollText size={20} /> },
     { id: 'learning', label: 'Learning', icon: <GraduationCap size={20} /> },
     { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
   ];
@@ -168,9 +171,10 @@ function App() {
 
   return (
     <HabitProvider>
-      <ProjectProvider>
-        <ChatProvider>
-          <div className="min-h-screen bg-gradient-to-br from-sage-50 via-bone-100 to-sage-100 dark:from-void-950 dark:via-void-900 dark:to-void-950 text-ink-900 dark:text-bone-200 transition-colors duration-500">
+      <IdeaBoardProvider>
+        <ProjectProvider>
+          <ChatProvider>
+            <div className="min-h-screen bg-gradient-to-br from-sage-50 via-bone-100 to-sage-100 dark:from-void-950 dark:via-void-900 dark:to-void-950 text-ink-900 dark:text-bone-200 transition-colors duration-500">
             {/* Persona Avatar */}
 
 
@@ -324,6 +328,10 @@ function App() {
                   <HabitTracker />
                 )}
 
+                {activeTab === 'ideas' && (
+                  <IdeasBoard />
+                )}
+
                 {activeTab === 'learning' && (
                   <LearningTracker />
                 )}
@@ -371,9 +379,10 @@ function App() {
             {/* Chat Sidebar */}
             <ChatSidebar />
             <FloatingChatButton />
-          </div>
-        </ChatProvider>
-      </ProjectProvider>
+            </div>
+          </ChatProvider>
+        </ProjectProvider>
+      </IdeaBoardProvider>
     </HabitProvider>
   );
 }

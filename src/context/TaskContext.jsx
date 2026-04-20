@@ -4,6 +4,50 @@ import { supabase } from '../services/supabase';
 
 const TaskContext = createContext();
 
+const formatScheduleItems = (items = []) => (
+    items.map(item => ({
+        ...item,
+        startTime: item.start_time,
+        recurrenceExceptions: item.recurrence_exceptions || []
+    }))
+);
+
+const buildScheduleInsertPayloads = (item) => {
+    const fullPayload = {
+        user_id: item.user_id,
+        title: item.title,
+        start_time: item.start_time,
+        duration: item.duration,
+        category: item.category,
+        created_at: item.created_at,
+        color: item.color,
+        notes: item.notes,
+        recurrence_type: item.recurrence_type,
+        recurrence_interval: item.recurrence_interval,
+        recurrence_days_of_week: item.recurrence_days_of_week,
+        recurrence_end_date: item.recurrence_end_date,
+        recurrence_exceptions: item.recurrence_exceptions
+    };
+
+    const legacyPayload = {
+        user_id: item.user_id,
+        title: item.title,
+        start_time: item.start_time,
+        duration: item.duration,
+        category: item.category,
+        created_at: item.created_at
+    };
+
+    const minimalPayload = {
+        user_id: item.user_id,
+        title: item.title,
+        start_time: item.start_time,
+        created_at: item.created_at
+    };
+
+    return [fullPayload, legacyPayload, minimalPayload];
+};
+
 export const useTask = () => {
     const context = useContext(TaskContext);
     if (!context) {
@@ -55,12 +99,7 @@ export const TaskProvider = ({ children }) => {
             console.log('📅 Schedule loaded:', scheduleData?.length || 0, 'Error:', scheduleError);
 
             if (scheduleData) {
-                const formattedSchedule = scheduleData.map(item => ({
-                    ...item,
-                    startTime: item.start_time,
-                    recurrenceExceptions: item.recurrence_exceptions || []
-                }));
-                setScheduleItems(formattedSchedule);
+                setScheduleItems(formatScheduleItems(scheduleData));
             }
         } catch (error) {
             console.error("❌ Error loading tasks:", error);
@@ -92,6 +131,44 @@ export const TaskProvider = ({ children }) => {
             loadFromLocalStorage();
             setIsLoaded(true);
         }
+    }, [user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
+
+        const refreshScheduleItems = async () => {
+            const { data, error } = await supabase
+                .from('schedule_items')
+                .select('*')
+                .order('start_time', { ascending: true });
+
+            if (error) {
+                console.error('❌ Realtime schedule refresh failed:', error);
+                return;
+            }
+
+            setScheduleItems(formatScheduleItems(data || []));
+        };
+
+        const channel = supabase
+            .channel(`schedule-items-${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'schedule_items',
+                    filter: `user_id=eq.${user.id}`
+                },
+                () => {
+                    refreshScheduleItems();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [user]);
 
     // Save to LocalStorage (Guest Mode only)
@@ -270,27 +347,54 @@ export const TaskProvider = ({ children }) => {
         setScheduleItems(prev => [...prev, { ...newItem, id: user ? tempId : newItem.id }]);
 
         if (user) {
-            // Only include DB-compatible fields (exclude camelCase versions)
-            const { id, startTime, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceEndDate, ...dbItem } = newItem;
-            const { data, error } = await supabase.from('schedule_items').insert([dbItem]).select().single();
-            if (data) {
+            let insertedRow = null;
+            let lastError = null;
+
+            for (const payload of buildScheduleInsertPayloads(newItem)) {
+                const { data, error } = await supabase
+                    .from('schedule_items')
+                    .insert([payload])
+                    .select()
+                    .single();
+
+                if (data) {
+                    insertedRow = data;
+                    break;
+                }
+
+                lastError = error;
+                console.warn('Schedule insert attempt failed, trying fallback payload...', error);
+            }
+
+            if (insertedRow) {
                 setScheduleItems(prev => prev.map(i => i.id === tempId ? {
                     ...i,
-                    ...data,
-                    startTime: data.start_time,
-                    recurrenceType: data.recurrence_type,
-                    recurrenceInterval: data.recurrence_interval,
-                    recurrenceDaysOfWeek: data.recurrence_days_of_week,
-                    recurrenceEndDate: data.recurrence_end_date,
-                    recurrenceExceptions: data.recurrence_exceptions || []
+                    ...insertedRow,
+                    startTime: insertedRow.start_time,
+                    recurrenceType: insertedRow.recurrence_type,
+                    recurrenceInterval: insertedRow.recurrence_interval,
+                    recurrenceDaysOfWeek: insertedRow.recurrence_days_of_week,
+                    recurrenceEndDate: insertedRow.recurrence_end_date,
+                    recurrenceExceptions: insertedRow.recurrence_exceptions || []
                 } : i));
-            } else if (error) {
-                console.error("Error adding schedule item:", error);
+
+                return insertedRow;
             }
+
+            setScheduleItems(prev => prev.filter(i => i.id !== tempId));
+            console.error('Error adding schedule item:', lastError);
+            throw new Error(lastError?.message || 'Failed to save schedule item to cloud.');
         }
+
+        return newItem;
     };
 
     const updateScheduleItem = async (id, updates) => {
+        const existingItem = scheduleItems.find(item => item.id === id);
+        if (!existingItem) {
+            throw new Error('Schedule item not found.');
+        }
+
         // Map camelCase to snake_case for local state
         const processedUpdates = { ...updates };
         if (updates.startTime) processedUpdates.start_time = updates.startTime;
@@ -317,8 +421,27 @@ export const TaskProvider = ({ children }) => {
             if (updates.recurrenceEndDate !== undefined) dbUpdates.recurrence_end_date = updates.recurrenceEndDate;
             if (updates.recurrenceExceptions !== undefined) dbUpdates.recurrence_exceptions = updates.recurrenceExceptions;
 
-            await supabase.from('schedule_items').update(dbUpdates).eq('id', id);
+            const { data, error } = await supabase
+                .from('schedule_items')
+                .update(dbUpdates)
+                .eq('id', id)
+                .select()
+                .maybeSingle();
+
+            if (error || !data) {
+                setScheduleItems(prev => prev.map(i => i.id === id ? existingItem : i));
+                throw new Error(error?.message || 'Schedule item could not be updated in Supabase.');
+            }
+
+            setScheduleItems(prev => prev.map(i => i.id === id ? {
+                ...i,
+                ...data,
+                startTime: data.start_time,
+                recurrenceExceptions: data.recurrence_exceptions || []
+            } : i));
         }
+
+        return { ...existingItem, ...processedUpdates };
     };
 
     const deleteScheduleItem = async (id, options = {}) => {
@@ -336,8 +459,22 @@ export const TaskProvider = ({ children }) => {
 
         setScheduleItems(prev => prev.filter(i => i.id !== id));
         if (user) {
-            await supabase.from('schedule_items').delete().eq('id', id);
+            const { data, error } = await supabase
+                .from('schedule_items')
+                .delete()
+                .eq('id', id)
+                .select('id')
+                .maybeSingle();
+
+            if (error || !data) {
+                setScheduleItems(prev => [...prev, existingItem].sort((a, b) =>
+                    new Date(a.startTime || a.start_time || 0) - new Date(b.startTime || b.start_time || 0)
+                ));
+                throw new Error(error?.message || 'Schedule item could not be deleted from Supabase.');
+            }
         }
+
+        return existingItem;
     };
 
     const value = {

@@ -398,7 +398,7 @@ ${pendingActionsSection}${activeSubjectSection}
 TASKS (${recentTasks.length} total, ${tasksDueToday?.length || 0} due today):
 ${recentTasks.slice(0, 10).map(t => `- [ID: ${t.id}] "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n') || 'No tasks'}
 
-TODAY'S SCHEDULE:
+SCHEDULE ITEMS (recent and upcoming):
 ${recentSchedule.slice(0, 8).map(s => {
         const eventTime = new Date(s.displayTime || s.startTime || s.start_time);
         const isPassed = eventTime < now;

@@ -123,14 +123,18 @@ export const ChatProvider = ({ children }) => {
     // Build context for AI
     const buildContext = useCallback(() => {
         const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        const recentScheduleWindowStart = new Date(today);
+        recentScheduleWindowStart.setDate(recentScheduleWindowStart.getDate() - 1);
+        recentScheduleWindowStart.setHours(0, 0, 0, 0);
 
-        // Filter today's schedule
-        const todaySchedule = scheduleItems?.filter(item => {
+        // Keep a broader schedule window so the AI has real IDs for nearby events, not just today's.
+        const recentSchedule = (scheduleItems?.filter(item => {
             if (!item.startTime && !item.start_time) return false;
             const itemDate = new Date(item.startTime || item.start_time);
-            return itemDate.toISOString().split('T')[0] === todayStr;
-        }) || [];
+            return itemDate >= recentScheduleWindowStart;
+        }) || [])
+            .sort((a, b) => new Date(a.startTime || a.start_time) - new Date(b.startTime || b.start_time))
+            .slice(0, 20);
 
         // Get conversation history for context
         const conversationHistory = messages.slice(-10).map(m =>
@@ -154,7 +158,7 @@ export const ChatProvider = ({ children }) => {
                 if (t.archived || t.completed || !t.deadline) return false;
                 return new Date(t.deadline).toDateString() === today.toDateString();
             }) || [],
-            recentSchedule: todaySchedule,
+            recentSchedule,
             projects: projects?.map(p => ({
                 id: p.id,
                 title: p.title,
@@ -353,7 +357,9 @@ export const ChatProvider = ({ children }) => {
 
     // Execute actions internally (for auto-execution)
     const executeActionsInternal = async (actions) => {
-        if (!actions || actions.length === 0) return;
+        if (!actions || actions.length === 0) return [];
+
+        const failures = [];
 
         for (const action of actions) {
             try {
@@ -520,20 +526,27 @@ export const ChatProvider = ({ children }) => {
                 }
             } catch (error) {
                 console.error('Error executing action:', action.type, error);
+                failures.push({
+                    actionType: action.type,
+                    message: error?.message || 'Unknown error'
+                });
             }
         }
+
+        return failures;
     };
 
     // Confirm and execute pending actions
     const confirmActions = useCallback(async (messageId) => {
         if (!pendingActions || pendingActions.messageId !== messageId) return;
 
-        await executeActionsInternal(pendingActions.actions);
+        const failures = await executeActionsInternal(pendingActions.actions);
+        const allSucceeded = failures.length === 0;
 
         // Update message to mark as executed
         setMessages(prev => prev.map(m =>
             m.id === messageId
-                ? { ...m, actionsExecuted: true, pendingConfirmation: false }
+                ? { ...m, actionsExecuted: allSucceeded, pendingConfirmation: false }
                 : m
         ));
         setPendingActions(null);
@@ -542,7 +555,9 @@ export const ChatProvider = ({ children }) => {
         const confirmMessage = {
             id: crypto.randomUUID(),
             role: 'assistant',
-            content: "✅ Done! Actions completed successfully.",
+            content: allSucceeded
+                ? "✅ Done! Actions completed successfully."
+                : `I couldn't save everything to Supabase.\n${failures.map(f => `- ${f.actionType}: ${f.message}`).join('\n')}`,
             timestamp: new Date().toISOString()
         };
         setMessages(prev => {

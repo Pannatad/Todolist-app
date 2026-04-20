@@ -27,6 +27,11 @@ const isHabitScheduledOnDate = (habit, date) => {
     return true;
 };
 
+const normalizeHabitLog = (log) => ({
+    ...log,
+    notes: log?.notes || '',
+});
+
 export const useHabit = () => {
     const context = useContext(HabitContext);
     if (!context) {
@@ -75,7 +80,7 @@ export const HabitProvider = ({ children }) => {
                 const logsMap = {};
                 logsData.forEach((log) => {
                     const key = `${log.habit_id}_${log.date}`;
-                    logsMap[key] = log;
+                    logsMap[key] = normalizeHabitLog(log);
                 });
                 setHabitLogs(logsMap);
             }
@@ -174,9 +179,10 @@ export const HabitProvider = ({ children }) => {
         await updateHabit(id, { archived: true });
     };
 
-    const logHabit = async (habitId, date, value, completed = false) => {
+    const logHabit = async (habitId, date, value, completed = false, options = {}) => {
         const dateStr = typeof date === 'string' ? date : toDateKey(date);
         const key = `${habitId}_${dateStr}`;
+        const existingLog = habitLogs[key];
 
         const logData = {
             habit_id: habitId,
@@ -187,23 +193,28 @@ export const HabitProvider = ({ children }) => {
             logged_at: new Date().toISOString(),
         };
 
+        if (options.notes !== undefined) {
+            logData.notes = options.notes;
+        } else if (existingLog?.notes) {
+            logData.notes = existingLog.notes;
+        }
+
         setHabitLogs((prev) => ({
             ...prev,
-            [key]: { ...logData, id: prev[key]?.id },
+            [key]: normalizeHabitLog({ ...logData, id: prev[key]?.id }),
         }));
 
         if (!user) return;
 
         try {
+            const payload = {
+                ...logData,
+                id: existingLog?.id,
+            };
+
             const { error } = await supabase
                 .from('habit_logs')
-                .upsert(
-                    {
-                        ...logData,
-                        id: habitLogs[key]?.id,
-                    },
-                    { onConflict: 'habit_id, date' }
-                );
+                .upsert(payload, { onConflict: 'habit_id, date' });
             if (error) throw error;
         } catch (error) {
             console.error('Error logging habit:', error);
@@ -292,6 +303,12 @@ export const HabitProvider = ({ children }) => {
         };
     };
 
+    const getHabitNoteHistory = (habitId) => {
+        return Object.values(habitLogs)
+            .filter((log) => log.habit_id === habitId && log.notes?.trim())
+            .sort((left, right) => new Date(right.date) - new Date(left.date));
+    };
+
     const getSeedInsight = (habitId) => {
         const habit = habits.find((item) => item.id === habitId);
         if (!habit?.is_seed) return null;
@@ -325,7 +342,7 @@ export const HabitProvider = ({ children }) => {
             let status = 'future';
 
             if (!scheduled) {
-                status = isFuture ? 'future-rest' : 'rest';
+                status = isFuture ? 'future-free' : 'free';
             } else if (completed) {
                 status = 'completed';
                 runningMissStreak = 0;
@@ -409,7 +426,7 @@ export const HabitProvider = ({ children }) => {
         const growthProgress = Math.min(1, Math.min(timeProgress, consistencyRate || 0));
         const suggestedStage = getSeedStageFromProgress(growthProgress);
 
-        let healthMessage = 'This seed is stable and growing with steady care.';
+        let healthMessage = 'Only scheduled days count for this seed. Free days stay neutral.';
         if (health === 'dry') {
             const missesUntilRot = Math.max(1, 3 - currentMissStreak);
             healthMessage = `${currentMissStreak} missed day${currentMissStreak === 1 ? '' : 's'}. Miss ${missesUntilRot} more to start rotting.`;
@@ -457,6 +474,7 @@ export const HabitProvider = ({ children }) => {
         getHabitsForDate,
         getHabitStreak,
         getCompletionStats,
+        getHabitNoteHistory,
         getSeedInsight,
     };
 

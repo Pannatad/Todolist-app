@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS habit_logs (
     date DATE NOT NULL,
     value INTEGER DEFAULT 0,
     completed BOOLEAN DEFAULT false,
+    notes TEXT,
     logged_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(habit_id, date)
 );
@@ -84,6 +85,9 @@ ALTER TABLE habits
     ADD COLUMN IF NOT EXISTS seed_duration_days INTEGER DEFAULT 21,
     ADD COLUMN IF NOT EXISTS seed_why TEXT,
     ADD COLUMN IF NOT EXISTS seed_stage TEXT;
+
+ALTER TABLE habit_logs
+    ADD COLUMN IF NOT EXISTS notes TEXT;
 
 DO $$
 BEGIN

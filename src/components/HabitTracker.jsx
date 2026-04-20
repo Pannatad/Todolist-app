@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, Leaf, Sparkles } from 'lucide-react';
+import { CalendarDays, Leaf, Sprout } from 'lucide-react';
 import TodayHabits from './TodayHabits';
 import WeeklyGrid from './WeeklyGrid';
 
@@ -8,61 +8,48 @@ const HabitTracker = () => {
     const [activeView, setActiveView] = useState('today');
 
     const views = [
-        { id: 'today', label: 'Garden', icon: Sparkles, description: 'Daily care and seed pots' },
-        { id: 'weekly', label: 'Ledger', icon: CalendarDays, description: 'Weekly habit history' },
+        { id: 'today', label: 'Today', icon: Sprout },
+        { id: 'weekly', label: 'Weekly', icon: CalendarDays },
     ];
 
     return (
-        <div className="mx-auto w-full max-w-6xl space-y-6">
-            <section className="relative overflow-hidden rounded-[40px] border border-emerald-100 bg-gradient-to-br from-emerald-300 via-teal-50 to-amber-100 p-6 shadow-[0_30px_70px_rgba(16,185,129,0.14)]">
-                <div className="absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/45 blur-3xl" />
-                <div className="absolute left-10 top-10 h-16 w-24 rounded-full bg-white/35 blur-2xl" />
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-emerald-400/25 to-transparent" />
-
-                <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="max-w-2xl">
+        <div className="mx-auto w-full max-w-6xl space-y-4">
+            <section className="rounded-[24px] border border-slate-200/80 bg-white/88 px-4 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm sm:px-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
                         <div className="flex items-center gap-2 text-emerald-700">
-                            <Leaf size={18} />
-                            <span className="text-xs font-semibold uppercase tracking-[0.24em]">Habits</span>
+                            <Leaf size={14} />
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">Habits</span>
                         </div>
-                        <h1 className="mt-2 font-serif text-4xl text-slate-800">Grow habits like a patient garden.</h1>
-                        <p className="mt-2 text-sm text-slate-600">
-                            Seeds appear in labeled pots day by day, recover when you return to them, and visibly decay when neglected too long.
-                        </p>
+                        <h1 className="mt-1 text-xl font-semibold text-slate-900 sm:text-2xl">Simple habit tracking</h1>
+                        <p className="mt-1 text-sm text-slate-500">Smaller, calmer, and easier to scan.</p>
                     </div>
 
-                    <div className="rounded-[28px] border border-white/60 bg-white/40 p-2 backdrop-blur-sm">
-                        <div className="flex flex-wrap gap-2">
-                            {views.map((view) => (
-                                <motion.button
-                                    key={view.id}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => setActiveView(view.id)}
-                                    className={`min-w-[160px] rounded-[22px] px-4 py-3 text-left transition-all ${activeView === view.id
-                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                                        : 'bg-white/70 text-slate-600 hover:bg-white'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <view.icon size={16} />
-                                        <span className="font-semibold">{view.label}</span>
-                                    </div>
-                                    <div className={`mt-1 text-xs ${activeView === view.id ? 'text-white/80' : 'text-slate-400'}`}>
-                                        {view.description}
-                                    </div>
-                                </motion.button>
-                            ))}
-                        </div>
+                    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+                        {views.map((view) => (
+                            <motion.button
+                                key={view.id}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => setActiveView(view.id)}
+                                className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                                    activeView === view.id
+                                        ? 'bg-white text-slate-900 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                                <view.icon size={15} />
+                                {view.label}
+                            </motion.button>
+                        ))}
                     </div>
                 </div>
             </section>
 
             <motion.div
                 key={activeView}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22 }}
+                transition={{ duration: 0.18 }}
             >
                 {activeView === 'today' && <TodayHabits />}
                 {activeView === 'weekly' && <WeeklyGrid />}

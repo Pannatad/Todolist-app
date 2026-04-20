@@ -47,3 +47,43 @@ DO $$ BEGIN
         CREATE POLICY "Users can delete own schedule" ON schedule_items FOR DELETE USING (auth.uid() = user_id);
     END IF;
 END $$;
+
+-- Keep updated_at fresh on every update
+CREATE OR REPLACE FUNCTION update_schedule_items_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_schedule_items_timestamp ON schedule_items;
+
+CREATE TRIGGER trigger_update_schedule_items_timestamp
+    BEFORE UPDATE ON schedule_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_schedule_items_updated_at();
+
+-- Helpful indexes for user-scoped schedule queries
+CREATE INDEX IF NOT EXISTS idx_schedule_items_user_id ON schedule_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_items_start_time ON schedule_items(start_time);
+
+-- Make schedule_items changes available to Supabase Realtime
+ALTER TABLE schedule_items REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+          AND schemaname = 'public'
+          AND tablename = 'schedule_items'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE schedule_items;
+    END IF;
+END $$;
+
+-- Grant table access for authenticated app clients
+GRANT ALL ON schedule_items TO authenticated;
+GRANT ALL ON schedule_items TO service_role;
