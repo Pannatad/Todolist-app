@@ -1,19 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Zap, Clock, Calendar, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Coins, Flame, Brain, CheckSquare, Check, Sun, Moon, Edit2, Trash2, Mic, MicOff, Loader2, X, Sparkles, Lightbulb } from 'lucide-react';
+import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
-import { useGame } from '../context/GameContext';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useAgentMemory } from '../context/AgentMemoryContext';
 import { useProject } from '../context/ProjectContext';
 import { useHabit } from '../context/HabitContext';
 import { useChatContext } from '../context/ChatContext';
-import { parseTaskInput, routeAgentCommand } from '../services/gemini';
-import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey, clearCache } from '../services/localAgentHandler';
+import { useIdeaBoard } from '../context/IdeaBoardContext';
+import { parseTaskInput, routeAgentCommand } from '../services/aiClient';
+import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey } from '../services/localAgentHandler';
 import { generateProactiveSuggestions } from '../services/proactiveEngine';
+import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
+import { getTaskCompletionTimestamp, isTaskActive } from '../utils/taskState';
 import Penguin from './Penguin';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
@@ -74,9 +76,6 @@ const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
 
 const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [currentEvent, setCurrentEvent] = useState(null);
-    const [nextEvent, setNextEvent] = useState(null);
-    const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -85,75 +84,17 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
         return () => clearInterval(timer);
     }, []);
 
-    useEffect(() => {
-        if (!scheduleItems) return;
+    const { currentEvent, nextEvent, progress } = useMemo(() => {
+        const now = currentTime;
+        const todayEvents = getScheduleItemsForDate(scheduleItems || [], now).map((item) => ({
+            ...item,
+            adjustedStart: item.displayTime || new Date(item.startTime || item.start_time)
+        }));
 
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-
-        // Helper to check recurrence (reused logic for consistency)
-        const doesRecurOnToday = (item) => {
-            const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-            if (recurrenceType === 'none') return false;
-
-            const timeValue = item.startTime || item.start_time;
-            if (!timeValue) return false;
-            const eventDate = new Date(timeValue);
-            if (isNaN(eventDate.getTime())) return false;
-            eventDate.setHours(0, 0, 0, 0);
-            const todayDate = new Date(now);
-            todayDate.setHours(0, 0, 0, 0);
-
-            if (todayDate < eventDate) return false;
-
-            const endDate = item.recurrence_end_date || item.recurrenceEndDate;
-            if (endDate && todayDate > new Date(endDate)) return false;
-
-            const interval = item.recurrence_interval || item.recurrenceInterval || 1;
-            const daysDiff = Math.floor((todayDate - eventDate) / (1000 * 60 * 60 * 24));
-
-            switch (recurrenceType) {
-                case 'daily': return daysDiff % interval === 0;
-                case 'weekly': {
-                    const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
-                    if (daysOfWeek.length > 0) return daysOfWeek.includes(todayDate.getDay());
-                    return daysDiff % (7 * interval) === 0;
-                }
-                case 'monthly': {
-                    const monthsDiff = (todayDate.getFullYear() - eventDate.getFullYear()) * 12 + (todayDate.getMonth() - eventDate.getMonth());
-                    return monthsDiff % interval === 0 && todayDate.getDate() === eventDate.getDate();
-                }
-                case 'yearly': {
-                    const yearsDiff = todayDate.getFullYear() - eventDate.getFullYear();
-                    return yearsDiff % interval === 0 && todayDate.getMonth() === eventDate.getMonth() && todayDate.getDate() === eventDate.getDate();
-                }
-                default: return false;
-            }
-        };
-
-        // Find active event (schedule items)
-        const active = scheduleItems.find(item => {
-            const timeValue = item.startTime || item.start_time;
-            if (!timeValue) return false;
-            const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-            let itemStart = new Date(timeValue);
-            if (isNaN(itemStart.getTime())) return false;
-
-            // Adjust time for recurring events to today
-            if (recurrenceType !== 'none') {
-                if (!doesRecurOnToday(item)) return false;
-                const originalTime = itemStart;
-                itemStart = new Date(now);
-                itemStart.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
-            } else {
-                // Non-recurring: must be today
-                if (itemStart.toISOString().split('T')[0] !== todayStr) return false;
-            }
-
+        const active = todayEvents.find((item) => {
             const duration = item.duration || 60;
-            const itemEnd = new Date(itemStart.getTime() + duration * 60000);
-
-            return now >= itemStart && now < itemEnd;
+            const itemEnd = new Date(item.adjustedStart.getTime() + duration * 60000);
+            return now >= item.adjustedStart && now < itemEnd;
         });
 
         // If no active schedule event, check habits
@@ -168,20 +109,10 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
         const activeItem = active || activeHabit;
 
         if (activeItem) {
-            // Calculate display times and progress
             const isHabitEvent = !!activeHabit;
-            let start;
-            if (isHabitEvent) {
-                start = new Date(activeItem.startTime);
-            } else {
-                const recurrenceType = activeItem.recurrence_type || activeItem.recurrenceType || 'none';
-                start = new Date(activeItem.startTime || activeItem.start_time);
-                if (recurrenceType !== 'none') {
-                    const originalTime = start;
-                    start = new Date(now);
-                    start.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
-                }
-            }
+            const start = isHabitEvent
+                ? new Date(activeItem.startTime)
+                : activeItem.adjustedStart;
 
             const duration = activeItem.duration || (isHabitEvent ? 30 : 60);
             const end = new Date(start.getTime() + duration * 60000);
@@ -189,43 +120,34 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
             const elapsed = now.getTime() - start.getTime();
             const prog = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 
-            setCurrentEvent({
+            const derivedCurrentEvent = {
                 ...activeItem,
                 displayStart: start,
                 displayEnd: end,
                 isHabit: !!isHabitEvent,
-            });
-            setProgress(prog);
-        } else {
-            setCurrentEvent(null);
-            setProgress(0);
+            };
+
+            const allUpcoming = [...todayEvents.filter((item) => item.adjustedStart > now)];
+            if (habitItems) {
+                habitItems.forEach(h => {
+                    if (h.startTime) {
+                        const hStart = new Date(h.startTime);
+                        if (hStart > now) {
+                            allUpcoming.push({ ...h, adjustedStart: hStart, isHabit: true });
+                        }
+                    }
+                });
+            }
+            allUpcoming.sort((a, b) => a.adjustedStart - b.adjustedStart);
+
+            return {
+                currentEvent: derivedCurrentEvent,
+                nextEvent: allUpcoming[0] || null,
+                progress: prog
+            };
         }
 
-        // Find next upcoming event (after now)
-        const todayEvents = scheduleItems
-            .map(item => {
-                const timeValue = item.startTime || item.start_time;
-                if (!timeValue) return null;
-                const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-                let itemStart = new Date(timeValue);
-                if (isNaN(itemStart.getTime())) return null;
-
-                if (recurrenceType !== 'none') {
-                    if (!doesRecurOnToday(item)) return null;
-                    const originalTime = itemStart;
-                    itemStart = new Date(now);
-                    itemStart.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
-                } else {
-                    if (itemStart.toISOString().split('T')[0] !== todayStr) return null;
-                }
-
-                return { ...item, adjustedStart: itemStart };
-            })
-            .filter(item => item && item.adjustedStart > now)
-            .sort((a, b) => a.adjustedStart - b.adjustedStart);
-
-        // Also include habit items for next event check
-        const allUpcoming = [...todayEvents];
+        const allUpcoming = [...todayEvents.filter((item) => item.adjustedStart > now)];
         if (habitItems) {
             habitItems.forEach(h => {
                 if (h.startTime) {
@@ -238,13 +160,12 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
         }
         allUpcoming.sort((a, b) => a.adjustedStart - b.adjustedStart);
 
-        if (allUpcoming.length > 0) {
-            setNextEvent(allUpcoming[0]);
-        } else {
-            setNextEvent(null);
-        }
-
-    }, [scheduleItems, habitItems, currentTime]);
+        return {
+            currentEvent: null,
+            nextEvent: allUpcoming[0] || null,
+            progress: 0
+        };
+    }, [currentTime, habitItems, scheduleItems]);
 
 
 
@@ -325,8 +246,143 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
     );
 };
 
+const sortTasksByDeadline = (left, right) => {
+    const leftTime = left.deadline ? new Date(left.deadline).getTime() : Number.POSITIVE_INFINITY;
+    const rightTime = right.deadline ? new Date(right.deadline).getTime() : Number.POSITIVE_INFINITY;
+    return leftTime - rightTime;
+};
+
+const getTaskUrgencyMeta = (task, now, todayStart, todayEnd) => {
+    const deadline = task?.deadline ? new Date(task.deadline) : null;
+    if (!deadline || Number.isNaN(deadline.getTime())) {
+        return {
+            label: 'No date',
+            badgeClass: 'bg-slate-100 text-slate-600 border border-slate-200',
+        };
+    }
+
+    if (deadline < todayStart) {
+        return {
+            label: 'Overdue',
+            badgeClass: 'bg-rose-50 text-rose-600 border border-rose-200',
+        };
+    }
+
+    if (deadline >= todayStart && deadline < todayEnd) {
+        return {
+            label: 'Today',
+            badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+        };
+    }
+
+    if ((deadline - now) / (1000 * 60 * 60) <= 72) {
+        return {
+            label: 'Soon',
+            badgeClass: 'bg-indigo-50 text-indigo-600 border border-indigo-200',
+        };
+    }
+
+    return {
+        label: 'Upcoming',
+        badgeClass: 'bg-slate-100 text-slate-600 border border-slate-200',
+    };
+};
+
+const getMinutesBetween = (start, end) => (
+    Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000))
+);
+
+const formatMinutesLabel = (minutes) => {
+    if (!Number.isFinite(minutes) || minutes <= 0) return '0 min';
+    if (minutes < 60) return `${minutes} min`;
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+};
+
+const getDifficultyWeight = (difficulty) => {
+    switch (String(difficulty || '').toLowerCase()) {
+        case 'easy':
+            return 12;
+        case 'medium':
+            return 6;
+        case 'hard':
+            return 0;
+        default:
+            return 4;
+    }
+};
+
+const scoreTaskForWindow = (task, now, todayStart, todayEnd, availableMinutes = 0) => {
+    const urgency = getTaskUrgencyMeta(task, now, todayStart, todayEnd);
+    let score = 0;
+
+    switch (urgency.label) {
+        case 'Overdue':
+            score += 120;
+            break;
+        case 'Today':
+            score += 90;
+            break;
+        case 'Soon':
+            score += 60;
+            break;
+        default:
+            score += 25;
+            break;
+    }
+
+    const estimatedMinutes = Number(task.estimatedTime ?? task.estimated_time ?? 0);
+    if (availableMinutes > 0) {
+        if (estimatedMinutes > 0 && estimatedMinutes <= availableMinutes + 10) {
+            score += 24;
+        } else if (estimatedMinutes > availableMinutes && availableMinutes <= 90) {
+            score -= 16;
+        } else if (!estimatedMinutes) {
+            score += 8;
+        }
+    }
+
+    if (availableMinutes > 0 && availableMinutes <= 45) {
+        score += getDifficultyWeight(task.difficulty);
+    } else {
+        score += Math.round(getDifficultyWeight(task.difficulty) / 2);
+    }
+
+    if (task.deadline) {
+        const hoursUntilDeadline = (new Date(task.deadline).getTime() - now.getTime()) / 3600000;
+        if (hoursUntilDeadline <= 6) score += 18;
+        else if (hoursUntilDeadline <= 24) score += 10;
+    }
+
+    return score;
+};
+
+const pickBestTaskForWindow = (tasks, now, todayStart, todayEnd, availableMinutes = 0) => (
+    [...tasks]
+        .sort((left, right) => (
+            scoreTaskForWindow(right, now, todayStart, todayEnd, availableMinutes) -
+            scoreTaskForWindow(left, now, todayStart, todayEnd, availableMinutes)
+        ))[0] || null
+);
+
+const getIdeaDepth = (nodes, node) => {
+    let depth = 0;
+    let currentParentId = node?.parentId || null;
+
+    while (currentParentId) {
+        const parent = nodes.find((candidate) => candidate.id === currentParentId);
+        if (!parent) break;
+        depth += 1;
+        currentParentId = parent.parentId;
+    }
+
+    return depth;
+};
+
 // Quick Schedule Widget Component (Popup Version)
-const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) => {
+const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef, popupStyle }) => {
     const [title, setTitle] = useState('');
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('60');
@@ -369,22 +425,13 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) =>
 
     if (!isOpen) return null;
 
-    // Calculate position based on button ref
-    const buttonRect = buttonRef?.current?.getBoundingClientRect();
-    const style = buttonRect ? {
-        position: 'fixed',
-        top: buttonRect.bottom + 8,
-        right: window.innerWidth - buttonRect.right,
-        zIndex: 99999
-    } : {};
-
     return createPortal(
         <motion.div
             ref={popupRef}
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-            style={style}
+            style={popupStyle || undefined}
             className="w-72"
         >
             <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl flex flex-col relative overflow-hidden">
@@ -448,7 +495,7 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef }) =>
 };
 
 // Quick Add Task Widget with Voice Support (Popup Version)
-const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
+const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef, popupStyle }) => {
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -554,22 +601,13 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
 
     if (!isOpen) return null;
 
-    // Calculate position based on button ref
-    const buttonRect = buttonRef?.current?.getBoundingClientRect();
-    const style = buttonRect ? {
-        position: 'fixed',
-        top: buttonRect.bottom + 8,
-        right: window.innerWidth - buttonRect.right,
-        zIndex: 99999
-    } : {};
-
     return createPortal(
         <motion.div
             ref={popupRef}
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-            style={style}
+            style={popupStyle || undefined}
             className="w-80"
         >
             <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl flex flex-col relative overflow-hidden">
@@ -640,18 +678,16 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef }) => {
 };
 
 const Overview = ({ onNavigate }) => {
-    const { tasks, addTask, updateTask, deleteTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
-    const { dailyHighlights, goals, updateHighlight } = useGoal();
+    const { tasks, addTask, updateTask, deleteTask, completeTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
+    const { dailyHighlights, goals } = useGoal();
     const { user } = useAuth();
-    const { coins } = useGame();
     const { profile, getProfileSummary } = useUserProfile();
     const { logInteraction, getMemorySummary, getRecentInteractions, generatePatternInsights } = useAgentMemory();
     const { projects } = useProject();
-    const { habits, logHabit, getHabitsForDate, getHabitLog } = useHabit();
+    const { habits, logHabit, getHabitsForDate, getHabitLog, getHabitNoteHistory } = useHabit();
     const { sendMessage, openSidebar } = useChatContext();
+    const { nodes: ideaNodes } = useIdeaBoard();
 
-    const [greeting, setGreeting] = useState('');
-    const [quickCaptureText, setQuickCaptureText] = useState('');
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [selectedScheduleItem, setSelectedScheduleItem] = useState(null);
     const [showTaskModal, setShowTaskModal] = useState(false);
@@ -660,16 +696,12 @@ const Overview = ({ onNavigate }) => {
     const [showQuickAddTaskPopup, setShowQuickAddTaskPopup] = useState(false);
     const quickScheduleButtonRef = useRef(null);
     const quickAddTaskButtonRef = useRef(null);
+    const [quickSchedulePopupStyle, setQuickSchedulePopupStyle] = useState(null);
+    const [quickAddTaskPopupStyle, setQuickAddTaskPopupStyle] = useState(null);
     const [scheduleDate, setScheduleDate] = useState(new Date()); // Date for schedule navigation
-    const [stats, setStats] = useState({
-        eventsToday: 0,
-        habitCompletion: { completed: 0, total: 0 },
-        streakDays: 0,
-        tasksDueSoon: 0
-    });
+    const [nowTick, setNowTick] = useState(Date.now());
 
     // Agent state (kept for backward compatibility with existing modals)
-    const [isAgentLoading, setIsAgentLoading] = useState(false);
     const [agentPlan, setAgentPlan] = useState(null);
     const [showAgentModal, setShowAgentModal] = useState(false);
     const [isExecutingActions, setIsExecutingActions] = useState(false);
@@ -677,17 +709,38 @@ const Overview = ({ onNavigate }) => {
 
     // Clarify conversation state (for iterative prompting)
     const [clarifyConversation, setClarifyConversation] = useState([]);
-    const [pendingClarify, setPendingClarify] = useState(null);
 
     // Proactive suggestions state
     const [proactiveSuggestions, setProactiveSuggestions] = useState([]);
     const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
+
+    const now = useMemo(() => new Date(nowTick), [nowTick]);
+    const todayStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now]);
+    const todayEnd = useMemo(() => {
+        const end = new Date(todayStart);
+        end.setDate(end.getDate() + 1);
+        return end;
+    }, [todayStart]);
+    const activeTasks = useMemo(() => (tasks || []).filter(isTaskActive), [tasks]);
 
     // Handler to route actions through chat
     const handleChatAction = (action) => {
         sendMessage(action);
         openSidebar();
     };
+
+    const openTaskEditor = (task) => {
+        setSelectedTask(task);
+        setShowTaskModal(true);
+    };
+
+    useEffect(() => {
+        const timer = window.setInterval(() => {
+            setNowTick(Date.now());
+        }, 60000);
+
+        return () => window.clearInterval(timer);
+    }, []);
 
     // Generate proactive suggestions
     useEffect(() => {
@@ -696,7 +749,7 @@ const Overview = ({ onNavigate }) => {
         const suggestions = generateProactiveSuggestions({
             tasks,
             schedule: scheduleItems,
-            habits: [],
+            habits,
             profile,
             currentTime: new Date().toISOString()
         });
@@ -704,19 +757,30 @@ const Overview = ({ onNavigate }) => {
         // Filter out dismissed suggestions
         const filtered = suggestions.filter(s => !dismissedSuggestions.includes(s.id));
         setProactiveSuggestions(filtered);
-    }, [tasks, scheduleItems, profile, dismissedSuggestions]);
+    }, [tasks, scheduleItems, habits, profile, dismissedSuggestions]);
 
     const handleDismissSuggestion = (suggestionId) => {
         setDismissedSuggestions(prev => [...prev, suggestionId]);
     };
 
+    const getPopupStyle = (buttonRef) => {
+        const buttonRect = buttonRef?.current?.getBoundingClientRect();
+        if (!buttonRect) {
+            return null;
+        }
 
-    // Time-based greeting
-    useEffect(() => {
+        return {
+            position: 'fixed',
+            top: buttonRect.bottom + 8,
+            right: window.innerWidth - buttonRect.right,
+            zIndex: 99999
+        };
+    };
+    const greeting = useMemo(() => {
         const hour = new Date().getHours();
-        if (hour < 12) setGreeting('Good Morning');
-        else if (hour < 18) setGreeting('Good Afternoon');
-        else setGreeting('Good Evening');
+        if (hour < 12) return 'Good Morning';
+        if (hour < 18) return 'Good Afternoon';
+        return 'Good Evening';
     }, []);
 
     // Generate pattern insights when data changes
@@ -731,42 +795,277 @@ const Overview = ({ onNavigate }) => {
         }
     }, [tasks, scheduleItems, habits, generatePatternInsights]);
 
-    // Calculate Stats - New useful metrics
-    useEffect(() => {
-        // Events Today - count schedule items for today
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+    const todaySchedule = useMemo(() => (
+        getScheduleItemsForDate(scheduleItems || [], now)
+    ), [now, scheduleItems]);
 
-        const eventsToday = scheduleItems?.filter(item => {
-            const timeValue = item.startTime || item.start_time;
-            if (!timeValue) return false;
-            const itemDate = new Date(timeValue);
-            if (isNaN(itemDate.getTime())) return false;
-            return itemDate.toISOString().split('T')[0] === todayStr;
-        }).length || 0;
+    const todaysHabits = useMemo(() => (
+        getHabitsForDate(now)
+    ), [getHabitsForDate, now]);
 
-        // Habit Completion - X of Y completed today
-        const todayDate = today.toISOString().split('T')[0];
-        const totalHabits = habits?.length || 0;
-        const completedHabits = habits?.filter(h =>
-            h.completedDates?.includes(todayDate)
-        ).length || 0;
+    const todayPendingHabits = useMemo(() => {
+        const todayKey = toLocalDateKey(now);
 
-        // Streak Days - consecutive days with activity (tasks completed or habits done)
+        return todaysHabits
+            .map((habit) => {
+                const log = getHabitLog(habit.id, todayKey);
+                const [hours, minutes] = habit.reminder_time
+                    ? habit.reminder_time.split(':').map(Number)
+                    : [null, null];
+
+                const reminderDate = Number.isInteger(hours) && Number.isInteger(minutes)
+                    ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0)
+                    : null;
+
+                return {
+                    ...habit,
+                    log,
+                    reminderDate,
+                    completed: log?.completed === true,
+                };
+            })
+            .filter((habit) => !habit.completed);
+    }, [getHabitLog, now, todaysHabits]);
+
+    const todayTimelineItems = useMemo(() => {
+        const scheduleTimelineItems = todaySchedule.map((item) => {
+            const start = item.displayTime || new Date(item.startTime || item.start_time);
+            const duration = item.duration || 60;
+            const end = new Date(start.getTime() + duration * 60000);
+            return {
+                id: `schedule_${item.id}_${item._occurrenceDate || toLocalDateKey(now)}`,
+                type: 'schedule',
+                title: item.title,
+                start,
+                end,
+                duration,
+                source: item,
+            };
+        });
+
+        const habitTimelineItems = todayPendingHabits
+            .filter((habit) => habit.reminderDate)
+            .map((habit) => {
+                const duration = habit.type === 'duration' ? (habit.target || 30) : 30;
+                const end = new Date(habit.reminderDate.getTime() + duration * 60000);
+                return {
+                    id: `habit_${habit.id}`,
+                    type: 'habit',
+                    title: habit.name,
+                    start: habit.reminderDate,
+                    end,
+                    duration,
+                    source: habit,
+                };
+            });
+
+        return [...scheduleTimelineItems, ...habitTimelineItems]
+            .sort((left, right) => left.start.getTime() - right.start.getTime());
+    }, [now, todayPendingHabits, todaySchedule]);
+
+    const timeGaps = useMemo(() => {
+        const endOfDay = new Date(todayStart);
+        endOfDay.setHours(23, 0, 0, 0);
+        let cursor = new Date(now);
+        const gaps = [];
+
+        todayTimelineItems
+            .filter((item) => item.end > now)
+            .forEach((item) => {
+                if (item.start > cursor) {
+                    const minutes = getMinutesBetween(cursor, item.start);
+                    if (minutes >= 15) {
+                        gaps.push({
+                            start: new Date(cursor),
+                            end: new Date(item.start),
+                            minutes,
+                        });
+                    }
+                }
+
+                if (item.end > cursor) {
+                    cursor = new Date(item.end);
+                }
+            });
+
+        if (endOfDay > cursor) {
+            const minutes = getMinutesBetween(cursor, endOfDay);
+            if (minutes >= 15) {
+                gaps.push({
+                    start: new Date(cursor),
+                    end: endOfDay,
+                    minutes,
+                });
+            }
+        }
+
+        return gaps.slice(0, 4);
+    }, [now, todayStart, todayTimelineItems]);
+
+    const nextBestAction = useMemo(() => {
+        const nextGap = timeGaps[0] || null;
+        const bestTask = pickBestTaskForWindow(activeTasks, now, todayStart, todayEnd, nextGap?.minutes || 0);
+        const overdueHabit = todayPendingHabits.find((habit) => habit.reminderDate && habit.reminderDate <= now);
+        const unscheduledHabit = todayPendingHabits.find((habit) => !habit.reminderDate);
+        const spotlightIdea = [...(ideaNodes || [])]
+            .sort((left, right) => {
+                if (left.focused !== right.focused) return left.focused ? -1 : 1;
+                if (left.completed !== right.completed) return left.completed ? 1 : -1;
+                return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+            })[0] || null;
+
+        if (bestTask) {
+            const urgency = getTaskUrgencyMeta(bestTask, now, todayStart, todayEnd);
+            const estimatedMinutes = Number(bestTask.estimatedTime ?? bestTask.estimated_time ?? 0);
+            return {
+                type: 'task',
+                title: bestTask.title,
+                eyebrow: 'Next Best Action',
+                description: nextGap
+                    ? `You have ${formatMinutesLabel(nextGap.minutes)} free before ${nextGap.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. ${estimatedMinutes ? `Estimated ${formatMinutesLabel(estimatedMinutes)}.` : 'This looks like a good fit.'}`
+                    : `Best task to tackle next based on urgency. ${estimatedMinutes ? `Estimated ${formatMinutesLabel(estimatedMinutes)}.` : ''}`,
+                meta: urgency.label,
+                task: bestTask,
+            };
+        }
+
+        if (overdueHabit || unscheduledHabit) {
+            const habit = overdueHabit || unscheduledHabit;
+            return {
+                type: 'habit',
+                title: habit.name,
+                eyebrow: 'Next Best Action',
+                description: overdueHabit
+                    ? `This habit reminder already passed at ${habit.reminderDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+                    : 'A simple remaining habit is a good reset before you add more tasks.',
+                meta: overdueHabit ? 'Habit overdue' : 'Habit remaining',
+                habit,
+            };
+        }
+
+        if (spotlightIdea) {
+            return {
+                type: 'idea',
+                title: spotlightIdea.title,
+                eyebrow: 'Next Best Action',
+                description: spotlightIdea.details?.trim()
+                    ? spotlightIdea.details
+                    : 'No urgent work is blocking you. This is a good time to continue an idea branch.',
+                meta: spotlightIdea.focused ? 'Focused idea' : 'Idea spotlight',
+                idea: spotlightIdea,
+            };
+        }
+
+        return null;
+    }, [activeTasks, ideaNodes, now, timeGaps, todayEnd, todayPendingHabits, todayStart]);
+
+    const attentionItems = useMemo(() => {
+        const overdueTaskItems = activeTasks
+            .filter((task) => task.deadline && new Date(task.deadline) < todayStart)
+            .sort(sortTasksByDeadline)
+            .slice(0, 3)
+            .map((task) => ({
+                id: `task_${task.id}`,
+                type: 'task',
+                severity: 'high',
+                title: task.title,
+                subtitle: `Overdue since ${new Date(task.deadline).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+                task,
+            }));
+
+        const overdueHabitItems = todayPendingHabits
+            .filter((habit) => habit.reminderDate && habit.reminderDate < now)
+            .slice(0, 2)
+            .map((habit) => ({
+                id: `habit_${habit.id}`,
+                type: 'habit',
+                severity: 'medium',
+                title: habit.name,
+                subtitle: `Habit reminder passed at ${habit.reminderDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                habit,
+            }));
+
+        const conflictItems = [];
+        for (let index = 1; index < todayTimelineItems.length; index += 1) {
+            const previous = todayTimelineItems[index - 1];
+            const current = todayTimelineItems[index];
+            if (current.start < previous.end) {
+                conflictItems.push({
+                    id: `conflict_${previous.id}_${current.id}`,
+                    type: 'conflict',
+                    severity: 'medium',
+                    title: 'Schedule conflict',
+                    subtitle: `${previous.title} overlaps with ${current.title}`,
+                });
+            }
+        }
+
+        const severityOrder = { high: 0, medium: 1, low: 2 };
+        return [...overdueTaskItems, ...overdueHabitItems, ...conflictItems]
+            .sort((left, right) => severityOrder[left.severity] - severityOrder[right.severity])
+            .slice(0, 5);
+    }, [activeTasks, now, todayPendingHabits, todayStart, todayTimelineItems]);
+
+    const recentHabitNotes = useMemo(() => (
+        (habits || [])
+            .flatMap((habit) => (
+                getHabitNoteHistory(habit.id).slice(0, 4).map((entry) => ({
+                    id: `${habit.id}_${entry.date}`,
+                    habitId: habit.id,
+                    habitName: habit.name,
+                    habitIcon: habit.icon || '🌱',
+                    date: entry.date,
+                    notes: entry.notes,
+                }))
+            ))
+            .sort((left, right) => new Date(`${right.date}T12:00:00`) - new Date(`${left.date}T12:00:00`))
+            .slice(0, 5)
+    ), [getHabitNoteHistory, habits]);
+
+    const ideaSpotlight = useMemo(() => {
+        const childCountById = Object.create(null);
+        (ideaNodes || []).forEach((node) => {
+            if (!node.parentId) return;
+            childCountById[node.parentId] = (childCountById[node.parentId] || 0) + 1;
+        });
+
+        return [...(ideaNodes || [])]
+            .sort((left, right) => {
+                if (left.focused !== right.focused) return left.focused ? -1 : 1;
+                if (left.completed !== right.completed) return left.completed ? 1 : -1;
+                return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+            })
+            .slice(0, 3)
+            .map((node) => ({
+                ...node,
+                depth: getIdeaDepth(ideaNodes || [], node),
+                branchCount: childCountById[node.id] || 0,
+            }));
+    }, [ideaNodes]);
+
+    const todaySummary = useMemo(() => {
+        const today = now;
+        const todayStr = toLocalDateKey(today);
+        const eventsToday = todaySchedule.length;
+
+        const totalHabits = todaysHabits.length;
+        const completedHabits = todaysHabits.filter((habit) => (
+            getHabitLog(habit.id, todayStr)?.completed
+        )).length;
+        const habitsLeft = Math.max(0, totalHabits - completedHabits);
+
         const calculateStreak = () => {
-            // Simple implementation: count consecutive days with dailyHighlights or completed tasks
             let streak = 0;
             const checkDate = new Date();
 
-            for (let i = 0; i < 365; i++) { // Max 365 days lookback
-                const dateStr = checkDate.toISOString().split('T')[0];
-
-                // Check if there's any activity on this day
+            for (let i = 0; i < 365; i++) {
+                const dateStr = toLocalDateKey(checkDate);
                 const hasActivity =
-                    // Check if any daily highlights exist for this day
                     (dailyHighlights && Object.keys(dailyHighlights).some(key => key.startsWith(dateStr))) ||
-                    // Or check if any tasks were completed on this day
-                    (tasks && tasks.some(t => t.completedAt?.startsWith(dateStr)));
+                    (tasks && tasks.some(t => {
+                        const completedAt = getTaskCompletionTimestamp(t);
+                        return completedAt && toLocalDateKey(completedAt) === dateStr;
+                    }));
 
                 if (hasActivity) {
                     streak++;
@@ -778,104 +1077,48 @@ const Overview = ({ onNavigate }) => {
             return streak;
         };
 
-        // Tasks Due Soon - within next 3 days
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-        threeDaysFromNow.setHours(23, 59, 59, 999);
-
-        const tasksDueSoon = tasks?.filter(t => {
-            if (!t.deadline || t.status === 'harvested' || t.archived) return false;
-            const deadline = new Date(t.deadline);
-            return deadline >= today && deadline <= threeDaysFromNow;
-        }).length || 0;
-
-        setStats({
+        const overdueTasks = activeTasks.filter((task) => (
+            task.deadline && new Date(task.deadline) < todayStart
+        )).length;
+        return {
             eventsToday,
             habitCompletion: { completed: completedHabits, total: totalHabits },
+            habitsLeft,
             streakDays: calculateStreak(),
-            tasksDueSoon
-        });
-    }, [tasks, scheduleItems, habits, dailyHighlights]);
+            overdueTasks
+        };
+    }, [activeTasks, dailyHighlights, getHabitLog, now, tasks, todaySchedule, todayStart, todaysHabits]);
 
-    const handleQuickCapture = (e) => {
-        e.preventDefault();
-        if (!quickCaptureText.trim()) return;
+    const priorityTasks = useMemo(() => {
+        const threeDaysFromNow = new Date(todayEnd);
+        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 2);
 
-        addTask({
-            title: quickCaptureText,
-            difficulty: 'medium',
-            deadline: new Date().toISOString(), // Due today
-            subject: 'Today\'s Plan'
+        const scheduledActiveTasks = activeTasks
+            .filter((task) => task.deadline)
+            .sort(sortTasksByDeadline);
+
+        const overdue = scheduledActiveTasks.filter((task) => new Date(task.deadline) < todayStart);
+        const dueToday = scheduledActiveTasks.filter((task) => {
+            const deadline = new Date(task.deadline);
+            return deadline >= todayStart && deadline < todayEnd;
         });
-        setQuickCaptureText('');
-    };
+        const upcoming = scheduledActiveTasks.filter((task) => {
+            const deadline = new Date(task.deadline);
+            return deadline >= todayEnd && deadline <= threeDaysFromNow;
+        });
+
+        return [...overdue, ...dueToday, ...upcoming].slice(0, 6);
+    }, [activeTasks, todayEnd, todayStart]);
 
     // Handle Magic Box submission
     const handleMagicBoxSubmit = async (input) => {
-        setIsAgentLoading(true);
         // Track original prompt for edit functionality (only set on first submit)
         if (!originalPrompt) {
             setOriginalPrompt(input);
         }
         try {
-            // Helper function to check if schedule item recurs on today
             const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-
-            const doesRecurOnToday = (item) => {
-                const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-                if (recurrenceType === 'none') return false;
-
-                const eventDate = new Date(item.startTime || item.start_time);
-                eventDate.setHours(0, 0, 0, 0);
-                const todayDate = new Date(today);
-                todayDate.setHours(0, 0, 0, 0);
-
-                if (todayDate < eventDate) return false;
-
-                const endDate = item.recurrence_end_date || item.recurrenceEndDate;
-                if (endDate && todayDate > new Date(endDate)) return false;
-
-                const interval = item.recurrence_interval || item.recurrenceInterval || 1;
-                const daysDiff = Math.floor((todayDate - eventDate) / (1000 * 60 * 60 * 24));
-
-                switch (recurrenceType) {
-                    case 'daily': return daysDiff % interval === 0;
-                    case 'weekly': {
-                        const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
-                        if (daysOfWeek.length > 0) return daysOfWeek.includes(todayDate.getDay());
-                        return daysDiff % (7 * interval) === 0;
-                    }
-                    case 'monthly': {
-                        const monthsDiff = (todayDate.getFullYear() - eventDate.getFullYear()) * 12 + (todayDate.getMonth() - eventDate.getMonth());
-                        return monthsDiff % interval === 0 && todayDate.getDate() === eventDate.getDate();
-                    }
-                    case 'yearly': {
-                        const yearsDiff = todayDate.getFullYear() - eventDate.getFullYear();
-                        return yearsDiff % interval === 0 && todayDate.getMonth() === eventDate.getMonth() && todayDate.getDate() === eventDate.getDate();
-                    }
-                    default: return false;
-                }
-            };
-
-            // Filter for today's schedule (including recurring events)
-            const todaySchedule = scheduleItems?.filter(item => {
-                if (!item.startTime && !item.start_time) return false;
-                const itemDate = new Date(item.startTime || item.start_time);
-                const itemDateStr = itemDate.toISOString().split('T')[0];
-                return itemDateStr === todayStr || doesRecurOnToday(item);
-            }).map(item => {
-                // For recurring events, adjust the date to today
-                const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-                const originalTime = new Date(item.startTime || item.start_time);
-                const adjustedTime = new Date(today);
-                adjustedTime.setHours(originalTime.getHours(), originalTime.getMinutes(), 0, 0);
-                return {
-                    ...item,
-                    displayTime: adjustedTime,
-                    isRecurring: recurrenceType !== 'none'
-                };
-            }).sort((a, b) => a.displayTime - b.displayTime) || [];
+            const todaySchedule = getScheduleItemsForDate(scheduleItems || [], today);
 
             // Build rich context for the agent
             const context = {
@@ -887,10 +1130,10 @@ const Overview = ({ onNavigate }) => {
                     goals: profile.goals,
                     summary: getProfileSummary()
                 },
-                recentTasks: tasks?.filter(t => !t.archived && !t.completed).slice(0, 15) || [],
+                recentTasks: tasks?.filter(isTaskActive).slice(0, 15) || [],
                 // Tasks due today for overview
                 tasksDueToday: tasks?.filter(t => {
-                    if (t.archived || t.completed) return false;
+                    if (!isTaskActive(t)) return false;
                     if (!t.deadline) return false;
                     const deadline = new Date(t.deadline);
                     const today = new Date();
@@ -915,7 +1158,7 @@ const Overview = ({ onNavigate }) => {
                     name: h.name,
                     frequency: h.frequency,
                     streak: h.streak || 0,
-                    completedToday: h.completedDates?.includes(new Date().toISOString().split('T')[0])
+                    completedToday: h.completedToday === true
                 })) || [],
                 // Include goals data
                 visionGoals: Array.isArray(goals) ? goals.slice(0, 10) : [],
@@ -957,7 +1200,6 @@ const Overview = ({ onNavigate }) => {
             const clarifyAction = plan.actions?.find(a => a.type === 'clarify');
             if (clarifyAction) {
                 // Store the clarification request and wait for user response
-                setPendingClarify(clarifyAction.params);
                 setClarifyConversation(prev => [...prev, { input, response: clarifyAction.params.question }]);
                 setAgentPlan(plan);
                 setShowAgentModal(true);
@@ -967,12 +1209,9 @@ const Overview = ({ onNavigate }) => {
                 setShowAgentModal(true);
                 // Clear conversation history since we got a concrete plan
                 setClarifyConversation([]);
-                setPendingClarify(null);
             }
         } catch (error) {
             console.error('Error processing Magic Box input:', error);
-        } finally {
-            setIsAgentLoading(false);
         }
     };
 
@@ -1010,7 +1249,7 @@ const Overview = ({ onNavigate }) => {
                         break;
                     case 'complete_task':
                         if (action.params.taskId) {
-                            await updateTask(action.params.taskId, { completed: true, completedAt: new Date().toISOString() });
+                            await completeTask(action.params.taskId);
                         }
                         break;
                     case 'add_schedule':
@@ -1033,7 +1272,7 @@ const Overview = ({ onNavigate }) => {
                         break;
                     case 'complete_habit':
                         if (action.params.habitId) {
-                            const today = new Date().toISOString().split('T')[0];
+                            const today = toLocalDateKey(new Date());
                             await logHabit(action.params.habitId, today, 1, true);
                         }
                         break;
@@ -1065,7 +1304,6 @@ const Overview = ({ onNavigate }) => {
             setShowAgentModal(false);
             setAgentPlan(null);
             setClarifyConversation([]);
-            setPendingClarify(null);
         }
     };
 
@@ -1086,24 +1324,22 @@ const Overview = ({ onNavigate }) => {
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-purple-600">{stats.eventsToday}</span>
+                        <span className="text-2xl font-bold text-purple-600">{todaySummary.eventsToday}</span>
                         <span className="text-xs text-gray-600 uppercase font-bold">Events Today</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-teal-600">
-                            {stats.habitCompletion.completed}/{stats.habitCompletion.total}
-                        </span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Habits</span>
+                        <span className="text-2xl font-bold text-teal-600">{todaySummary.habitsLeft}</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Habits Left</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
                         <span className="text-2xl font-bold text-orange-600 flex items-center gap-1">
-                            {stats.streakDays} <span className="text-sm">🔥</span>
+                            {todaySummary.streakDays} <span className="text-sm">🔥</span>
                         </span>
                         <span className="text-xs text-gray-600 uppercase font-bold">Streak</span>
                     </div>
                     <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-red-600">{stats.tasksDueSoon}</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Due Soon</span>
+                        <span className="text-2xl font-bold text-red-600">{todaySummary.overdueTasks}</span>
+                        <span className="text-xs text-gray-600 uppercase font-bold">Overdue</span>
                     </div>
                 </div>
             </div>
@@ -1209,7 +1445,16 @@ const Overview = ({ onNavigate }) => {
                                 <div className="relative">
                                     <button
                                         ref={quickScheduleButtonRef}
-                                        onClick={() => setShowQuickSchedulePopup(!showQuickSchedulePopup)}
+                                        onClick={() => {
+                                            if (showQuickSchedulePopup) {
+                                                setShowQuickSchedulePopup(false);
+                                                setQuickSchedulePopupStyle(null);
+                                                return;
+                                            }
+
+                                            setQuickSchedulePopupStyle(getPopupStyle(quickScheduleButtonRef));
+                                            setShowQuickSchedulePopup(true);
+                                        }}
                                         className="p-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-600 transition-all hover:scale-105"
                                         title="Quick Add Schedule"
                                     >
@@ -1218,8 +1463,12 @@ const Overview = ({ onNavigate }) => {
                                     <QuickScheduleWidget
                                         addScheduleItem={addScheduleItem}
                                         isOpen={showQuickSchedulePopup}
-                                        onClose={() => setShowQuickSchedulePopup(false)}
+                                        onClose={() => {
+                                            setShowQuickSchedulePopup(false);
+                                            setQuickSchedulePopupStyle(null);
+                                        }}
                                         buttonRef={quickScheduleButtonRef}
+                                        popupStyle={quickSchedulePopupStyle}
                                     />
                                 </div>
                             </div>
@@ -1232,97 +1481,10 @@ const Overview = ({ onNavigate }) => {
                             {(() => {
                                 const selectedDate = new Date(scheduleDate);
                                 selectedDate.setHours(0, 0, 0, 0);
+                                const daySchedule = getScheduleItemsForDate(scheduleItems || [], selectedDate);
+                                const sortedSchedule = [...daySchedule].sort((a, b) => a.displayTime - b.displayTime);
 
-                                // Helper function for recurrence check
-                                const doesRecurOnSelectedDate = (item) => {
-                                    const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-                                    if (recurrenceType === 'none') return false;
-
-                                    const eventDate = new Date(item.startTime || item.start_time);
-                                    eventDate.setHours(0, 0, 0, 0);
-
-                                    if (selectedDate < eventDate) return false;
-
-                                    const endDate = item.recurrence_end_date || item.recurrenceEndDate;
-                                    if (endDate && selectedDate > new Date(endDate)) return false;
-
-                                    const interval = item.recurrence_interval || item.recurrenceInterval || 1;
-                                    const daysDiff = Math.floor((selectedDate - eventDate) / (1000 * 60 * 60 * 24));
-
-                                    switch (recurrenceType) {
-                                        case 'daily': return daysDiff % interval === 0;
-                                        case 'weekly': {
-                                            const daysOfWeek = item.recurrence_days_of_week || item.recurrenceDaysOfWeek || [];
-                                            if (daysOfWeek.length > 0) return daysOfWeek.includes(selectedDate.getDay());
-                                            return daysDiff % (7 * interval) === 0;
-                                        }
-                                        case 'monthly': {
-                                            const monthsDiff = (selectedDate.getFullYear() - eventDate.getFullYear()) * 12 + (selectedDate.getMonth() - eventDate.getMonth());
-                                            return monthsDiff % interval === 0 && selectedDate.getDate() === eventDate.getDate();
-                                        }
-                                        case 'yearly': {
-                                            const yearsDiff = selectedDate.getFullYear() - eventDate.getFullYear();
-                                            return yearsDiff % interval === 0 && selectedDate.getMonth() === eventDate.getMonth() && selectedDate.getDate() === eventDate.getDate();
-                                        }
-                                        default: return false;
-                                    }
-                                };
-
-                                // Get selected day's schedule items (including recurring)
-                                const daySchedule = scheduleItems?.filter(item => {
-                                    const timeValue = item.startTime || item.start_time;
-                                    if (!timeValue) return false;
-                                    const itemDate = new Date(timeValue);
-                                    if (isNaN(itemDate.getTime())) return false; // Skip invalid dates
-
-                                    // Use local date comparison (not UTC-based toISOString)
-                                    const itemYear = itemDate.getFullYear();
-                                    const itemMonth = itemDate.getMonth();
-                                    const itemDay = itemDate.getDate();
-                                    const selectedYear = selectedDate.getFullYear();
-                                    const selectedMonth = selectedDate.getMonth();
-                                    const selectedDay = selectedDate.getDate();
-                                    const isSelectedDay = itemYear === selectedYear && itemMonth === selectedMonth && itemDay === selectedDay;
-
-                                    return isSelectedDay || doesRecurOnSelectedDate(item);
-                                }).map(item => {
-                                    const recurrenceType = item.recurrence_type || item.recurrenceType || 'none';
-                                    const originalTime = new Date(item.startTime || item.start_time);
-                                    const adjustedTime = new Date(scheduleDate);
-                                    adjustedTime.setHours(originalTime.getHours(), originalTime.getMinutes());
-                                    return {
-                                        ...item,
-                                        displayTime: adjustedTime,
-                                        isRecurring: recurrenceType !== 'none'
-                                    };
-                                }).sort((a, b) => a.displayTime - b.displayTime) || [];
-
-                                // Merge habits with reminder_time into the schedule
-                                const dayHabits = getHabitsForDate(new Date(scheduleDate));
-                                const scheduleDateStr = scheduleDate.toISOString().split('T')[0];
-                                const habitTimelineItems = dayHabits
-                                    .filter(h => h.reminder_time)
-                                    .map(h => {
-                                        const [hours, minutes] = h.reminder_time.split(':').map(Number);
-                                        const displayTime = new Date(scheduleDate);
-                                        displayTime.setHours(hours, minutes, 0, 0);
-                                        const log = getHabitLog(h.id, scheduleDateStr);
-                                        return {
-                                            id: `habit_${h.id}`,
-                                            title: h.name,
-                                            icon: h.icon || '',
-                                            displayTime,
-                                            duration: h.type === 'duration' ? h.target : 30,
-                                            isHabit: true,
-                                            completed: log?.completed || false,
-                                            color: '#14B8A6',
-                                        };
-                                    });
-
-                                const mergedSchedule = [...daySchedule, ...habitTimelineItems]
-                                    .sort((a, b) => a.displayTime - b.displayTime);
-
-                                if (mergedSchedule.length === 0) {
+                                if (sortedSchedule.length === 0) {
                                     const today = new Date();
                                     today.setHours(0, 0, 0, 0);
                                     const isToday = selectedDate.getTime() === today.getTime();
@@ -1333,33 +1495,27 @@ const Overview = ({ onNavigate }) => {
                                     );
                                 }
 
-                                return mergedSchedule.map((item, i) => {
-                                    const isHabitItem = item.isHabit;
+                                return sortedSchedule.map((item, i) => {
                                     // Calculate height based on duration (min: 60px for <30min, scales up)
                                     const duration = item.duration || 60;
-                                    // Adjust padding based on height
-                                    const paddingY = duration <= 30 ? 'py-2' : duration <= 60 ? 'py-3' : 'py-4';
                                     const paddingX = 'px-4';
 
                                     return (
                                         <div key={item.id || i} className="relative pl-10 group flex items-center">
                                             {/* Timeline Dot (Centered to card) */}
                                             <div className={`absolute left-[11px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 bg-white`}
-                                                style={{ borderColor: isHabitItem ? '#14B8A6' : (item.color || '#6366f1') }}></div>
+                                                style={{ borderColor: item.color || '#6366f1' }}></div>
 
                                             <div
                                                 onClick={() => {
-                                                    if (!isHabitItem) {
-                                                        setSelectedScheduleItem(item);
-                                                        setShowScheduleModal(true);
-                                                    }
+                                                    setSelectedScheduleItem(item);
+                                                    setShowScheduleModal(true);
                                                 }}
-                                                className={`w-full ${paddingX} py-3 rounded-2xl transition-all hover:scale-[1.02] border border-transparent bg-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),_0_0_2px_rgba(0,0,0,0.02)] hover:shadow-md cursor-pointer flex items-center ${isHabitItem && item.completed ? 'opacity-60' : ''}`}
+                                                className={`w-full ${paddingX} py-3 rounded-2xl transition-all hover:scale-[1.02] border border-transparent bg-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),_0_0_2px_rgba(0,0,0,0.02)] hover:shadow-md cursor-pointer flex items-center`}
                                             >
                                                 <div className="flex justify-between items-center w-full">
                                                     <div className="flex-1">
-                                                        <h3 className={`font-bold leading-tight ${isHabitItem && item.completed ? 'line-through text-gray-400' : 'text-gray-900'} text-base flex items-center gap-1.5`}>
-                                                            {isHabitItem && item.icon && <span>{item.icon}</span>}
+                                                        <h3 className={`font-bold leading-tight text-gray-900 text-base flex items-center gap-1.5`}>
                                                             {item.title}
                                                         </h3>
                                                         <div className="flex items-center gap-2 mt-1 text-gray-500">
@@ -1378,29 +1534,22 @@ const Overview = ({ onNavigate }) => {
                                                             {item.isRecurring && (
                                                                 <span className="text-xs text-indigo-500 px-1.5 py-0.5 bg-indigo-50 rounded-full">🔄</span>
                                                             )}
-                                                            {isHabitItem && (
-                                                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.completed ? 'text-teal-600 bg-teal-50' : 'text-teal-600 bg-teal-50 border border-teal-100'}`}>
-                                                                    {item.completed ? '✅ Done' : '○ Habit'}
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {!isHabitItem && (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (window.confirm(`Delete "${item.title}"?`)) {
-                                                                        deleteScheduleItem(item.id);
-                                                                    }
-                                                                }}
-                                                                className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
-                                                                title="Delete"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        )}
-                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isHabitItem ? '#14B8A6' : (item.color || '#6366f1') }}></div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm(`Delete "${item.title}"?`)) {
+                                                                    deleteScheduleItem(item.id);
+                                                                }
+                                                            }}
+                                                            className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors border border-gray-100 opacity-0 group-hover:opacity-100"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || '#6366f1' }}></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1419,99 +1568,246 @@ const Overview = ({ onNavigate }) => {
                     <div className="md:col-span-2">
                         <CurrentEventWidget
                             scheduleItems={scheduleItems}
-                            habitItems={(() => {
-                                const today = new Date();
-                                const todayStr = today.toISOString().split('T')[0];
-                                return getHabitsForDate(today)
-                                    .filter(h => h.reminder_time)
-                                    .map(h => {
-                                        const [hours, minutes] = h.reminder_time.split(':').map(Number);
-                                        const start = new Date(today);
-                                        start.setHours(hours, minutes, 0, 0);
-                                        const log = getHabitLog(h.id, todayStr);
-                                        return {
-                                            id: `habit_${h.id}`,
-                                            title: `${h.icon || '✨'} ${h.name}`,
-                                            startTime: start.toISOString(),
-                                            duration: h.type === 'duration' ? h.target : 30,
-                                            isHabit: true,
-                                            completed: log?.completed || false,
-                                        };
-                                    });
-                            })()}
+                            habitItems={todayPendingHabits
+                                .filter((habit) => habit.reminderDate)
+                                .map((habit) => ({
+                                    id: `habit_${habit.id}`,
+                                    title: `${habit.icon || '✨'} ${habit.name}`,
+                                    startTime: habit.reminderDate.toISOString(),
+                                    duration: habit.type === 'duration' ? (habit.target || 30) : 30,
+                                    isHabit: true,
+                                    completed: false,
+                                }))}
                         />
                     </div>
 
-                    {/* Vision Board Card */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden flex flex-col border border-gray-100">
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-rose-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-rose-50/30 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+                    {/* Next Best Action */}
+                    <div className="md:col-span-2 bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-28 h-28 bg-indigo-50/30 rounded-full blur-2xl -ml-6 -mb-6 pointer-events-none"></div>
 
-                        <div className="flex items-center justify-between mb-6 relative z-10">
-                            <div className="flex items-center gap-3">
-                                <Target className="text-rose-500" size={24} />
-                                <h2 className="text-2xl font-bold text-gray-900">Vision Board (Today)</h2>
+                        <div className="relative z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600">
+                                        <Zap size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                                            {nextBestAction?.eyebrow || 'Next Best Action'}
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                                            {nextBestAction?.title || 'You have room to choose intentionally'}
+                                        </h3>
+                                    </div>
+                                </div>
+                                <p className="mt-4 text-sm text-gray-600 max-w-2xl">
+                                    {nextBestAction?.description || 'No urgent items are pushing right now. This is a good time to clean up, capture an idea, or reset your priorities.'}
+                                </p>
                             </div>
 
+                            {nextBestAction?.meta && (
+                                <div className="self-start px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-semibold border border-indigo-100">
+                                    {nextBestAction.meta}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="space-y-3 relative z-10 flex-1">
-                            {[0, 1, 2].map((index) => {
-                                const todayKey = new Date().toISOString().split('T')[0];
-                                const uniqueKey = `${todayKey}_${index}`;
-                                const rawData = dailyHighlights?.[uniqueKey];
-                                const highlight = typeof rawData === 'string'
-                                    ? { text: rawData, completed: false }
-                                    : rawData;
-
-                                if (!highlight) return (
-                                    <div key={index} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 text-gray-500 text-sm italic flex items-center gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                                        Empty Goal Slot
-                                    </div>
-                                );
-
-                                return (
-                                    <div
-                                        key={index}
-                                        onClick={() => {
-                                            const newCompleted = !highlight.completed;
-                                            updateHighlight(uniqueKey, highlight.text, newCompleted, newCompleted ? 'completed' : 'pending');
-                                        }}
-                                        className={`p-4 rounded-2xl flex items-center gap-3 transition-all hover:scale-[1.02] border cursor-pointer ${highlight.completed
-                                            ? 'bg-gray-50 border-gray-100 text-gray-500'
-                                            : 'bg-rose-50 border-rose-200 hover:border-rose-300 text-gray-800'
-                                            }`}
+                        <div className="relative z-10 mt-5 flex flex-wrap items-center gap-3">
+                            {nextBestAction?.type === 'task' && (
+                                <>
+                                    <button
+                                        onClick={() => openTaskEditor(nextBestAction.task)}
+                                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
                                     >
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${highlight.completed ? 'bg-indigo-500 text-white' : 'bg-white border-2 border-rose-300 hover:border-rose-400'
-                                            }`}>
-                                            {highlight.completed && <Check size={12} strokeWidth={3} />}
+                                        Open task
+                                    </button>
+                                    <button
+                                        onClick={() => onNavigate('garden')}
+                                        className="px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 text-sm font-semibold hover:bg-indigo-100 transition-colors"
+                                    >
+                                        View tasks
+                                    </button>
+                                </>
+                            )}
+                            {nextBestAction?.type === 'habit' && (
+                                <>
+                                    <button
+                                        onClick={() => logHabit(
+                                            nextBestAction.habit.id,
+                                            toLocalDateKey(now),
+                                            nextBestAction.habit.type === 'count' || nextBestAction.habit.type === 'duration'
+                                                ? (nextBestAction.habit.target || 1)
+                                                : 1,
+                                            true
+                                        )}
+                                        className="px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors"
+                                    >
+                                        Mark done
+                                    </button>
+                                    <button
+                                        onClick={() => onNavigate('habits')}
+                                        className="px-4 py-2 rounded-xl bg-teal-50 text-teal-700 text-sm font-semibold hover:bg-teal-100 transition-colors"
+                                    >
+                                        Open habits
+                                    </button>
+                                </>
+                            )}
+                            {nextBestAction?.type === 'idea' && (
+                                <button
+                                    onClick={() => onNavigate('ideas')}
+                                    className="px-4 py-2 rounded-xl bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors"
+                                >
+                                    Open ideas
+                                </button>
+                            )}
+                            {!nextBestAction && (
+                                <button
+                                    onClick={() => onNavigate('ideas')}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 transition-colors"
+                                >
+                                    Open ideas board
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* What Needs Attention */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="relative z-10 flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-2xl bg-rose-50 text-rose-600">
+                                <AlertTriangle size={18} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900">What Needs Attention</h3>
+                                <p className="text-xs text-gray-500">One place for overdue work, late habits, and collisions.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 flex-1 relative z-10">
+                            {attentionItems.length === 0 && (
+                                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                                    Nothing looks urgent right now.
+                                </div>
+                            )}
+
+                            {attentionItems.map((item) => (
+                                <div key={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 flex items-center gap-3">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${item.severity === 'high' ? 'bg-rose-500' : 'bg-amber-500'}`}></div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-semibold text-gray-900 truncate">{item.title}</div>
+                                        <div className="text-xs text-gray-500 mt-0.5 truncate">{item.subtitle}</div>
+                                    </div>
+                                    {item.type === 'task' && (
+                                        <button
+                                            onClick={() => openTaskEditor(item.task)}
+                                            className="px-3 py-1.5 rounded-xl bg-white text-sm font-medium text-rose-600 border border-rose-100 hover:bg-rose-50 transition-colors"
+                                        >
+                                            Open
+                                        </button>
+                                    )}
+                                    {item.type === 'habit' && (
+                                        <button
+                                            onClick={() => logHabit(
+                                                item.habit.id,
+                                                toLocalDateKey(now),
+                                                item.habit.type === 'count' || item.habit.type === 'duration'
+                                                    ? (item.habit.target || 1)
+                                                    : 1,
+                                                true
+                                            )}
+                                            className="px-3 py-1.5 rounded-xl bg-white text-sm font-medium text-teal-600 border border-teal-100 hover:bg-teal-50 transition-colors"
+                                        >
+                                            Done
+                                        </button>
+                                    )}
+                                    {item.type === 'conflict' && (
+                                        <button
+                                            onClick={() => onNavigate('schedule')}
+                                            className="px-3 py-1.5 rounded-xl bg-white text-sm font-medium text-indigo-600 border border-indigo-100 hover:bg-indigo-50 transition-colors"
+                                        >
+                                            View
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Time Gap Finder */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-sky-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="relative z-10 flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-2xl bg-sky-50 text-sky-600">
+                                <Clock size={18} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900">Time Gap Finder</h3>
+                                <p className="text-xs text-gray-500">Free windows for the rest of today.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 flex-1 relative z-10">
+                            {timeGaps.length === 0 && (
+                                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                                    No clear free windows left today.
+                                </div>
+                            )}
+
+                            {timeGaps.slice(0, 3).map((gap, index) => {
+                                const suggestedTask = pickBestTaskForWindow(activeTasks, now, todayStart, todayEnd, gap.minutes);
+                                return (
+                                    <div key={`${gap.start.toISOString()}_${index}`} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <div className="text-sm font-semibold text-gray-900">
+                                                    {gap.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {gap.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <div className="text-xs text-sky-600 font-semibold mt-1">{formatMinutesLabel(gap.minutes)} free</div>
+                                            </div>
+                                            {suggestedTask ? (
+                                                <button
+                                                    onClick={() => openTaskEditor(suggestedTask)}
+                                                    className="px-3 py-1.5 rounded-xl bg-white text-sm font-medium text-sky-700 border border-sky-100 hover:bg-sky-50 transition-colors"
+                                                >
+                                                    Use it
+                                                </button>
+                                            ) : null}
                                         </div>
-                                        <span className={`font-medium text-sm ${highlight.completed ? 'line-through' : ''}`}>
-                                            {highlight.text}
-                                        </span>
+
+                                        <div className="mt-3 text-sm text-gray-600">
+                                            {suggestedTask
+                                                ? `Best fit: ${suggestedTask.title}`
+                                                : 'Good slot for quick recovery, notes, or a short idea session.'}
+                                        </div>
                                     </div>
                                 );
                             })}
                         </div>
-
-                        <button onClick={() => onNavigate('vision')} className="mt-4 text-gray-700 hover:text-gray-900 text-sm font-medium flex items-center gap-1 transition-colors">
-                            Manage Goals <ChevronRight size={14} />
-                        </button>
                     </div>
 
-                    {/* Tasks Due Today Widget */}
+                    {/* Priority Tasks Widget */}
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm flex flex-col relative overflow-hidden border border-gray-100">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-50/30 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
                         <div className="flex items-center justify-between mb-4 relative z-10">
                             <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                                <Clock size={18} className="text-teal-600" /> Tasks Due Today
+                                <Clock size={18} className="text-teal-600" /> Priority Tasks
                             </h3>
                             <div className="relative">
                                 <button
                                     ref={quickAddTaskButtonRef}
-                                    onClick={() => setShowQuickAddTaskPopup(!showQuickAddTaskPopup)}
+                                    onClick={() => {
+                                        if (showQuickAddTaskPopup) {
+                                            setShowQuickAddTaskPopup(false);
+                                            setQuickAddTaskPopupStyle(null);
+                                            return;
+                                        }
+
+                                        setQuickAddTaskPopupStyle(getPopupStyle(quickAddTaskButtonRef));
+                                        setShowQuickAddTaskPopup(true);
+                                    }}
                                     className="p-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-600 transition-all hover:scale-105"
                                     title="Quick Add Task"
                                 >
@@ -1520,33 +1816,36 @@ const Overview = ({ onNavigate }) => {
                                 <QuickAddTaskWidget
                                     addTask={addTask}
                                     isOpen={showQuickAddTaskPopup}
-                                    onClose={() => setShowQuickAddTaskPopup(false)}
+                                    onClose={() => {
+                                        setShowQuickAddTaskPopup(false);
+                                        setQuickAddTaskPopupStyle(null);
+                                    }}
                                     buttonRef={quickAddTaskButtonRef}
+                                    popupStyle={quickAddTaskPopupStyle}
                                 />
                             </div>
                         </div>
+                        <p className="text-xs text-gray-500 mb-3 relative z-10">
+                            Overdue first, then due today, then the next few days.
+                        </p>
                         <div className="flex-1 space-y-2 overflow-y-auto max-h-[200px] custom-scrollbar">
                             {(() => {
-                                const today = new Date();
-                                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                const now = new Date();
+                                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                                 const todayEnd = new Date(todayStart);
                                 todayEnd.setDate(todayEnd.getDate() + 1);
 
-                                const todayTasks = tasks.filter(task => {
-                                    if (!task.deadline || task.status === 'harvested') return false;
-                                    const deadline = new Date(task.deadline);
-                                    return deadline >= todayStart && deadline < todayEnd;
-                                });
-
-                                if (todayTasks.length === 0) {
+                                if (priorityTasks.length === 0) {
                                     return (
                                         <div className="text-gray-400 text-sm italic text-center py-4">
-                                            No tasks due today! 🎉
+                                            Nothing urgent right now. Good breathing room.
                                         </div>
                                     );
                                 }
 
-                                return todayTasks.map(task => (
+                                return priorityTasks.map(task => {
+                                    const urgency = getTaskUrgencyMeta(task, now, todayStart, todayEnd);
+                                    return (
                                     <div
                                         key={task.id}
                                         onClick={() => {
@@ -1555,8 +1854,28 @@ const Overview = ({ onNavigate }) => {
                                         }}
                                         className="bg-gray-50 border border-gray-100 rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:border-teal-200 hover:shadow-sm transition-all group"
                                     >
-                                        <div className={`w-2 h-2 rounded-full ${task.status === 'growing' ? 'bg-teal-500' : 'bg-gray-300'}`}></div>
-                                        <span className="text-gray-800 text-sm font-medium flex-1 truncate">{task.title}</span>
+                                        <div className="w-2 h-2 rounded-full bg-teal-500"></div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-gray-800 text-sm font-medium truncate">{task.title}</div>
+                                            <div className="mt-1 flex items-center gap-2">
+                                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${urgency.badgeClass}`}>
+                                                    {urgency.label}
+                                                </span>
+                                                <span className="text-gray-500 text-xs">
+                                                    {new Date(task.deadline).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                completeTask(task.id);
+                                            }}
+                                            className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors"
+                                            title="Mark complete"
+                                        >
+                                            <Check size={12} />
+                                        </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -1569,13 +1888,106 @@ const Overview = ({ onNavigate }) => {
                                         >
                                             <Trash2 size={12} />
                                         </button>
-                                        <span className="text-gray-500 text-xs">
-                                            {new Date(task.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
                                     </div>
-                                ));
+                                )});
                             })()}
                         </div>
+                    </div>
+
+                    {/* Recent Notes */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="relative z-10 flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-2xl bg-teal-50 text-teal-600">
+                                <FileText size={18} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900">Recent Notes</h3>
+                                <p className="text-xs text-gray-500">The latest notes from your habit logs.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 flex-1 relative z-10">
+                            {recentHabitNotes.length === 0 && (
+                                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                                    No habit notes yet. Add notes from the Habits tab and they will show up here.
+                                </div>
+                            )}
+
+                            {recentHabitNotes.map((entry) => (
+                                <div key={entry.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="text-sm font-semibold text-gray-900 truncate">
+                                            {entry.habitIcon} {entry.habitName}
+                                        </div>
+                                        <div className="text-xs text-gray-400 shrink-0">
+                                            {new Date(`${entry.date}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 text-sm text-gray-600 line-clamp-2">
+                                        {entry.notes}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button onClick={() => onNavigate('habits')} className="mt-4 text-gray-700 hover:text-gray-900 text-sm font-medium flex items-center gap-1 transition-colors relative z-10">
+                            Open habits <ChevronRight size={14} />
+                        </button>
+                    </div>
+
+                    {/* Idea Spotlight */}
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="relative z-10 flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600">
+                                <Lightbulb size={18} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900">Idea Spotlight</h3>
+                                <p className="text-xs text-gray-500">Easy jump back into your most relevant ideas.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 flex-1 relative z-10">
+                            {ideaSpotlight.length === 0 && (
+                                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                                    No ideas yet. Start with one main idea and branch from there.
+                                </div>
+                            )}
+
+                            {ideaSpotlight.map((idea) => (
+                                <div key={idea.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="text-sm font-semibold text-gray-900 truncate">{idea.title}</div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {idea.focused && (
+                                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold">
+                                                    Focused
+                                                </span>
+                                            )}
+                                            <span className="px-2 py-0.5 rounded-full bg-white text-gray-500 text-[11px] font-semibold border border-gray-200">
+                                                {idea.depth === 0 ? 'Idea' : idea.depth === 1 ? 'Subidea' : 'Sub-subidea'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                                        <span>{idea.branchCount} branches</span>
+                                        <span>•</span>
+                                        <span>{idea.completed ? 'Completed' : 'Open'}</span>
+                                    </div>
+                                    {idea.details?.trim() && (
+                                        <div className="mt-2 text-sm text-gray-600 line-clamp-2">
+                                            {idea.details}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <button onClick={() => onNavigate('ideas')} className="mt-4 text-gray-700 hover:text-gray-900 text-sm font-medium flex items-center gap-1 transition-colors relative z-10">
+                            Open ideas <ChevronRight size={14} />
+                        </button>
                     </div>
 
                 </div>
@@ -1634,7 +2046,6 @@ const Overview = ({ onNavigate }) => {
                     setShowAgentModal(false);
                     setAgentPlan(null);
                     setClarifyConversation([]);
-                    setPendingClarify(null);
                     setOriginalPrompt('');
                 }}
                 onConfirm={executeAgentActions}

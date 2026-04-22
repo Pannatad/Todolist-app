@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarDays, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHabit } from '../context/HabitContext';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const COLOR_CONFIGS = {
     slate: { border: 'border-slate-200', active: 'bg-slate-500', idle: 'bg-slate-50' },
@@ -47,7 +48,7 @@ const WeeklyGrid = () => {
     const isToday = (date) => date.toDateString() === new Date().toDateString();
 
     const handleLog = (habitId, date, value, completed) => {
-        logHabit(habitId, date.toISOString().split('T')[0], value, completed);
+        logHabit(habitId, toLocalDateKey(date), value, completed);
     };
 
     return (

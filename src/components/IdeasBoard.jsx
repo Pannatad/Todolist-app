@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, GripVertical, Lightbulb, Minus, Palette, Plus, Sparkles, Target, Trash2, Unlink2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, GripVertical, Lightbulb, Minus, Palette, Plus, Sparkles, Target, Trash2, Unlink2 } from 'lucide-react';
 import { IDEA_COLOR_OPTIONS, useIdeaBoard } from '../context/IdeaBoardContext';
 
 const CARD_WIDTH = 250;
@@ -272,6 +272,7 @@ const COLOR_STYLES = {
 };
 
 const TOOLBAR_BUTTON_CLASS = 'inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900';
+const VIEW_TOGGLE_BUTTON_CLASS = 'inline-flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition';
 
 const IdeaCard = ({
     node,
@@ -574,6 +575,164 @@ const IdeaCard = ({
     );
 };
 
+const IdeaTreeNode = ({
+    node,
+    nodesById,
+    childrenByParentId,
+    childCountById,
+    expandedTreeIds,
+    selectedNodeId,
+    onToggleExpand,
+    onSelect,
+    onAddChild,
+    onToggleComplete,
+    onToggleFocus,
+    depth = 0
+}) => {
+    const childIds = childrenByParentId[node.id] || [];
+    const hasChildren = childIds.length > 0;
+    const isExpanded = expandedTreeIds.has(node.id);
+    const isSelected = selectedNodeId === node.id;
+    const typeLabel = getNodeTypeLabel(node.depth || depth);
+    const colors = COLOR_STYLES[node.color] || COLOR_STYLES.slate;
+
+    return (
+        <div className="space-y-2">
+            <div
+                className={`group flex items-start gap-2 rounded-[22px] border px-3 py-3 shadow-sm transition ${
+                    isSelected
+                        ? `border-slate-300 bg-white ring-2 ${colors.ring}`
+                        : 'border-slate-200/80 bg-white/92 hover:border-slate-300 hover:bg-white'
+                }`}
+            >
+                <button
+                    type="button"
+                    onClick={() => hasChildren && onToggleExpand(node.id)}
+                    className={`mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+                        hasChildren
+                            ? 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:text-slate-800'
+                            : 'border-transparent bg-transparent text-slate-300'
+                    }`}
+                    title={hasChildren ? (isExpanded ? 'Collapse branch' : 'Expand branch') : 'No children'}
+                >
+                    {hasChildren ? (
+                        isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />
+                    ) : (
+                        <span className="h-3 w-3 rounded-full bg-slate-200" />
+                    )}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => onSelect(node.id)}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                >
+                    <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-white ${colors.accent}`}>
+                        <Lightbulb size={14} />
+                    </span>
+
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${colors.text}`}>
+                                {typeLabel}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                                {childCountById[node.id] || 0} {(childCountById[node.id] || 0) === 1 ? 'branch' : 'branches'}
+                            </span>
+                            {node.focused && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                                    Focus
+                                </span>
+                            )}
+                            {node.completed && (
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                    Done
+                                </span>
+                            )}
+                        </div>
+
+                        <p className={`mt-1 text-base font-semibold ${node.completed ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                            {node.title}
+                        </p>
+
+                        {node.details ? (
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                                {node.details}
+                            </p>
+                        ) : null}
+                    </div>
+                </button>
+
+                <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                        type="button"
+                        onClick={() => onToggleComplete(node)}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+                            node.completed
+                                ? 'border-emerald-300 bg-emerald-500 text-white'
+                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-800'
+                        }`}
+                        title="Check off idea"
+                    >
+                        <Check size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onToggleFocus(node)}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+                            node.focused
+                                ? 'border-amber-300 bg-amber-500 text-white'
+                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-800'
+                        }`}
+                        title="Mark as focus"
+                    >
+                        <Target size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onAddChild(node.id)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+                        title="Add subidea"
+                    >
+                        <Plus size={14} />
+                    </button>
+                </div>
+            </div>
+
+            {hasChildren && isExpanded && (
+                <div className="ml-4 border-l border-slate-200 pl-4">
+                    <div className="space-y-2">
+                        {childIds.map((childId) => {
+                            const childNode = nodesById[childId];
+                            if (!childNode) {
+                                return null;
+                            }
+
+                            return (
+                                <IdeaTreeNode
+                                    key={childId}
+                                    node={childNode}
+                                    nodesById={nodesById}
+                                    childrenByParentId={childrenByParentId}
+                                    childCountById={childCountById}
+                                    expandedTreeIds={expandedTreeIds}
+                                    selectedNodeId={selectedNodeId}
+                                    onToggleExpand={onToggleExpand}
+                                    onSelect={onSelect}
+                                    onAddChild={onAddChild}
+                                    onToggleComplete={onToggleComplete}
+                                    onToggleFocus={onToggleFocus}
+                                    depth={(node.depth || depth) + 1}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const IdeasBoard = () => {
     const {
         nodes,
@@ -599,6 +758,8 @@ const IdeasBoard = () => {
     const [branchFilters, setBranchFilters] = useState([]);
     const [dragState, setDragState] = useState(null);
     const [draftPositions, setDraftPositions] = useState({});
+    const [viewMode, setViewMode] = useState('canvas');
+    const [expandedTreeIds, setExpandedTreeIds] = useState(() => new Set());
     const [zoom, setZoom] = useState(1);
     const draggingNodeId = dragState?.id || null;
 
@@ -611,16 +772,25 @@ const IdeasBoard = () => {
     }, [zoom]);
 
     useEffect(() => {
-        if (nodes.length > 0 && !selectedNodeId) {
-            setSelectedNodeId(nodes[0].id);
+        if (selectedNodeId && !nodes.some((node) => node.id === selectedNodeId)) {
+            setSelectedNodeId(null);
         }
     }, [nodes, selectedNodeId]);
 
     useEffect(() => {
-        if (selectedNodeId && !nodes.some((node) => node.id === selectedNodeId)) {
-            setSelectedNodeId(nodes[0]?.id || null);
-        }
-    }, [nodes, selectedNodeId]);
+        setExpandedTreeIds((previous) => {
+            const validIds = new Set(nodes.map((node) => node.id));
+            const next = new Set([...previous].filter((id) => validIds.has(id)));
+
+            nodes.forEach((node) => {
+                if (!node.parentId) {
+                    next.add(node.id);
+                }
+            });
+
+            return next;
+        });
+    }, [nodes]);
 
     useEffect(() => {
         setBranchFilters((previous) => previous.filter((filter) => nodes.some((node) => node.id === filter.rootId)));
@@ -680,6 +850,12 @@ const IdeasBoard = () => {
 
         return lookup;
     }, [positionedNodes]);
+
+    const rootNodes = useMemo(() => (
+        positionedNodes
+            .filter((node) => !node.parentId)
+            .sort((a, b) => (a.y - b.y) || (a.x - b.x))
+    ), [positionedNodes]);
 
     const selectedNode = selectedNodeId ? nodesById[selectedNodeId] : null;
     const selectedBranchFilter = selectedNode ? branchFilters.find((filter) => filter.rootId === selectedNode.id) : null;
@@ -931,6 +1107,36 @@ const IdeasBoard = () => {
         setSelectedNodeId((current) => current === nodeId ? null : nodeId);
     }, []);
 
+    const toggleTreeExpand = useCallback((nodeId) => {
+        setExpandedTreeIds((previous) => {
+            const next = new Set(previous);
+            if (next.has(nodeId)) {
+                next.delete(nodeId);
+            } else {
+                next.add(nodeId);
+            }
+            return next;
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!selectedNodeId) {
+            return;
+        }
+
+        setExpandedTreeIds((previous) => {
+            const next = new Set(previous);
+            let current = nodesById[selectedNodeId];
+
+            while (current?.parentId && nodesById[current.parentId]) {
+                next.add(current.parentId);
+                current = nodesById[current.parentId];
+            }
+
+            return next;
+        });
+    }, [nodesById, selectedNodeId]);
+
     useEffect(() => {
         const viewport = viewportRef.current;
         if (!viewport) {
@@ -1036,6 +1242,31 @@ const IdeasBoard = () => {
 
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
                             {stats.total} ideas • {stats.focused} focused • {stats.completed} checked
+                        </div>
+
+                        <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('canvas')}
+                                className={`${VIEW_TOGGLE_BUTTON_CLASS} ${
+                                    viewMode === 'canvas'
+                                        ? 'bg-slate-900 text-white'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                }`}
+                            >
+                                Canvas
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('tree')}
+                                className={`${VIEW_TOGGLE_BUTTON_CLASS} ${
+                                    viewMode === 'tree'
+                                        ? 'bg-slate-900 text-white'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                }`}
+                            >
+                                Tree
+                            </button>
                         </div>
 
                         <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1">
@@ -1229,94 +1460,150 @@ const IdeasBoard = () => {
 
             <section className="rounded-[28px] border border-slate-200/80 bg-white/94 p-3 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
                 <div className="mb-3 flex flex-wrap items-center gap-2 px-2 pt-1 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-3 py-1">Double-click empty space to add a box</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">Drag with the handle</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">Use Add subidea to connect ideas</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">Use zoom controls for bigger maps</span>
+                    {viewMode === 'canvas' ? (
+                        <>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Double-click empty space to add a box</span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Drag with the handle</span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Use Add subidea to connect ideas</span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Use zoom controls for bigger maps</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Expand only the branches you want to read</span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Click a row to select that idea</span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">Use the + button to add nested subideas fast</span>
+                        </>
+                    )}
                 </div>
 
-                <div
-                    ref={viewportRef}
-                    className="overflow-auto rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,250,252,0.99))]"
-                >
+                {viewMode === 'canvas' ? (
                     <div
-                        style={{
-                            width: canvasWidth * zoom,
-                            height: canvasHeight * zoom
-                        }}
+                        ref={viewportRef}
+                        className="overflow-auto rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,250,252,0.99))]"
                     >
                         <div
-                            ref={boardRef}
-                            onDoubleClick={handleBoardDoubleClick}
-                            onClick={(event) => {
-                                if (event.target === event.currentTarget) {
-                                    setSelectedNodeId(null);
-                                }
-                            }}
-                            className="relative origin-top-left"
                             style={{
-                                width: canvasWidth,
-                                height: canvasHeight,
-                                transform: `scale(${zoom})`,
-                                backgroundImage: 'linear-gradient(rgba(148,163,184,0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.11) 1px, transparent 1px)',
-                                backgroundSize: '32px 32px'
+                                width: canvasWidth * zoom,
+                                height: canvasHeight * zoom
                             }}
                         >
-                            <svg className="pointer-events-none absolute inset-0 h-full w-full">
-                                {connections.map((connection) => {
-                                    const geometry = getConnectorGeometry(connection.from, connection.to);
+                            <div
+                                ref={boardRef}
+                                onDoubleClick={handleBoardDoubleClick}
+                                onClick={(event) => {
+                                    if (event.target === event.currentTarget) {
+                                        setSelectedNodeId(null);
+                                    }
+                                }}
+                                className="relative origin-top-left"
+                                style={{
+                                    width: canvasWidth,
+                                    height: canvasHeight,
+                                    transform: `scale(${zoom})`,
+                                    backgroundImage: 'linear-gradient(rgba(148,163,184,0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.11) 1px, transparent 1px)',
+                                    backgroundSize: '32px 32px'
+                                }}
+                            >
+                                <svg className="pointer-events-none absolute inset-0 h-full w-full">
+                                    {connections.map((connection) => {
+                                        const geometry = getConnectorGeometry(connection.from, connection.to);
 
-                                    return (
-                                        <path
-                                            key={connection.id}
-                                            d={`M ${geometry.startX} ${geometry.startY} C ${geometry.control1X} ${geometry.control1Y}, ${geometry.control2X} ${geometry.control2Y}, ${geometry.endX} ${geometry.endY}`}
-                                            fill="none"
-                                            stroke={
-                                                connection.muted
-                                                    ? 'rgba(148, 163, 184, 0.12)'
-                                                    : connection.emphasized
-                                                        ? connection.stroke.replace('0.28', '0.9').replace('0.3', '0.9')
-                                                        : connection.stroke
-                                            }
-                                            strokeWidth={connection.emphasized ? '3.5' : connection.muted ? '1.5' : '2.5'}
-                                            strokeLinecap="round"
-                                            strokeDasharray={connection.emphasized ? '0' : connection.muted ? '4 10' : '7 8'}
-                                            vectorEffect="non-scaling-stroke"
-                                        />
-                                    );
-                                })}
-                            </svg>
+                                        return (
+                                            <path
+                                                key={connection.id}
+                                                d={`M ${geometry.startX} ${geometry.startY} C ${geometry.control1X} ${geometry.control1Y}, ${geometry.control2X} ${geometry.control2Y}, ${geometry.endX} ${geometry.endY}`}
+                                                fill="none"
+                                                stroke={
+                                                    connection.muted
+                                                        ? 'rgba(148, 163, 184, 0.12)'
+                                                        : connection.emphasized
+                                                            ? connection.stroke.replace('0.28', '0.9').replace('0.3', '0.9')
+                                                            : connection.stroke
+                                                }
+                                                strokeWidth={connection.emphasized ? '3.5' : connection.muted ? '1.5' : '2.5'}
+                                                strokeLinecap="round"
+                                                strokeDasharray={connection.emphasized ? '0' : connection.muted ? '4 10' : '7 8'}
+                                                vectorEffect="non-scaling-stroke"
+                                            />
+                                        );
+                                    })}
+                                </svg>
 
-                            {loading && (
-                                <div className="absolute inset-x-0 top-6 mx-auto w-fit rounded-full border border-slate-200 bg-white/92 px-4 py-2 text-sm text-slate-500 shadow-sm">
-                                    Loading your ideas...
-                                </div>
-                            )}
+                                {loading && (
+                                    <div className="absolute inset-x-0 top-6 mx-auto w-fit rounded-full border border-slate-200 bg-white/92 px-4 py-2 text-sm text-slate-500 shadow-sm">
+                                        Loading your ideas...
+                                    </div>
+                                )}
 
-                            {positionedNodes.map((node) => (
-                                <IdeaCard
-                                    key={node.id}
-                                    node={node}
-                                    dimensions={node.dimensions || getCardDimensions(node.depth || 0)}
-                                    childCount={childCountById[node.id] || 0}
-                                    isSelected={selectedNodeId === node.id}
-                                    isRelated={highlightedNodeIds.has(node.id)}
-                                    isDragging={draggingNodeId === node.id}
-                                    isDimmed={Boolean(branchFocusedIds && !branchFocusedIds.has(node.id) && selectedNodeId !== node.id)}
-                                    activeBranchMode={branchFilters.find((filter) => filter.rootId === node.id)?.mode || null}
-                                    onSelect={handleSelectNode}
-                                    onAddChild={handleAddChild}
-                                    onDelete={deleteIdea}
-                                    onSave={updateIdea}
-                                    onToggleComplete={(idea) => updateIdea(idea.id, { completed: !idea.completed })}
-                                    onToggleFocus={(idea) => updateIdea(idea.id, { focused: !idea.focused })}
-                                    onDragStart={handleDragStart}
-                                    onToggleBranchFilter={toggleBranchFilter}
-                                />
-                            ))}
+                                {positionedNodes.map((node) => (
+                                    <IdeaCard
+                                        key={node.id}
+                                        node={node}
+                                        dimensions={node.dimensions || getCardDimensions(node.depth || 0)}
+                                        childCount={childCountById[node.id] || 0}
+                                        isSelected={selectedNodeId === node.id}
+                                        isRelated={highlightedNodeIds.has(node.id)}
+                                        isDragging={draggingNodeId === node.id}
+                                        isDimmed={Boolean(branchFocusedIds && !branchFocusedIds.has(node.id) && selectedNodeId !== node.id)}
+                                        activeBranchMode={branchFilters.find((filter) => filter.rootId === node.id)?.mode || null}
+                                        onSelect={handleSelectNode}
+                                        onAddChild={handleAddChild}
+                                        onDelete={deleteIdea}
+                                        onSave={updateIdea}
+                                        onToggleComplete={(idea) => updateIdea(idea.id, { completed: !idea.completed })}
+                                        onToggleFocus={(idea) => updateIdea(idea.id, { focused: !idea.focused })}
+                                        onDragStart={handleDragStart}
+                                        onToggleBranchFilter={toggleBranchFilter}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,250,252,0.99))] p-4">
+                        <div className="mb-4 flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setExpandedTreeIds(new Set(positionedNodes.map((node) => node.id)))}
+                                className={TOOLBAR_BUTTON_CLASS}
+                            >
+                                Expand all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setExpandedTreeIds(new Set(rootNodes.map((node) => node.id)))}
+                                className={TOOLBAR_BUTTON_CLASS}
+                            >
+                                Collapse to top level
+                            </button>
+                        </div>
+
+                        {rootNodes.length > 0 ? (
+                            <div className="space-y-3">
+                                {rootNodes.map((node) => (
+                                    <IdeaTreeNode
+                                        key={node.id}
+                                        node={node}
+                                        nodesById={nodesById}
+                                        childrenByParentId={childrenByParentId}
+                                        childCountById={childCountById}
+                                        expandedTreeIds={expandedTreeIds}
+                                        selectedNodeId={selectedNodeId}
+                                        onToggleExpand={toggleTreeExpand}
+                                        onSelect={(nodeId) => setSelectedNodeId(nodeId)}
+                                        onAddChild={handleAddChild}
+                                        onToggleComplete={(idea) => updateIdea(idea.id, { completed: !idea.completed })}
+                                        onToggleFocus={(idea) => updateIdea(idea.id, { focused: !idea.focused })}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+                                No ideas yet. Create one and the tree will appear here.
+                            </div>
+                        )}
+                    </div>
+                )}
             </section>
         </div>
     );

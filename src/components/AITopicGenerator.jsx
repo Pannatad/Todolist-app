@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Image, Youtube, Loader2, Check, Upload, AlertCircle, Wand2, ArrowUpDown, Clock } from 'lucide-react';
-import { generateTopicsFromDescription, generateTopicsFromImage } from '../services/gemini';
+import { generateTopicsFromDescription, generateTopicsFromImage } from '../services/aiClient';
 import { parseYouTubePlaylist } from '../services/youtubeService';
 
 const TABS = [
@@ -113,8 +113,9 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
                 // Convert video results to topic format
                 topics = result.videos.map(v => ({
                     title: v.title,
-                    description: v.videoUrl,
+                    description: '',
                     estimated_time: v.estimated_time || 0,
+                    primary_video_url: v.videoUrl,
                 }));
             }
 
@@ -164,6 +165,7 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
                 description: t.description || '',
                 estimated_time: t.estimated_time || 0,
                 status: 'not_started',
+                primary_video_url: t.primary_video_url || '',
             }));
 
         if (topicsToAdd.length > 0) {

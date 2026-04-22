@@ -1,16 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Moon, Sun, LogIn, LogOut, Palette, LayoutDashboard, Target, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, BarChart3, ListChecks, GraduationCap } from 'lucide-react';
-import TaskInput from './components/TaskInput';
-import Garden from './components/Garden';
-import Calendar from './components/Calendar';
-import AIHelpSidebar from './components/AIHelpSidebar';
-import VisionBoard from './components/VisionBoard';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
+import { LogIn, LogOut, Palette, LayoutDashboard, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, ListChecks, GraduationCap } from 'lucide-react';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
-import ProjectBoards from './components/ProjectBoards';
-import Overview from './components/Overview';
-import ChatSidebar, { FloatingChatButton } from './components/ChatSidebar';
-import { getPersonalizedAdvice } from './services/gemini';
+import { getPersonalizedAdvice } from './services/aiClient';
 
 // Import all context hooks
 import { useAuth } from './context/AuthContext';
@@ -21,14 +13,30 @@ import { useGoal } from './context/GoalContext';
 import { ProjectProvider } from './context/ProjectContext';
 import { HabitProvider } from './context/HabitContext';
 import { ChatProvider } from './context/ChatContext';
+import { useHabit } from './context/HabitContext';
 import { useUserProfile } from './context/UserProfileContext';
-import HabitTracker from './components/HabitTracker';
-import LearningTracker from './components/LearningTracker';
-import SleepTrendsDashboard from './components/SleepTrendsDashboard';
-import NotificationToast from './components/NotificationToast';
 import smartNotificationService from './services/SmartNotificationService';
 import { IdeaBoardProvider } from './context/IdeaBoardContext';
-import IdeasBoard from './components/IdeasBoard';
+const TaskInput = lazy(() => import('./components/TaskInput'));
+const Garden = lazy(() => import('./components/Garden'));
+const Calendar = lazy(() => import('./components/Calendar'));
+const AIHelpSidebar = lazy(() => import('./components/AIHelpSidebar'));
+const VisionBoard = lazy(() => import('./components/VisionBoard'));
+const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
+const Overview = lazy(() => import('./components/Overview'));
+const HabitTracker = lazy(() => import('./components/HabitTracker'));
+const LearningTracker = lazy(() => import('./components/LearningTracker'));
+const SleepTrendsDashboard = lazy(() => import('./components/SleepTrendsDashboard'));
+const NotificationToast = lazy(() => import('./components/NotificationToast'));
+const IdeasBoard = lazy(() => import('./components/IdeasBoard'));
+const ChatSidebar = lazy(() => import('./components/ChatSidebar'));
+const FloatingChatButton = lazy(() => import('./components/ChatSidebar').then((module) => ({ default: module.FloatingChatButton })));
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center py-16 text-sage-500 dark:text-bone-200/70">
+    Loading...
+  </div>
+);
 
 const DigitalClock = () => {
   const [time, setTime] = useState(new Date());
@@ -37,6 +45,22 @@ const DigitalClock = () => {
     return () => clearInterval(timer);
   }, []);
   return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const SmartNotificationBridge = ({ scheduleItems, tasks }) => {
+  const { habits } = useHabit();
+
+  useEffect(() => {
+    smartNotificationService.start(() => ({
+      scheduleItems,
+      tasks,
+      habits,
+    }));
+
+    return () => smartNotificationService.stop();
+  }, [habits, scheduleItems, tasks]);
+
+  return null;
 };
 
 function App() {
@@ -59,11 +83,8 @@ function App() {
     coins,
     unlockedPlots,
     displayMode,
-    personaMessage,
-    isPersonaTyping,
     earnCoins,
     buyPlot,
-    cycleDisplayMode,
     triggerPersonaReaction
   } = useGame();
 
@@ -75,7 +96,7 @@ function App() {
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem('app-theme') || 'cozy'; // 'cozy', 'professional', 'pink', 'blue'
-    } catch (e) {
+    } catch {
       return 'cozy';
     }
   });
@@ -96,17 +117,6 @@ function App() {
   const [currentAITask, setCurrentAITask] = useState(null);
   const [aiTips, setAiTips] = useState('');
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-
-  // Start Smart Notification Service
-  useEffect(() => {
-    smartNotificationService.start(() => ({
-      scheduleItems,
-      tasks,
-      habits: [] // Will be connected when HabitContext is available
-    }));
-
-    return () => smartNotificationService.stop();
-  }, [scheduleItems, tasks]);
 
   // Theme effect
   useEffect(() => {
@@ -174,6 +184,7 @@ function App() {
       <IdeaBoardProvider>
         <ProjectProvider>
           <ChatProvider>
+            <SmartNotificationBridge scheduleItems={scheduleItems} tasks={tasks} />
             <div className="min-h-screen bg-gradient-to-br from-sage-50 via-bone-100 to-sage-100 dark:from-void-950 dark:via-void-900 dark:to-void-950 text-ink-900 dark:text-bone-200 transition-colors duration-500">
             {/* Persona Avatar */}
 
@@ -267,95 +278,100 @@ function App() {
 
               {/* Only show TaskInput on My Tasks tab */}
               {activeTab === 'garden' && (
-                <TaskInput onAdd={addTask} existingSubjects={existingSubjects} />
+                <Suspense fallback={<TabFallback />}>
+                  <TaskInput onAdd={addTask} existingSubjects={existingSubjects} />
+                </Suspense>
               )}
 
               <main className="relative">
-                {activeTab === 'garden' && (
-                  <>
-                    <div className="mb-12 text-center">
-                      <h2 className="text-2xl mb-2 font-serif italic text-sage-600/60 dark:text-bone-200/60">
-                        "Stop procrastinating, just do the work"
-                      </h2>
-                    </div>
+                <Suspense fallback={<TabFallback />}>
+                  {activeTab === 'garden' && (
+                    <>
+                      <div className="mb-12 text-center">
+                        <h2 className="text-2xl mb-2 font-serif italic text-sage-600/60 dark:text-bone-200/60">
+                          "Stop procrastinating, just do the work"
+                        </h2>
+                      </div>
 
-                    <Garden
-                      tasks={tasks}
-                      onCompleteTask={handleCompleteTask}
-                      onDeleteTask={deleteTask}
-                      onUpdateTask={updateTask}
-                      onRestoreTask={restoreTask}
-                      onRequestAIHelp={handleRequestAIHelp}
-                      existingSubjects={existingSubjects}
-                      unlockedPlots={unlockedPlots}
-                      onBuyPlot={buyPlot}
-                      displayMode={displayMode}
+                      <Garden
+                        tasks={tasks}
+                        onCompleteTask={handleCompleteTask}
+                        onDeleteTask={deleteTask}
+                        onUpdateTask={updateTask}
+                        onRestoreTask={restoreTask}
+                        onRequestAIHelp={handleRequestAIHelp}
+                        existingSubjects={existingSubjects}
+                        unlockedPlots={unlockedPlots}
+                        onBuyPlot={buyPlot}
+                        displayMode={displayMode}
+                      />
+                    </>
+                  )}
+                  {activeTab === 'overview' && (
+                    <Overview
+                      onNavigate={setActiveTab}
                     />
-                  </>
-                )}
-                {activeTab === 'overview' && (
-                  <Overview
-                    onNavigate={setActiveTab}
-                  />
-                )}
+                  )}
 
-                {activeTab === 'schedule' && (
-                  <Calendar
-                    onAddScheduleItem={addScheduleItem}
-                    onUpdateScheduleItem={updateScheduleItem}
-                    onDeleteScheduleItem={deleteScheduleItem}
-                    tasks={tasks}
-                    scheduleItems={scheduleItems}
-                    onCompleteTask={handleCompleteTask}
-                  />
-                )}
+                  {activeTab === 'schedule' && (
+                    <Calendar
+                      onAddScheduleItem={addScheduleItem}
+                      onUpdateScheduleItem={updateScheduleItem}
+                      onDeleteScheduleItem={deleteScheduleItem}
+                      onDeleteTask={deleteTask}
+                      tasks={tasks}
+                      scheduleItems={scheduleItems}
+                      onCompleteTask={handleCompleteTask}
+                    />
+                  )}
 
-                {activeTab === 'vision' && (
-                  <VisionBoard
-                    goals={goals}
-                    onAddGoal={addGoal}
-                    onUpdateGoal={updateGoal}
-                    onDeleteGoal={deleteGoal}
-                    dailyHighlights={dailyHighlights}
-                    onUpdateHighlight={updateHighlight}
-                    onDeleteHighlight={deleteHighlight}
-                  />
-                )}
+                  {activeTab === 'vision' && (
+                    <VisionBoard
+                      goals={goals}
+                      onAddGoal={addGoal}
+                      onUpdateGoal={updateGoal}
+                      onDeleteGoal={deleteGoal}
+                      dailyHighlights={dailyHighlights}
+                      onUpdateHighlight={updateHighlight}
+                      onDeleteHighlight={deleteHighlight}
+                    />
+                  )}
 
+                  {activeTab === 'habits' && (
+                    <HabitTracker />
+                  )}
 
+                  {activeTab === 'ideas' && (
+                    <IdeasBoard />
+                  )}
 
-                {activeTab === 'habits' && (
-                  <HabitTracker />
-                )}
+                  {activeTab === 'learning' && (
+                    <LearningTracker />
+                  )}
 
-                {activeTab === 'ideas' && (
-                  <IdeasBoard />
-                )}
+                  {activeTab === 'sleep' && (
+                    <SleepTrendsDashboard />
+                  )}
 
-                {activeTab === 'learning' && (
-                  <LearningTracker />
-                )}
-
-                {activeTab === 'sleep' && (
-                  <SleepTrendsDashboard />
-                )}
-
-                {activeTab === 'projects' && (
-                  <ProjectBoards />
-                )}
+                  {activeTab === 'projects' && (
+                    <ProjectBoards />
+                  )}
+                </Suspense>
 
               </main>
             </div>
 
             {/* AI Help Sidebar */}
-            <AIHelpSidebar
-              isOpen={showAISidebar}
-              onClose={() => setShowAISidebar(false)}
-              task={currentAITask}
-              aiTips={aiTips}
-              isLoading={isLoadingAI}
-              onGenerateAdvice={handleGenerateAdvice}
-            />
+            <Suspense fallback={null}>
+              <AIHelpSidebar
+                isOpen={showAISidebar}
+                onClose={() => setShowAISidebar(false)}
+                task={currentAITask}
+                aiTips={aiTips}
+                isLoading={isLoadingAI}
+                onGenerateAdvice={handleGenerateAdvice}
+              />
+            </Suspense>
 
             <AuthModal
               isOpen={showAuthModal}
@@ -363,22 +379,26 @@ function App() {
             />
 
             {/* Smart Notifications Toast */}
-            <NotificationToast
-              onAction={(action, data) => {
-                // Handle notification actions
-                if (action === 'View Schedule' || action === 'Go to Schedule') {
-                  setActiveTab('schedule');
-                } else if (action === 'Go to Habits') {
-                  setActiveTab('habits');
-                } else if (action === 'View tasks') {
-                  setActiveTab('garden');
-                }
-              }}
-            />
+            <Suspense fallback={null}>
+              <NotificationToast
+                onAction={(action) => {
+                  // Handle notification actions
+                  if (action === 'View Schedule' || action === 'Go to Schedule') {
+                    setActiveTab('schedule');
+                  } else if (action === 'Go to Habits') {
+                    setActiveTab('habits');
+                  } else if (action === 'View tasks') {
+                    setActiveTab('garden');
+                  }
+                }}
+              />
+            </Suspense>
 
             {/* Chat Sidebar */}
-            <ChatSidebar />
-            <FloatingChatButton />
+            <Suspense fallback={null}>
+              <ChatSidebar />
+              <FloatingChatButton />
+            </Suspense>
             </div>
           </ChatProvider>
         </ProjectProvider>

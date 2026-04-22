@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus } from 'lucide-react';
+import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus, Target } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
@@ -19,9 +19,13 @@ const LearningTracker = () => {
         updateLearningPath,
         deleteLearningPath,
         archiveLearningPath,
+        restoreLearningPath,
         getPathProgress,
+        getPathEstimatedTime,
+        getPathTotalTime,
         getCategories,
         getInProgressTopicsWithPaths,
+        getCurrentFocusTopics,
         canStartNewPath,
         getActiveInProgressPathCount,
         maxConcurrentPaths,
@@ -73,6 +77,7 @@ const LearningTracker = () => {
 
     // In-progress topics
     const inProgressTopics = useMemo(() => getInProgressTopicsWithPaths(), [getInProgressTopicsWithPaths]);
+    const focusTopics = useMemo(() => getCurrentFocusTopics(), [getCurrentFocusTopics]);
     const canStart = canStartNewPath();
     const activeCount = getActiveInProgressPathCount();
 
@@ -82,26 +87,24 @@ const LearningTracker = () => {
     // Overall stats
     const stats = useMemo(() => {
         const activePaths = learningPaths.filter(p => !p.archived);
-        const allTopics = topics;
-        const completed = allTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
-        const inProgress = allTopics.filter(t => t.status === 'in_progress').length;
         const activePathIds = activePaths.map(p => p.id);
-        const totalTime = allTopics
+        const activeTopics = topics.filter((topic) => activePathIds.includes(topic.learning_path_id));
+        const completed = activeTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
+        const inProgress = activeTopics.filter(t => t.status === 'in_progress').length;
+        const plannedTime = activeTopics
             .filter(t => activePathIds.includes(t.learning_path_id))
             .reduce((sum, t) => sum + (t.estimated_time || 0), 0);
-        const learnedTime = allTopics
-            .filter(t => activePathIds.includes(t.learning_path_id) && (t.status === 'completed' || t.status === 'mastered'))
-            .reduce((sum, t) => sum + (t.estimated_time || 0), 0);
+        const studiedTime = activePathIds.reduce((sum, pathId) => sum + getPathTotalTime(pathId), 0);
 
         return {
             totalPaths: activePaths.length,
-            totalTopics: allTopics.length,
+            totalTopics: activeTopics.length,
             completed,
             inProgress,
-            totalTime,
-            learnedTime,
+            plannedTime,
+            studiedTime,
         };
-    }, [learningPaths, topics]);
+    }, [learningPaths, topics, getPathTotalTime]);
 
     const formatTime = (minutes) => {
         if (!minutes) return '0h';
@@ -228,7 +231,7 @@ const LearningTracker = () => {
                         <p className="text-sm font-bold text-amber-800">Focus Mode Active</p>
                         <p className="text-xs text-amber-600">
                             You have {activeCount} of {maxConcurrentPaths} courses in progress.
-                            Complete or master an ongoing course to start a new one.
+                            Only paths with topics you have actually started count toward this limit.
                         </p>
                     </div>
                 </motion.div>
@@ -280,14 +283,59 @@ const LearningTracker = () => {
                 >
                     <div className="flex items-center gap-2 text-white/80 mb-1">
                         <Clock size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Learned</span>
+                        <span className="text-xs font-bold uppercase tracking-wide">Studied</span>
                     </div>
-                    <div className="text-3xl font-bold text-white">{formatTime(stats.learnedTime)}</div>
-                    {stats.totalTime > 0 && (
-                        <div className="text-xs text-white/60 font-medium mt-0.5">of {formatTime(stats.totalTime)} total</div>
+                    <div className="text-3xl font-bold text-white">{formatTime(stats.studiedTime)}</div>
+                    {stats.plannedTime > 0 && (
+                        <div className="text-xs text-white/60 font-medium mt-0.5">planned {formatTime(stats.plannedTime)}</div>
                     )}
                 </motion.div>
             </div>
+
+            {focusTopics.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.18 }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <Target size={18} className="text-rose-500" />
+                        <h3 className="text-base font-bold text-gray-800">Current Focus</h3>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold">
+                            {focusTopics.length} focus topic{focusTopics.length !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                        {focusTopics.map((topic, idx) => {
+                            const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
+                            return (
+                                <motion.button
+                                    key={topic.id}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.18 + idx * 0.05 }}
+                                    onClick={() => setCurrentPathId(topic.learning_path_id)}
+                                    className="flex-shrink-0 min-w-[240px] max-w-[300px] bg-white border border-rose-200/80 rounded-2xl p-4 text-left hover:shadow-md hover:border-rose-300 hover:scale-[1.02] transition-all group"
+                                >
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${pathColor.gradient} flex items-center justify-center text-sm shadow-sm`}>
+                                            {topic.path?.icon || '📚'}
+                                        </div>
+                                        <span className="text-xs text-gray-400 font-medium truncate">{topic.path?.name}</span>
+                                    </div>
+                                    <h4 className="font-semibold text-sm text-gray-800 truncate mb-2">{topic.title}</h4>
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <span className="rounded-full bg-rose-100 text-rose-600 px-2 py-0.5 font-semibold">Focus</span>
+                                        {topic.estimated_time > 0 && (
+                                            <span className="text-gray-500">{formatTime(topic.estimated_time)}</span>
+                                        )}
+                                    </div>
+                                </motion.button>
+                            );
+                        })}
+                    </div>
+                </motion.div>
+            )}
 
             {/* ── Continue Learning Block ─────────────────────── */}
             {inProgressTopics.length > 0 && (
@@ -423,7 +471,6 @@ const LearningTracker = () => {
                                     {catPaths.map((path, index) => {
                                         const pathTopics = topics.filter(t => t.learning_path_id === path.id);
                                         const completedCount = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
-                                        const pathTotalTime = pathTopics.reduce((sum, t) => sum + (t.estimated_time || 0), 0);
 
                                         return (
                                             <motion.div
@@ -439,11 +486,13 @@ const LearningTracker = () => {
                                                     progress={getPathProgress(path.id)}
                                                     topicCount={pathTopics.length}
                                                     completedCount={completedCount}
-                                                    totalTime={pathTotalTime}
+                                                    plannedTime={getPathEstimatedTime(path.id)}
+                                                    studiedTime={getPathTotalTime(path.id)}
                                                     onClick={() => setCurrentPathId(path.id)}
                                                     onEdit={(p) => { setEditingPath(p); setShowPathModal(true); }}
                                                     onDelete={deleteLearningPath}
                                                     onArchive={archiveLearningPath}
+                                                    onRestore={restoreLearningPath}
                                                 />
                                             </motion.div>
                                         );

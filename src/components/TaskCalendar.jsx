@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
+import { isTaskActive } from '../utils/taskState';
 
 export const TaskCalendar = () => {
     const { tasks } = useTask();
@@ -10,7 +11,7 @@ export const TaskCalendar = () => {
 
     // Get all tasks with deadlines
     const tasksWithDeadlines = useMemo(() => {
-        return tasks.filter(t => t.deadline && !t.completed && !t.archived);
+        return tasks.filter(t => t.deadline && isTaskActive(t));
     }, [tasks]);
 
     // Navigate months

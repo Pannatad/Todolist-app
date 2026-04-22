@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const SLEEP_EMOJIS = {
     1: '😴',
@@ -44,8 +45,9 @@ const SleepTrendsDashboard = () => {
                 const { data: reflections, error } = await supabase
                     .from('daily_reflections')
                     .select('*')
+                    .eq('user_id', user.id)
                     .eq('type', 'start_day')
-                    .gte('date', startDate.toISOString().split('T')[0])
+                    .gte('date', toLocalDateKey(startDate))
                     .order('date', { ascending: true });
 
                 if (error) throw error;

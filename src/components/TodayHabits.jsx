@@ -6,6 +6,7 @@ import HabitModal from './HabitModal';
 import HabitNotesModal from './HabitNotesModal';
 import SeedGarden from './SeedGarden';
 import { useHabit } from '../context/HabitContext';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -33,7 +34,6 @@ const TodayHabits = () => {
 
     const {
         habits,
-        habitLogs,
         addHabit,
         updateHabit,
         deleteHabit,
@@ -45,7 +45,7 @@ const TodayHabits = () => {
         getSeedInsight,
     } = useHabit();
 
-    const selectedDateStr = selectedDate.toISOString().split('T')[0];
+    const selectedDateStr = toLocalDateKey(selectedDate);
     const today = new Date();
     const isToday = selectedDate.toDateString() === today.toDateString();
     const todayHabits = getHabitsForDate(selectedDate);
@@ -58,7 +58,7 @@ const TodayHabits = () => {
             date.setDate(start.getDate() + index);
             return date;
         });
-    }, [today.toDateString()]);
+    }, []);
 
     const completedToday = todayHabits.filter((habit) => getHabitLog(habit.id, selectedDateStr)?.completed).length;
     const totalToday = todayHabits.length;
@@ -71,7 +71,7 @@ const TodayHabits = () => {
             .filter((habit) => habit.is_seed)
             .map((habit) => ({ habit, insight: getSeedInsight(habit.id) }))
             .filter((entry) => entry.insight)
-    ), [habits, habitLogs, getSeedInsight]);
+    ), [habits, getSeedInsight]);
 
     const seedInsightByHabitId = useMemo(() => {
         const map = {};

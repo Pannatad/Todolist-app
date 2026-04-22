@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus, GraduationCap } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
-import { parseScheduleCommand } from '../services/gemini';
+import { parseScheduleCommand } from '../services/aiClient';
 import ScheduleEventModal from './ScheduleEventModal';
 import { useLearning } from '../context/LearningContext';
 import { COLOR_OPTIONS } from './LearningPathModal';
+import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
+import { isTaskActive, isTaskCompleted } from '../utils/taskState';
 
 const CELL_HEIGHT = 56; // px per hour row
 
@@ -33,18 +35,17 @@ const formatTime = (timestamp) => {
 
 const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent, onCompleteTask }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [weekDates, setWeekDates] = useState([]);
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [showEventModal, setShowEventModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [selectedDate, setSelectedDate] = useState(null);
     const scrollContainerRef = useRef(null);
+    const recognitionRef = useRef(null);
 
     const { getTimetableForDay } = useLearning();
 
-    // Generate the 7 days of the current week (Sunday to Saturday)
-    useEffect(() => {
+    const weekDates = useMemo(() => {
         const startOfWeek = new Date(currentDate);
         const day = startOfWeek.getDay();
         const firstDay = new Date(currentDate);
@@ -56,7 +57,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
             date.setDate(firstDay.getDate() + i);
             dates.push(date);
         }
-        setWeekDates(dates);
+        return dates;
     }, [currentDate]);
 
     const navigateWeek = (direction) => {
@@ -73,112 +74,20 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
     };
 
     // Gather ALL items for a day (events, tasks, timetable entries)
-    const getCombinedItemsForDay = (date) => {
-        const dateStr = date.toISOString().split('T')[0];
-
-        // Helper: check if event occurs on `date` (including recurrence)
-        const doesEventOccurOnDate = (event) => {
-            if (!event.deadline && !event.startTime && !event.start_time) return false;
-            const eventDate = new Date(event.deadline || event.startTime || event.start_time);
-            const recurrenceType = event.recurrence_type || event.recurrenceType || 'none';
-            const recurrenceEndDate = event.recurrence_end_date || event.recurrenceEndDate;
-            const recurrenceExceptions = event.recurrence_exceptions || event.recurrenceExceptions || [];
-            const targetDateKey = date.toISOString().split('T')[0];
-
-            if (recurrenceExceptions.includes(targetDateKey)) return false;
-
-            // Check end date
-            if (recurrenceEndDate) {
-                const endDate = new Date(recurrenceEndDate);
-                endDate.setHours(23, 59, 59, 999);
-                if (date > endDate) return false;
-            }
-
-            // Event must be on or before the target date
-            const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-            const targetDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-            if (targetDateOnly < eventDateOnly) return false;
-
-            // Original date match
-            if (eventDate.getDate() === date.getDate() &&
-                eventDate.getMonth() === date.getMonth() &&
-                eventDate.getFullYear() === date.getFullYear()) {
-                return true;
-            }
-
-            // No recurrence — only original date
-            if (recurrenceType === 'none') return false;
-
-            const daysDiff = Math.floor((targetDateOnly - eventDateOnly) / (1000 * 60 * 60 * 24));
-
-            if (recurrenceType === 'daily') {
-                const interval = event.recurrence_interval || event.recurrenceInterval || 1;
-                return daysDiff % interval === 0;
-            }
-
-            if (recurrenceType === 'weekly') {
-                const daysOfWeek = event.recurrence_days_of_week || event.recurrenceDaysOfWeek || [];
-                const targetDay = date.getDay();
-                if (daysOfWeek.length > 0) {
-                    // Weekly with specific days selected
-                    const interval = event.recurrence_interval || event.recurrenceInterval || 1;
-                    const weeksDiff = Math.floor(daysDiff / 7);
-                    // Check if the day of week matches and we're on the right interval week
-                    return daysOfWeek.includes(targetDay) && weeksDiff % interval === 0;
-                }
-                // Weekly on the same day of week
-                return date.getDay() === eventDate.getDay() && daysDiff % 7 === 0;
-            }
-
-            if (recurrenceType === 'monthly') {
-                return date.getDate() === eventDate.getDate() &&
-                    (targetDateOnly > eventDateOnly);
-            }
-
-            if (recurrenceType === 'yearly') {
-                return date.getDate() === eventDate.getDate() &&
-                    date.getMonth() === eventDate.getMonth() &&
-                    (targetDateOnly > eventDateOnly);
-            }
-
-            if (recurrenceType === 'custom') {
-                const daysOfWeek = event.recurrence_days_of_week || event.recurrenceDaysOfWeek || [];
-                const interval = event.recurrence_interval || event.recurrenceInterval || 1;
-                const targetDay = date.getDay();
-                if (daysOfWeek.length > 0) {
-                    const weeksDiff = Math.floor(daysDiff / 7);
-                    return daysOfWeek.includes(targetDay) && weeksDiff % interval === 0;
-                }
-                return false;
-            }
-
-            return false;
-        };
-
-        // Events (with recurrence expansion)
-        const dayEvents = events.filter(event => doesEventOccurOnDate(event)).map(e => {
-            const originalDate = new Date(e.startTime || e.start_time || e.deadline);
-            // Create a virtual occurrence date: keep the time, change the date
-            const occurrenceDate = new Date(date);
-            occurrenceDate.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds(), 0);
-            const occurrenceTime = occurrenceDate.getTime();
-
-            return {
-                ...e,
-                _type: 'event',
-                _sortTime: occurrenceTime,
-                _hasTime: !!(e.startTime || e.start_time),
-                _occurrenceDate: dateStr,
-                _isRecurrence: !(originalDate.getDate() === date.getDate() &&
-                    originalDate.getMonth() === date.getMonth() &&
-                    originalDate.getFullYear() === date.getFullYear()),
-            };
-        });
+    const getCombinedItemsForDay = useCallback((date) => {
+        const dateStr = toLocalDateKey(date);
+        const dayEvents = getScheduleItemsForDate(events, date).map((event) => ({
+            ...event,
+            _type: 'event',
+            _sortTime: event.displayTime?.getTime() || 0,
+            _hasTime: !!(event.startTime || event.start_time),
+            _occurrenceDate: event._occurrenceDate || dateStr,
+            _isRecurrence: event.isRecurring
+        }));
 
         // Tasks (with deadline, not harvested)
         const dayTasks = tasks.filter(task => {
-            if (!task.deadline || task.status === 'harvested') return false;
+            if (!task.deadline || !isTaskActive(task)) return false;
             const taskDate = new Date(task.deadline);
             return taskDate.getDate() === date.getDate() &&
                 taskDate.getMonth() === date.getMonth() &&
@@ -226,7 +135,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         });
 
         return allItems;
-    };
+    }, [events, getTimetableForDay, tasks]);
 
     // Split items into timed and all-day
     const weekData = useMemo(() => {
@@ -242,7 +151,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         });
 
         return { allDayByCol, timedByCol };
-    }, [weekDates, events, tasks, getTimetableForDay]);
+    }, [getCombinedItemsForDay, weekDates]);
 
     // Always show full 24 hours
     const startHour = 0;
@@ -282,13 +191,13 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         setShowEventModal(true);
     };
 
-    const handleGridCellClick = (date, hour) => {
+    const handleGridCellClick = useCallback((date, hour) => {
         const clickedDate = new Date(date);
         clickedDate.setHours(hour, 0, 0, 0);
         setSelectedDate(clickedDate);
         setSelectedEvent(null);
         setShowEventModal(true);
-    };
+    }, []);
 
     const handleItemClick = (item, e) => {
         e.stopPropagation();
@@ -318,24 +227,36 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         onDeleteEvent?.(eventId, options);
     };
 
+    useEffect(() => {
+        return () => {
+            recognitionRef.current?.stop?.();
+        };
+    }, []);
+
     const handleVoiceCommand = () => {
-        if (!('webkitSpeechRecognition' in window)) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
             alert("Voice recognition is not supported in this browser. Please use Chrome or Edge.");
             return;
         }
 
         if (isListening) {
+            recognitionRef.current?.stop?.();
             setIsListening(false);
             return;
         }
 
-        const recognition = new window.webkitSpeechRecognition();
+        const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.lang = 'en-US';
         recognition.interimResults = false;
+        recognitionRef.current = recognition;
 
         recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => setIsListening(false);
+        recognition.onend = () => {
+            setIsListening(false);
+            recognitionRef.current = null;
+        };
 
         recognition.onresult = async (event) => {
             const transcript = event.results[0][0].transcript;
@@ -366,8 +287,10 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         recognition.start();
     };
 
-    // Count items across the week for header stats
-    const weekItemCount = weekDates.reduce((sum, d) => sum + getCombinedItemsForDay(d).length, 0);
+    const weekItemCount = useMemo(() => (
+        Object.values(weekData.allDayByCol).reduce((sum, items) => sum + items.length, 0) +
+        Object.values(weekData.timedByCol).reduce((sum, items) => sum + items.length, 0)
+    ), [weekData.allDayByCol, weekData.timedByCol]);
 
     // Helper to get block style for a timed item
     const getBlockStyle = (item) => {
@@ -388,7 +311,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
     const renderTimedBlock = (item, colIdx, idx) => {
         const isTimetable = item._type === 'timetable';
         const isTask = item._type === 'task';
-        const isCompleted = isTask && (item.status === 'completed' || item.status === 'harvested');
+        const isCompleted = isTask && isTaskCompleted(item);
 
         const style = getBlockStyle(item);
         const dur = item.duration || item.estimatedTime || 60;
@@ -635,7 +558,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                                             <div className="space-y-1">
                                                 {items.map(item => {
                                                     const isTask = item._type === 'task';
-                                                    const isCompleted = isTask && (item.status === 'completed' || item.status === 'harvested');
+                                                    const isCompleted = isTask && isTaskCompleted(item);
                                                     const colorInfo = item.color
                                                         ? { color: item.color, bgColor: `${item.color}18` }
                                                         : getColorForSubject(item.subject || item.category);
@@ -745,7 +668,19 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                                             gridRow: `1 / ${totalHours + 1}`,
                                             position: 'relative',
                                         }}
-                                        onClick={() => handleColumnClick(date)}
+                                        onClick={(event) => {
+                                            if (event.target !== event.currentTarget) {
+                                                return;
+                                            }
+
+                                            const rect = event.currentTarget.getBoundingClientRect();
+                                            const offsetY = event.clientY - rect.top;
+                                            const clickedHour = Math.max(
+                                                startHour,
+                                                Math.min(endHour - 1, Math.floor(offsetY / CELL_HEIGHT))
+                                            );
+                                            handleGridCellClick(date, clickedHour);
+                                        }}
                                     >
                                         {/* Timed item blocks */}
                                         {(weekData.timedByCol[colIdx] || []).map((item, idx) =>

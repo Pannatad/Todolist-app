@@ -1,3 +1,5 @@
+import { getTaskCompletionTimestamp, isTaskActive, isTaskCompleted } from '../utils/taskState';
+
 /**
  * Proactive Suggestion Engine
  * Generates contextual suggestions based on time of day, user data, and patterns
@@ -15,7 +17,7 @@ export const generateProactiveSuggestions = (context) => {
     const dayOfWeek = now.getDay(); // 0 = Sunday
     const suggestions = [];
 
-    const pendingTasks = tasks?.filter(t => !t.completed) || [];
+    const pendingTasks = tasks?.filter(isTaskActive) || [];
     const todaySchedule = schedule || [];
     const nickname = profile?.nickname || profile?.name || 'there';
 
@@ -74,8 +76,10 @@ export const generateProactiveSuggestions = (context) => {
     // Afternoon suggestions (2pm - 5pm)
     if (hour >= 14 && hour < 17) {
         const completedToday = tasks?.filter(t => {
-            if (!t.completed || !t.completedAt) return false;
-            const completedDate = new Date(t.completedAt);
+            if (!isTaskCompleted(t)) return false;
+            const completedAt = getTaskCompletionTimestamp(t);
+            if (!completedAt) return false;
+            const completedDate = new Date(completedAt);
             return completedDate.toDateString() === now.toDateString();
         }) || [];
 

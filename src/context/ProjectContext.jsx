@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 
@@ -22,84 +22,107 @@ const DEFAULT_COLUMNS = [
     { id: 'c-4', title: 'Done' }
 ];
 
+const getDefaultLocalProjects = () => ([
+    {
+        id: 'sample-1',
+        title: 'Website Redesign',
+        description: 'Overhaul the company website with new branding.',
+        status: 'active',
+        progress: 35,
+        isPinned: false,
+        phases: DEFAULT_PHASES,
+        columns: DEFAULT_COLUMNS,
+        tasks: [
+            { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'c-2', phaseId: 'phase-1' },
+            { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'c-4', phaseId: 'phase-1' },
+            { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'c-1', phaseId: 'phase-2' }
+        ]
+    }
+]);
+
+const normalizeProjectRecord = (project) => ({
+    ...project,
+    isPinned: project?.isPinned === true || project?.is_pinned === true,
+    isAIGenerated: project?.isAIGenerated === true || project?.is_ai_generated === true,
+    category: project?.category || 'General',
+    phases: project?.phases || DEFAULT_PHASES,
+    columns: project?.columns || DEFAULT_COLUMNS,
+    tasks: Array.isArray(project?.tasks)
+        ? project.tasks.map((task) => ({
+            ...task,
+            id: task.id || crypto.randomUUID(),
+            phaseId: task.phaseId || (project?.phases?.[0]?.id || 'phase-1')
+        }))
+        : []
+});
+
+const readLocalProjects = () => {
+    try {
+        const saved = localStorage.getItem('demon-projects');
+        if (!saved) {
+            return getDefaultLocalProjects();
+        }
+
+        return JSON.parse(saved).map(normalizeProjectRecord);
+    } catch (error) {
+        console.error('Failed to load projects', error);
+        return getDefaultLocalProjects();
+    }
+};
+
 export const ProjectProvider = ({ children }) => {
     const { user } = useAuth();
 
-    const [projects, setProjects] = useState(() => {
-        try {
-            const saved = localStorage.getItem('demon-projects');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                return parsed.map(p => ({
-                    ...p,
-                    isPinned: p.isPinned === true,
-                    // Ensure phases exist
-                    phases: p.phases || DEFAULT_PHASES,
-                    // Ensure tasks have phaseId
-                    tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
-                        ...t,
-                        phaseId: t.phaseId || (p.phases?.[0]?.id || 'phase-1')
-                    })) : []
-                }));
-            }
-            return [
-                {
-                    id: 'sample-1',
-                    title: 'Website Redesign',
-                    description: 'Overhaul the company website with new branding.',
-                    status: 'active',
-                    progress: 35,
-                    isPinned: false,
-                    phases: DEFAULT_PHASES,
-                    columns: DEFAULT_COLUMNS,
-                    tasks: [
-                        { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'c-2', phaseId: 'phase-1' },
-                        { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'c-4', phaseId: 'phase-1' },
-                        { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'c-1', phaseId: 'phase-2' }
-                    ]
-                }
-            ];
-        } catch (e) {
-            console.error('Failed to load projects', e);
-            return [];
-        }
-    });
+    const [projects, setProjects] = useState(() => readLocalProjects());
 
     // Load from Supabase
-    const loadProjectsFromSupabase = async () => {
+    const loadProjectsFromSupabase = useCallback(async () => {
         if (!user) return;
 
         try {
             const { data: projectsData } = await supabase
                 .from('projects')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (projectsData) {
-                const formattedProjects = projectsData.map(p => ({
-                    ...p,
-                    isAIGenerated: p.is_ai_generated || false,
-                    isPinned: p.is_pinned === true,
-                    category: p.category || 'General',
-                    phases: p.phases || DEFAULT_PHASES,
-                    tasks: Array.isArray(p.tasks) ? p.tasks.map(t => ({
-                        ...t,
-                        id: t.id || crypto.randomUUID(),
-                        phaseId: t.phaseId || (p.phases?.[0]?.id || 'phase-1')
-                    })) : []
-                }));
+                const formattedProjects = projectsData.map(normalizeProjectRecord);
                 setProjects(formattedProjects);
             }
         } catch (error) {
             console.error("Error loading projects:", error);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         if (user) {
             loadProjectsFromSupabase();
+        } else {
+            setProjects(readLocalProjects());
         }
-    }, [user]);
+    }, [loadProjectsFromSupabase, user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
+
+        const channel = supabase
+            .channel(`projects-${user.id}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'projects', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadProjectsFromSupabase().catch((error) => {
+                        console.error('Error refreshing projects in realtime:', error);
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [loadProjectsFromSupabase, user]);
 
     // Save to LocalStorage (Guest Mode)
     useEffect(() => {

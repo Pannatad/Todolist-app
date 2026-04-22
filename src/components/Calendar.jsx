@@ -3,9 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, LayoutGrid, List, Camera, Loader2, Upload } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import Schedule from './Schedule';
-import { parseScheduleImage } from '../services/gemini';
+import { parseScheduleImage } from '../services/aiClient';
+import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
+import { isTaskActive } from '../utils/taskState';
 
-const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onUpdateScheduleItem, onDeleteScheduleItem }) => {
+const getEventDisplayColor = (event) => {
+    if (event.type === 'schedule' && event.color) {
+        return {
+            color: event.color,
+            bgColor: `${event.color}60`,
+        };
+    }
+
+    const fallback = getColorForSubject(event.subject || event.category);
+    return {
+        color: fallback.color,
+        bgColor: `${fallback.color}60`,
+    };
+};
+
+const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddScheduleItem, onUpdateScheduleItem, onDeleteScheduleItem }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [viewMode, setViewMode] = useState('month'); // 'month' or 'schedule'
@@ -67,22 +84,24 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                 // 1. Prepare new tasks
                 const newTasks = parsedSchedule.map(item => {
                     // Default to today if no date context (future improvement: ask for date)
-                    const dateStr = new Date().toISOString().split('T')[0];
+                    const dateStr = toLocalDateKey(new Date());
                     return {
                         title: item.activity,
                         difficulty: 'medium',
                         subject: item.category,
                         deadline: dateStr + 'T' + (item.startTime || '12:00'),
                         estimatedTime: item.duration,
-                        status: 'todo' // Ensure it's active
+                        status: 'growing'
                     };
                 });
 
                 // 2. Check for conflicts
                 // Get tasks for the relevant day(s) - currently assuming "today" for simplicity of the prototype
                 // In a real app, we'd parse the date from the image or ask the user.
-                const todayStr = new Date().toISOString().split('T')[0];
-                const existingTasks = tasks.filter(t => t.deadline && t.deadline.startsWith(todayStr) && t.status !== 'harvested');
+                const todayStr = toLocalDateKey(new Date());
+                const existingTasks = tasks.filter((task) => (
+                    task.deadline && toLocalDateKey(task.deadline) === todayStr && isTaskActive(task)
+                ));
 
                 let hasConflict = false;
                 for (const newTask of newTasks) {
@@ -113,7 +132,9 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
 
                     if (userChoice) {
                         // REPLACE: Delete all existing tasks for today
-                        existingTasks.forEach(t => onCompleteTask(t.id)); // Using onComplete as delete for now, or we need a real delete prop
+                        existingTasks.forEach((task) => {
+                            onDeleteTask?.(task.id);
+                        });
                     } else {
                         // MERGE: Filter out overlapping new tasks
                         tasksToAdd = newTasks.filter(newTask => {
@@ -135,7 +156,7 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                 tasksToAdd.forEach(item => {
                     onAddScheduleItem({
                         ...item,
-                        startTime: item.deadline.split('T')[1] || '12:00', // Extract time
+                        startTime: item.deadline,
                         duration: item.estimatedTime || 60
                     });
                     addedCount++;
@@ -179,7 +200,6 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
     // Group events (tasks + schedule items) by date
     const getEventsForDate = (day) => {
         const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-        const dateStr = targetDate.toISOString().split('T')[0];
 
         const dayTasks = tasks.filter(task => {
             if (!task.deadline) return false;
@@ -187,18 +207,12 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
             return taskDate.getDate() === day &&
                 taskDate.getMonth() === currentDate.getMonth() &&
                 taskDate.getFullYear() === currentDate.getFullYear() &&
-                task.status !== 'harvested';
+                isTaskActive(task);
         }).map(t => ({ ...t, type: 'task' }));
 
-        const daySchedule = scheduleItems.filter(item => {
-            if (!item.start_time && !item.startTime) return false;
-            const itemDate = new Date(item.start_time || item.startTime);
-            return itemDate.getDate() === day &&
-                itemDate.getMonth() === currentDate.getMonth() &&
-                itemDate.getFullYear() === currentDate.getFullYear();
-        }).map(i => ({
-            ...i,
-            deadline: i.start_time || i.startTime, // Normalize for display
+        const daySchedule = getScheduleItemsForDate(scheduleItems, targetDate).map((item) => ({
+            ...item,
+            deadline: item.displayTime || item.start_time || item.startTime,
             type: 'schedule'
         }));
 
@@ -384,14 +398,14 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                             </span>
 
                                             {/* Task List in Cell */}
-                                            <div className="w-full flex flex-col gap-1">
+                                                <div className="w-full flex flex-col gap-1">
                                                 {displayEvents.map((event) => {
-                                                    const color = getColorForSubject(event.subject || event.category);
+                                                    const colorInfo = getEventDisplayColor(event);
                                                     return (
                                                         <div
                                                             key={event.id}
                                                             className={`w-full text-[10px] px-2 py-1 rounded-lg truncate font-medium text-white backdrop-blur-md border border-white/30 ${event.type === 'schedule' ? 'bg-white/20' : ''}`}
-                                                            style={{ backgroundColor: event.type === 'task' ? `${color.color}60` : undefined }}
+                                                            style={{ backgroundColor: colorInfo.bgColor }}
                                                             title={event.title}
                                                         >
                                                             {event.title}
@@ -427,19 +441,19 @@ const Calendar = ({ tasks, onCompleteTask, scheduleItems, onAddScheduleItem, onU
                                         <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                             {getEventsForDate(selectedDate).length > 0 ? (
                                                 getEventsForDate(selectedDate).map(event => {
-                                                    const color = getColorForSubject(event.subject || event.category);
+                                                    const colorInfo = getEventDisplayColor(event);
                                                     return (
                                                         <div key={event.id} className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/20 flex items-start gap-3 group hover:bg-white/20 transition-colors">
                                                             <div
                                                                 className="w-1 h-full min-h-[2rem] rounded-full"
-                                                                style={{ backgroundColor: color.color }}
+                                                                style={{ backgroundColor: colorInfo.color }}
                                                             />
                                                             <div className="flex-1 min-w-0">
                                                                 <h4 className="text-sm font-bold text-white transition-colors truncate">{event.title}</h4>
                                                                 <div className="flex items-center gap-2 mt-1">
                                                                     <span
                                                                         className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white border border-white/20"
-                                                                        style={{ backgroundColor: `${color.color}60` }}
+                                                                        style={{ backgroundColor: colorInfo.bgColor }}
                                                                     >
                                                                         {event.subject || event.category || 'Other'}
                                                                     </span>

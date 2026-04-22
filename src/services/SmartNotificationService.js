@@ -1,3 +1,5 @@
+import { isTaskActive } from '../utils/taskState';
+
 /**
  * Smart Notification Service
  * Monitors schedule, tasks, and habits to send proactive notifications
@@ -103,7 +105,7 @@ class SmartNotificationService {
 
         // Show tasks due today
         const tasksDueToday = (tasks || []).filter(t => {
-            if (t.status === 'harvested' || t.completed) return false;
+            if (!isTaskActive(t)) return false;
             if (!t.deadline) return false;
             return t.deadline.split('T')[0] === todayStr;
         });
@@ -295,7 +297,7 @@ class SmartNotificationService {
         if (![8, 10, 13, 16, 19, 21].includes(hour)) return;
 
         const tasksDueToday = tasks.filter(task => {
-            if (task.status === 'harvested' || task.completed) return false;
+            if (!isTaskActive(task)) return false;
             if (!task.deadline) return false;
             const deadlineStr = task.deadline.split('T')[0];
             return deadlineStr === todayStr;

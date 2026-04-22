@@ -1,8 +1,47 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const LogContext = createContext();
+
+const createGuestLogs = () => {
+    const today = new Date();
+    return [
+        {
+            id: 1,
+            activity: "Morning Run",
+            duration: 30,
+            category: "Health",
+            timestamp: new Date(today.setHours(7, 30, 0, 0)).toISOString()
+        },
+        {
+            id: 2,
+            activity: "Linear Algebra Review",
+            duration: 90,
+            category: "Study",
+            timestamp: new Date(today.setHours(9, 0, 0, 0)).toISOString()
+        },
+        {
+            id: 3,
+            activity: "React Project",
+            duration: 120,
+            category: "Coding",
+            timestamp: new Date(today.setHours(14, 0, 0, 0)).toISOString()
+        }
+    ];
+};
+
+const readLocalLogs = () => {
+    try {
+        const saved = localStorage.getItem('daily-logs');
+        if (saved) return JSON.parse(saved);
+        return createGuestLogs();
+    } catch (error) {
+        console.error("Failed to parse activity logs:", error);
+        return [];
+    }
+};
 
 export const useLog = () => {
     const context = useContext(LogContext);
@@ -15,63 +54,31 @@ export const useLog = () => {
 export const LogProvider = ({ children }) => {
     const { user } = useAuth();
 
-    const [activityLogs, setActivityLogs] = useState(() => {
-        try {
-            const saved = localStorage.getItem('daily-logs');
-            if (saved) return JSON.parse(saved);
-
-            // Mock data for guest
-            const today = new Date();
-            const mockLogs = [
-                {
-                    id: 1,
-                    activity: "Morning Run",
-                    duration: 30,
-                    category: "Health",
-                    timestamp: new Date(today.setHours(7, 30, 0, 0)).toISOString()
-                },
-                {
-                    id: 2,
-                    activity: "Linear Algebra Review",
-                    duration: 90,
-                    category: "Study",
-                    timestamp: new Date(today.setHours(9, 0, 0, 0)).toISOString()
-                },
-                {
-                    id: 3,
-                    activity: "React Project",
-                    duration: 120,
-                    category: "Coding",
-                    timestamp: new Date(today.setHours(14, 0, 0, 0)).toISOString()
-                }
-            ];
-            return mockLogs;
-        } catch (e) {
-            console.error("Failed to parse activity logs:", e);
-            return [];
-        }
-    });
+    const [activityLogs, setActivityLogs] = useState(() => readLocalLogs());
 
     // Load from Supabase
-    const loadLogsFromSupabase = async () => {
+    const loadLogsFromSupabase = useCallback(async () => {
         if (!user) return;
 
         try {
             const { data: logsData } = await supabase
                 .from('activity_logs')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('timestamp', { ascending: false });
             if (logsData) setActivityLogs(logsData);
         } catch (error) {
             console.error("Error loading logs:", error);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         if (user) {
             loadLogsFromSupabase();
+        } else {
+            setActivityLogs(readLocalLogs());
         }
-    }, [user]);
+    }, [loadLogsFromSupabase, user]);
 
     // Save to LocalStorage (Guest Mode)
     useEffect(() => {
@@ -123,12 +130,12 @@ export const LogProvider = ({ children }) => {
         const dailyMinutes = {};
         for (let i = 0; i < 7; i++) {
             const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = toLocalDateKey(date);
             dailyMinutes[dateKey] = 0;
         }
 
         weekLogs.forEach(log => {
-            const dateKey = new Date(log.timestamp).toISOString().split('T')[0];
+            const dateKey = toLocalDateKey(log.timestamp);
             if (dailyMinutes[dateKey] !== undefined) {
                 dailyMinutes[dateKey] += log.duration;
             }

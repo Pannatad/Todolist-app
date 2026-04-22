@@ -6,6 +6,8 @@ import { useTask } from '../context/TaskContext';
 import { useHabit } from '../context/HabitContext';
 import { useUserIntelligence } from '../context/UserIntelligenceContext';
 import { useGoal } from '../context/GoalContext';
+import { isTaskActive } from '../utils/taskState';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 // Fallback prompts if no personalized data
 const FALLBACK_PROMPTS = [
@@ -35,7 +37,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     // Generate personalized suggestions based on user data
     const personalizedPrompts = useMemo(() => {
         const suggestions = [];
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = toLocalDateKey(new Date());
         const now = new Date();
 
         // 1. Incomplete habits for today
@@ -55,7 +57,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
         const twoDaysFromNow = new Date();
         twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
         const tasksDueSoon = (tasks || []).filter(t => {
-            if (t.status === 'harvested' || t.archived || !t.deadline) return false;
+            if (!isTaskActive(t) || !t.deadline) return false;
             const deadline = new Date(t.deadline);
             return deadline >= now && deadline <= twoDaysFromNow;
         });

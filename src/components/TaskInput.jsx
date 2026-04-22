@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Calendar, X, Clock, Sparkles, Loader2, Tag, Camera, Upload, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { parseTaskInput, parseTaskImage } from '../services/gemini';
+import { parseTaskInput, parseTaskImage } from '../services/aiClient';
 import { getColorForSubject } from '../constants/subjects';
 
 const TaskInput = ({ onAdd, existingSubjects = [] }) => {

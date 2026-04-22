@@ -98,6 +98,10 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
 
     const handleTimeOfDayChange = (value) => {
         setTimeOfDay(value);
+        if (value === 'anytime') {
+            setReminderTime('');
+            return;
+        }
         const option = TIME_OF_DAY_OPTIONS.find((item) => item.value === value);
         if (option?.defaultTime && !reminderTime) {
             setReminderTime(option.defaultTime);
@@ -124,6 +128,10 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!name.trim()) return;
+        if (frequency !== 'daily' && scheduleDays.length === 0) {
+            alert('Select at least one day for a specific-days habit.');
+            return;
+        }
 
         onSave({
             id: habit?.id,

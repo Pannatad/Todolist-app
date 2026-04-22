@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpDown, ChevronDown } from 'lucide-react';
 import Plant from './Plant';
 import { getColorForSubject } from '../constants/subjects';
+import { isTaskActive, isTaskCompleted } from '../utils/taskState';
 
 const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [], unlockedPlots = 12, coins = 0, onBuyPlot, displayMode, onStartFocus }) => {
     const [sortBy, setSortBy] = useState('deadline');
@@ -15,8 +16,8 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
         ? tasks
         : tasks.filter(task => task.subject === selectedSubject);
 
-    const activeTasks = filteredTasks.filter(t => t.status !== 'harvested');
-    const completedTasks = filteredTasks.filter(t => t.status === 'harvested');
+    const activeTasks = filteredTasks.filter(isTaskActive);
+    const completedTasks = filteredTasks.filter(isTaskCompleted);
 
     // Close sort menu when clicking outside
     useEffect(() => {
@@ -58,13 +59,13 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
     const subjectCounts = uniqueSubjects.map(subject => ({
         name: subject,
         color: getColorForSubject(subject),
-        count: tasks.filter(t => t.subject === subject && t.status !== 'harvested').length
+        count: tasks.filter(t => t.subject === subject && isTaskActive(t)).length
     }));
-    const allCount = tasks.filter(t => t.status !== 'harvested').length;
+    const allCount = tasks.filter(isTaskActive).length;
 
     // Today's Tasks Logic
     const todayTasks = tasks.filter(task => {
-        if (!task.deadline || task.status === 'harvested') return false;
+        if (!task.deadline || !isTaskActive(task)) return false;
         const date = new Date(task.deadline);
         const today = new Date();
         return date.getDate() === today.getDate() &&

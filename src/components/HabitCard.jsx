@@ -218,7 +218,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
 
     const handleDurationChange = (event) => {
         event.stopPropagation();
-        setLocalDuration(parseInt(event.target.value, 10));
+        const parsedValue = parseInt(event.target.value, 10);
+        setLocalDuration(Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : 0);
     };
 
     const handleDurationCommit = (event) => {
@@ -311,7 +312,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                     )}
                                     {habit.is_seed && seedInsight && (
                                         <span className="font-medium text-emerald-700">
-                                            Day {seedInsight.elapsedDays} of {seedInsight.durationDays}
+                                            Step {seedInsight.elapsedDays} of {seedInsight.durationDays}
                                         </span>
                                     )}
                                 </div>

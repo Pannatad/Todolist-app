@@ -3,6 +3,7 @@ import { useLog } from '../context/LogContext';
 import { useTask } from '../context/TaskContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from 'recharts';
 import { Clock, CheckCircle, TrendingUp, Award } from 'lucide-react';
+import { isTaskCompleted } from '../utils/taskState';
 
 const COLORS = ['#818cf8', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6'];
 
@@ -26,7 +27,7 @@ function Analytics() {
 
     // Calculate completion stats
     const completionStats = useMemo(() => {
-        const completedTasks = tasks.filter(t => t.status === 'harvested');
+        const completedTasks = tasks.filter(isTaskCompleted);
         const totalTasks = tasks.length;
         const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 

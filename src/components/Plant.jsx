@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Ghost, Skull, Flame, X, Edit2, Sparkles, Play, Loader2 } from 'lucide-react';
 import Penguin from './Penguin';
 import { getColorForSubject } from '../constants/subjects';
-import { parseTaskInput } from '../services/gemini';
+import { parseTaskInput } from '../services/aiClient';
 
 const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], displayMode, onStartFocus }) => {
     const { status, difficulty, title, deadline, subject, description } = task;

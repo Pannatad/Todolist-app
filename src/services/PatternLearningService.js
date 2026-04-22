@@ -3,6 +3,8 @@
  * Analyzes user data to auto-generate insights and patterns for the agent
  */
 
+import { getTaskCompletionTimestamp, isTaskCompleted } from '../utils/taskState';
+
 class PatternLearningService {
     constructor() {
         this.patterns = {
@@ -241,7 +243,7 @@ class PatternLearningService {
         if (!tasks?.length) return null;
 
         const insights = [];
-        const completedTasks = tasks.filter(t => t.status === 'harvested' || t.completed);
+        const completedTasks = tasks.filter(isTaskCompleted);
         const totalTasks = tasks.length;
 
         if (completedTasks.length >= 5) {
@@ -256,7 +258,7 @@ class PatternLearningService {
         }
 
         // Analyze deadline behavior
-        const tasksWithDeadlines = completedTasks.filter(t => t.deadline && t.completedAt);
+        const tasksWithDeadlines = completedTasks.filter(t => t.deadline && getTaskCompletionTimestamp(t));
 
         if (tasksWithDeadlines.length >= 3) {
             let earlyCount = 0;
@@ -265,7 +267,7 @@ class PatternLearningService {
 
             tasksWithDeadlines.forEach(t => {
                 const deadline = new Date(t.deadline);
-                const completed = new Date(t.completedAt);
+                const completed = new Date(getTaskCompletionTimestamp(t));
                 const diffDays = (deadline - completed) / (1000 * 60 * 60 * 24);
 
                 if (diffDays > 1) earlyCount++;

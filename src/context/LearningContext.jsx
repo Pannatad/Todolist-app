@@ -1,11 +1,31 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 // Default limit if not configured
 const DEFAULT_MAX_PATHS = 3;
+const PRIMARY_VIDEO_RESOURCE_TITLE = 'Primary video';
 
 const LearningContext = createContext();
+
+const readStoredJson = (key, fallback = []) => {
+    try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : fallback;
+    } catch (error) {
+        console.error(`Failed to parse ${key}:`, error);
+        return fallback;
+    }
+};
+
+const sanitizeTopicPayload = (topicData = {}) => {
+    const { primary_video_url, ...topicPayload } = topicData;
+    return {
+        primaryVideoUrl: typeof primary_video_url === 'string' ? primary_video_url.trim() : '',
+        topicPayload,
+    };
+};
 
 export const useLearning = () => {
     const context = useContext(LearningContext);
@@ -19,45 +39,10 @@ export const LearningProvider = ({ children }) => {
     const { user } = useAuth();
 
     // ── State ──────────────────────────────────────────────
-    const [learningPaths, setLearningPaths] = useState(() => {
-        try {
-            const saved = localStorage.getItem('learning-paths');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse learning paths:", e);
-            return [];
-        }
-    });
-
-    const [topics, setTopics] = useState(() => {
-        try {
-            const saved = localStorage.getItem('learning-topics');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse learning topics:", e);
-            return [];
-        }
-    });
-
-    const [resources, setResources] = useState(() => {
-        try {
-            const saved = localStorage.getItem('learning-resources');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse learning resources:", e);
-            return [];
-        }
-    });
-
-    const [timeLogs, setTimeLogs] = useState(() => {
-        try {
-            const saved = localStorage.getItem('learning-time-logs');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse learning time logs:", e);
-            return [];
-        }
-    });
+    const [learningPaths, setLearningPaths] = useState(() => readStoredJson('learning-paths'));
+    const [topics, setTopics] = useState(() => readStoredJson('learning-topics'));
+    const [resources, setResources] = useState(() => readStoredJson('learning-resources'));
+    const [timeLogs, setTimeLogs] = useState(() => readStoredJson('learning-time-logs'));
 
     const [isLoading, setIsLoading] = useState(false);
     const [currentPathId, setCurrentPathId] = useState(null);
@@ -77,17 +62,25 @@ export const LearningProvider = ({ children }) => {
         localStorage.setItem('learning-max-concurrent', maxConcurrentPaths.toString());
     }, [maxConcurrentPaths]);
 
+    const loadFromLocalStorage = useCallback(() => {
+        setLearningPaths(readStoredJson('learning-paths'));
+        setTopics(readStoredJson('learning-topics'));
+        setResources(readStoredJson('learning-resources'));
+        setTimeLogs(readStoredJson('learning-time-logs'));
+        setIsLoading(false);
+    }, []);
+
     // ── Load from Supabase ─────────────────────────────────
-    const loadFromSupabase = async () => {
+    const loadFromSupabase = useCallback(async () => {
         if (!user || !supabase) return;
         setIsLoading(true);
 
         try {
             const [pathsRes, topicsRes, resourcesRes, timeLogsRes] = await Promise.all([
-                supabase.from('learning_paths').select('*').order('display_order', { ascending: true }),
-                supabase.from('learning_topics').select('*').order('display_order', { ascending: true }),
-                supabase.from('topic_resources').select('*').order('display_order', { ascending: true }),
-                supabase.from('topic_time_logs').select('*').order('logged_at', { ascending: false }),
+                supabase.from('learning_paths').select('*').eq('user_id', user.id).order('display_order', { ascending: true }),
+                supabase.from('learning_topics').select('*').eq('user_id', user.id).order('display_order', { ascending: true }),
+                supabase.from('topic_resources').select('*').eq('user_id', user.id).order('display_order', { ascending: true }),
+                supabase.from('topic_time_logs').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }),
             ]);
 
             if (pathsRes.data) setLearningPaths(pathsRes.data);
@@ -99,13 +92,69 @@ export const LearningProvider = ({ children }) => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         if (user) {
             loadFromSupabase();
+        } else {
+            loadFromLocalStorage();
         }
-    }, [user]);
+    }, [loadFromLocalStorage, loadFromSupabase, user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
+
+        const channel = supabase
+            .channel(`learning-${user.id}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'learning_paths', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadFromSupabase().catch((error) => {
+                        console.error('Error refreshing learning paths in realtime:', error);
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'learning_topics', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadFromSupabase().catch((error) => {
+                        console.error('Error refreshing learning topics in realtime:', error);
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'topic_resources', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadFromSupabase().catch((error) => {
+                        console.error('Error refreshing learning resources in realtime:', error);
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'topic_time_logs', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadFromSupabase().catch((error) => {
+                        console.error('Error refreshing learning time logs in realtime:', error);
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [loadFromSupabase, user]);
+
+    useEffect(() => {
+        if (currentPathId && !learningPaths.some((path) => path.id === currentPathId)) {
+            setCurrentPathId(null);
+        }
+    }, [currentPathId, learningPaths]);
 
     // ── Save to localStorage (Guest Mode) ──────────────────
     useEffect(() => {
@@ -137,9 +186,12 @@ export const LearningProvider = ({ children }) => {
             const { data, error } = await supabase.from('learning_paths').insert([dbPath]).select().single();
             if (data) {
                 setLearningPaths(prev => prev.map(p => p.id === tempId ? data : p));
+                return data;
             }
             if (error) console.error("Error adding learning path:", error);
         }
+
+        return newPath;
     };
 
     const updateLearningPath = async (id, updates) => {
@@ -150,6 +202,8 @@ export const LearningProvider = ({ children }) => {
             const { error } = await supabase.from('learning_paths').update(updatedData).eq('id', id);
             if (error) console.error("Error updating learning path:", error);
         }
+
+        return { id, ...updatedData };
     };
 
     const deleteLearningPath = async (id) => {
@@ -163,8 +217,18 @@ export const LearningProvider = ({ children }) => {
         setTimeLogs(prev => prev.filter(l => !pathTopicIds.includes(l.topic_id)));
 
         if (user && supabase) {
-            const { error } = await supabase.from('learning_paths').delete().eq('id', id);
-            if (error) console.error("Error deleting learning path:", error);
+            try {
+                if (pathTopicIds.length > 0) {
+                    await supabase.from('topic_resources').delete().in('topic_id', pathTopicIds);
+                    await supabase.from('topic_time_logs').delete().in('topic_id', pathTopicIds);
+                    await supabase.from('learning_topics').delete().in('id', pathTopicIds);
+                }
+
+                const { error } = await supabase.from('learning_paths').delete().eq('id', id);
+                if (error) console.error("Error deleting learning path:", error);
+            } catch (error) {
+                console.error("Error deleting learning path:", error);
+            }
         }
     };
 
@@ -172,22 +236,27 @@ export const LearningProvider = ({ children }) => {
         await updateLearningPath(id, { archived: true });
     };
 
+    const restoreLearningPath = async (id) => {
+        await updateLearningPath(id, { archived: false });
+    };
+
     // ── Topic CRUD ─────────────────────────────────────────
     const addTopic = async (topicData) => {
-        const pathTopics = topics.filter(t => t.learning_path_id === topicData.learning_path_id);
+        const { primaryVideoUrl, topicPayload } = sanitizeTopicPayload(topicData);
+        const pathTopics = topics.filter(t => t.learning_path_id === topicPayload.learning_path_id);
         const newTopic = {
-            ...topicData,
+            ...topicPayload,
             id: user ? undefined : `local-${Date.now()}`,
             user_id: user?.id,
-            status: topicData.status || 'not_started',
-            section: topicData.section || 'future',
-            difficulty: topicData.difficulty || 'beginner',
-            estimated_time: topicData.estimated_time || 0,
+            status: topicPayload.status || 'not_started',
+            section: topicPayload.section || 'future',
+            difficulty: topicPayload.difficulty || 'beginner',
+            estimated_time: topicPayload.estimated_time || 0,
             actual_time: 0,
-            notes: topicData.notes || '',
+            notes: topicPayload.notes || '',
             exercise_completed: false,
             revision_completed: false,
-            prerequisite_topic_ids: topicData.prerequisite_topic_ids || [],
+            prerequisite_topic_ids: topicPayload.prerequisite_topic_ids || [],
             display_order: pathTopics.length,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -196,14 +265,23 @@ export const LearningProvider = ({ children }) => {
         const tempId = `temp-${Date.now()}`;
         setTopics(prev => [...prev, { ...newTopic, id: user ? tempId : newTopic.id }]);
 
+        let createdTopic = newTopic;
+
         if (user && supabase) {
             const { id, ...dbTopic } = newTopic;
             const { data, error } = await supabase.from('learning_topics').insert([dbTopic]).select().single();
             if (data) {
                 setTopics(prev => prev.map(t => t.id === tempId ? data : t));
+                createdTopic = data;
             }
             if (error) console.error("Error adding topic:", error);
         }
+
+        if (primaryVideoUrl && createdTopic?.id) {
+            await syncPrimaryVideoResource(createdTopic.id, primaryVideoUrl);
+        }
+
+        return createdTopic;
     };
 
     const addTopicsBatch = async (topicsArray) => {
@@ -212,17 +290,21 @@ export const LearningProvider = ({ children }) => {
 
         const existingCount = topics.filter(t => t.learning_path_id === pathId).length;
         const now = new Date().toISOString();
+        const sanitizedTopics = topicsArray.map((topicData) => sanitizeTopicPayload(topicData));
 
-        const newTopics = topicsArray.map((topicData, index) => ({
-            ...topicData,
+        const newTopics = sanitizedTopics.map(({ topicPayload }, index) => ({
+            ...topicPayload,
             id: user ? undefined : `local-${Date.now()}-${index}`,
             user_id: user?.id,
-            status: topicData.status || 'not_started',
-            section: topicData.section || 'future',
-            difficulty: topicData.difficulty || 'beginner',
-            estimated_time: topicData.estimated_time || 0,
+            status: topicPayload.status || 'not_started',
+            section: topicPayload.section || 'future',
+            difficulty: topicPayload.difficulty || 'beginner',
+            estimated_time: topicPayload.estimated_time || 0,
             actual_time: 0,
-            notes: topicData.notes || '',
+            notes: topicPayload.notes || '',
+            exercise_completed: false,
+            revision_completed: false,
+            prerequisite_topic_ids: topicPayload.prerequisite_topic_ids || [],
             display_order: existingCount + index,
             created_at: now,
             updated_at: now,
@@ -235,11 +317,14 @@ export const LearningProvider = ({ children }) => {
         }));
         setTopics(prev => [...prev, ...tempTopics]);
 
+        let createdTopics = tempTopics;
+
         if (user && supabase) {
             try {
                 const dbTopics = newTopics.map(({ id, ...rest }) => rest);
                 const { data, error } = await supabase.from('learning_topics').insert(dbTopics).select();
                 if (data) {
+                    createdTopics = data;
                     setTopics(prev => {
                         let updated = [...prev];
                         data.forEach((dbTopic, i) => {
@@ -254,16 +339,32 @@ export const LearningProvider = ({ children }) => {
                 console.error('Error batch adding topics:', err);
             }
         }
+
+        await Promise.all(
+            createdTopics.map((topic, index) => {
+                const primaryVideoUrl = sanitizedTopics[index]?.primaryVideoUrl;
+                if (!primaryVideoUrl || !topic?.id || String(topic.id).startsWith('temp-')) {
+                    return Promise.resolve();
+                }
+                return syncPrimaryVideoResource(topic.id, primaryVideoUrl);
+            })
+        );
+
+        return createdTopics;
     };
 
     const updateTopic = async (id, updates) => {
-        const updatedData = { ...updates, updated_at: new Date().toISOString() };
+        const { topicPayload } = sanitizeTopicPayload(updates);
+        const updatedData = { ...topicPayload, updated_at: new Date().toISOString() };
         setTopics(prev => prev.map(t => t.id === id ? { ...t, ...updatedData } : t));
 
         if (user && supabase) {
             const { error } = await supabase.from('learning_topics').update(updatedData).eq('id', id);
             if (error) console.error("Error updating topic:", error);
         }
+
+        const currentTopic = topics.find((topic) => topic.id === id);
+        return currentTopic ? { ...currentTopic, ...updatedData } : { id, ...updatedData };
     };
 
     const deleteTopic = async (id) => {
@@ -272,8 +373,14 @@ export const LearningProvider = ({ children }) => {
         setTimeLogs(prev => prev.filter(l => l.topic_id !== id));
 
         if (user && supabase) {
-            const { error } = await supabase.from('learning_topics').delete().eq('id', id);
-            if (error) console.error("Error deleting topic:", error);
+            try {
+                await supabase.from('topic_resources').delete().eq('topic_id', id);
+                await supabase.from('topic_time_logs').delete().eq('topic_id', id);
+                const { error } = await supabase.from('learning_topics').delete().eq('id', id);
+                if (error) console.error("Error deleting topic:", error);
+            } catch (error) {
+                console.error("Error deleting topic:", error);
+            }
         }
     };
 
@@ -282,13 +389,17 @@ export const LearningProvider = ({ children }) => {
 
         if (newStatus === 'completed') {
             updates.completed_at = new Date().toISOString();
+            updates.mastered_at = null;
         } else if (newStatus === 'mastered') {
+            updates.completed_at = topics.find((topic) => topic.id === id)?.completed_at || new Date().toISOString();
             updates.mastered_at = new Date().toISOString();
         }
         // Reset exercise/revision when going back from completed
         if (newStatus !== 'completed' && newStatus !== 'mastered') {
             updates.exercise_completed = false;
             updates.revision_completed = false;
+            updates.completed_at = null;
+            updates.mastered_at = null;
         }
 
         await updateTopic(id, updates);
@@ -296,20 +407,22 @@ export const LearningProvider = ({ children }) => {
 
     const cycleTopicStatus = async (id) => {
         const topic = topics.find(t => t.id === id);
-        if (!topic) return;
+        if (!topic) return { ok: false, reason: 'Topic not found.' };
 
         const statusOrder = ['not_started', 'in_progress', 'completed', 'mastered'];
         const currentIndex = statusOrder.indexOf(topic.status);
-        let nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+        const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
 
         // Block mastered if exercise or revision not done
         if (nextStatus === 'mastered' && (!topic.exercise_completed || !topic.revision_completed)) {
-            return; // Can't advance to mastered yet
+            return {
+                ok: false,
+                reason: 'Complete both exercise and revision before marking this topic as mastered.',
+            };
         }
 
-
-
         await updateTopicStatus(id, nextStatus);
+        return { ok: true, status: nextStatus };
     };
 
     const toggleExerciseCompleted = async (id) => {
@@ -340,6 +453,15 @@ export const LearningProvider = ({ children }) => {
 
     const moveTopicToSection = async (id, newSection) => {
         await updateTopic(id, { section: newSection });
+    };
+
+    const toggleTopicFocus = async (id) => {
+        const topic = topics.find((item) => item.id === id);
+        if (!topic) return;
+
+        const nextSection = topic.section === 'current_focus' ? 'future' : 'current_focus';
+        await moveTopicToSection(id, nextSection);
+        return nextSection;
     };
 
     const reorderTopics = async (pathId, orderedIds) => {
@@ -404,6 +526,50 @@ export const LearningProvider = ({ children }) => {
         }
     };
 
+    const getPrimaryVideoResource = useCallback((topicId) => {
+        return resources.find((resource) =>
+            resource.topic_id === topicId &&
+            resource.resource_type === 'video' &&
+            (
+                resource.title === PRIMARY_VIDEO_RESOURCE_TITLE ||
+                !resources.some((candidate) =>
+                    candidate.topic_id === topicId &&
+                    candidate.resource_type === 'video' &&
+                    candidate.title === PRIMARY_VIDEO_RESOURCE_TITLE
+                )
+            )
+        ) || null;
+    }, [resources]);
+
+    const syncPrimaryVideoResource = useCallback(async (topicId, rawUrl) => {
+        const url = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+        const existingResource = getPrimaryVideoResource(topicId);
+
+        if (!url) {
+            if (existingResource) {
+                await deleteResource(existingResource.id);
+            }
+            return null;
+        }
+
+        if (existingResource) {
+            await updateResource(existingResource.id, {
+                title: PRIMARY_VIDEO_RESOURCE_TITLE,
+                url,
+                resource_type: 'video',
+            });
+            return existingResource.id;
+        }
+
+        await addResource({
+            topic_id: topicId,
+            title: PRIMARY_VIDEO_RESOURCE_TITLE,
+            url,
+            resource_type: 'video',
+        });
+        return null;
+    }, [addResource, deleteResource, getPrimaryVideoResource, updateResource]);
+
     // ── Time Tracking ──────────────────────────────────────
     const logTime = async (topicId, durationMinutes, notes = '') => {
         const newLog = {
@@ -430,8 +596,29 @@ export const LearningProvider = ({ children }) => {
             const { data, error } = await supabase.from('topic_time_logs').insert([dbLog]).select().single();
             if (data) {
                 setTimeLogs(prev => prev.map(l => l.id === tempId ? data : l));
+                return data;
             }
             if (error) console.error("Error logging time:", error);
+        }
+
+        return newLog;
+    };
+
+    const deleteTimeLog = async (logId) => {
+        const logToDelete = timeLogs.find((log) => log.id === logId);
+        if (!logToDelete) return;
+
+        setTimeLogs((prev) => prev.filter((log) => log.id !== logId));
+
+        const remainingTopicMinutes = timeLogs
+            .filter((log) => log.topic_id === logToDelete.topic_id && log.id !== logId)
+            .reduce((sum, log) => sum + (log.duration_minutes || 0), 0);
+
+        await updateTopic(logToDelete.topic_id, { actual_time: remainingTopicMinutes });
+
+        if (user && supabase) {
+            const { error } = await supabase.from('topic_time_logs').delete().eq('id', logId);
+            if (error) console.error('Error deleting time log:', error);
         }
     };
 
@@ -452,11 +639,23 @@ export const LearningProvider = ({ children }) => {
             .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     }, [resources]);
 
+    const getTopicTimeLogs = useCallback((topicId) => {
+        return timeLogs
+            .filter((log) => log.topic_id === topicId)
+            .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at));
+    }, [timeLogs]);
+
     const getPathProgress = useCallback((pathId) => {
         const pathTopics = topics.filter(t => t.learning_path_id === pathId);
         if (pathTopics.length === 0) return 0;
         const completed = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
         return Math.round((completed / pathTopics.length) * 100);
+    }, [topics]);
+
+    const getPathEstimatedTime = useCallback((pathId) => {
+        return topics
+            .filter((topic) => topic.learning_path_id === pathId)
+            .reduce((sum, topic) => sum + (topic.estimated_time || 0), 0);
     }, [topics]);
 
     const getPathTotalTime = useCallback((pathId) => {
@@ -553,9 +752,17 @@ export const LearningProvider = ({ children }) => {
 
     // ── Path Dependency / Concurrent Limit ─────────────
     const getActiveInProgressPathCount = useCallback(() => {
-        const activePaths = learningPaths.filter(p => !p.archived);
-        return activePaths.filter(p => getPathProgress(p.id) < 100).length;
-    }, [learningPaths, getPathProgress]);
+        const activePaths = learningPaths.filter((path) => !path.archived);
+        return activePaths.filter((path) => {
+            const pathTopics = topics.filter((topic) => topic.learning_path_id === path.id);
+            if (pathTopics.length === 0) return false;
+
+            const hasStartedTopic = pathTopics.some((topic) => topic.status !== 'not_started');
+            const hasIncompleteTopic = pathTopics.some((topic) => topic.status !== 'completed' && topic.status !== 'mastered');
+
+            return hasStartedTopic && hasIncompleteTopic;
+        }).length;
+    }, [learningPaths, topics]);
 
     const canStartNewPath = useCallback(() => {
         return getActiveInProgressPathCount() < maxConcurrentPaths;
@@ -567,7 +774,7 @@ export const LearningProvider = ({ children }) => {
         // If date is provided, also filters by startDate/endDate range
         const activePaths = learningPaths.filter(p => !p.archived);
         const entries = [];
-        const dateStr = date ? date.toISOString().split('T')[0] : null;
+        const dateStr = date ? toLocalDateKey(date) : null;
 
         activePaths.forEach(path => {
             const timetable = path.timetable || [];
@@ -688,6 +895,7 @@ export const LearningProvider = ({ children }) => {
         updateLearningPath,
         deleteLearningPath,
         archiveLearningPath,
+        restoreLearningPath,
 
         // Topic operations
         addTopic,
@@ -697,6 +905,7 @@ export const LearningProvider = ({ children }) => {
         updateTopicStatus,
         cycleTopicStatus,
         moveTopicToSection,
+        toggleTopicFocus,
         reorderTopics,
         toggleExerciseCompleted,
         toggleRevisionCompleted,
@@ -708,6 +917,7 @@ export const LearningProvider = ({ children }) => {
 
         // Time tracking
         logTime,
+        deleteTimeLog,
 
         // File operations
         uploadMaterial,
@@ -719,7 +929,9 @@ export const LearningProvider = ({ children }) => {
         getTopicsByPath,
         getTopicsBySection,
         getResourcesByTopic,
+        getTopicTimeLogs,
         getPathProgress,
+        getPathEstimatedTime,
         getPathTotalTime,
         getTopicTotalTime,
         getCurrentFocusTopics,
@@ -732,6 +944,8 @@ export const LearningProvider = ({ children }) => {
         canStartNewPath,
         getTimetableForDay,
         getAllTimetableEntries,
+        getPrimaryVideoResource,
+        syncPrimaryVideoResource,
     };
 
     return (

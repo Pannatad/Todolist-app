@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { isTaskActive, isTaskCompleted } from '../utils/taskState';
 
 // Initialize Gemini API
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -842,7 +843,7 @@ export const routeAgentCommand = async (input, context = {}) => {
             
             FULL TASK LIST (${recentTasks.length} tasks):
             ${recentTasks.length > 0
-                ? recentTasks.map(t => `- [ID: ${t.id}] "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n            ')
+                ? recentTasks.map(t => `- [ID: ${t.id}] "${t.title}" (${isTaskCompleted(t) ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n            ')
                 : 'No tasks'}
             
             TASKS DUE TODAY (${context.tasksDueToday?.length || 0}):
@@ -1040,7 +1041,7 @@ export const generateMorningBriefing = async (context) => {
 
     try {
         const { profile, tasks, schedule, memory, currentTime } = context;
-        const pendingTasks = tasks?.filter(t => !t.completed && !t.archived) || [];
+        const pendingTasks = tasks?.filter(isTaskActive) || [];
         const todaySchedule = schedule || [];
 
         const prompt = `

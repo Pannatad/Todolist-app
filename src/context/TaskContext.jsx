@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { normalizeTaskRecord } from '../utils/taskState';
 
 const TaskContext = createContext();
 
@@ -64,8 +65,40 @@ export const TaskProvider = ({ children }) => {
     const [scheduleItems, setScheduleItems] = useState([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
+    const refreshTasks = useCallback(async () => {
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+        console.log('📋 Tasks loaded:', data?.length || 0, 'Error:', error);
+
+        if (error) throw error;
+
+        setTasks((data || []).map(normalizeTaskRecord));
+    }, [user]);
+
+    const refreshScheduleItems = useCallback(async () => {
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('schedule_items')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('start_time', { ascending: true });
+
+        console.log('📅 Schedule loaded:', data?.length || 0, 'Error:', error);
+
+        if (error) throw error;
+
+        setScheduleItems(formatScheduleItems(data || []));
+    }, [user]);
+
     // Load from Supabase
-    const loadTasksFromSupabase = async () => {
+    const loadTasksFromSupabase = useCallback(async () => {
         if (!user) {
             console.log('🔍 No user, skipping load');
             return;
@@ -74,44 +107,21 @@ export const TaskProvider = ({ children }) => {
         console.log('🔍 Loading data for user:', user.id, user.email);
 
         try {
-            // Load Tasks
-            const { data: tasksData, error: tasksError } = await supabase
-                .from('tasks')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            console.log('📋 Tasks loaded:', tasksData?.length || 0, 'Error:', tasksError);
-
-            if (tasksData) {
-                const formattedTasks = tasksData.map(t => ({
-                    ...t,
-                    estimatedTime: t.estimated_time || t.estimatedTime
-                }));
-                setTasks(formattedTasks);
-            }
-
-            // Load Schedule Items
-            const { data: scheduleData, error: scheduleError } = await supabase
-                .from('schedule_items')
-                .select('*')
-                .order('start_time', { ascending: true });
-
-            console.log('📅 Schedule loaded:', scheduleData?.length || 0, 'Error:', scheduleError);
-
-            if (scheduleData) {
-                setScheduleItems(formatScheduleItems(scheduleData));
-            }
+            await Promise.all([
+                refreshTasks(),
+                refreshScheduleItems()
+            ]);
         } catch (error) {
             console.error("❌ Error loading tasks:", error);
         }
-    };
+    }, [refreshScheduleItems, refreshTasks, user]);
 
     // Load from localStorage (guest mode)
     const loadFromLocalStorage = () => {
         try {
             const savedTasks = localStorage.getItem('growth-tasks-guest');
             const savedSchedule = localStorage.getItem('growth-schedule-guest');
-            if (savedTasks) setTasks(JSON.parse(savedTasks));
+            if (savedTasks) setTasks(JSON.parse(savedTasks).map(normalizeTaskRecord));
             if (savedSchedule) setScheduleItems(JSON.parse(savedSchedule));
         } catch (e) {
             console.error("Failed to load from localStorage:", e);
@@ -131,24 +141,36 @@ export const TaskProvider = ({ children }) => {
             loadFromLocalStorage();
             setIsLoaded(true);
         }
-    }, [user]);
+    }, [loadTasksFromSupabase, user]);
 
     useEffect(() => {
         if (!user || !supabase) return undefined;
 
-        const refreshScheduleItems = async () => {
-            const { data, error } = await supabase
-                .from('schedule_items')
-                .select('*')
-                .order('start_time', { ascending: true });
+        const channel = supabase
+            .channel(`tasks-${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tasks',
+                    filter: `user_id=eq.${user.id}`
+                },
+                () => {
+                    refreshTasks().catch((error) => {
+                        console.error('❌ Realtime task refresh failed:', error);
+                    });
+                }
+            )
+            .subscribe();
 
-            if (error) {
-                console.error('❌ Realtime schedule refresh failed:', error);
-                return;
-            }
-
-            setScheduleItems(formatScheduleItems(data || []));
+        return () => {
+            supabase.removeChannel(channel);
         };
+    }, [refreshTasks, user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
 
         const channel = supabase
             .channel(`schedule-items-${user.id}`)
@@ -161,7 +183,9 @@ export const TaskProvider = ({ children }) => {
                     filter: `user_id=eq.${user.id}`
                 },
                 () => {
-                    refreshScheduleItems();
+                    refreshScheduleItems().catch((error) => {
+                        console.error('❌ Realtime schedule refresh failed:', error);
+                    });
                 }
             )
             .subscribe();
@@ -169,7 +193,7 @@ export const TaskProvider = ({ children }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user]);
+    }, [refreshScheduleItems, user]);
 
     // Save to LocalStorage (Guest Mode only)
     useEffect(() => {
@@ -180,7 +204,7 @@ export const TaskProvider = ({ children }) => {
     }, [tasks, scheduleItems, user, isLoaded]);
 
     // Task Handlers
-    const addTask = async ({ title, difficulty, deadline, subject, estimatedTime }) => {
+    const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description }) => {
         // Convert local deadline string to UTC ISO string for storage
         const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
         console.log("🕒 Timezone Debug:", {
@@ -192,27 +216,29 @@ export const TaskProvider = ({ children }) => {
         const newTask = {
             id: user ? undefined : Date.now(),
             title,
-            description: null,
+            description: description || null,
             difficulty,
             subject: subject || 'other',
             deadline: isoDeadline,
             estimated_time: estimatedTime,
             estimatedTime: estimatedTime,
             status: 'growing',
+            completed: false,
+            completed_at: null,
+            completedAt: null,
             created_at: new Date().toISOString(),
             user_id: user?.id
         };
 
         const tempId = Date.now();
-        setTasks(prev => [...prev, { ...newTask, id: user ? tempId : newTask.id }]);
+        setTasks(prev => [...prev, normalizeTaskRecord({ ...newTask, id: user ? tempId : newTask.id })]);
 
         if (user) {
-            const { id, estimatedTime, description, ...dbTask } = newTask;
-
-            // Only include description if it's not null/undefined
-            if (description) {
-                dbTask.description = description;
-            }
+            const dbTask = { ...newTask };
+            delete dbTask.id;
+            delete dbTask.estimatedTime;
+            delete dbTask.completed;
+            delete dbTask.completedAt;
 
             // Try inserting with all fields
             let { data, error } = await supabase.from('tasks').insert([dbTask]).select().single();
@@ -220,14 +246,15 @@ export const TaskProvider = ({ children }) => {
             // Fallback: If insert fails (likely due to missing estimated_time column), try without it
             if (error) {
                 console.warn("Insert failed, retrying without estimated_time...", error);
-                const { estimated_time, ...legacyTask } = dbTask;
+                const legacyTask = { ...dbTask };
+                delete legacyTask.estimated_time;
                 const retry = await supabase.from('tasks').insert([legacyTask]).select().single();
                 data = retry.data;
                 error = retry.error;
             }
 
             if (data) {
-                setTasks(prev => prev.map(t => t.id === tempId ? { ...t, ...data, estimatedTime: data.estimated_time } : t));
+                setTasks(prev => prev.map(t => t.id === tempId ? normalizeTaskRecord({ ...t, ...data }) : t));
             } else if (error) {
                 console.error("Error adding task:", error);
                 // Revert optimistic update if both attempts fail
@@ -236,7 +263,7 @@ export const TaskProvider = ({ children }) => {
             }
         }
 
-        return newTask;
+        return normalizeTaskRecord(newTask);
     };
 
 
@@ -244,13 +271,15 @@ export const TaskProvider = ({ children }) => {
         const task = tasks.find(t => t.id === id);
         if (!task) return null;
 
-        let newStatus;
+        let newStatus = task.status;
         let reward = 0;
+        let completedAt = null;
 
         if (task.status === 'seed') {
             newStatus = 'growing';
         } else if (task.status === 'growing') {
             newStatus = 'harvested';
+            completedAt = new Date().toISOString();
 
             switch (task.difficulty) {
                 case 'hard': reward = 30; break;
@@ -269,10 +298,10 @@ export const TaskProvider = ({ children }) => {
             }
         }
 
-        const updates = { status: newStatus, completed_at: new Date().toISOString() };
+        const updates = { status: newStatus, completed_at: completedAt };
 
         setTasks(tasks.map(t =>
-            t.id === id ? { ...t, ...updates, completedAt: updates.completed_at } : t
+            t.id === id ? normalizeTaskRecord({ ...t, ...updates, completedAt }) : t
         ));
 
         if (user) {
@@ -289,7 +318,7 @@ export const TaskProvider = ({ children }) => {
         const updates = { status: 'growing', completed_at: null };
 
         setTasks(tasks.map(t =>
-            t.id === id ? { ...t, ...updates, completedAt: null } : t
+            t.id === id ? normalizeTaskRecord({ ...t, ...updates, completedAt: null, completed: false }) : t
         ));
 
         if (user) {
@@ -305,19 +334,47 @@ export const TaskProvider = ({ children }) => {
     };
 
     const updateTask = async (id, updates) => {
+        const existingTask = tasks.find(t => t.id === id);
+        if (!existingTask) return;
+
         // Handle deadline conversion if present in updates
         const processedUpdates = { ...updates };
         if (processedUpdates.deadline) {
             processedUpdates.deadline = new Date(processedUpdates.deadline).toISOString();
         }
+        if (processedUpdates.completedAt && !processedUpdates.completed_at) {
+            processedUpdates.completed_at = processedUpdates.completedAt;
+        }
+        if (processedUpdates.completed !== undefined && processedUpdates.status === undefined) {
+            processedUpdates.status = processedUpdates.completed ? 'harvested' : 'growing';
+        }
+        if (processedUpdates.completed_at !== undefined && processedUpdates.status === undefined) {
+            processedUpdates.status = processedUpdates.completed_at ? 'harvested' : 'growing';
+        }
 
-        setTasks(tasks.map(t => t.id === id ? { ...t, ...processedUpdates } : t));
+        const mergedTask = normalizeTaskRecord({ ...existingTask, ...processedUpdates });
+
+        setTasks(tasks.map(t => t.id === id ? mergedTask : t));
 
         if (user) {
-            const dbUpdates = { ...processedUpdates };
-            if (dbUpdates.estimatedTime) {
-                dbUpdates.estimated_time = dbUpdates.estimatedTime;
-                delete dbUpdates.estimatedTime;
+            const dbUpdates = {};
+            if (processedUpdates.title !== undefined) dbUpdates.title = mergedTask.title;
+            if (processedUpdates.description !== undefined) dbUpdates.description = mergedTask.description;
+            if (processedUpdates.difficulty !== undefined) dbUpdates.difficulty = mergedTask.difficulty;
+            if (processedUpdates.subject !== undefined) dbUpdates.subject = mergedTask.subject;
+            if (processedUpdates.deadline !== undefined) dbUpdates.deadline = mergedTask.deadline;
+            if (processedUpdates.archived !== undefined) dbUpdates.archived = mergedTask.archived;
+            if (processedUpdates.estimatedTime !== undefined || processedUpdates.estimated_time !== undefined) {
+                dbUpdates.estimated_time = mergedTask.estimated_time;
+            }
+            if (
+                processedUpdates.status !== undefined ||
+                processedUpdates.completed !== undefined ||
+                processedUpdates.completedAt !== undefined ||
+                processedUpdates.completed_at !== undefined
+            ) {
+                dbUpdates.status = mergedTask.status;
+                dbUpdates.completed_at = mergedTask.completed_at;
             }
             await supabase.from('tasks').update(dbUpdates).eq('id', id);
         }
@@ -409,11 +466,11 @@ export const TaskProvider = ({ children }) => {
         if (user) {
             // For DB, use only snake_case fields
             const dbUpdates = {};
-            if (updates.title) dbUpdates.title = updates.title;
-            if (updates.startTime) dbUpdates.start_time = updates.startTime;
-            if (updates.duration) dbUpdates.duration = updates.duration;
-            if (updates.category) dbUpdates.category = updates.category;
-            if (updates.color) dbUpdates.color = updates.color;
+            if (updates.title !== undefined) dbUpdates.title = updates.title;
+            if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
+            if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+            if (updates.category !== undefined) dbUpdates.category = updates.category;
+            if (updates.color !== undefined) dbUpdates.color = updates.color;
             if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
             if (updates.recurrenceType !== undefined) dbUpdates.recurrence_type = updates.recurrenceType;
             if (updates.recurrenceInterval !== undefined) dbUpdates.recurrence_interval = updates.recurrenceInterval;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, TrendingUp, Code, BookOpen, Dumbbell, Heart, Briefcase, Home, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Sparkles, Loader2, Play, Square, Volume2, VolumeX, CheckCircle, Plus, Settings, RefreshCw, Save } from 'lucide-react';
-import { generateDailySchedule, getSmartSuggestions } from '../services/gemini';
+import { generateDailySchedule, getSmartSuggestions } from '../services/aiClient';
 
 const DailyLog = ({ logs, onAddLog, onDeleteLog, tasks }) => {
     const [input, setInput] = useState('');

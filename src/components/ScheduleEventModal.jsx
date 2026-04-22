@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock, Calendar, Repeat, Palette, Check } from 'lucide-react';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const PRESET_COLORS = [
     { name: 'Red', value: '#ef4444' },
@@ -65,7 +66,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
             const eventDate = new Date(event.start_time || event.startTime);
             setFormData({
                 title: event.title || '',
-                date: eventDate.toISOString().split('T')[0],
+                date: toLocalDateKey(eventDate),
                 startTime: eventDate.toTimeString().slice(0, 5),
                 duration: event.duration || 60,
                 color: event.color || '#6366f1',
@@ -79,7 +80,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
         } else if (selectedDate) {
             setFormData(prev => ({
                 ...prev,
-                date: selectedDate.toISOString().split('T')[0]
+                date: toLocalDateKey(selectedDate)
             }));
         }
     }, [event, selectedDate, isOpen]);

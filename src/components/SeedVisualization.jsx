@@ -136,7 +136,7 @@ const SeedVisualization = ({ insight, compact = false, title, subtitle }) => {
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
                     <span>{insight.completedDays}/{insight.scheduledDays} done</span>
                     <span>{consistencyPercent}% care</span>
-                    <span>{insight.daysRemaining} days left</span>
+                    <span>{insight.daysRemaining} steps left</span>
                 </div>
                 <div className="mt-2 text-xs text-slate-400">Free days are neutral and do not count against growth.</div>
             </div>

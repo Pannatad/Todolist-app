@@ -8,10 +8,12 @@ import { useGoal } from './GoalContext';
 import { useUserProfile } from './UserProfileContext';
 import { useAgentMemory } from './AgentMemoryContext';
 import { useUserIntelligence } from './UserIntelligenceContext';
-import { routeAgentCommand } from '../services/gemini';
+import { routeAgentCommand } from '../services/aiClient';
 import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey } from '../services/localAgentHandler';
 import { sendChatMessage, clearChatSession } from '../services/ConversationService';
 import { extractInsightsFromExchange } from '../services/InsightExtractionService';
+import { isTaskActive } from '../utils/taskState';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const ChatContext = createContext();
 
@@ -36,7 +38,7 @@ const ACTIONS_REQUIRING_CONFIRMATION = [
 
 export const ChatProvider = ({ children }) => {
     const { user } = useAuth();
-    const { tasks, scheduleItems, addTask, updateTask, deleteTask, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
+    const { tasks, scheduleItems, addTask, updateTask, deleteTask, completeTask, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
     const { habits, logHabit } = useHabit();
     const { projects } = useProject();
     const { goals, dailyHighlights } = useGoal();
@@ -153,9 +155,9 @@ export const ChatProvider = ({ children }) => {
                 preferences: profile?.preferences, // { timezone, proactiveSuggestions }
                 summary: getProfileSummary?.() || ''
             },
-            recentTasks: tasks?.filter(t => !t.archived && !t.completed).slice(0, 15) || [],
+            recentTasks: tasks?.filter(isTaskActive).slice(0, 15) || [],
             tasksDueToday: tasks?.filter(t => {
-                if (t.archived || t.completed || !t.deadline) return false;
+                if (!isTaskActive(t) || !t.deadline) return false;
                 return new Date(t.deadline).toDateString() === today.toDateString();
             }) || [],
             recentSchedule,
@@ -171,7 +173,7 @@ export const ChatProvider = ({ children }) => {
                 name: h.name,
                 frequency: h.frequency,
                 streak: h.streak || 0,
-                completedToday: h.completedDates?.includes(todayStr)
+                completedToday: h.completedToday === true
             })) || [],
             visionGoals: Array.isArray(goals) ? goals.slice(0, 10) : [],
             dailyHighlights: Array.isArray(dailyHighlights) ? dailyHighlights.slice(0, 5) : [],
@@ -385,13 +387,10 @@ export const ChatProvider = ({ children }) => {
                         break;
                     case 'complete_task':
                         if (action.params.taskId) {
-                            await updateTask(action.params.taskId, {
-                                completed: true,
-                                completedAt: new Date().toISOString()
-                            });
+                            await completeTask(action.params.taskId);
                         }
                         break;
-                    case 'add_schedule':
+                    case 'add_schedule': {
                         // Parse and fix timezone for startTime
                         let fixedStartTime = action.params.startTime;
                         if (fixedStartTime) {
@@ -422,6 +421,7 @@ export const ChatProvider = ({ children }) => {
                             category: action.params.category || 'Other'
                         });
                         break;
+                    }
                     case 'edit_schedule':
                         if (action.params.eventId && action.params.updates) {
                             await updateScheduleItem(action.params.eventId, action.params.updates);
@@ -507,7 +507,7 @@ export const ChatProvider = ({ children }) => {
                         break;
                     case 'complete_habit':
                         if (action.params.habitId) {
-                            const today = new Date().toISOString().split('T')[0];
+                            const today = toLocalDateKey(new Date());
                             await logHabit?.(action.params.habitId, today, 1, true);
                         }
                         break;

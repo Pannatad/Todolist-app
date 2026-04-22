@@ -1,15 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { DEFAULT_SEED_DURATION_DAYS, getSeedStageFromProgress } from '../constants/habitSeeds';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const HabitContext = createContext();
-
-const toDateKey = (date) => {
-    const normalized = new Date(date);
-    normalized.setHours(0, 0, 0, 0);
-    return normalized.toISOString().split('T')[0];
-};
 
 const startOfDay = (date) => {
     const normalized = new Date(date);
@@ -17,7 +12,28 @@ const startOfDay = (date) => {
     return normalized;
 };
 
-const isSameDay = (left, right) => toDateKey(left) === toDateKey(right);
+const isSameDay = (left, right) => toLocalDateKey(left) === toLocalDateKey(right);
+
+const normalizeHabit = (habit) => ({
+    ...habit,
+    is_seed: Boolean(habit?.is_seed),
+    archived: habit?.archived === true,
+    seed_started_at: habit?.seed_started_at || null,
+    seed_duration_days: Number(habit?.seed_duration_days) > 0
+        ? Number(habit.seed_duration_days)
+        : DEFAULT_SEED_DURATION_DAYS,
+    seed_why: habit?.seed_why || '',
+    seed_stage: habit?.seed_stage || null,
+    completedDates: Array.isArray(habit?.completedDates) ? habit.completedDates : [],
+    completedToday: habit?.completedToday === true,
+    streak: Number(habit?.streak) || 0,
+    bestStreak: Number(habit?.bestStreak) || 0,
+});
+
+const normalizeHabitLog = (log) => ({
+    ...log,
+    notes: log?.notes || '',
+});
 
 const isHabitScheduledOnDate = (habit, date) => {
     if (habit.frequency === 'daily') return true;
@@ -27,10 +43,76 @@ const isHabitScheduledOnDate = (habit, date) => {
     return true;
 };
 
-const normalizeHabitLog = (log) => ({
-    ...log,
-    notes: log?.notes || '',
-});
+const getHabitLogKey = (habitId, date) => (
+    `${habitId}_${typeof date === 'string' ? date : toLocalDateKey(date)}`
+);
+
+const getHabitLogFromMap = (logsMap, habitId, date) => (
+    logsMap[getHabitLogKey(habitId, date)] || null
+);
+
+const buildCompletedDatesByHabit = (logsMap) => {
+    const completedDatesByHabit = {};
+
+    Object.values(logsMap).forEach((log) => {
+        if (!log?.habit_id || !log.completed) return;
+        if (!completedDatesByHabit[log.habit_id]) {
+            completedDatesByHabit[log.habit_id] = [];
+        }
+        completedDatesByHabit[log.habit_id].push(log.date);
+    });
+
+    Object.values(completedDatesByHabit).forEach((dates) => dates.sort());
+
+    return completedDatesByHabit;
+};
+
+const calculateHabitStreak = (habit, logsMap) => {
+    if (!habit) return { current: 0, best: 0 };
+
+    let currentStreak = 0;
+    let bestStreak = 0;
+    let tempStreak = 0;
+
+    const today = startOfDay(new Date());
+
+    for (let index = 0; index < 365; index += 1) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - index);
+
+        if (!isHabitScheduledOnDate(habit, checkDate)) continue;
+
+        const log = getHabitLogFromMap(logsMap, habit.id, checkDate);
+        if (log?.completed) {
+            tempStreak += 1;
+            if (index === 0 || currentStreak > 0) {
+                currentStreak = tempStreak;
+            }
+            bestStreak = Math.max(bestStreak, tempStreak);
+            continue;
+        }
+
+        if (index > 0) {
+            tempStreak = 0;
+            if (currentStreak > 0) currentStreak = 0;
+        }
+    }
+
+    return { current: currentStreak, best: bestStreak };
+};
+
+const decorateHabit = (habit, logsMap, completedDatesByHabit, todayKey) => {
+    const completedDates = completedDatesByHabit[habit.id] || [];
+    const streak = calculateHabitStreak(habit, logsMap);
+
+    return normalizeHabit({
+        ...habit,
+        completedDates,
+        completedToday: completedDates.includes(todayKey),
+        streak: streak.current,
+        bestStreak: streak.best,
+    });
+};
 
 export const useHabit = () => {
     const context = useContext(HabitContext);
@@ -43,62 +125,86 @@ export const useHabit = () => {
 export const HabitProvider = ({ children }) => {
     const { user } = useAuth();
 
-    const [habits, setHabits] = useState([]);
+    const [storedHabits, setStoredHabits] = useState([]);
     const [habitLogs, setHabitLogs] = useState({});
     const [isLoaded, setIsLoaded] = useState(false);
 
-    const normalizeHabit = (habit) => ({
-        ...habit,
-        is_seed: Boolean(habit?.is_seed),
-        seed_started_at: habit?.seed_started_at || null,
-        seed_duration_days: Number(habit?.seed_duration_days) > 0
-            ? Number(habit.seed_duration_days)
-            : DEFAULT_SEED_DURATION_DAYS,
-        seed_why: habit?.seed_why || '',
-        seed_stage: habit?.seed_stage || null,
-    });
+    const activeHabits = useMemo(
+        () => storedHabits.filter((habit) => !habit.archived),
+        [storedHabits]
+    );
 
-    const loadHabitsFromSupabase = async () => {
+    const completedDatesByHabit = useMemo(
+        () => buildCompletedDatesByHabit(habitLogs),
+        [habitLogs]
+    );
+
+    const habits = useMemo(() => {
+        const todayKey = toLocalDateKey(new Date());
+        return activeHabits.map((habit) => decorateHabit(habit, habitLogs, completedDatesByHabit, todayKey));
+    }, [activeHabits, completedDatesByHabit, habitLogs]);
+
+    const refreshHabits = useCallback(async () => {
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('habits')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        setStoredHabits((data || []).map(normalizeHabit));
+    }, [user]);
+
+    const refreshHabitLogs = useCallback(async () => {
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('habit_logs')
+            .select('*')
+            .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        const logsMap = {};
+        (data || []).forEach((log) => {
+            logsMap[getHabitLogKey(log.habit_id, log.date)] = normalizeHabitLog(log);
+        });
+        setHabitLogs(logsMap);
+    }, [user]);
+
+    const loadHabitsFromSupabase = useCallback(async () => {
         if (!user) return;
 
         try {
-            const { data: habitsData, error: habitsError } = await supabase
-                .from('habits')
-                .select('*')
-                .eq('archived', false)
-                .order('created_at', { ascending: true });
-
-            if (habitsError) throw habitsError;
-            if (habitsData) setHabits(habitsData.map(normalizeHabit));
-
-            const { data: logsData, error: logsError } = await supabase
-                .from('habit_logs')
-                .select('*');
-
-            if (logsError) throw logsError;
-            if (logsData) {
-                const logsMap = {};
-                logsData.forEach((log) => {
-                    const key = `${log.habit_id}_${log.date}`;
-                    logsMap[key] = normalizeHabitLog(log);
-                });
-                setHabitLogs(logsMap);
-            }
+            await Promise.all([
+                refreshHabits(),
+                refreshHabitLogs()
+            ]);
         } catch (error) {
             console.error('Error loading habits:', error);
         }
-    };
+    }, [refreshHabitLogs, refreshHabits, user]);
 
-    const loadHabitsFromLocalStorage = () => {
+    const loadHabitsFromLocalStorage = useCallback(() => {
         try {
             const savedHabits = localStorage.getItem('habits-guest');
             const savedLogs = localStorage.getItem('habit-logs-guest');
-            if (savedHabits) setHabits(JSON.parse(savedHabits).map(normalizeHabit));
-            if (savedLogs) setHabitLogs(JSON.parse(savedLogs));
+            if (savedHabits) setStoredHabits(JSON.parse(savedHabits).map(normalizeHabit));
+            if (savedLogs) {
+                const parsedLogs = JSON.parse(savedLogs);
+                const normalizedLogs = {};
+                Object.entries(parsedLogs).forEach(([key, log]) => {
+                    normalizedLogs[key] = normalizeHabitLog(log);
+                });
+                setHabitLogs(normalizedLogs);
+            }
         } catch (error) {
             console.error('Failed to load habits from localStorage:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         setIsLoaded(false);
@@ -107,18 +213,70 @@ export const HabitProvider = ({ children }) => {
             return;
         }
 
-        setHabits([]);
+        setStoredHabits([]);
         setHabitLogs({});
         loadHabitsFromLocalStorage();
         setIsLoaded(true);
-    }, [user]);
+    }, [loadHabitsFromLocalStorage, loadHabitsFromSupabase, user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
+
+        const channel = supabase
+            .channel(`habits-${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'habits',
+                    filter: `user_id=eq.${user.id}`
+                },
+                () => {
+                    refreshHabits().catch((error) => {
+                        console.error('Error refreshing habits in realtime:', error);
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [refreshHabits, user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
+
+        const channel = supabase
+            .channel(`habit-logs-${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'habit_logs',
+                    filter: `user_id=eq.${user.id}`
+                },
+                () => {
+                    refreshHabitLogs().catch((error) => {
+                        console.error('Error refreshing habit logs in realtime:', error);
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [refreshHabitLogs, user]);
 
     useEffect(() => {
         if (!user && isLoaded) {
-            localStorage.setItem('habits-guest', JSON.stringify(habits));
+            localStorage.setItem('habits-guest', JSON.stringify(storedHabits));
             localStorage.setItem('habit-logs-guest', JSON.stringify(habitLogs));
         }
-    }, [habits, habitLogs, user, isLoaded]);
+    }, [storedHabits, habitLogs, user, isLoaded]);
 
     const addHabit = async (habitData) => {
         const now = new Date().toISOString();
@@ -133,45 +291,80 @@ export const HabitProvider = ({ children }) => {
         });
 
         const tempId = `habit_${Date.now()}`;
-        setHabits((prev) => [...prev, { ...newHabit, id: user ? tempId : newHabit.id }]);
+        setStoredHabits((prev) => [...prev, { ...newHabit, id: user ? tempId : newHabit.id }]);
 
-        if (!user) return;
+        if (!user) return normalizeHabit(newHabit);
 
         try {
-            const { id, ...dbHabit } = newHabit;
-            const { data, error } = await supabase.from('habits').insert([dbHabit]).select().single();
+            const dbHabit = { ...newHabit };
+            delete dbHabit.id;
+
+            const { data, error } = await supabase
+                .from('habits')
+                .insert([dbHabit])
+                .select()
+                .single();
+
             if (error) throw error;
             if (data) {
-                setHabits((prev) => prev.map((habit) => (habit.id === tempId ? normalizeHabit(data) : habit)));
+                setStoredHabits((prev) => prev.map((habit) => (
+                    habit.id === tempId ? normalizeHabit(data) : habit
+                )));
+                return normalizeHabit(data);
             }
         } catch (error) {
             console.error('Error adding habit:', error);
+            setStoredHabits((prev) => prev.filter((habit) => habit.id !== tempId));
         }
+
+        return normalizeHabit(newHabit);
     };
 
     const updateHabit = async (id, updates) => {
-        setHabits((prev) => prev.map((habit) => (habit.id === id ? normalizeHabit({ ...habit, ...updates }) : habit)));
+        const previousHabit = storedHabits.find((habit) => habit.id === id);
+        if (!previousHabit) return null;
 
-        if (!user) return;
+        const nextHabit = normalizeHabit({ ...previousHabit, ...updates });
+        setStoredHabits((prev) => prev.map((habit) => (habit.id === id ? nextHabit : habit)));
+
+        if (!user) return nextHabit;
 
         try {
             const { error } = await supabase.from('habits').update(updates).eq('id', id);
             if (error) throw error;
+            return nextHabit;
         } catch (error) {
             console.error('Error updating habit:', error);
+            setStoredHabits((prev) => prev.map((habit) => (habit.id === id ? previousHabit : habit)));
+            return previousHabit;
         }
     };
 
     const deleteHabit = async (id) => {
-        setHabits((prev) => prev.filter((habit) => habit.id !== id));
+        const previousHabit = storedHabits.find((habit) => habit.id === id);
+        if (!previousHabit) return;
+
+        const previousLogs = Object.fromEntries(
+            Object.entries(habitLogs).filter(([, log]) => log.habit_id === id)
+        );
+
+        setStoredHabits((prev) => prev.filter((habit) => habit.id !== id));
+        setHabitLogs((prev) => Object.fromEntries(
+            Object.entries(prev).filter(([, log]) => log.habit_id !== id)
+        ));
 
         if (!user) return;
 
         try {
+            await supabase.from('habit_logs').delete().eq('habit_id', id);
             const { error } = await supabase.from('habits').delete().eq('id', id);
             if (error) throw error;
         } catch (error) {
             console.error('Error deleting habit:', error);
+            setStoredHabits((prev) => [...prev, previousHabit].sort((left, right) => (
+                new Date(left.created_at || 0) - new Date(right.created_at || 0)
+            )));
+            setHabitLogs((prev) => ({ ...prev, ...previousLogs }));
         }
     };
 
@@ -180,9 +373,9 @@ export const HabitProvider = ({ children }) => {
     };
 
     const logHabit = async (habitId, date, value, completed = false, options = {}) => {
-        const dateStr = typeof date === 'string' ? date : toDateKey(date);
-        const key = `${habitId}_${dateStr}`;
-        const existingLog = habitLogs[key];
+        const dateStr = typeof date === 'string' ? date : toLocalDateKey(date);
+        const key = getHabitLogKey(habitId, dateStr);
+        const existingLog = habitLogs[key] || null;
 
         const logData = {
             habit_id: habitId,
@@ -199,12 +392,14 @@ export const HabitProvider = ({ children }) => {
             logData.notes = existingLog.notes;
         }
 
+        const optimisticLog = normalizeHabitLog({ ...logData, id: existingLog?.id });
+
         setHabitLogs((prev) => ({
             ...prev,
-            [key]: normalizeHabitLog({ ...logData, id: prev[key]?.id }),
+            [key]: optimisticLog,
         }));
 
-        if (!user) return;
+        if (!user) return optimisticLog;
 
         try {
             const payload = {
@@ -212,23 +407,43 @@ export const HabitProvider = ({ children }) => {
                 id: existingLog?.id,
             };
 
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('habit_logs')
-                .upsert(payload, { onConflict: 'habit_id, date' });
+                .upsert(payload, { onConflict: 'habit_id, date' })
+                .select()
+                .maybeSingle();
+
             if (error) throw error;
+
+            if (data) {
+                const normalizedRow = normalizeHabitLog(data);
+                setHabitLogs((prev) => ({
+                    ...prev,
+                    [key]: normalizedRow,
+                }));
+                return normalizedRow;
+            }
+
+            return optimisticLog;
         } catch (error) {
             console.error('Error logging habit:', error);
+            setHabitLogs((prev) => {
+                const nextLogs = { ...prev };
+                if (existingLog) nextLogs[key] = existingLog;
+                else delete nextLogs[key];
+                return nextLogs;
+            });
+            return existingLog;
         }
     };
 
-    const getHabitLog = (habitId, date) => {
-        const dateStr = typeof date === 'string' ? date : toDateKey(date);
-        const key = `${habitId}_${dateStr}`;
-        return habitLogs[key] || null;
-    };
+    const getHabitLog = useCallback((habitId, date) => {
+        return getHabitLogFromMap(habitLogs, habitId, date);
+    }, [habitLogs]);
 
-    const getHabitsForDate = (date) => {
-        const filtered = habits.filter((habit) => isHabitScheduledOnDate(habit, date));
+    const getHabitsForDate = useCallback((date) => {
+        const targetDate = date instanceof Date ? date : new Date(date);
+        const filtered = habits.filter((habit) => isHabitScheduledOnDate(habit, targetDate));
         const timeOrder = { morning: 0, afternoon: 1, evening: 2, night: 3, anytime: 4 };
 
         return filtered.sort((a, b) => {
@@ -240,46 +455,16 @@ export const HabitProvider = ({ children }) => {
             if (b.reminder_time) return 1;
             return 0;
         });
-    };
+    }, [habits]);
 
-    const getHabitStreak = (habitId) => {
-        const habit = habits.find((item) => item.id === habitId);
-        if (!habit) return { current: 0, best: 0 };
+    const getHabitStreak = useCallback((habitId) => {
+        const habit = storedHabits.find((item) => item.id === habitId);
+        return calculateHabitStreak(habit, habitLogs);
+    }, [habitLogs, storedHabits]);
 
-        let currentStreak = 0;
-        let bestStreak = 0;
-        let tempStreak = 0;
-
-        const today = startOfDay(new Date());
-
-        for (let index = 0; index < 365; index += 1) {
-            const checkDate = new Date(today);
-            checkDate.setDate(checkDate.getDate() - index);
-
-            if (!isHabitScheduledOnDate(habit, checkDate)) continue;
-
-            const log = getHabitLog(habitId, checkDate);
-            if (log?.completed) {
-                tempStreak += 1;
-                if (index === 0 || currentStreak > 0) {
-                    currentStreak = tempStreak;
-                }
-                bestStreak = Math.max(bestStreak, tempStreak);
-                continue;
-            }
-
-            if (index > 0) {
-                tempStreak = 0;
-                if (currentStreak > 0) currentStreak = 0;
-            }
-        }
-
-        return { current: currentStreak, best: bestStreak };
-    };
-
-    const getCompletionStats = (habitId, days = 7) => {
-        const habit = habits.find((item) => item.id === habitId);
-        if (!habit) return { completed: 0, total: 0, rate: 0 };
+    const getCompletionStats = useCallback((habitId, days = 7) => {
+        const habit = storedHabits.find((item) => item.id === habitId);
+        if (!habit || habit.archived) return { completed: 0, total: 0, rate: 0 };
 
         let completed = 0;
         let total = 0;
@@ -292,7 +477,7 @@ export const HabitProvider = ({ children }) => {
             if (!isHabitScheduledOnDate(habit, checkDate)) continue;
 
             total += 1;
-            const log = getHabitLog(habitId, checkDate);
+            const log = getHabitLogFromMap(habitLogs, habitId, checkDate);
             if (log?.completed) completed += 1;
         }
 
@@ -301,16 +486,16 @@ export const HabitProvider = ({ children }) => {
             total,
             rate: total > 0 ? Math.round((completed / total) * 100) : 0,
         };
-    };
+    }, [habitLogs, storedHabits]);
 
-    const getHabitNoteHistory = (habitId) => {
+    const getHabitNoteHistory = useCallback((habitId) => {
         return Object.values(habitLogs)
             .filter((log) => log.habit_id === habitId && log.notes?.trim())
-            .sort((left, right) => new Date(right.date) - new Date(left.date));
-    };
+            .sort((left, right) => new Date(`${right.date}T12:00:00`) - new Date(`${left.date}T12:00:00`));
+    }, [habitLogs]);
 
-    const getSeedInsight = (habitId) => {
-        const habit = habits.find((item) => item.id === habitId);
+    const getSeedInsight = useCallback((habitId) => {
+        const habit = storedHabits.find((item) => item.id === habitId && !item.archived);
         if (!habit?.is_seed) return null;
 
         const startedAt = startOfDay(habit.seed_started_at || habit.created_at || new Date());
@@ -326,18 +511,29 @@ export const HabitProvider = ({ children }) => {
         let completedDays = 0;
         let runningMissStreak = 0;
         let maxMissStreak = 0;
+        let scheduledSlotsSeen = 0;
+        let elapsedScheduledDays = 0;
 
-        for (let index = 0; index < durationDays; index += 1) {
+        const maxTimelineDays = Math.max(durationDays * 14, durationDays + 14);
+
+        for (let index = 0; index < maxTimelineDays && scheduledSlotsSeen < durationDays; index += 1) {
             const date = new Date(startedAt);
             date.setDate(startedAt.getDate() + index);
 
             const scheduled = isHabitScheduledOnDate(habit, date);
-            const log = getHabitLog(habitId, date);
+            if (scheduled) {
+                scheduledSlotsSeen += 1;
+                if (date <= today) {
+                    elapsedScheduledDays += 1;
+                }
+            }
+            const log = getHabitLogFromMap(habitLogs, habitId, date);
             const completed = Boolean(log?.completed);
             const isFuture = date > today;
             const isToday = isSameDay(date, today);
             const isPast = date < today;
-            const growthScale = 0.45 + (((index + 1) / durationDays) * 0.8);
+            const progressIndex = Math.max(scheduledSlotsSeen, 1);
+            const growthScale = 0.45 + ((Math.min(progressIndex, durationDays) / durationDays) * 0.8);
 
             let status = 'future';
 
@@ -350,7 +546,7 @@ export const HabitProvider = ({ children }) => {
                 if (isPast || isToday) {
                     countedScheduledDays += 1;
                     completedDays += 1;
-                    pastScheduledResults.push({ completed: true, date: toDateKey(date) });
+                    pastScheduledResults.push({ completed: true, date: toLocalDateKey(date) });
                 }
             } else if (isFuture) {
                 status = 'future';
@@ -365,13 +561,13 @@ export const HabitProvider = ({ children }) => {
                 else if (runningMissStreak >= 3) status = 'rotting';
                 else status = 'missed';
 
-                pastScheduledResults.push({ completed: false, date: toDateKey(date) });
+                pastScheduledResults.push({ completed: false, date: toLocalDateKey(date) });
             }
 
             timeline.push({
                 index,
-                dayNumber: index + 1,
-                date: toDateKey(date),
+                dayNumber: timeline.length + 1,
+                date: toLocalDateKey(date),
                 scheduled,
                 completed,
                 isToday,
@@ -416,10 +612,7 @@ export const HabitProvider = ({ children }) => {
         else if (currentMissStreak > 0) health = 'dry';
         else if (recentDecay && currentRecoveryStreak > 0 && currentRecoveryStreak < 3) health = 'recovering';
 
-        const elapsedDays = Math.max(
-            1,
-            Math.min(durationDays, Math.floor((today - startedAt) / (1000 * 60 * 60 * 24)) + 1)
-        );
+        const elapsedDays = Math.max(1, Math.min(durationDays, elapsedScheduledDays || 1));
 
         const timeProgress = elapsedDays / durationDays;
         const consistencyRate = countedScheduledDays > 0 ? completedDays / countedScheduledDays : 0;
@@ -460,7 +653,7 @@ export const HabitProvider = ({ children }) => {
             recentDecay,
             healthMessage,
         };
-    };
+    }, [habitLogs, storedHabits]);
 
     const value = {
         habits,

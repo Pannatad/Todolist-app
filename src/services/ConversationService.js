@@ -4,6 +4,7 @@
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { isTaskCompleted } from '../utils/taskState';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -396,7 +397,7 @@ CURRENT TIME: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit',
 TIMEZONE: ${timezoneString}
 ${pendingActionsSection}${activeSubjectSection}
 TASKS (${recentTasks.length} total, ${tasksDueToday?.length || 0} due today):
-${recentTasks.slice(0, 10).map(t => `- [ID: ${t.id}] "${t.title}" (${t.completed ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n') || 'No tasks'}
+${recentTasks.slice(0, 10).map(t => `- [ID: ${t.id}] "${t.title}" (${isTaskCompleted(t) ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n') || 'No tasks'}
 
 SCHEDULE ITEMS (recent and upcoming):
 ${recentSchedule.slice(0, 8).map(s => {

@@ -1,15 +1,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, BookOpen, Trash2, Edit2, Archive } from 'lucide-react';
+import { Clock, BookOpen, Trash2, Edit2, ArchiveRestore, Archive } from 'lucide-react';
 import { COLOR_OPTIONS } from './LearningPathModal';
 
-const LearningPathCard = ({ path, progress, topicCount, completedCount, totalTime, onClick, onEdit, onDelete, onArchive }) => {
+const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedTime, studiedTime, onClick, onEdit, onDelete, onArchive, onRestore }) => {
     const colorConfig = COLOR_OPTIONS.find(c => c.name === path.color) || COLOR_OPTIONS[0];
 
     const getDaysLeft = () => {
         if (!path.target_completion_date) return null;
         const now = new Date();
-        const end = new Date(path.target_completion_date);
+        now.setHours(0, 0, 0, 0);
+
+        const [year, month, day] = path.target_completion_date.split('-').map(Number);
+        const end = new Date(year, (month || 1) - 1, day || 1);
+        end.setHours(0, 0, 0, 0);
         const diff = end - now;
         const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
         if (days < 0) return { text: 'Overdue', urgent: true };
@@ -63,11 +67,18 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, totalTim
                                 <Edit2 size={14} />
                             </button>
                             <button
-                                onClick={(e) => { e.stopPropagation(); onArchive(path.id); }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (path.archived) {
+                                        onRestore(path.id);
+                                    } else {
+                                        onArchive(path.id);
+                                    }
+                                }}
                                 className="p-1.5 rounded-lg hover:bg-white/20 text-white/60 hover:text-white transition-colors"
-                                title="Archive"
+                                title={path.archived ? 'Restore' : 'Archive'}
                             >
-                                <Archive size={14} />
+                                {path.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                             </button>
                             <button
                                 onClick={(e) => {
@@ -117,7 +128,10 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, totalTim
                         {/* Time Spent */}
                         <div className="flex items-center gap-1.5 text-xs text-gray-400">
                             <Clock size={13} />
-                            <span className="font-medium text-gray-500">{formatTime(totalTime)}</span>
+                            <span className="font-medium text-gray-500">{formatTime(studiedTime)}</span>
+                            {plannedTime > 0 && (
+                                <span className="text-gray-300">/ {formatTime(plannedTime)} planned</span>
+                            )}
                         </div>
                     </div>
 

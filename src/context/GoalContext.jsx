@@ -1,8 +1,18 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 
 const GoalContext = createContext();
+
+const readStoredJson = (key, fallback) => {
+    try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : fallback;
+    } catch (error) {
+        console.error(`Failed to parse ${key}:`, error);
+        return fallback;
+    }
+};
 
 export const useGoal = () => {
     const context = useContext(GoalContext);
@@ -16,29 +26,18 @@ export const GoalProvider = ({ children }) => {
     const { user } = useAuth();
 
     // Goals State
-    const [goals, setGoals] = useState(() => {
-        try {
-            const saved = localStorage.getItem('vision-goals');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error("Failed to parse goals:", e);
-            return [];
-        }
-    });
+    const [goals, setGoals] = useState(() => readStoredJson('vision-goals', []));
 
     // Daily Highlights State
-    const [dailyHighlights, setDailyHighlights] = useState(() => {
-        try {
-            const saved = localStorage.getItem('daily-highlights');
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            console.error("Failed to parse daily highlights:", e);
-            return {};
-        }
-    });
+    const [dailyHighlights, setDailyHighlights] = useState(() => readStoredJson('daily-highlights', {}));
+
+    const loadGoalsFromLocalStorage = useCallback(() => {
+        setGoals(readStoredJson('vision-goals', []));
+        setDailyHighlights(readStoredJson('daily-highlights', {}));
+    }, []);
 
     // Load from Supabase
-    const loadGoalsFromSupabase = async () => {
+    const loadGoalsFromSupabase = useCallback(async () => {
         if (!user) return;
 
         try {
@@ -46,13 +45,15 @@ export const GoalProvider = ({ children }) => {
             const { data: goalsData } = await supabase
                 .from('goals')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: true });
             if (goalsData) setGoals(goalsData);
 
             // Load Daily Highlights
             const { data: highlightsData } = await supabase
                 .from('daily_highlights')
-                .select('*');
+                .select('*')
+                .eq('user_id', user.id);
 
             if (highlightsData) {
                 const highlightsMap = {};
@@ -68,13 +69,45 @@ export const GoalProvider = ({ children }) => {
         } catch (error) {
             console.error("Error loading goals:", error);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         if (user) {
             loadGoalsFromSupabase();
+        } else {
+            loadGoalsFromLocalStorage();
         }
-    }, [user]);
+    }, [loadGoalsFromLocalStorage, loadGoalsFromSupabase, user]);
+
+    useEffect(() => {
+        if (!user || !supabase) return undefined;
+
+        const channel = supabase
+            .channel(`goals-${user.id}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'goals', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadGoalsFromSupabase().catch((error) => {
+                        console.error('Error refreshing goals in realtime:', error);
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'daily_highlights', filter: `user_id=eq.${user.id}` },
+                () => {
+                    loadGoalsFromSupabase().catch((error) => {
+                        console.error('Error refreshing highlights in realtime:', error);
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [loadGoalsFromSupabase, user]);
 
     // Save to LocalStorage (Guest Mode)
     useEffect(() => {
