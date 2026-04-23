@@ -49,6 +49,43 @@ const buildScheduleInsertPayloads = (item) => {
     return [fullPayload, legacyPayload, minimalPayload];
 };
 
+const withDefinedValues = (payload) => Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined)
+);
+
+const buildScheduleUpdatePayloads = (updates) => {
+    const fullPayload = withDefinedValues({
+        title: updates.title,
+        start_time: updates.start_time,
+        duration: updates.duration,
+        category: updates.category,
+        color: updates.color,
+        notes: updates.notes,
+        recurrence_type: updates.recurrence_type,
+        recurrence_interval: updates.recurrence_interval,
+        recurrence_days_of_week: updates.recurrence_days_of_week,
+        recurrence_end_date: updates.recurrence_end_date,
+        recurrence_exceptions: updates.recurrence_exceptions
+    });
+
+    const legacyPayload = withDefinedValues({
+        title: updates.title,
+        start_time: updates.start_time,
+        duration: updates.duration,
+        category: updates.category
+    });
+
+    const minimalPayload = withDefinedValues({
+        title: updates.title,
+        start_time: updates.start_time
+    });
+
+    return [fullPayload, legacyPayload, minimalPayload].filter((payload, index, payloads) => (
+        Object.keys(payload).length > 0 &&
+        payloads.findIndex((candidate) => JSON.stringify(candidate) === JSON.stringify(payload)) === index
+    ));
+};
+
 export const useTask = () => {
     const context = useContext(TaskContext);
     if (!context) {
@@ -464,37 +501,54 @@ export const TaskProvider = ({ children }) => {
         setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...processedUpdates } : i));
 
         if (user) {
-            // For DB, use only snake_case fields
-            const dbUpdates = {};
-            if (updates.title !== undefined) dbUpdates.title = updates.title;
-            if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
-            if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
-            if (updates.category !== undefined) dbUpdates.category = updates.category;
-            if (updates.color !== undefined) dbUpdates.color = updates.color;
-            if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-            if (updates.recurrenceType !== undefined) dbUpdates.recurrence_type = updates.recurrenceType;
-            if (updates.recurrenceInterval !== undefined) dbUpdates.recurrence_interval = updates.recurrenceInterval;
-            if (updates.recurrenceDaysOfWeek !== undefined) dbUpdates.recurrence_days_of_week = updates.recurrenceDaysOfWeek;
-            if (updates.recurrenceEndDate !== undefined) dbUpdates.recurrence_end_date = updates.recurrenceEndDate;
-            if (updates.recurrenceExceptions !== undefined) dbUpdates.recurrence_exceptions = updates.recurrenceExceptions;
+            const scheduleUpdatePayloads = buildScheduleUpdatePayloads({
+                title: updates.title,
+                start_time: updates.startTime,
+                duration: updates.duration,
+                category: updates.category,
+                color: updates.color,
+                notes: updates.notes,
+                recurrence_type: updates.recurrenceType,
+                recurrence_interval: updates.recurrenceInterval,
+                recurrence_days_of_week: updates.recurrenceDaysOfWeek,
+                recurrence_end_date: updates.recurrenceEndDate,
+                recurrence_exceptions: updates.recurrenceExceptions
+            });
 
-            const { data, error } = await supabase
-                .from('schedule_items')
-                .update(dbUpdates)
-                .eq('id', id)
-                .select()
-                .maybeSingle();
+            let updatedRow = null;
+            let lastError = null;
 
-            if (error || !data) {
+            for (const payload of scheduleUpdatePayloads) {
+                const { data, error } = await supabase
+                    .from('schedule_items')
+                    .update(payload)
+                    .eq('id', id)
+                    .select()
+                    .maybeSingle();
+
+                if (data) {
+                    updatedRow = data;
+                    break;
+                }
+
+                lastError = error;
+                console.warn('Schedule update attempt failed, trying fallback payload...', error);
+            }
+
+            if (!updatedRow) {
                 setScheduleItems(prev => prev.map(i => i.id === id ? existingItem : i));
-                throw new Error(error?.message || 'Schedule item could not be updated in Supabase.');
+                throw new Error(lastError?.message || 'Schedule item could not be updated in Supabase.');
             }
 
             setScheduleItems(prev => prev.map(i => i.id === id ? {
                 ...i,
-                ...data,
-                startTime: data.start_time,
-                recurrenceExceptions: data.recurrence_exceptions || []
+                ...updatedRow,
+                startTime: updatedRow.start_time,
+                recurrenceType: updatedRow.recurrence_type,
+                recurrenceInterval: updatedRow.recurrence_interval,
+                recurrenceDaysOfWeek: updatedRow.recurrence_days_of_week || [],
+                recurrenceEndDate: updatedRow.recurrence_end_date,
+                recurrenceExceptions: updatedRow.recurrence_exceptions || []
             } : i));
         }
 

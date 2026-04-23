@@ -2000,17 +2000,17 @@ const Overview = ({ onNavigate }) => {
                     setShowScheduleModal(false);
                     setSelectedScheduleItem(null);
                 }}
-                onSave={(eventData) => {
+                onSave={async (eventData) => {
                     if (selectedScheduleItem?.id) {
-                        updateScheduleItem(selectedScheduleItem.id, eventData);
+                        await updateScheduleItem(selectedScheduleItem.id, eventData);
                     } else {
-                        addScheduleItem(eventData);
+                        await addScheduleItem(eventData);
                     }
                     setShowScheduleModal(false);
                     setSelectedScheduleItem(null);
                 }}
-                onDelete={selectedScheduleItem?.id ? () => {
-                    deleteScheduleItem(selectedScheduleItem.id);
+                onDelete={selectedScheduleItem?.id ? async (_eventId, options) => {
+                    await deleteScheduleItem(selectedScheduleItem.id, options);
                     setShowScheduleModal(false);
                     setSelectedScheduleItem(null);
                 } : null}

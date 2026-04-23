@@ -56,6 +56,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
 
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const occurrenceDate = event?._occurrenceDate;
     const isRecurringSeries = !!event && (event.recurrence_type || event.recurrenceType || 'none') !== 'none';
     const canDeleteSingleOccurrence = isRecurringSeries && !!occurrenceDate;
@@ -85,26 +86,51 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
         }
     }, [event, selectedDate, isOpen]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.title.trim()) return;
+        if (!formData.title.trim() || isSubmitting) return;
 
         const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
 
-        onSave({
-            id: event?.id,
-            title: formData.title,
-            startTime: startDateTime.toISOString(),
-            duration: formData.duration,
-            color: formData.color,
-            category: formData.category,
-            recurrenceType: formData.recurrenceType,
-            recurrenceInterval: formData.recurrenceInterval,
-            recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
-            recurrenceEndDate: formData.recurrenceEndDate || null,
-            notes: formData.notes
-        });
-        onClose();
+        setIsSubmitting(true);
+
+        try {
+            await onSave?.({
+                id: event?.id,
+                title: formData.title,
+                startTime: startDateTime.toISOString(),
+                duration: formData.duration,
+                color: formData.color,
+                category: formData.category,
+                recurrenceType: formData.recurrenceType,
+                recurrenceInterval: formData.recurrenceInterval,
+                recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
+                recurrenceEndDate: formData.recurrenceEndDate || null,
+                notes: formData.notes
+            });
+            onClose();
+        } catch (error) {
+            console.error('Failed to save schedule event:', error);
+            alert(error?.message || 'Could not save this schedule event.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (deleteOptions) => {
+        if (!onDelete || isSubmitting) return;
+
+        setIsSubmitting(true);
+
+        try {
+            await onDelete(event.id, deleteOptions);
+            onClose();
+        } catch (error) {
+            console.error('Failed to delete schedule event:', error);
+            alert(error?.message || 'Could not delete this schedule event.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const toggleDayOfWeek = (dayIndex) => {
@@ -348,17 +374,16 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         );
 
                                         if (deleteSingle) {
-                                            onDelete(event.id, { occurrenceDate });
-                                            onClose();
+                                            handleDelete({ occurrenceDate });
                                             return;
                                         }
                                     }
 
                                     if (window.confirm(isRecurringSeries ? 'Delete the entire recurring event?' : 'Delete this event?')) {
-                                        onDelete(event.id);
-                                        onClose();
+                                        handleDelete();
                                     }
                                 }}
+                                disabled={isSubmitting}
                                 className="px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
                             >
                                 {canDeleteSingleOccurrence ? 'Delete...' : 'Delete'}
@@ -368,6 +393,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                         <button
                             type="button"
                             onClick={onClose}
+                            disabled={isSubmitting}
                             className="px-4 py-2 bg-sage-200 dark:bg-void-700 text-sage-700 dark:text-bone-300 rounded-lg font-bold hover:bg-sage-300 dark:hover:bg-void-600 transition-colors"
                         >
                             Cancel
@@ -375,13 +401,13 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                         <button
                             type="submit"
                             onClick={handleSubmit}
-                            disabled={!formData.title.trim()}
+                            disabled={!formData.title.trim() || isSubmitting}
                             className={`px-6 py-2 rounded-lg font-bold transition-colors ${formData.title.trim()
                                     ? 'bg-indigo-500 text-white hover:bg-indigo-600'
                                     : 'bg-sage-300 text-sage-500 cursor-not-allowed'
                                 }`}
                         >
-                            {event ? 'Save Changes' : 'Create Event'}
+                            {isSubmitting ? 'Saving...' : event ? 'Save Changes' : 'Create Event'}
                         </button>
                     </div>
                 </motion.div>

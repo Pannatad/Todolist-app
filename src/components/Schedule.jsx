@@ -217,14 +217,14 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
 
     const handleSaveEvent = (eventData) => {
         if (eventData.id) {
-            onUpdateEvent(eventData.id, eventData);
+            return onUpdateEvent(eventData.id, eventData);
         } else {
-            onAddEvent(eventData);
+            return onAddEvent(eventData);
         }
     };
 
     const handleDeleteEvent = (eventId, options) => {
-        onDeleteEvent?.(eventId, options);
+        return onDeleteEvent?.(eventId, options);
     };
 
     useEffect(() => {
