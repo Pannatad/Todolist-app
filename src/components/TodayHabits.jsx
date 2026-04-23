@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarDays, Plus, Sprout } from 'lucide-react';
+import { Bell, CalendarDays, CheckCircle2, Plus, Sprout, XCircle } from 'lucide-react';
 import HabitCard from './HabitCard';
 import HabitModal from './HabitModal';
 import HabitNotesModal from './HabitNotesModal';
@@ -39,6 +39,7 @@ const TodayHabits = () => {
         deleteHabit,
         logHabit,
         getHabitLog,
+        canLogHabitDate,
         getHabitsForDate,
         getHabitStreak,
         getHabitNoteHistory,
@@ -47,8 +48,25 @@ const TodayHabits = () => {
 
     const selectedDateStr = toLocalDateKey(selectedDate);
     const today = new Date();
-    const isToday = selectedDate.toDateString() === today.toDateString();
+    const todayStr = toLocalDateKey(today);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = toLocalDateKey(yesterday);
+    const isToday = selectedDateStr === todayStr;
+    const isYesterday = selectedDateStr === yesterdayStr;
+    const canEditSelectedDate = canLogHabitDate(selectedDateStr);
+    const lockedReason = 'Only today and yesterday can be edited.';
     const todayHabits = getHabitsForDate(selectedDate);
+    const [dismissedBackfillIds, setDismissedBackfillIds] = useState([]);
+    const reviewStorageKey = `habit-yesterday-review-dismissed-${todayStr}`;
+
+    useEffect(() => {
+        try {
+            setDismissedBackfillIds(JSON.parse(localStorage.getItem(reviewStorageKey) || '[]'));
+        } catch {
+            setDismissedBackfillIds([]);
+        }
+    }, [reviewStorageKey]);
 
     const weekDates = useMemo(() => {
         const start = new Date(today);
@@ -81,6 +99,12 @@ const TodayHabits = () => {
         return map;
     }, [seedEntries]);
 
+    const yesterdayReviewHabits = useMemo(() => (
+        getHabitsForDate(yesterday)
+            .filter((habit) => !getHabitLog(habit.id, yesterdayStr)?.completed)
+            .filter((habit) => !dismissedBackfillIds.includes(habit.id))
+    ), [dismissedBackfillIds, getHabitLog, getHabitsForDate, yesterday, yesterdayStr]);
+
     const groupedHabits = useMemo(() => {
         const groups = {};
         todayHabits.forEach((habit) => {
@@ -91,11 +115,33 @@ const TodayHabits = () => {
         return groups;
     }, [todayHabits]);
 
+    const dismissYesterdayReview = (habitId) => {
+        setDismissedBackfillIds((prev) => {
+            const next = Array.from(new Set([...prev, habitId]));
+            localStorage.setItem(reviewStorageKey, JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const getCompletionValue = (habit) => (
+        habit.type === 'count' || habit.type === 'duration'
+            ? (habit.target || 1)
+            : 1
+    );
+
+    const handleBackfillDone = async (habit) => {
+        await logHabit(habit.id, yesterdayStr, getCompletionValue(habit), true);
+        dismissYesterdayReview(habit.id);
+    };
+
     const handleLog = (habitId, value, completed) => {
+        if (!canEditSelectedDate) return;
         logHabit(habitId, selectedDateStr, value, completed);
     };
 
     const handleSaveNote = (habitId, notes) => {
+        if (!canEditSelectedDate) return;
+
         const existingLog = getHabitLog(habitId, selectedDateStr);
         logHabit(
             habitId,
@@ -133,7 +179,11 @@ const TodayHabits = () => {
                                 : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                         </h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            {isToday ? getMotivationalMessage(completionRate, bestCurrentStreak) : 'Review or log habits for this date.'}
+                            {isToday
+                                ? getMotivationalMessage(completionRate, bestCurrentStreak)
+                                : isYesterday
+                                    ? 'Yesterday is still open if you forgot to log something.'
+                                    : 'Review only. Older days are locked to keep the history honest.'}
                         </p>
                     </div>
 
@@ -178,6 +228,76 @@ const TodayHabits = () => {
                     </div>
                 </div>
             </section>
+
+            <AnimatePresence>
+                {yesterdayReviewHabits.length > 0 && (
+                    <motion.section
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="rounded-[20px] border border-amber-200 bg-amber-50/90 p-4 text-amber-950 shadow-[0_10px_28px_rgba(245,158,11,0.08)]"
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 text-sm font-semibold">
+                                    <Bell size={16} />
+                                    Did you miss these yesterday, or just forget to log?
+                                </div>
+                                <p className="mt-1 text-sm text-amber-800">
+                                    You can still backfill yesterday. After today, these entries become read-only.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedDate(new Date(yesterday))}
+                                className="self-start rounded-xl border border-amber-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-white"
+                            >
+                                View yesterday
+                            </button>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                            {yesterdayReviewHabits.slice(0, 4).map((habit) => (
+                                <div key={habit.id} className="flex flex-col gap-2 rounded-2xl border border-amber-100 bg-white/70 px-3 py-3 sm:flex-row sm:items-center">
+                                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg">{habit.icon}</span>
+                                        <div className="min-w-0">
+                                            <div className="truncate text-sm font-semibold text-slate-900">{habit.name}</div>
+                                            <div className="text-xs text-amber-700">Yesterday was scheduled for this habit.</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex shrink-0 gap-2">
+                                        <button
+                                            onClick={() => handleBackfillDone(habit)}
+                                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+                                        >
+                                            <CheckCircle2 size={14} />
+                                            I did it
+                                        </button>
+                                        <button
+                                            onClick={() => dismissYesterdayReview(habit.id)}
+                                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                        >
+                                            <XCircle size={14} />
+                                            I missed it
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {yesterdayReviewHabits.length > 4 && (
+                                <div className="text-xs font-medium text-amber-700">
+                                    +{yesterdayReviewHabits.length - 4} more in yesterday&apos;s list.
+                                </div>
+                            )}
+                        </div>
+                    </motion.section>
+                )}
+            </AnimatePresence>
+
+            {!canEditSelectedDate && (
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-500">
+                    This day is read-only. You can only edit today and yesterday.
+                </div>
+            )}
 
             <AnimatePresence>
                 {allCompleted && isToday && (
@@ -245,6 +365,8 @@ const TodayHabits = () => {
                                                 streak={getHabitStreak(habit.id)}
                                                 seedInsight={seedInsightByHabitId[habit.id] || null}
                                                 index={index}
+                                                disabled={!canEditSelectedDate}
+                                                disabledReason={lockedReason}
                                             />
                                         ))}
                                     </div>

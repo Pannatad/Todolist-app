@@ -1,4 +1,5 @@
 import { isTaskActive } from '../utils/taskState';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 /**
  * Smart Notification Service
@@ -226,6 +227,9 @@ class SmartNotificationService {
         // Check habit reminders (midday nudge)
         this.checkHabits(habits, now);
 
+        // Check yesterday's unlogged habits while the grace window is still open
+        this.checkYesterdayHabitReview(habits, now);
+
         // Check scheduling conflicts
         this.checkConflicts(scheduleItems, now);
     }
@@ -375,6 +379,55 @@ class SmartNotificationService {
                 });
             }
         }
+    }
+
+    /**
+     * Ask whether yesterday's incomplete habits were truly missed or just not logged.
+     */
+    checkYesterdayHabitReview(habits, now) {
+        if (!habits?.length) return;
+
+        const hour = now.getHours();
+        if (![8, 12, 18, 21].includes(hour)) return;
+
+        const todayStr = toLocalDateKey(now);
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const yesterdayStr = toLocalDateKey(yesterday);
+        const notificationId = `habit-backfill-${yesterdayStr}-${hour}`;
+
+        if (this.notifiedTasks.has(notificationId)) return;
+
+        const needsReview = habits.filter((habit) => {
+            if (!this.isHabitScheduledOnDate(habit, yesterday)) return false;
+            return !(habit.completedDates || []).includes(yesterdayStr);
+        });
+
+        if (needsReview.length === 0) return;
+
+        this.notifiedTasks.add(notificationId);
+
+        const habitNames = needsReview.slice(0, 2).map((habit) => habit.name).join(', ');
+        const extra = needsReview.length > 2 ? ` and ${needsReview.length - 2} more` : '';
+
+        this.emit({
+            id: notificationId,
+            type: 'habit-backfill',
+            icon: '🌿',
+            title: 'Yesterday Habit Check',
+            message: `Did you miss ${habitNames}${extra}, or just forget to log? You can still backfill today.`,
+            priority: hour >= 18 ? 'high' : 'medium',
+            action: 'Go to Habits',
+            data: { habits: needsReview, date: yesterdayStr, today: todayStr }
+        });
+    }
+
+    isHabitScheduledOnDate(habit, date) {
+        if (habit.frequency === 'daily') return true;
+        if (habit.frequency === 'weekly' || habit.frequency === 'custom') {
+            return habit.schedule_days?.includes(date.getDay());
+        }
+        return true;
     }
 
     /**

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
@@ -22,7 +22,7 @@ const INDEX_COLORS = ['slate', 'rose', 'purple', 'pink', 'indigo', 'blue', 'teal
 
 const WeeklyGrid = () => {
     const [weekOffset, setWeekOffset] = useState(0);
-    const { habits, logHabit, getHabitLog } = useHabit();
+    const { habits, logHabit, getHabitLog, canLogHabitDate } = useHabit();
 
     const getWeekDates = () => {
         const today = new Date();
@@ -48,6 +48,8 @@ const WeeklyGrid = () => {
     const isToday = (date) => date.toDateString() === new Date().toDateString();
 
     const handleLog = (habitId, date, value, completed) => {
+        if (!canLogHabitDate(date)) return;
+
         logHabit(habitId, toLocalDateKey(date), value, completed);
     };
 
@@ -127,14 +129,17 @@ const WeeklyGrid = () => {
                                     const isScheduled = habit.frequency === 'daily' || habit.schedule_days?.includes(date.getDay());
                                     const log = getHabitLog(habit.id, date);
                                     const isCompleted = log?.completed;
+                                    const isEditable = canLogHabitDate(date);
 
                                     return (
                                         <div key={`${habit.id}-${date.toISOString()}`} className={`flex items-center justify-center p-2 ${isToday(date) ? 'bg-emerald-50/60' : ''}`}>
                                             {isScheduled ? (
                                                 <motion.button
-                                                    whileHover={{ scale: 1.04 }}
-                                                    whileTap={{ scale: 0.96 }}
+                                                    whileHover={isEditable ? { scale: 1.04 } : undefined}
+                                                    whileTap={isEditable ? { scale: 0.96 } : undefined}
                                                     onClick={() => {
+                                                        if (!isEditable) return;
+
                                                         if (habit.type === 'check') {
                                                             handleLog(habit.id, date, isCompleted ? 0 : 1, !isCompleted);
                                                         } else {
@@ -142,13 +147,21 @@ const WeeklyGrid = () => {
                                                             handleLog(habit.id, date, nextValue, !isCompleted);
                                                         }
                                                     }}
-                                                    className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
+                                                    disabled={!isEditable}
+                                                    title={isEditable ? undefined : 'Only today and yesterday can be edited.'}
+                                                    className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all disabled:cursor-not-allowed ${
                                                         isCompleted
                                                             ? `${color.active} border-transparent text-white shadow-sm`
-                                                            : `bg-white ${color.border} text-slate-400 hover:bg-slate-50`
+                                                            : isEditable
+                                                                ? `bg-white ${color.border} text-slate-400 hover:bg-slate-50`
+                                                                : 'border-slate-200 bg-slate-50 text-slate-300'
                                                     }`}
                                                 >
-                                                    {isCompleted ? <Check size={15} strokeWidth={3} /> : <span className="text-xs font-semibold">+</span>}
+                                                    {isCompleted
+                                                        ? <Check size={15} strokeWidth={3} />
+                                                        : isEditable
+                                                            ? <span className="text-xs font-semibold">+</span>
+                                                            : <Lock size={13} />}
                                                 </motion.button>
                                             ) : (
                                                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-300">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Clock, Edit2, FileText, Flame, Hash, Sprout, Trash2 } from 'lucide-react';
+import { Check, Clock, Edit2, FileText, Flame, Hash, Lock, Sprout, Trash2 } from 'lucide-react';
 import { SEED_HEALTH_META, SEED_STAGE_META } from '../constants/habitSeeds';
 
 const COLOR_CONFIGS = {
@@ -169,7 +169,7 @@ const getFrequencyLabel = (habit) => {
     return 'Custom';
 };
 
-const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, onEdit, onDelete, streak, seedInsight, compact = false, index = 0 }) => {
+const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, onEdit, onDelete, streak, seedInsight, compact = false, index = 0, disabled = false, disabledReason = '' }) => {
     const [justCompleted, setJustCompleted] = useState(false);
     const [localDuration, setLocalDuration] = useState(null);
     const [isEditingNote, setIsEditingNote] = useState(false);
@@ -205,6 +205,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
 
     const handleIncrement = (event) => {
         event?.stopPropagation();
+        if (disabled) return;
+
         if (habit.type === 'check') {
             if (!isCompleted) pulseCompletion();
             onLog(habit.id, isCompleted ? 0 : 1, !isCompleted);
@@ -218,12 +220,16 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
 
     const handleDurationChange = (event) => {
         event.stopPropagation();
+        if (disabled) return;
+
         const parsedValue = parseInt(event.target.value, 10);
         setLocalDuration(Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : 0);
     };
 
     const handleDurationCommit = (event) => {
         event.stopPropagation();
+        if (disabled) return;
+
         if (localDuration === null) return;
 
         if (localDuration >= habit.target && actualValue < habit.target) pulseCompletion();
@@ -232,6 +238,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
     };
 
     const handleSaveNote = () => {
+        if (disabled) return;
+
         onSaveNote?.(habit.id, noteDraft.trim());
         setIsEditingNote(false);
     };
@@ -242,7 +250,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.94 }}
                 onClick={handleIncrement}
-                className={`h-10 w-10 rounded-2xl border shadow-sm transition-all ${isCompleted
+                disabled={disabled}
+                className={`h-10 w-10 rounded-2xl border shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isCompleted
                     ? `${color.actionBg} border-transparent text-white`
                     : `bg-white ${color.border} text-slate-400`
                     }`}
@@ -310,6 +319,12 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                             {currentStreak} day streak
                                         </span>
                                     )}
+                                    {disabled && (
+                                        <span className="inline-flex items-center gap-1 font-medium text-slate-400" title={disabledReason}>
+                                            <Lock size={13} />
+                                            Read-only
+                                        </span>
+                                    )}
                                     {habit.is_seed && seedInsight && (
                                         <span className="font-medium text-emerald-700">
                                             Step {seedInsight.elapsedDays} of {seedInsight.durationDays}
@@ -323,7 +338,9 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                     <motion.button
                                         whileTap={{ scale: 0.92 }}
                                         onClick={handleIncrement}
-                                        className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${isCompleted
+                                        disabled={disabled}
+                                        title={disabled ? disabledReason : undefined}
+                                        className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all disabled:cursor-not-allowed disabled:opacity-55 ${isCompleted
                                             ? 'border-transparent bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
                                             : 'border-white/60 bg-white/75 text-slate-400 hover:border-emerald-300 hover:text-emerald-500'
                                             }`}
@@ -336,7 +353,9 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                     <motion.button
                                         whileTap={{ scale: 0.96 }}
                                         onClick={handleIncrement}
-                                        className={`rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/5 ${color.actionBg}`}
+                                        disabled={disabled}
+                                        title={disabled ? disabledReason : undefined}
+                                        className={`rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/5 disabled:cursor-not-allowed disabled:opacity-55 ${color.actionBg}`}
                                     >
                                         Log Progress
                                     </motion.button>
@@ -356,7 +375,9 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                             onChange={handleDurationChange}
                                             onMouseUp={handleDurationCommit}
                                             onTouchEnd={handleDurationCommit}
-                                            className="w-full cursor-pointer appearance-none bg-transparent"
+                                            disabled={disabled}
+                                            title={disabled ? disabledReason : undefined}
+                                            className="w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-55"
                                             style={{ accentColor: '#14B8A6' }}
                                             onClick={(event) => event.stopPropagation()}
                                         />
@@ -433,9 +454,12 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                     <button
                                         onClick={(event) => {
                                             event.stopPropagation();
+                                            if (disabled) return;
                                             setIsEditingNote(true);
                                         }}
-                                        className="text-xs font-medium text-slate-500 transition-colors hover:text-slate-800"
+                                        disabled={disabled}
+                                        title={disabled ? disabledReason : undefined}
+                                        className="text-xs font-medium text-slate-500 transition-colors hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {noteText ? 'Edit' : 'Add note'}
                                     </button>
@@ -448,11 +472,12 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         value={noteDraft}
                                         onChange={(event) => setNoteDraft(event.target.value)}
                                         onClick={(event) => event.stopPropagation()}
+                                        disabled={disabled}
                                         rows={2}
                                         placeholder={habit.type === 'duration'
                                             ? 'e.g. Woke up at 6:20 AM'
                                             : 'e.g. Walking, running 2 km, weight training'}
-                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     <div className="flex items-center justify-end gap-2">
                                         <button
@@ -470,7 +495,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 event.stopPropagation();
                                                 handleSaveNote();
                                             }}
-                                            className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-800"
+                                            disabled={disabled}
+                                            className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Save
                                         </button>

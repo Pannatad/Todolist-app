@@ -51,6 +51,20 @@ const getHabitLogFromMap = (logsMap, habitId, date) => (
     logsMap[getHabitLogKey(habitId, date)] || null
 );
 
+const getYesterdayDate = (referenceDate = new Date()) => {
+    const yesterday = startOfDay(referenceDate);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+};
+
+const canEditHabitLogDate = (date, referenceDate = new Date()) => {
+    const dateKey = typeof date === 'string' ? date : toLocalDateKey(date);
+    const todayKey = toLocalDateKey(referenceDate);
+    const yesterdayKey = toLocalDateKey(getYesterdayDate(referenceDate));
+
+    return dateKey === todayKey || dateKey === yesterdayKey;
+};
+
 const buildCompletedDatesByHabit = (logsMap) => {
     const completedDatesByHabit = {};
 
@@ -377,6 +391,11 @@ export const HabitProvider = ({ children }) => {
         const key = getHabitLogKey(habitId, dateStr);
         const existingLog = habitLogs[key] || null;
 
+        if (!canEditHabitLogDate(dateStr)) {
+            console.warn('Habit log date is locked. Only today and yesterday can be edited.', { habitId, date: dateStr });
+            return existingLog;
+        }
+
         const logData = {
             habit_id: habitId,
             user_id: user?.id,
@@ -440,6 +459,8 @@ export const HabitProvider = ({ children }) => {
     const getHabitLog = useCallback((habitId, date) => {
         return getHabitLogFromMap(habitLogs, habitId, date);
     }, [habitLogs]);
+
+    const canLogHabitDate = useCallback((date) => canEditHabitLogDate(date), []);
 
     const getHabitsForDate = useCallback((date) => {
         const targetDate = date instanceof Date ? date : new Date(date);
@@ -664,6 +685,7 @@ export const HabitProvider = ({ children }) => {
         archiveHabit,
         logHabit,
         getHabitLog,
+        canLogHabitDate,
         getHabitsForDate,
         getHabitStreak,
         getCompletionStats,

@@ -7,6 +7,7 @@ const NOTIFICATION_ICONS = {
     'event-reminder': Bell,
     'deadline-alert': AlertTriangle,
     'habit-nudge': Clock,
+    'habit-backfill': Clock,
     'conflict-warning': Zap
 };
 
@@ -14,6 +15,7 @@ const NOTIFICATION_COLORS = {
     'event-reminder': 'from-blue-500 to-indigo-600',
     'deadline-alert': 'from-amber-500 to-orange-600',
     'habit-nudge': 'from-emerald-500 to-teal-600',
+    'habit-backfill': 'from-amber-500 to-lime-600',
     'conflict-warning': 'from-red-500 to-rose-600'
 };
 
