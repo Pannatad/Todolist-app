@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb, Sunrise, CheckCircle2, Settings, Activity, ListTodo } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -21,13 +21,68 @@ import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
 import MagicBox from './MagicBox';
 import AgentConfirmationModal from './AgentConfirmationModal';
+import DailyRitualModal from './DailyRitualModal';
+
+const OVERVIEW_WIDGETS = [
+    {
+        id: 'schedule',
+        label: "Today's Schedule",
+        description: 'Timeline of scheduled events for the selected day.',
+        icon: Calendar,
+    },
+    {
+        id: 'current',
+        label: 'Current Status',
+        description: 'What is happening now and what comes next.',
+        icon: Activity,
+    },
+    {
+        id: 'nextAction',
+        label: 'Next Best Action',
+        description: 'A recommended task, habit, or idea to do next.',
+        icon: Zap,
+    },
+    {
+        id: 'attention',
+        label: 'Needs Attention',
+        description: 'Overdue tasks, late habits, and schedule collisions.',
+        icon: AlertTriangle,
+    },
+    {
+        id: 'timeGaps',
+        label: 'Time Gap Finder',
+        description: 'Free windows left in the day.',
+        icon: Clock,
+    },
+    {
+        id: 'priorityTasks',
+        label: 'Priority Tasks',
+        description: 'Overdue and soon-due active tasks.',
+        icon: ListTodo,
+    },
+    {
+        id: 'recentNotes',
+        label: 'Recent Notes',
+        description: 'Latest notes from habit logs.',
+        icon: FileText,
+    },
+    {
+        id: 'ideaSpotlight',
+        label: 'Idea Spotlight',
+        description: 'Relevant ideas to revisit.',
+        icon: Lightbulb,
+    },
+];
+
+const DEFAULT_OVERVIEW_WIDGET_IDS = OVERVIEW_WIDGETS.map((widget) => widget.id);
+const OVERVIEW_WIDGET_STORAGE_KEY = 'overview-widget-ids';
 
 // Proactive Suggestion Card Component
 const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
     if (!suggestions || suggestions.length === 0) return null;
 
     return (
-        <motion.div
+        <Motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -35,7 +90,7 @@ const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
         >
             <div className="space-y-2">
                 {suggestions.map((suggestion) => (
-                    <motion.div
+                    <Motion.div
                         key={suggestion.id}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -66,10 +121,88 @@ const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
                         >
                             <X size={14} />
                         </button>
-                    </motion.div>
+                    </Motion.div>
                 ))}
             </div>
-        </motion.div>
+        </Motion.div>
+    );
+};
+
+const OverviewWidgetPicker = ({ isOpen, onClose, visibleWidgetIds, onToggleWidget, onResetWidgets }) => {
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm">
+            <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
+                    <div>
+                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-500">Overview Widgets</div>
+                        <h2 className="mt-1 text-2xl font-bold text-gray-900">Customize your dashboard</h2>
+                        <p className="mt-1 text-sm text-gray-500">Choose which blocks appear on the Overview page.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-2xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                        aria-label="Close widget picker"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="max-h-[65vh] overflow-y-auto p-5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {OVERVIEW_WIDGETS.map((widget) => {
+                            const WidgetIcon = widget.icon;
+                            const isVisible = visibleWidgetIds.includes(widget.id);
+
+                            return (
+                                <button
+                                    key={widget.id}
+                                    type="button"
+                                    onClick={() => onToggleWidget(widget.id)}
+                                    className={`flex items-start gap-4 rounded-3xl border p-4 text-left transition-all ${isVisible
+                                        ? 'border-indigo-200 bg-indigo-50 shadow-sm'
+                                        : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
+                                        }`}
+                                >
+                                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${isVisible ? 'bg-white text-indigo-600' : 'bg-white text-gray-500'}`}>
+                                        <WidgetIcon size={20} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="font-bold text-gray-900">{widget.label}</div>
+                                            <div className={`relative h-6 w-11 rounded-full transition-colors ${isVisible ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                                                <div className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${isVisible ? 'translate-x-6' : 'translate-x-1'}`}></div>
+                                            </div>
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-500">{widget.description}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-6 py-4">
+                    <button
+                        type="button"
+                        onClick={onResetWidgets}
+                        className="rounded-2xl px-4 py-2 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-100"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-2xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800"
+                    >
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };
 
@@ -202,7 +335,7 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
 
                         {/* Progress Bar */}
                         <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                            <motion.div
+                            <Motion.div
                                 className={`h-full ${currentEvent.isHabit ? 'bg-teal-500' : 'bg-indigo-500'}`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progress}%` }}
@@ -426,7 +559,7 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef, popu
     if (!isOpen) return null;
 
     return createPortal(
-        <motion.div
+        <Motion.div
             ref={popupRef}
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -489,7 +622,7 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef, popu
                     </button>
                 </form>
             </div>
-        </motion.div>,
+        </Motion.div>,
         document.body
     );
 };
@@ -602,7 +735,7 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef, popupStyle })
     if (!isOpen) return null;
 
     return createPortal(
-        <motion.div
+        <Motion.div
             ref={popupRef}
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -672,7 +805,7 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef, popupStyle })
                     </button>
                 </form>
             </div>
-        </motion.div>,
+        </Motion.div>,
         document.body
     );
 };
@@ -692,6 +825,22 @@ const Overview = ({ onNavigate }) => {
     const [selectedScheduleItem, setSelectedScheduleItem] = useState(null);
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
+    const [showDailyRitual, setShowDailyRitual] = useState(false);
+    const [ritualCompletedAt, setRitualCompletedAt] = useState(null);
+    const [showWidgetPicker, setShowWidgetPicker] = useState(false);
+    const [visibleWidgetIds, setVisibleWidgetIds] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(OVERVIEW_WIDGET_STORAGE_KEY) || 'null');
+            if (Array.isArray(saved) && saved.length > 0) {
+                const validIds = new Set(OVERVIEW_WIDGETS.map((widget) => widget.id));
+                return saved.filter((id) => validIds.has(id));
+            }
+        } catch {
+            // Fall back to defaults.
+        }
+
+        return DEFAULT_OVERVIEW_WIDGET_IDS;
+    });
     const [showQuickSchedulePopup, setShowQuickSchedulePopup] = useState(false);
     const [showQuickAddTaskPopup, setShowQuickAddTaskPopup] = useState(false);
     const quickScheduleButtonRef = useRef(null);
@@ -721,7 +870,11 @@ const Overview = ({ onNavigate }) => {
         end.setDate(end.getDate() + 1);
         return end;
     }, [todayStart]);
+    const todayKey = useMemo(() => toLocalDateKey(now), [now]);
     const activeTasks = useMemo(() => (tasks || []).filter(isTaskActive), [tasks]);
+    const visibleWidgetSet = useMemo(() => new Set(visibleWidgetIds), [visibleWidgetIds]);
+    const isWidgetVisible = (widgetId) => visibleWidgetSet.has(widgetId);
+    const visibleMainWidgetCount = visibleWidgetIds.filter((widgetId) => widgetId !== 'schedule').length;
 
     // Handler to route actions through chat
     const handleChatAction = (action) => {
@@ -741,6 +894,30 @@ const Overview = ({ onNavigate }) => {
 
         return () => window.clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        localStorage.setItem(OVERVIEW_WIDGET_STORAGE_KEY, JSON.stringify(visibleWidgetIds));
+    }, [visibleWidgetIds]);
+
+    const handleToggleWidget = (widgetId) => {
+        setVisibleWidgetIds((previous) => (
+            previous.includes(widgetId)
+                ? previous.filter((id) => id !== widgetId)
+                : [...previous, widgetId]
+        ));
+    };
+
+    const handleResetWidgets = () => {
+        setVisibleWidgetIds(DEFAULT_OVERVIEW_WIDGET_IDS);
+    };
+
+    useEffect(() => {
+        try {
+            setRitualCompletedAt(localStorage.getItem(`daily-ritual-completed-${todayKey}`));
+        } catch {
+            setRitualCompletedAt(null);
+        }
+    }, [todayKey]);
 
     // Generate proactive suggestions
     useEffect(() => {
@@ -1321,25 +1498,49 @@ const Overview = ({ onNavigate }) => {
                     </p>
                 </div>
 
-                {/* Quick Stats Row */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-purple-600">{todaySummary.eventsToday}</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Events Today</span>
+                <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                        <button
+                            type="button"
+                            onClick={() => setShowDailyRitual(true)}
+                            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${ritualCompletedAt
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                                }`}
+                        >
+                            {ritualCompletedAt ? <CheckCircle2 size={18} /> : <Sunrise size={18} />}
+                            {ritualCompletedAt ? 'Daily Ritual Done' : 'Start Daily Ritual'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowWidgetPicker(true)}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md"
+                        >
+                            <Settings size={18} />
+                            Customize Widgets
+                        </button>
                     </div>
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-teal-600">{todaySummary.habitsLeft}</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Habits Left</span>
-                    </div>
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-orange-600 flex items-center gap-1">
-                            {todaySummary.streakDays} <span className="text-sm">🔥</span>
-                        </span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Streak</span>
-                    </div>
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                        <span className="text-2xl font-bold text-red-600">{todaySummary.overdueTasks}</span>
-                        <span className="text-xs text-gray-600 uppercase font-bold">Overdue</span>
+
+                    {/* Quick Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
+                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                            <span className="text-2xl font-bold text-purple-600">{todaySummary.eventsToday}</span>
+                            <span className="text-xs text-gray-600 uppercase font-bold">Events Today</span>
+                        </div>
+                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                            <span className="text-2xl font-bold text-teal-600">{todaySummary.habitsLeft}</span>
+                            <span className="text-xs text-gray-600 uppercase font-bold">Habits Left</span>
+                        </div>
+                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                            <span className="text-2xl font-bold text-orange-600 flex items-center gap-1">
+                                {todaySummary.streakDays} <span className="text-sm">🔥</span>
+                            </span>
+                            <span className="text-xs text-gray-600 uppercase font-bold">Streak</span>
+                        </div>
+                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
+                            <span className="text-2xl font-bold text-red-600">{todaySummary.overdueTasks}</span>
+                            <span className="text-xs text-gray-600 uppercase font-bold">Overdue</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1364,6 +1565,7 @@ const Overview = ({ onNavigate }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* LEFT COLUMN: Today's Schedule */}
+                {isWidgetVisible('schedule') && (
                 <div className="lg:col-span-1 flex flex-col h-full">
                     <div className="bg-white rounded-3xl p-6 shadow-sm hover:shadow transition-shadow h-full flex flex-col relative overflow-hidden border border-gray-100">
                         {/* Subtle accent */}
@@ -1560,11 +1762,13 @@ const Overview = ({ onNavigate }) => {
                         </div>
                     </div>
                 </div>
+                )}
 
                 {/* MIDDLE/RIGHT COLUMN: Vision Board + Widgets */}
-                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className={`${isWidgetVisible('schedule') ? 'lg:col-span-2' : 'lg:col-span-3'} grid grid-cols-1 md:grid-cols-2 gap-6`}>
 
                     {/* Current Event Widget */}
+                    {isWidgetVisible('current') && (
                     <div className="md:col-span-2">
                         <CurrentEventWidget
                             scheduleItems={scheduleItems}
@@ -1580,8 +1784,10 @@ const Overview = ({ onNavigate }) => {
                                 }))}
                         />
                     </div>
+                    )}
 
                     {/* Next Best Action */}
+                    {isWidgetVisible('nextAction') && (
                     <div className="md:col-span-2 bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100">
                         <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 w-28 h-28 bg-indigo-50/30 rounded-full blur-2xl -ml-6 -mb-6 pointer-events-none"></div>
@@ -1671,8 +1877,10 @@ const Overview = ({ onNavigate }) => {
                             )}
                         </div>
                     </div>
+                    )}
 
                     {/* What Needs Attention */}
+                    {isWidgetVisible('attention') && (
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="relative z-10 flex items-center gap-3 mb-4">
@@ -1734,8 +1942,10 @@ const Overview = ({ onNavigate }) => {
                             ))}
                         </div>
                     </div>
+                    )}
 
                     {/* Time Gap Finder */}
+                    {isWidgetVisible('timeGaps') && (
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-sky-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="relative z-10 flex items-center gap-3 mb-4">
@@ -1786,8 +1996,10 @@ const Overview = ({ onNavigate }) => {
                             })}
                         </div>
                     </div>
+                    )}
 
                     {/* Priority Tasks Widget */}
+                    {isWidgetVisible('priorityTasks') && (
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm flex flex-col relative overflow-hidden border border-gray-100">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-50/30 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
@@ -1893,8 +2105,10 @@ const Overview = ({ onNavigate }) => {
                             })()}
                         </div>
                     </div>
+                    )}
 
                     {/* Recent Notes */}
+                    {isWidgetVisible('recentNotes') && (
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="relative z-10 flex items-center gap-3 mb-4">
@@ -1935,8 +2149,10 @@ const Overview = ({ onNavigate }) => {
                             Open habits <ChevronRight size={14} />
                         </button>
                     </div>
+                    )}
 
                     {/* Idea Spotlight */}
+                    {isWidgetVisible('ideaSpotlight') && (
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
                         <div className="relative z-10 flex items-center gap-3 mb-4">
@@ -1989,9 +2205,55 @@ const Overview = ({ onNavigate }) => {
                             Open ideas <ChevronRight size={14} />
                         </button>
                     </div>
+                    )}
+
+                    {visibleMainWidgetCount === 0 && (
+                        <div className="md:col-span-2 rounded-[2rem] border border-dashed border-gray-200 bg-white p-8 text-center shadow-sm">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                                <Settings size={22} />
+                            </div>
+                            <h3 className="mt-4 text-xl font-bold text-gray-900">No widgets selected</h3>
+                            <p className="mt-2 text-sm text-gray-500">Choose the blocks you want on your Overview page.</p>
+                            <button
+                                type="button"
+                                onClick={() => setShowWidgetPicker(true)}
+                                className="mt-5 rounded-2xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800"
+                            >
+                                Customize Widgets
+                            </button>
+                        </div>
+                    )}
 
                 </div>
             </div>
+
+            <OverviewWidgetPicker
+                isOpen={showWidgetPicker}
+                onClose={() => setShowWidgetPicker(false)}
+                visibleWidgetIds={visibleWidgetIds}
+                onToggleWidget={handleToggleWidget}
+                onResetWidgets={handleResetWidgets}
+            />
+
+            <DailyRitualModal
+                isOpen={showDailyRitual}
+                onClose={() => setShowDailyRitual(false)}
+                profile={profile}
+                user={user}
+                tasks={tasks}
+                scheduleItems={scheduleItems}
+                habits={todaysHabits}
+                getHabitLog={getHabitLog}
+                logHabit={logHabit}
+                addScheduleItem={addScheduleItem}
+                onOpenTask={(task) => {
+                    setSelectedTask(task);
+                    setShowTaskModal(true);
+                }}
+                onNavigate={onNavigate}
+                onAskAgent={handleChatAction}
+                onComplete={setRitualCompletedAt}
+            />
 
             {/* Schedule Event Modal for editing */}
             <ScheduleEventModal

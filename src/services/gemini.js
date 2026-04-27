@@ -1,18 +1,14 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { isTaskActive, isTaskCompleted } from '../utils/taskState';
+import { createGenerativeModel } from './generativeClient';
+import { buildRouteAgentPrompt } from './agentPrompts';
+import { isTaskActive } from '../utils/taskState';
 
-// Initialize Gemini API
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
+const MODEL_NAME = import.meta.env.VITE_AI_MODEL || 'gemini-3.1-flash-lite-preview';
+const AI_BACKEND_AVAILABLE = true; // AI credentials now live behind the dev-server API proxy.
+const genAI = {
+    getGenerativeModel: createGenerativeModel
+};
 
-// Initialize single model instance
-const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
-
-// Legacy aliases for backwards compatibility
-const model_intelligent = model;
-const model_normal = model;
-const model_easy = model;
-const model_pro = model;
+const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
 /**
  * Suggests a difficulty level for a given task.
@@ -21,12 +17,6 @@ const model_pro = model;
  */
 export const suggestDifficulty = async (taskTitle) => {
     console.log("Suggesting difficulty for:", taskTitle);
-    console.log("API Key present:", !!API_KEY, API_KEY ? `Length: ${API_KEY.length}` : "N/A");
-
-    if (!API_KEY) {
-        console.warn("Gemini API Key is missing.");
-        return 'easy';
-    }
 
     try {
         const prompt = `Analyze the difficulty of this task: "${taskTitle}". 
@@ -34,7 +24,7 @@ export const suggestDifficulty = async (taskTitle) => {
         Consider time, effort, and complexity.`;
 
         console.log("Sending prompt to Gemini...");
-        const result = await model_easy.generateContent(prompt);
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text().trim().toLowerCase();
         console.log("Gemini response:", text);
@@ -56,11 +46,6 @@ export const suggestDifficulty = async (taskTitle) => {
  * @returns {Promise<string[]>} - An array of subtask strings.
  */
 export const breakDownTask = async (taskTitle) => {
-    if (!API_KEY) {
-        console.warn("Gemini API Key is missing.");
-        return [];
-    }
-
     try {
         const prompt = `Break down the task "${taskTitle}" into 3-5 smaller, actionable subtasks.
         Reply with a JSON array of strings, e.g., ["Step 1", "Step 2"].
@@ -90,11 +75,6 @@ export const breakDownTask = async (taskTitle) => {
  * @returns {Promise<{tips: string[], steps: string[]}>} - Structured advice.
  */
 export const getTaskTips = async (taskTitle, subject) => {
-    if (!API_KEY) {
-        console.warn("Gemini API Key is missing.");
-        return { tips: ["Focus on one thing at a time.", "Take breaks."], steps: ["Start", "Finish"] };
-    }
-
     try {
         const prompt = `You are a wise and helpful productivity assistant. Deeply analyze the specific task: "${taskTitle}" (Subject: ${subject || 'General'}).
         
@@ -109,7 +89,7 @@ export const getTaskTips = async (taskTitle, subject) => {
         `;
 
         // Use gemini-3-pro-preview as requested
-        const adviceModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const adviceModel = genAI.getGenerativeModel({ model: MODEL_NAME });
 
         const result = await adviceModel.generateContent(prompt);
         const response = await result.response;
@@ -159,19 +139,14 @@ async function fileToGenerativePart(file) {
  * @returns {Promise<string>} - The analysis result.
  */
 export const analyzeFile = async (file, instructions) => {
-    if (!API_KEY) {
-        console.warn("Gemini API Key is missing.");
-        return "Error: API Key is missing. Please check your .env file.";
-    }
-
     try {
         // Try the requested model first
         let visionModel;
         try {
-            visionModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
-        } catch (e) {
+            visionModel = genAI.getGenerativeModel({ model: MODEL_NAME });
+        } catch {
             console.warn("gemini-3-pro-image not available, falling back to gemini-3.1-flash-lite-preview");
-            visionModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+            visionModel = genAI.getGenerativeModel({ model: MODEL_NAME });
         }
 
         // Fallback logic if the first model instantiation doesn't throw but the request fails
@@ -196,7 +171,7 @@ export const analyzeFile = async (file, instructions) => {
         if (error.message.includes('model') || error.message.includes('not found') || error.status === 404) {
             console.log("Attempting fallback to gemini-1.5-pro...");
             try {
-                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+                const fallbackModel = genAI.getGenerativeModel({ model: MODEL_NAME });
                 const imagePart = await fileToGenerativePart(file);
                 const prompt = instructions || "Analyze this file.";
                 const result = await fallbackModel.generateContent([prompt, imagePart]);
@@ -221,23 +196,15 @@ export const analyzeFile = async (file, instructions) => {
  * @returns {Promise<{analysis: string, steps: string[]}>} - Structured advice.
  */
 export const getPersonalizedAdvice = async (taskTitle, subject, instructions, file) => {
-    if (!API_KEY) {
-        console.warn("Gemini API Key is missing.");
-        return {
-            analysis: "I can't help you without my powers (API Key missing).",
-            steps: ["Check .env file", "Restart server"]
-        };
-    }
-
     try {
         // Select model
         let modelToUse;
-        const modelName = "gemini-3.1-flash-lite-preview"; // Use the requested model
+        const modelName = MODEL_NAME; // Use the configured model
         try {
             modelToUse = genAI.getGenerativeModel({ model: modelName });
-        } catch (e) {
+        } catch {
             console.warn(`${modelName} not available, falling back to gemini-3.1-flash-lite-preview`);
-            modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+            modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         }
 
         // Construct Prompt
@@ -292,7 +259,7 @@ export const getPersonalizedAdvice = async (taskTitle, subject, instructions, fi
  * @returns {Promise<Array>} - Array of schedule objects { activity, duration, category, reason }.
  */
 export const generateDailySchedule = async (tasks) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("Gemini API Key is missing.");
         return [];
     }
@@ -329,7 +296,7 @@ export const generateDailySchedule = async (tasks) => {
             Do not include markdown formatting in the JSON output.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -352,13 +319,13 @@ export const generateDailySchedule = async (tasks) => {
  * @returns {Promise<Array>} - Array of schedule objects.
  */
 export const parseScheduleImage = async (file) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("Gemini API Key is missing.");
         return [];
     }
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const imagePart = await fileToGenerativePart(file);
 
         const prompt = `
@@ -403,7 +370,7 @@ export const parseScheduleImage = async (file) => {
  */
 export const parseTaskInput = async (input) => {
     console.log("🚀 parseTaskInput called with input:", input);
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("⚠️ Gemini API Key is missing.");
         return {
             title: input,
@@ -461,7 +428,7 @@ export const parseTaskInput = async (input) => {
         `;
 
         console.log("📤 Sending request to Gemini API...");
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
         console.log("📥 Received response from Gemini");
         const response = await result.response;
@@ -513,7 +480,7 @@ export const parseTaskInput = async (input) => {
 export const parseLogInput = async (input, categories) => {
     console.log("🚀 parseLogInput called with input:", input);
 
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("⚠️ Gemini API Key is missing.");
         return {
             activity: input,
@@ -548,7 +515,7 @@ export const parseLogInput = async (input, categories) => {
         `;
 
         console.log("📤 Sending request to Gemini API...");
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
         console.log("📥 Received response from Gemini");
 
@@ -586,7 +553,7 @@ export const parseLogInput = async (input, categories) => {
  * @returns {Promise<Array>} - Array of suggestion objects.
  */
 export const getSmartSuggestions = async (tasks, timeOfDay) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         return [
             { activity: "Check API Key", duration: 5, category: "Other" },
             { activity: "Manual Planning", duration: 15, category: "Study" }
@@ -620,7 +587,7 @@ export const getSmartSuggestions = async (tasks, timeOfDay) => {
             Do not include markdown.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -642,13 +609,13 @@ export const getSmartSuggestions = async (tasks, timeOfDay) => {
  * @returns {Promise<Array>} - Array of task objects.
  */
 export const parseTaskImage = async (file) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("Gemini API Key is missing.");
         return [];
     }
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const imagePart = await fileToGenerativePart(file);
 
         // Get current date and time for context
@@ -716,7 +683,7 @@ export const parseTaskImage = async (file) => {
  * @returns {Promise<Object>} - { title, startTime, duration, category }
  */
 export const parseScheduleCommand = async (transcript) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("Gemini API Key is missing.");
         return null;
     }
@@ -757,7 +724,7 @@ export const parseScheduleCommand = async (transcript) => {
             Do not include markdown.
         `;
 
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
@@ -782,7 +749,7 @@ export const parseScheduleCommand = async (transcript) => {
 export const routeAgentCommand = async (input, context = {}) => {
     console.log("🤖 routeAgentCommand called with input:", input);
 
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("⚠️ Gemini API Key is missing.");
         return {
             actions: [],
@@ -791,202 +758,7 @@ export const routeAgentCommand = async (input, context = {}) => {
     }
 
     try {
-        const now = new Date();
-        const currentDateTime = now.toLocaleString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-
-        // Get timezone offset for correct ISO string generation
-        const timezoneOffset = -now.getTimezoneOffset();
-        const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60).toString().padStart(2, '0');
-        const offsetMins = (Math.abs(timezoneOffset) % 60).toString().padStart(2, '0');
-        const timezoneString = `${timezoneOffset >= 0 ? '+' : '-'}${offsetHours}:${offsetMins}`;
-        const todayDateForSchedule = now.toISOString().split('T')[0]; // YYYY-MM-DD
-
-        const { userProfile = {}, recentTasks = [], recentSchedule = [], memorySummary = '', recentInteractions = [], conversationHistory = null } = context;
-
-        const prompt = `
-            You are an intelligent AI agent for a productivity app called "All-in-One Assistant".
-            Your job is to understand the user's natural language request and determine what actions to take.
-            You have memory of past interactions and know the user's preferences.
-
-            Current Date & Time: ${currentDateTime}
-            User's Timezone: ${timezoneString} (e.g., +07:00 means UTC+7)
-            Today's Date for Scheduling: ${todayDateForSchedule}
-            
-            IMPORTANT - TIMEZONE RULE:
-            When generating startTime for schedule events, ALWAYS use the user's timezone offset.
-            Format: "${todayDateForSchedule}T[HH:MM:00]${timezoneString}"
-            Example for 8:30 PM today: "${todayDateForSchedule}T20:30:00${timezoneString}"
-            
-            USER PROFILE:
-            Name: ${userProfile.name || 'User'}
-            Role: ${userProfile.role || 'Not specified'}
-            Working Hours: ${typeof userProfile.workingHours === 'object' ? `${userProfile.workingHours.start} - ${userProfile.workingHours.end}` : userProfile.workingHours || 'Not set'}
-            Focus Style: ${userProfile.focusStyle || 'flexible'}
-            
-            ABOUT THE USER (Important personal context):
-            ${userProfile.bio || 'No personal description provided.'}
-            
-            AGENT MEMORY (use this to personalize your responses):
-            ${memorySummary || 'No memory yet. Learning patterns...'}
-            
-            INSTRUCTION: When suggesting times or actions, consider the user's bio and personal context above.
-            For example, if they mention being busy on certain days, avoid scheduling heavy tasks then.
-            If they mention wake/sleep times, respect those boundaries.
-            
-            FULL TASK LIST (${recentTasks.length} tasks):
-            ${recentTasks.length > 0
-                ? recentTasks.map(t => `- [ID: ${t.id}] "${t.title}" (${isTaskCompleted(t) ? 'done' : 'pending'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n            ')
-                : 'No tasks'}
-            
-            TASKS DUE TODAY (${context.tasksDueToday?.length || 0}):
-            ${context.tasksDueToday?.length > 0
-                ? context.tasksDueToday.map(t => `- "${t.title}" (${t.difficulty || 'medium'})`).join('\n            ')
-                : 'No tasks due today'}
-            
-            CURRENT TIME: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-            
-            TODAY'S SCHEDULE (${recentSchedule.length} events):
-            ${recentSchedule.length > 0
-                ? recentSchedule.map(s => {
-                    const eventTime = new Date(s.displayTime || s.startTime || s.start_time);
-                    const now = new Date();
-                    const isPassed = eventTime < now;
-                    const isUpcoming = !isPassed && (eventTime - now) < 2 * 60 * 60 * 1000; // within 2 hours
-                    const status = isPassed ? '(passed)' : isUpcoming ? '(UPCOMING)' : '';
-                    return `- [ID: ${s.id}] "${s.title}" at ${eventTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${status}${s.isRecurring ? ' (recurring)' : ''}`;
-                }).join('\n            ')
-                : 'No scheduled events for today'}
-            
-            PROJECTS (${context.projects?.length || 0} projects):
-            ${context.projects?.length > 0
-                ? context.projects.map(p => {
-                    const phasesInfo = p.phases && p.phases.length > 0
-                        ? `\n      Phases: ${p.phases.map((phase, idx) =>
-                            `${idx + 1}. "${phase.name}"${phase.deadline ? ` (due: ${new Date(phase.deadline).toLocaleDateString()})` : ''}`
-                        ).join(', ')}`
-                        : '';
-                    return `- "${p.title}" (${p.status}, ${p.progress}% done, ${p.taskCount} tasks - ${p.tasksInProgress} in progress, ${p.tasksDone} complete)${phasesInfo}`;
-                }).join('\n            ')
-                : 'No projects'}
-            
-            HABITS (${context.habits?.length || 0} habits):
-            ${context.habits?.length > 0
-                ? context.habits.map(h => `- [ID: ${h.id}] "${h.name}" (${h.frequency}, streak: ${h.streak}, ${h.completedToday ? '✓ done today' : 'not done today'})`).join('\n            ')
-                : 'No habits'}
-            
-            VISION GOALS (${context.visionGoals?.length || 0} goals):
-            ${context.visionGoals?.length > 0
-                ? context.visionGoals.map(g => `- "${g.text || g.title}" (${g.category || 'general'})`).join('\n            ')
-                : 'No vision goals'}
-            
-            DAILY HIGHLIGHTS:
-            ${context.dailyHighlights?.length > 0
-                ? context.dailyHighlights.map(h => `- "${h.text}"`).join('\n            ')
-                : 'No daily highlights'}
-            
-            ${conversationHistory ? `CONVERSATION HISTORY (ongoing clarification):\n${conversationHistory}\n` : ''}
-            
-            User Request: "${input}"
-
-            SUPPORTED ACTIONS:
-            1. add_task - Create a new task
-               Params: { title, deadline (ISO string or null), difficulty ('easy'|'medium'|'hard'), subject (optional), estimatedTime (minutes, optional) }
-               
-            2. edit_task - Edit an existing task
-               Params: { taskId (from task list), updates: { title?, deadline?, difficulty?, subject?, estimatedTime? } }
-               
-            3. delete_task - Delete a task
-               Params: { taskId (from task list), title (for confirmation) }
-               
-            4. complete_task - Mark a task as completed
-               Params: { taskId (from task list), title (for confirmation) }
-               
-            5. add_schedule - Create a schedule event
-               Params: { title, startTime (ISO string), duration (minutes), category (optional) }
-               
-            6. edit_schedule - Edit an existing schedule event
-               Params: { eventId (from schedule list), updates: { title?, startTime?, duration?, category? } }
-               
-            7. delete_schedule - Delete a schedule event
-               Params: { eventId (from schedule list), title (for confirmation) }
-               
-            8. complete_habit - Mark a habit as completed for today
-               Params: { habitId (from habits list), name (for confirmation) }
-               
-            9. navigate - Navigate to a specific tab (use ONLY if user explicitly asks to go somewhere)
-               Params: { tabName ('overview'|'tasks'|'schedule'|'habits'|'projects'|'vision'|'settings') }
-               
-            10. info_response - Answer a question or provide information directly (NO navigation needed)
-               Params: { message (your detailed answer), suggestedTab (optional - tab they can navigate to for more details) }
-               IMPORTANT: Use this when user asks questions like "how many tasks do I have?", "what's on my schedule?", "show me my progress", etc.
-               You have the full task and schedule data above - analyze it and provide a direct answer!
-               
-            11. set_goal - Set a daily goal/highlight
-               Params: { goalText, type ('daily'|'vision') }
-               
-            12. clarify - Ask for more information when the request is ambiguous
-               Params: { question (your clarifying question), suggestions (array of suggested options based on user history) }
-               IMPORTANT: Use this when the user's intent is unclear. Example: "add task" is too vague - ask what task.
-               
-            13. remember - Save a note/memory that the user explicitly asks you to remember
-               Params: { note (the specific information to remember) }
-               Use when user says things like: "remember that...", "note this...", "save for later...", "don't forget that...", "keep in mind that..."
-               Examples: "Remember my exam is on January 15th", "Note that I prefer morning meetings", "Save this: my project deadline is next Friday"
-
-            RULES:
-            - Parse the user's intent and return appropriate actions.
-            - For INFO REQUESTS (questions about data), use info_response and provide the answer directly. DO NOT navigate unless asked.
-            - You have access to all tasks and schedule data - analyze it and answer questions!
-            - You can return multiple actions if the request requires it.
-            - For relative dates/times like "tomorrow", "next Monday", "at 3pm", calculate the exact ISO datetime.
-            - "today" or "tonight" means today at 11:59 PM.
-            - If the intent is unclear or missing key details, use the CLARIFY action to ask follow-up questions.
-            - When clarifying, suggest options based on user's recent tasks, schedule, or memory.
-            - Be helpful and proactive - if the user says "help me study for my exam", suggest both a task and schedule blocks.
-            - Use the user's profile and memory to personalize suggestions.
-            RESPONSE FOCUS RULE (VERY IMPORTANT):
-            - ONLY respond with information relevant to what the user SPECIFICALLY asks about.
-            - If user asks about "schedule approach" → only talk about schedule and strategy.
-            - If user asks about "tasks" → only talk about tasks.
-            - Do NOT dump all sections (schedule, tasks, habits, highlights) unless user explicitly asks for "overview" or "my day".
-            - Keep responses concise and focused on the user's actual question.
-            
-            ONLY FOR EXPLICIT "OVERVIEW" REQUESTS:
-            When user says exactly "overview", "give me overview", "day summary", or "what's my day like":
-            Then generate the STRUCTURED response with all sections:
-            
-            YOUR SCHEDULE TODAY
-            [List events with time]
-            
-            TASKS DUE TODAY
-            [List tasks or "No tasks due today"]
-            
-            HABITS NOT YET DONE TODAY
-            [List incomplete habits]
-            
-            DAILY HIGHLIGHTS
-            [Show goals or "No highlights set"]
-
-            Reply with ONLY a JSON object in this format (no markdown, no extra text):
-            {
-                "actions": [
-                    {
-                        "type": "info_response",
-                        "params": { "message": "You have 5 tasks remaining...", "suggestedTab": "tasks" },
-                        "explanation": "Answering your question about tasks"
-                    }
-                ],
-                "summary": "A brief 1-2 sentence summary of what you'll do"
-            }
-        `;
+        const prompt = buildRouteAgentPrompt(input, context);
 
         console.log("📤 Sending agent routing request to Gemini...");
         const result = await model.generateContent(prompt);
@@ -1030,7 +802,7 @@ export const routeAgentCommand = async (input, context = {}) => {
  * @returns {Promise<object>} - Morning briefing with greeting, priorities, tips
  */
 export const generateMorningBriefing = async (context) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         return {
             greeting: "Good morning! Let's make today great.",
             priorities: ["Focus on your most important task", "Take breaks when needed"],
@@ -1107,7 +879,7 @@ export const generateMorningBriefing = async (context) => {
  * @returns {Promise<object>} - Evening summary with accomplishments, insights, tomorrow suggestions
  */
 export const generateEveningSummary = async (context) => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         return {
             summary: "Great work today! Take time to rest.",
             accomplishments: ["You showed up and did your best"],
@@ -1187,13 +959,13 @@ export const generateEveningSummary = async (context) => {
  * @returns {Promise<Array>} - Array of { title, description, difficulty }
  */
 export const generateTopicsFromDescription = async (description, pathName = '') => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("Gemini API Key is missing.");
         return [];
     }
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
 
         const prompt = `
             You are an expert curriculum designer. A user wants to learn about the following topic.
@@ -1244,13 +1016,13 @@ export const generateTopicsFromDescription = async (description, pathName = '') 
  * @returns {Promise<Array>} - Array of { title, description, difficulty }
  */
 export const generateTopicsFromImage = async (file, pathName = '') => {
-    if (!API_KEY) {
+    if (!AI_BACKEND_AVAILABLE) {
         console.warn("Gemini API Key is missing.");
         return [];
     }
 
     try {
-        const modelToUse = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const imagePart = await fileToGenerativePart(file);
 
         const prompt = `

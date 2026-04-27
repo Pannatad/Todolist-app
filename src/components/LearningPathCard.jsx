@@ -1,9 +1,9 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Clock, BookOpen, Trash2, Edit2, ArchiveRestore, Archive } from 'lucide-react';
+import { motion as Motion } from 'framer-motion';
+import { Clock, BookOpen, Trash2, Edit2, ArchiveRestore, Archive, Pin } from 'lucide-react';
 import { COLOR_OPTIONS } from './LearningPathModal';
 
-const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedTime, studiedTime, onClick, onEdit, onDelete, onArchive, onRestore }) => {
+const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedTime, studiedTime, isPinned = false, onClick, onEdit, onDelete, onArchive, onRestore, onTogglePin }) => {
     const colorConfig = COLOR_OPTIONS.find(c => c.name === path.color) || COLOR_OPTIONS[0];
 
     const getDaysLeft = () => {
@@ -33,11 +33,13 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
     const deadline = getDaysLeft();
 
     return (
-        <motion.div
+        <Motion.div
             whileHover={{ scale: 1.03, y: -4 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             onClick={onClick}
-            className="relative rounded-2xl overflow-hidden cursor-pointer group bg-white border border-gray-100 shadow-sm hover:shadow-lg transition-all"
+            className={`relative rounded-2xl overflow-hidden cursor-pointer group bg-white border shadow-sm hover:shadow-lg transition-all ${
+                isPinned ? 'border-amber-200 ring-2 ring-amber-100' : 'border-gray-100'
+            }`}
         >
             {/* Gradient Header */}
             <div className={`bg-gradient-to-r ${colorConfig.gradient} p-5 relative overflow-hidden`}>
@@ -58,7 +60,18 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className={`flex gap-1 transition-opacity ${isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onTogglePin?.(path.id); }}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                    isPinned
+                                        ? 'bg-white/20 text-amber-100 hover:text-white'
+                                        : 'hover:bg-white/20 text-white/60 hover:text-white'
+                                }`}
+                                title={isPinned ? 'Unpin course' : 'Pin course'}
+                            >
+                                <Pin size={14} fill={isPinned ? 'currentColor' : 'none'} />
+                            </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEdit(path); }}
                                 className="p-1.5 rounded-lg hover:bg-white/20 text-white/60 hover:text-white transition-colors"
@@ -102,7 +115,7 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
                             <span className="font-bold text-white">{progress}%</span>
                         </div>
                         <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
-                            <motion.div
+                            <Motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progress}%` }}
                                 transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -146,7 +159,7 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
                     )}
                 </div>
             </div>
-        </motion.div>
+        </Motion.div>
     );
 };
 

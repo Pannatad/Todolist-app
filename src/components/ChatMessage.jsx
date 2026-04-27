@@ -1,25 +1,59 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Bot, User, Check, X, Loader2, Clock, Sparkles } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+    User,
+    Check,
+    X,
+    Clock,
+    Sparkles,
+    CalendarPlus,
+    CalendarClock,
+    ClipboardList,
+    Edit3,
+    Trash2,
+    CheckCircle2,
+    Target,
+    Flag,
+    HelpCircle,
+    MessageSquare,
+    ArrowRight,
+    ChevronDown,
+    ChevronUp,
+    SlidersHorizontal
+} from 'lucide-react';
+import RichTextRenderer from './RichTextRenderer';
 
 // Action type to display info
 const ACTION_DISPLAY = {
-    add_task: { icon: '📝', label: 'Add Task', color: 'bg-blue-50 border-blue-200' },
-    edit_task: { icon: '✏️', label: 'Edit Task', color: 'bg-amber-50 border-amber-200' },
-    delete_task: { icon: '🗑️', label: 'Delete Task', color: 'bg-red-50 border-red-200' },
-    complete_task: { icon: '✅', label: 'Complete Task', color: 'bg-green-50 border-green-200' },
-    add_schedule: { icon: '📅', label: 'Add Event', color: 'bg-purple-50 border-purple-200' },
-    edit_schedule: { icon: '📅', label: 'Edit Event', color: 'bg-amber-50 border-amber-200' },
-    delete_schedule: { icon: '🗑️', label: 'Delete Event', color: 'bg-red-50 border-red-200' },
-    complete_habit: { icon: '🎯', label: 'Complete Habit', color: 'bg-green-50 border-green-200' },
-    set_goal: { icon: '🌟', label: 'Set Goal', color: 'bg-yellow-50 border-yellow-200' },
-    navigate: { icon: '🔗', label: 'Navigate', color: 'bg-gray-50 border-gray-200' },
-    info_response: { icon: '💬', label: 'Info', color: 'bg-indigo-50 border-indigo-200' },
-    clarify: { icon: '❓', label: 'Question', color: 'bg-orange-50 border-orange-200' }
+    add_task: { icon: ClipboardList, label: 'Add Task', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+    edit_task: { icon: Edit3, label: 'Edit Task', color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    delete_task: { icon: Trash2, label: 'Delete Task', color: 'bg-red-50 border-red-200 text-red-700' },
+    complete_task: { icon: CheckCircle2, label: 'Complete Task', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+    add_schedule: { icon: CalendarPlus, label: 'Add Event', color: 'bg-violet-50 border-violet-200 text-violet-700' },
+    edit_schedule: { icon: CalendarClock, label: 'Edit Event', color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    delete_schedule: { icon: Trash2, label: 'Delete Event', color: 'bg-red-50 border-red-200 text-red-700' },
+    complete_habit: { icon: Target, label: 'Complete Habit', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+    set_goal: { icon: Flag, label: 'Set Goal', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
+    navigate: { icon: ArrowRight, label: 'Navigate', color: 'bg-slate-50 border-slate-200 text-slate-700' },
+    info_response: { icon: MessageSquare, label: 'Info', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+    clarify: { icon: HelpCircle, label: 'Question', color: 'bg-orange-50 border-orange-200 text-orange-700' }
 };
 
-const ActionCard = ({ action, showDetails = true }) => {
-    const display = ACTION_DISPLAY[action.type] || { icon: '📋', label: action.type, color: 'bg-gray-50 border-gray-200' };
+const getActionTitle = (action, displayLabel) => {
+    if (action.params?.title) return action.params.title;
+    if (action.params?.name) return action.params.name;
+    if (action.params?.goalText) return action.params.goalText;
+    if (action.params?.updates?.title) return action.params.updates.title;
+    if (action.params?.question) return action.params.question;
+    return displayLabel;
+};
+
+const ActionCard = ({ action, showDetails = true, onSendMessage }) => {
+    const display = ACTION_DISPLAY[action.type] || {
+        icon: ClipboardList,
+        label: action.type,
+        color: 'bg-slate-50 border-slate-200 text-slate-700'
+    };
+    const Icon = display.icon;
 
     // For clarify actions, show the actual question as the label
     const displayLabel = action.type === 'clarify' && action.params?.question
@@ -61,42 +95,106 @@ const ActionCard = ({ action, showDetails = true }) => {
     const scheduleTime = formatScheduleTime(action.params?.startTime);
     const scheduleDate = formatScheduleDate(action.params?.startTime);
     const duration = action.params?.duration;
+    const title = getActionTitle(action, displayLabel);
+    const suggestions = action.type === 'clarify' && Array.isArray(action.params?.suggestions)
+        ? action.params.suggestions.filter(Boolean).slice(0, 4)
+        : [];
 
     return (
-        <div className={`p-2 rounded-lg border ${display.color} text-sm`}>
-            <div className="flex items-center gap-2 font-medium text-gray-700">
-                <span>{display.icon}</span>
-                <span>{displayLabel}</span>
+        <div className={`rounded-lg border p-3 text-sm ${display.color}`}>
+            <div className="flex items-start gap-2">
+                <div className="mt-0.5 rounded-md bg-white/70 p-1">
+                    <Icon size={14} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide opacity-75">{display.label}</div>
+                    <div className="mt-0.5 break-words font-medium text-slate-900">{title}</div>
+                    {action.explanation && (
+                        <div className="mt-1 text-xs text-slate-500">{action.explanation}</div>
+                    )}
+                </div>
             </div>
             {showDetails && action.params && action.type !== 'clarify' && (
-                <div className="mt-1 text-gray-600 text-xs space-y-0.5">
-                    {action.params.title && <div>"{action.params.title}"</div>}
+                <div className="mt-2 text-slate-600 text-xs space-y-1">
                     {action.params.message && <span>{action.params.message}</span>}
                     {/* Show time and duration for schedule actions */}
                     {isScheduleAction && (scheduleTime || duration) && (
-                        <div className="flex items-center gap-2 text-purple-600 font-medium">
-                            {scheduleDate && <span>📆 {scheduleDate}</span>}
-                            {scheduleTime && <span>🕐 {scheduleTime}</span>}
-                            {duration && <span>⏱️ {duration} min</span>}
+                        <div className="flex flex-wrap items-center gap-2 font-medium">
+                            {scheduleDate && <span>{scheduleDate}</span>}
+                            {scheduleTime && <span>{scheduleTime}</span>}
+                            {duration && <span>{duration} min</span>}
                         </div>
                     )}
+                </div>
+            )}
+            {suggestions.length > 0 && (
+                <div className="mt-3 grid gap-1.5">
+                    {suggestions.map((suggestion) => (
+                        <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => onSendMessage?.(suggestion)}
+                            className="rounded-md border border-white/70 bg-white/75 px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 transition-colors hover:bg-white"
+                        >
+                            {suggestion}
+                        </button>
+                    ))}
                 </div>
             )}
         </div>
     );
 };
 
+const shouldCollapseMessage = (content) => {
+    if (!content) return false;
+    const lines = content.split('\n').filter(Boolean).length;
+    return content.length > 520 || lines > 8;
+};
+
+const getPreviewText = (content) => {
+    if (!content) return '';
+    const lines = content.split('\n').filter(Boolean);
+    if (lines.length > 5) return `${lines.slice(0, 5).join('\n')}\n...`;
+    if (content.length > 520) return `${content.slice(0, 520).trim()}...`;
+    return content;
+};
+
+const REFINEMENT_ACTIONS = [
+    {
+        label: 'Ask follow-up',
+        prompt: 'Before improving that answer, ask me one focused question that would make the recommendation better.'
+    },
+    {
+        label: 'Shorter',
+        prompt: 'Rewrite your previous answer in a shorter, more decisive format with one recommended next step.'
+    },
+    {
+        label: 'Alternatives',
+        prompt: 'Give me 3 alternative versions of your previous recommendation and when each is best.'
+    },
+    {
+        label: 'Make actions',
+        prompt: 'Turn your previous answer into concrete task or schedule actions I can confirm.'
+    }
+];
+
 const ChatMessage = ({
     message,
     onConfirm,
     onCancel,
-    isLast = false
+    onSendMessage
 }) => {
     const isUser = message.role === 'user';
     const hasActions = message.actions && message.actions.length > 0;
     const hasPendingConfirmation = message.pendingConfirmation;
     const wasExecuted = message.actionsExecuted;
     const wasCancelled = message.actionsCancelled;
+    const [showRefine, setShowRefine] = useState(false);
+    const [expanded, setExpanded] = useState(false);
+    const collapsible = !isUser && shouldCollapseMessage(message.content);
+    const renderedContent = useMemo(() => (
+        collapsible && !expanded ? getPreviewText(message.content) : message.content
+    ), [collapsible, expanded, message.content]);
 
     // Format timestamp
     const formatTime = (timestamp) => {
@@ -105,39 +203,52 @@ const ChatMessage = ({
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
+        <div
             className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
         >
             {/* Avatar */}
             <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isUser
-                ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                : 'bg-gradient-to-br from-emerald-400 to-teal-500'
+                ? 'bg-slate-900'
+                : 'bg-white border border-slate-200'
                 }`}>
                 {isUser ? (
                     <User size={16} className="text-white" />
                 ) : (
-                    <Sparkles size={16} className="text-white" />
+                    <Sparkles size={16} className="text-slate-700" />
                 )}
             </div>
 
             {/* Message Content */}
-            <div className={`flex flex-col max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
+            <div className={`flex flex-col ${isUser ? 'max-w-[82%] items-end' : 'max-w-[88%] items-start'}`}>
                 {/* Main bubble */}
-                <div className={`px-4 py-2.5 rounded-2xl ${isUser
-                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-md'
-                    : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm'
+                <div className={`rounded-xl px-4 py-3 ${isUser
+                    ? 'bg-slate-900 text-white rounded-br-sm'
+                    : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
                     } ${message.isError ? 'border-red-200 bg-red-50' : ''}`}>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    {isUser ? (
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    ) : (
+                        <div className="text-sm leading-relaxed">
+                            <RichTextRenderer text={renderedContent} />
+                        </div>
+                    )}
+                    {collapsible && (
+                        <button
+                            type="button"
+                            onClick={() => setExpanded((value) => !value)}
+                            className="mt-3 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                        >
+                            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                            {expanded ? 'Less' : 'Details'}
+                        </button>
+                    )}
                 </div>
 
                 {/* Action Cards (for assistant messages with actions) */}
                 {!isUser && hasActions && (
                     <div className="mt-2 space-y-2 w-full">
                         {message.actions.filter(a => a.type !== 'info_response').map((action, idx) => (
-                            <ActionCard key={idx} action={action} />
+                            <ActionCard key={idx} action={action} onSendMessage={onSendMessage} />
                         ))}
 
                         {/* Confirmation buttons */}
@@ -145,14 +256,14 @@ const ChatMessage = ({
                             <div className="flex gap-2 mt-2">
                                 <button
                                     onClick={() => onConfirm?.(message.id)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg transition-colors"
+                                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                                 >
                                     <Check size={14} />
                                     Confirm
                                 </button>
                                 <button
                                     onClick={() => onCancel?.(message.id)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                                    className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
                                 >
                                     <X size={14} />
                                     Cancel
@@ -170,7 +281,7 @@ const ChatMessage = ({
 
                         {/* Cancelled indicator */}
                         {wasCancelled && (
-                            <div className="flex items-center gap-1.5 text-gray-500 text-xs mt-1">
+                            <div className="flex items-center gap-1.5 text-slate-500 text-xs mt-1">
                                 <X size={12} />
                                 <span>Cancelled</span>
                             </div>
@@ -178,46 +289,62 @@ const ChatMessage = ({
                     </div>
                 )}
 
+                {!isUser && !message.isError && (
+                    <div className="mt-2 w-full">
+                        <button
+                            type="button"
+                            onClick={() => setShowRefine((value) => !value)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        >
+                            <SlidersHorizontal size={13} />
+                            Refine
+                        </button>
+                        {showRefine && (
+                            <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                {REFINEMENT_ACTIONS.map((action) => (
+                                    <button
+                                        key={action.label}
+                                        type="button"
+                                        onClick={() => {
+                                            onSendMessage?.(action.prompt);
+                                            setShowRefine(false);
+                                        }}
+                                        className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                                    >
+                                        {action.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Timestamp */}
-                <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400`}>
+                <div className={`flex items-center gap-1 mt-1 text-xs text-slate-400`}>
                     <Clock size={10} />
                     <span>{formatTime(message.timestamp)}</span>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 };
 
 // Typing indicator component
 export const TypingIndicator = () => (
-    <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+    <div
         className="flex gap-3"
     >
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-            <Sparkles size={16} className="text-white" />
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center">
+            <Sparkles size={16} className="text-slate-700" />
         </div>
-        <div className="px-4 py-3 bg-white border border-gray-100 rounded-2xl rounded-bl-md shadow-sm">
+        <div className="px-4 py-3 bg-white border border-slate-200 rounded-xl rounded-bl-sm shadow-sm">
             <div className="flex gap-1">
-                <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                    className="w-2 h-2 bg-gray-400 rounded-full"
-                />
-                <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.1 }}
-                    className="w-2 h-2 bg-gray-400 rounded-full"
-                />
-                <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                    className="w-2 h-2 bg-gray-400 rounded-full"
-                />
+                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:120ms]" />
+                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:240ms]" />
             </div>
         </div>
-    </motion.div>
+    </div>
 );
 
 export default ChatMessage;

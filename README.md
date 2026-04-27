@@ -68,7 +68,7 @@ A beautiful, feature-rich productivity application combining task management, fo
 - **Frontend**: React 18, Vite
 - **Styling**: Tailwind CSS
 - **Backend**: Supabase (Auth + PostgreSQL)
-- **AI**: Google Gemini API
+- **AI**: LM Studio local models with server-side Gemini fallback
 - **Sound**: use-sound
 - **Icons**: Lucide React
 
@@ -78,7 +78,7 @@ A beautiful, feature-rich productivity application combining task management, fo
 - Node.js (v18 or higher)
 - npm or yarn
 - Supabase account (for cloud features)
-- Google Gemini API key (for AI features)
+- LM Studio local server and/or a Google Gemini API key for AI fallback
 
 ### Installation
 
@@ -98,7 +98,13 @@ Create a \`.env\` file in the root directory:
 \`\`\`env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
+
+# AI keys stay server-side. Do not use VITE_ for Gemini.
+AI_PROVIDER=lmstudio
+LM_STUDIO_BASE_URL=http://localhost:1234/v1
+LM_STUDIO_MODEL=your_loaded_lm_studio_model_id
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.1-flash-lite-preview
 \`\`\`
 
 4. Run the development server
@@ -113,6 +119,17 @@ npm run dev
 \`\`\`bash
 npm run build
 \`\`\`
+
+## 🤖 Agent Prompts
+
+Agent instructions live in `src/services/agentPrompts.js`.
+
+Edit these exported sections to tune behavior:
+- `AGENT_PERSONA_PROMPT`
+- `AGENT_CAPABILITIES_PROMPT`
+- `ACTION_SCHEMA_PROMPT`
+- `AGENT_RULES_PROMPT`
+- `RESPONSE_STYLE_PROMPT`
 
 The built files will be in the \`dist\` directory.
 

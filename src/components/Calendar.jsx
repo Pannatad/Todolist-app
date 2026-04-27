@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, LayoutGrid, List, Camera, Loader2, Upload } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, LayoutGrid, Camera, Loader2, Upload, CalendarDays } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import Schedule from './Schedule';
 import { parseScheduleImage } from '../services/aiClient';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
+import WeeklyPlan from './WeeklyPlan';
 
 const getEventDisplayColor = (event) => {
     if (event.type === 'schedule' && event.color) {
@@ -25,7 +26,7 @@ const getEventDisplayColor = (event) => {
 const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddScheduleItem, onUpdateScheduleItem, onDeleteScheduleItem }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
-    const [viewMode, setViewMode] = useState('month'); // 'month' or 'schedule'
+    const [viewMode, setViewMode] = useState('month'); // 'month', 'schedule', or 'week'
     const [isScanning, setIsScanning] = useState(false);
     const fileInputRef = React.useRef(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -232,7 +233,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
             {/* Camera Modal */}
             <AnimatePresence>
                 {isCameraOpen && (
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -262,7 +263,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 )}
             </AnimatePresence>
 
@@ -282,6 +283,13 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                     >
                         <LayoutGrid size={14} />
                         Schedule
+                    </button>
+                    <button
+                        onClick={() => setViewMode('week')}
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'week' ? 'bg-white/40 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/20'}`}
+                    >
+                        <CalendarDays size={14} />
+                        Weekly Plan
                     </button>
                 </div>
 
@@ -352,6 +360,12 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                         onDeleteEvent={onDeleteScheduleItem}
                         onCompleteTask={onCompleteTask}
                     />
+                ) : viewMode === 'week' ? (
+                    <WeeklyPlan
+                        tasks={tasks}
+                        scheduleItems={scheduleItems}
+                        onCompleteTask={onCompleteTask}
+                    />
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-y-auto">
                         {/* Calendar Grid */}
@@ -382,7 +396,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                                     const remainingCount = dayEvents.length - 3;
 
                                     return (
-                                        <motion.button
+                                        <Motion.button
                                             key={day}
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.98 }}
@@ -418,7 +432,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                                                     </div>
                                                 )}
                                             </div>
-                                        </motion.button>
+                                        </Motion.button>
                                     );
                                 })}
                             </div>
@@ -428,7 +442,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                         <div className="lg:col-span-1">
                             <AnimatePresence mode="wait">
                                 {selectedDate ? (
-                                    <motion.div
+                                    <Motion.div
                                         key="details"
                                         initial={{ opacity: 0, x: 20 }}
                                         animate={{ opacity: 1, x: 0 }}
@@ -472,9 +486,9 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                                                 </div>
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </Motion.div>
                                 ) : (
-                                    <motion.div
+                                    <Motion.div
                                         key="empty"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
@@ -482,7 +496,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, scheduleItems, onAddSch
                                     >
                                         <CalendarIcon size={48} className="mb-4 opacity-50" />
                                         <p>Select a date to view details</p>
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </AnimatePresence>
                         </div>

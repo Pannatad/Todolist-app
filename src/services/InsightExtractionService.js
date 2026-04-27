@@ -3,10 +3,13 @@
  * Identifies personal facts, preferences, and patterns shared by the user
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { createGenerativeModel } from './generativeClient';
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
+const MODEL_NAME = import.meta.env.VITE_AI_MODEL || 'gemini-3.1-flash-lite-preview';
+const API_BACKEND_AVAILABLE = true;
+const genAI = {
+    getGenerativeModel: createGenerativeModel
+};
 
 /**
  * Extract insights from a conversation exchange
@@ -16,7 +19,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
  * @returns {Promise<Array>} - Array of extracted insights
  */
 export const extractInsightsFromExchange = async (userMessage, assistantResponse, existingIntelligence = []) => {
-    if (!API_KEY) {
+    if (!API_BACKEND_AVAILABLE) {
         console.warn('⚠️ No API key for insight extraction');
         return [];
     }
@@ -36,7 +39,7 @@ export const extractInsightsFromExchange = async (userMessage, assistantResponse
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
         // Build context of what we already know
         const knownFacts = existingIntelligence.map(i => i.content).join('; ');
@@ -107,7 +110,7 @@ Reply ONLY with the JSON array, no markdown or explanation.`;
  * @returns {Promise<Array>} - Array of extracted insights
  */
 export const extractInsightsFromConversation = async (messages, existingIntelligence = []) => {
-    if (!API_KEY || messages.length === 0) {
+    if (!API_BACKEND_AVAILABLE || messages.length === 0) {
         return [];
     }
 
@@ -121,7 +124,7 @@ export const extractInsightsFromConversation = async (messages, existingIntellig
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
         const conversationText = userMessages.map(m => `User: ${m.content}`).join('\n');
         const knownFacts = existingIntelligence.map(i => i.content).join('; ');

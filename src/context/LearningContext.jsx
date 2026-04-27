@@ -409,16 +409,16 @@ export const LearningProvider = ({ children }) => {
         const topic = topics.find(t => t.id === id);
         if (!topic) return { ok: false, reason: 'Topic not found.' };
 
-        const statusOrder = ['not_started', 'in_progress', 'completed', 'mastered'];
-        const currentIndex = statusOrder.indexOf(topic.status);
-        const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+        let nextStatus = 'not_started';
 
-        // Block mastered if exercise or revision not done
-        if (nextStatus === 'mastered' && (!topic.exercise_completed || !topic.revision_completed)) {
-            return {
-                ok: false,
-                reason: 'Complete both exercise and revision before marking this topic as mastered.',
-            };
+        if (topic.status === 'not_started') {
+            nextStatus = 'in_progress';
+        } else if (topic.status === 'in_progress') {
+            nextStatus = 'completed';
+        } else if (topic.status === 'completed') {
+            nextStatus = 'in_progress';
+        } else if (topic.status === 'mastered') {
+            nextStatus = 'completed';
         }
 
         await updateTopicStatus(id, nextStatus);

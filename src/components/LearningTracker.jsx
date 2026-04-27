@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus, Target } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus, Target, BarChart3, Award, CheckCircle2, SlidersHorizontal, Tags } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
@@ -8,10 +8,276 @@ import LearningPathDetailView from './LearningPathDetailView';
 import TimetableSummary from './TimetableSummary';
 import { COLOR_OPTIONS } from './LearningPathModal';
 
+const formatStudyTime = (minutes) => {
+    if (!minutes) return '0h';
+    if (minutes < 60) return `${minutes}m`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+};
+
+const getLastStudiedLabel = (lastStudiedAt) => {
+    if (!lastStudiedAt) return 'No study log yet';
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const studiedDate = new Date(lastStudiedAt);
+    const studiedDay = new Date(studiedDate);
+    studiedDay.setHours(0, 0, 0, 0);
+
+    const dayDiff = Math.round((startOfToday - studiedDay) / 86400000);
+    if (dayDiff === 0) return 'Studied today';
+    if (dayDiff === 1) return 'Studied yesterday';
+    if (dayDiff < 7) return `Studied ${dayDiff}d ago`;
+
+    return studiedDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const DASHBOARD_SORT_OPTIONS = [
+    { value: 'needs_attention', label: 'Needs Attention' },
+    { value: 'progress_desc', label: 'Most Complete' },
+    { value: 'progress_asc', label: 'Least Complete' },
+    { value: 'recent', label: 'Recently Studied' },
+    { value: 'studied_desc', label: 'Most Time Studied' },
+    { value: 'name', label: 'Name' },
+];
+
+const PINNED_PATHS_STORAGE_KEY = 'learning-pinned-path-ids';
+
+const SubjectProgressDashboard = ({
+    subjects,
+    categories,
+    selectedCategory,
+    onCategoryChange,
+    sortMode,
+    onSortModeChange,
+    showArchived,
+    onShowArchivedChange,
+    onOpenSubject,
+}) => {
+    const activeSubjects = subjects.filter((subject) => subject.topicCount > 0);
+    const averageProgress = activeSubjects.length
+        ? Math.round(activeSubjects.reduce((sum, subject) => sum + subject.progress, 0) / activeSubjects.length)
+        : 0;
+    const completedTopics = activeSubjects.reduce((sum, subject) => sum + subject.completedCount, 0);
+    const totalTopics = activeSubjects.reduce((sum, subject) => sum + subject.topicCount, 0);
+    const strongestSubject = [...activeSubjects].sort((a, b) => b.progress - a.progress)[0];
+    const attentionSubject = [...activeSubjects]
+        .filter((subject) => subject.progress < 100)
+        .sort((a, b) => {
+            if (a.inProgressCount !== b.inProgressCount) return b.inProgressCount - a.inProgressCount;
+            return a.progress - b.progress;
+        })[0];
+
+    if (subjects.length === 0) {
+        return (
+            <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+                    <BarChart3 size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">No subjects to visualize yet</h3>
+                <p className="text-sm text-gray-400 mt-2">Create a learning path and add topics to see your dashboard.</p>
+            </section>
+        );
+    }
+
+    return (
+        <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <BarChart3 size={20} />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-gray-900">Subjects Dashboard</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">Progress, momentum, and next topic across selected subjects.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 min-w-full lg:min-w-[360px]">
+                    <div className="rounded-xl bg-gray-50 px-3 py-2">
+                        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wide">Average</div>
+                        <div className="text-lg font-bold text-gray-900">{averageProgress}%</div>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 px-3 py-2">
+                        <div className="text-[10px] uppercase font-bold text-emerald-500 tracking-wide">Topics</div>
+                        <div className="text-lg font-bold text-emerald-700">{completedTopics}/{totalTopics}</div>
+                    </div>
+                    <div className="rounded-xl bg-amber-50 px-3 py-2">
+                        <div className="text-[10px] uppercase font-bold text-amber-500 tracking-wide">Focus</div>
+                        <div className="text-sm font-bold text-amber-700 truncate">{attentionSubject?.name || strongestSubject?.name || 'Ready'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/70 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">
+                        <SlidersHorizontal size={15} className="text-gray-400" />
+                        <select
+                            value={sortMode}
+                            onChange={(event) => onSortModeChange(event.target.value)}
+                            className="bg-transparent font-bold text-gray-700 focus:outline-none"
+                        >
+                            {DASHBOARD_SORT_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">
+                        <Tags size={15} className="text-gray-400" />
+                        <select
+                            value={selectedCategory}
+                            onChange={(event) => onCategoryChange(event.target.value)}
+                            className="bg-transparent font-bold text-gray-700 focus:outline-none"
+                        >
+                            <option value="all">All categories</option>
+                            {categories.map((category) => (
+                                <option key={category} value={category}>{category}</option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+
+                <button
+                    onClick={() => onShowArchivedChange(!showArchived)}
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-all ${
+                        showArchived
+                            ? 'border-purple-200 bg-purple-50 text-purple-700'
+                            : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                >
+                    <Archive size={15} />
+                    Archived {showArchived ? 'shown' : 'hidden'}
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px]">
+                <div className="divide-y divide-gray-100">
+                    {subjects.map((subject, index) => {
+                        const colorConfig = COLOR_OPTIONS.find((color) => color.name === subject.color) || COLOR_OPTIONS[0];
+                        const hasTopics = subject.topicCount > 0;
+
+                        return (
+                            <Motion.button
+                                key={subject.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.04 }}
+                                onClick={() => onOpenSubject(subject.id)}
+                                className="w-full px-5 py-4 text-left hover:bg-gray-50 transition-colors group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div
+                                        className="w-14 h-14 rounded-full flex-shrink-0 grid place-items-center"
+                                        style={{ background: `conic-gradient(rgb(99 102 241) ${subject.progress * 3.6}deg, rgb(243 244 246) 0deg)` }}
+                                    >
+                                        <div className="w-11 h-11 rounded-full bg-white grid place-items-center text-xl shadow-sm">
+                                            {subject.icon || '📚'}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h4 className="text-sm font-bold text-gray-900 truncate">{subject.name}</h4>
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">
+                                                        {subject.category}
+                                                    </span>
+                                                    {subject.archived && (
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-bold">
+                                                            Archived
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                                    {hasTopics ? subject.nextTopic || 'All topics completed' : 'No topics yet'}
+                                                </p>
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                                <div className="text-lg font-bold text-gray-900">{subject.progress}%</div>
+                                                <div className="text-[10px] text-gray-400 font-medium">{getLastStudiedLabel(subject.lastStudiedAt)}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full bg-gradient-to-r ${colorConfig.gradient}`}
+                                                style={{ width: `${subject.progress}%` }}
+                                            />
+                                        </div>
+
+                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                                                {subject.completedCount}/{subject.topicCount} done
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
+                                                {subject.inProgressCount} active
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                                                {formatStudyTime(subject.studiedTime)} studied
+                                            </span>
+                                            {subject.plannedTime > 0 && (
+                                                <span className="px-2 py-0.5 rounded-full bg-gray-50 text-gray-500">
+                                                    {formatStudyTime(subject.plannedTime)} planned
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                                </div>
+                            </Motion.button>
+                        );
+                    })}
+                </div>
+
+                <aside className="border-t xl:border-t-0 xl:border-l border-gray-100 p-5 bg-gray-50/60 space-y-4">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Award size={16} className="text-yellow-500" />
+                            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500">Strongest</h4>
+                        </div>
+                        <p className="text-sm font-bold text-gray-900">{strongestSubject?.name || 'No subjects yet'}</p>
+                        <p className="text-xs text-gray-400 mt-1">{strongestSubject ? `${strongestSubject.progress}% complete` : 'Create a subject to start tracking.'}</p>
+                    </div>
+
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Zap size={16} className="text-amber-500" />
+                            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500">Next Push</h4>
+                        </div>
+                        <p className="text-sm font-bold text-gray-900">{attentionSubject?.name || 'All clear'}</p>
+                        <p className="text-xs text-gray-400 mt-1">{attentionSubject?.nextTopic || 'Nothing urgent right now.'}</p>
+                    </div>
+
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 size={16} className="text-emerald-500" />
+                            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500">Completion</h4>
+                        </div>
+                        <div className="h-2 rounded-full bg-white overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-emerald-400"
+                                style={{ width: totalTopics ? `${(completedTopics / totalTopics) * 100}%` : '0%' }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">{completedTopics} of {totalTopics} active topics completed.</p>
+                    </div>
+                </aside>
+            </div>
+        </section>
+    );
+};
+
 const LearningTracker = () => {
     const {
         learningPaths,
         topics,
+        timeLogs,
         isLoading,
         currentPathId,
         setCurrentPathId,
@@ -37,6 +303,23 @@ const LearningTracker = () => {
     const [showArchived, setShowArchived] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSettings, setShowSettings] = useState(false);
+    const [learningView, setLearningView] = useState('paths');
+    const [dashboardSort, setDashboardSort] = useState('needs_attention');
+    const [dashboardCategory, setDashboardCategory] = useState('all');
+    const [dashboardShowArchived, setDashboardShowArchived] = useState(false);
+    const [pinnedPathIds, setPinnedPathIds] = useState(() => {
+        try {
+            const saved = localStorage.getItem(PINNED_PATHS_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.error('Failed to load pinned learning paths:', error);
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        localStorage.setItem(PINNED_PATHS_STORAGE_KEY, JSON.stringify(pinnedPathIds));
+    }, [pinnedPathIds]);
 
     // Get current detail path
     const currentPath = useMemo(() =>
@@ -61,7 +344,10 @@ const LearningTracker = () => {
     // Group by category
     const groupedPaths = useMemo(() => {
         const groups = {};
-        filteredPaths.forEach(path => {
+        const pinnedPaths = filteredPaths.filter((path) => pinnedPathIds.includes(path.id));
+        const unpinnedPaths = filteredPaths.filter((path) => !pinnedPathIds.includes(path.id));
+
+        unpinnedPaths.forEach(path => {
             const cat = path.category && path.category.trim() !== '' ? path.category.trim() : 'Uncategorized';
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(path);
@@ -72,8 +358,11 @@ const LearningTracker = () => {
             if (b === 'Uncategorized') return -1;
             return a.localeCompare(b);
         });
-        return sortedKeys.map(key => ({ category: key, paths: groups[key] }));
-    }, [filteredPaths]);
+        const categoryGroups = sortedKeys.map(key => ({ category: key, paths: groups[key] }));
+        return pinnedPaths.length > 0
+            ? [{ category: 'Pinned', paths: pinnedPaths }, ...categoryGroups]
+            : categoryGroups;
+    }, [filteredPaths, pinnedPathIds]);
 
     // In-progress topics
     const inProgressTopics = useMemo(() => getInProgressTopicsWithPaths(), [getInProgressTopicsWithPaths]);
@@ -83,6 +372,14 @@ const LearningTracker = () => {
 
     // Existing categories for autocomplete
     const existingCategories = useMemo(() => getCategories(), [getCategories]);
+    const dashboardCategories = useMemo(() => {
+        const categories = learningPaths.map((path) => path.category?.trim() || 'Uncategorized');
+        return [...new Set(categories)].sort((a, b) => {
+            if (a === 'Uncategorized') return 1;
+            if (b === 'Uncategorized') return -1;
+            return a.localeCompare(b);
+        });
+    }, [learningPaths]);
 
     // Overall stats
     const stats = useMemo(() => {
@@ -106,6 +403,76 @@ const LearningTracker = () => {
         };
     }, [learningPaths, topics, getPathTotalTime]);
 
+    const subjectDashboard = useMemo(() => {
+        return learningPaths
+            .map((path) => {
+                const pathTopics = topics
+                    .filter((topic) => topic.learning_path_id === path.id)
+                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+                const topicIds = pathTopics.map((topic) => topic.id);
+                const completedCount = pathTopics.filter((topic) => topic.status === 'completed' || topic.status === 'mastered').length;
+                const inProgressCount = pathTopics.filter((topic) => topic.status === 'in_progress').length;
+                const plannedTime = pathTopics.reduce((sum, topic) => sum + (topic.estimated_time || 0), 0);
+                const pathLogs = timeLogs
+                    .filter((log) => topicIds.includes(log.topic_id))
+                    .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at));
+                const nextTopic = (
+                    pathTopics.find((topic) => topic.section === 'current_focus' && topic.status !== 'completed' && topic.status !== 'mastered') ||
+                    pathTopics.find((topic) => topic.status === 'in_progress') ||
+                    pathTopics.find((topic) => topic.status !== 'completed' && topic.status !== 'mastered')
+                )?.title;
+
+                return {
+                    id: path.id,
+                    name: path.name,
+                    icon: path.icon,
+                    color: path.color,
+                    category: path.category?.trim() || 'Uncategorized',
+                    archived: !!path.archived,
+                    progress: getPathProgress(path.id),
+                    topicCount: pathTopics.length,
+                    completedCount,
+                    inProgressCount,
+                    plannedTime,
+                    studiedTime: getPathTotalTime(path.id),
+                    lastStudiedAt: pathLogs[0]?.logged_at || null,
+                    nextTopic,
+                };
+            });
+    }, [learningPaths, topics, timeLogs, getPathProgress, getPathTotalTime]);
+
+    const filteredDashboardSubjects = useMemo(() => {
+        const lastStudiedTime = (subject) => (
+            subject.lastStudiedAt ? new Date(subject.lastStudiedAt).getTime() : 0
+        );
+
+        return subjectDashboard
+            .filter((subject) => dashboardShowArchived || !subject.archived)
+            .filter((subject) => dashboardCategory === 'all' || subject.category === dashboardCategory)
+            .sort((a, b) => {
+                if (a.archived !== b.archived) return a.archived ? 1 : -1;
+
+                switch (dashboardSort) {
+                    case 'progress_desc':
+                        return b.progress - a.progress || a.name.localeCompare(b.name);
+                    case 'progress_asc':
+                        return a.progress - b.progress || a.name.localeCompare(b.name);
+                    case 'recent':
+                        return lastStudiedTime(b) - lastStudiedTime(a) || a.name.localeCompare(b.name);
+                    case 'studied_desc':
+                        return b.studiedTime - a.studiedTime || a.name.localeCompare(b.name);
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    case 'needs_attention':
+                    default:
+                        if (a.progress === 100 && b.progress !== 100) return 1;
+                        if (b.progress === 100 && a.progress !== 100) return -1;
+                        if (b.inProgressCount !== a.inProgressCount) return b.inProgressCount - a.inProgressCount;
+                        return a.progress - b.progress || a.name.localeCompare(b.name);
+                }
+            });
+    }, [subjectDashboard, dashboardShowArchived, dashboardCategory, dashboardSort]);
+
     const formatTime = (minutes) => {
         if (!minutes) return '0h';
         if (minutes < 60) return `${minutes}m`;
@@ -120,6 +487,14 @@ const LearningTracker = () => {
         } else {
             await addLearningPath(pathData);
         }
+    };
+
+    const handleTogglePinnedPath = (pathId) => {
+        setPinnedPathIds((prev) => (
+            prev.includes(pathId)
+                ? prev.filter((id) => id !== pathId)
+                : [pathId, ...prev]
+        ));
     };
 
     // If viewing a specific path detail
@@ -148,7 +523,31 @@ const LearningTracker = () => {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-2xl p-1 shadow-sm">
+                        <button
+                            onClick={() => setLearningView('paths')}
+                            className={`px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
+                                learningView === 'paths'
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                        >
+                            <BookOpen size={15} />
+                            Paths
+                        </button>
+                        <button
+                            onClick={() => setLearningView('dashboard')}
+                            className={`px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
+                                learningView === 'dashboard'
+                                    ? 'bg-indigo-100 text-indigo-700'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                        >
+                            <BarChart3 size={15} />
+                            Dashboard
+                        </button>
+                    </div>
                     <button
                         onClick={() => setShowSettings(!showSettings)}
                         className={`p-2.5 rounded-2xl transition-all ${
@@ -183,7 +582,7 @@ const LearningTracker = () => {
             {/* Settings Panel */}
             <AnimatePresence>
                 {showSettings && (
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -215,13 +614,13 @@ const LearningTracker = () => {
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 )}
             </AnimatePresence>
 
             {/* Concurrent Path Limit Banner */}
             {!canStart && (
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl"
@@ -234,12 +633,26 @@ const LearningTracker = () => {
                             Only paths with topics you have actually started count toward this limit.
                         </p>
                     </div>
-                </motion.div>
+                </Motion.div>
             )}
 
+            {learningView === 'dashboard' ? (
+                <SubjectProgressDashboard
+                    subjects={filteredDashboardSubjects}
+                    categories={dashboardCategories}
+                    selectedCategory={dashboardCategory}
+                    onCategoryChange={setDashboardCategory}
+                    sortMode={dashboardSort}
+                    onSortModeChange={setDashboardSort}
+                    showArchived={dashboardShowArchived}
+                    onShowArchivedChange={setDashboardShowArchived}
+                    onOpenSubject={setCurrentPathId}
+                />
+            ) : (
+                <>
             {/* Stats Overview - Vibrant Gradient Cards like Habit Tracker */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0 }}
@@ -250,8 +663,8 @@ const LearningTracker = () => {
                         <span className="text-xs font-bold uppercase tracking-wide">Paths</span>
                     </div>
                     <div className="text-3xl font-bold text-white">{stats.totalPaths}</div>
-                </motion.div>
-                <motion.div
+                </Motion.div>
+                <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 }}
@@ -262,8 +675,8 @@ const LearningTracker = () => {
                         <span className="text-xs font-bold uppercase tracking-wide">In Progress</span>
                     </div>
                     <div className="text-3xl font-bold text-white">{stats.inProgress}</div>
-                </motion.div>
-                <motion.div
+                </Motion.div>
+                <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
@@ -274,8 +687,8 @@ const LearningTracker = () => {
                         <span className="text-xs font-bold uppercase tracking-wide">Completed</span>
                     </div>
                     <div className="text-3xl font-bold text-white">{stats.completed}</div>
-                </motion.div>
-                <motion.div
+                </Motion.div>
+                <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
@@ -289,11 +702,11 @@ const LearningTracker = () => {
                     {stats.plannedTime > 0 && (
                         <div className="text-xs text-white/60 font-medium mt-0.5">planned {formatTime(stats.plannedTime)}</div>
                     )}
-                </motion.div>
+                </Motion.div>
             </div>
 
             {focusTopics.length > 0 && (
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.18 }}
@@ -309,7 +722,7 @@ const LearningTracker = () => {
                         {focusTopics.map((topic, idx) => {
                             const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
                             return (
-                                <motion.button
+                                <Motion.button
                                     key={topic.id}
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -330,16 +743,16 @@ const LearningTracker = () => {
                                             <span className="text-gray-500">{formatTime(topic.estimated_time)}</span>
                                         )}
                                     </div>
-                                </motion.button>
+                                </Motion.button>
                             );
                         })}
                     </div>
-                </motion.div>
+                </Motion.div>
             )}
 
             {/* ── Continue Learning Block ─────────────────────── */}
             {inProgressTopics.length > 0 && (
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
@@ -355,7 +768,7 @@ const LearningTracker = () => {
                         {inProgressTopics.map((topic, idx) => {
                             const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
                             return (
-                                <motion.button
+                                <Motion.button
                                     key={topic.id}
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -374,11 +787,11 @@ const LearningTracker = () => {
                                         <span>Continue</span>
                                         <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                                     </div>
-                                </motion.button>
+                                </Motion.button>
                             );
                         })}
                     </div>
-                </motion.div>
+                </Motion.div>
             )}
 
             {/* Weekly Study Schedule Overview */}
@@ -416,7 +829,7 @@ const LearningTracker = () => {
                     <p className="text-gray-400 text-sm">Loading your learning paths...</p>
                 </div>
             ) : filteredPaths.length === 0 ? (
-                <motion.div
+                <Motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="text-center py-16"
@@ -450,7 +863,7 @@ const LearningTracker = () => {
                             Create Learning Path
                         </button>
                     )}
-                </motion.div>
+                </Motion.div>
             ) : (
                 <div className="space-y-8">
                     {groupedPaths.map(({ category, paths: catPaths }) => (
@@ -458,22 +871,32 @@ const LearningTracker = () => {
                             {/* Category Header */}
                             {groupedPaths.length > 1 || category !== 'Uncategorized' ? (
                                 <div className="flex items-center gap-2.5 mb-4">
-                                    <div className="w-1 h-6 bg-gradient-to-b from-purple-400 to-indigo-500 rounded-full" />
-                                    <FolderOpen size={16} className="text-gray-400" />
-                                    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">{category}</h3>
+                                    <div className={`w-1 h-6 rounded-full ${
+                                        category === 'Pinned'
+                                            ? 'bg-gradient-to-b from-amber-300 to-orange-500'
+                                            : 'bg-gradient-to-b from-purple-400 to-indigo-500'
+                                    }`} />
+                                    {category === 'Pinned' ? (
+                                        <Target size={16} className="text-amber-500" />
+                                    ) : (
+                                        <FolderOpen size={16} className="text-gray-400" />
+                                    )}
+                                    <h3 className={`text-sm font-bold uppercase tracking-wider ${
+                                        category === 'Pinned' ? 'text-amber-600' : 'text-gray-600'
+                                    }`}>{category}</h3>
                                     <span className="text-xs text-gray-400 font-medium">{catPaths.length}</span>
                                 </div>
                             ) : null}
 
                             {/* Path Cards Grid */}
-                            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <Motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <AnimatePresence>
                                     {catPaths.map((path, index) => {
                                         const pathTopics = topics.filter(t => t.learning_path_id === path.id);
                                         const completedCount = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
 
                                         return (
-                                            <motion.div
+                                            <Motion.div
                                                 key={path.id}
                                                 layout
                                                 initial={{ opacity: 0, y: 20 }}
@@ -488,20 +911,24 @@ const LearningTracker = () => {
                                                     completedCount={completedCount}
                                                     plannedTime={getPathEstimatedTime(path.id)}
                                                     studiedTime={getPathTotalTime(path.id)}
+                                                    isPinned={pinnedPathIds.includes(path.id)}
                                                     onClick={() => setCurrentPathId(path.id)}
                                                     onEdit={(p) => { setEditingPath(p); setShowPathModal(true); }}
                                                     onDelete={deleteLearningPath}
                                                     onArchive={archiveLearningPath}
                                                     onRestore={restoreLearningPath}
+                                                    onTogglePin={handleTogglePinnedPath}
                                                 />
-                                            </motion.div>
+                                            </Motion.div>
                                         );
                                     })}
                                 </AnimatePresence>
-                            </motion.div>
+                            </Motion.div>
                         </div>
                     ))}
                 </div>
+            )}
+                </>
             )}
 
             {/* Path Modal */}

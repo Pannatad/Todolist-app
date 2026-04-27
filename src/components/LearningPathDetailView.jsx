@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { ArrowLeft, Plus, Clock, BookOpen, Target, TrendingUp, Flame, Check, Star, Zap, ChevronRight, GripVertical, Sparkles, ArrowUpDown, Play, Calendar, Lock, Unlock, Dumbbell, BookCheck, Search } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { motion as Motion, AnimatePresence, Reorder } from 'framer-motion';
+import { ArrowLeft, Plus, Clock, BookOpen, Target, TrendingUp, Flame, Check, Star, Zap, ChevronRight, GripVertical, Sparkles, ArrowUpDown, Play, Calendar, Lock, Unlock, Dumbbell, BookCheck, Search, Trash2 } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import TopicModal from './TopicModal';
 import AITopicGenerator from './AITopicGenerator';
@@ -44,6 +44,13 @@ const TOPIC_FILTERS = [
     { id: 'active', label: 'Active' },
     { id: 'done', label: 'Done' },
 ];
+
+const VIDEO_URL_PATTERN = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/|vimeo\.com\/|dailymotion\.com\/video\/)[^\s)]+/i;
+
+const findVideoUrlInText = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.match(VIDEO_URL_PATTERN)?.[0]?.replace(/[.,;!?]+$/, '') || '';
+};
 
 const LearningPathDetailView = ({ path, onBack }) => {
     const {
@@ -132,6 +139,25 @@ const LearningPathDetailView = ({ path, onBack }) => {
         return m > 0 ? `${h}h ${m}m` : `${h}h`;
     };
 
+    const getTopicVideoUrl = useCallback((topic) => {
+        if (!topic?.id) return '';
+
+        const primaryVideoUrl = getPrimaryVideoResource(topic.id)?.url?.trim();
+        if (primaryVideoUrl) return primaryVideoUrl;
+
+        const resourceVideoUrl = getResourcesByTopic(topic.id).find((resource) =>
+            resource.resource_type === 'video' &&
+            typeof resource.url === 'string' &&
+            resource.url.trim()
+        )?.url?.trim();
+        if (resourceVideoUrl) return resourceVideoUrl;
+
+        const legacyVideoUrl = topic.primary_video_url || topic.primaryVideoUrl || topic.video_url || topic.videoUrl;
+        if (typeof legacyVideoUrl === 'string' && legacyVideoUrl.trim()) return legacyVideoUrl.trim();
+
+        return findVideoUrlInText(topic.description) || findVideoUrlInText(topic.notes);
+    }, [getPrimaryVideoResource, getResourcesByTopic]);
+
     const handleAddTopic = () => {
         setEditingTopic(null);
         setShowTopicModal(true);
@@ -198,7 +224,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
         return pathTopics
             .map((topic) => {
                 const topicResources = getResourcesByTopic(topic.id);
-                const primaryVideoResource = getPrimaryVideoResource(topic.id);
+                const primaryVideoUrl = getTopicVideoUrl(topic);
                 const totalLoggedTime = getTopicTotalTime(topic.id);
 
                 return {
@@ -206,7 +232,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
                     title: topic.title,
                     notes: topic.notes?.trim() || '',
                     resources: topicResources,
-                    primaryVideoUrl: primaryVideoResource?.url || '',
+                    primaryVideoUrl,
                     totalLoggedTime,
                 };
             })
@@ -216,7 +242,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
                 entry.primaryVideoUrl ||
                 entry.totalLoggedTime > 0
             );
-    }, [pathTopics, getPrimaryVideoResource, getResourcesByTopic, getTopicTotalTime]);
+    }, [pathTopics, getResourcesByTopic, getTopicTotalTime, getTopicVideoUrl]);
 
     const visibleTopics = useMemo(() => {
         const normalizedQuery = topicQuery.trim().toLowerCase();
@@ -245,19 +271,17 @@ const LearningPathDetailView = ({ path, onBack }) => {
         }
     };
 
-    const formatLogDate = (value) => {
-        return new Date(value).toLocaleString([], {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-        });
+    const handleDeleteTopic = async (topic) => {
+        const confirmed = window.confirm(`Delete "${topic.title}" and its resources/logs?`);
+        if (!confirmed) return;
+
+        await deleteTopic(topic.id);
     };
 
     const renderTopicRow = (topic, index) => {
         const status = STATUS_CONFIG[topic.status] || STATUS_CONFIG.not_started;
         const topicResourceList = getResourcesByTopic(topic.id);
-        const primaryVideoResource = getPrimaryVideoResource(topic.id);
+        const primaryVideoUrl = getTopicVideoUrl(topic);
         const resourceCount = topicResourceList.length;
         const isCompleted = topic.status === 'completed';
         const isMastered = topic.status === 'mastered';
@@ -267,7 +291,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
         const isFocused = topic.section === 'current_focus';
 
         return (
-            <motion.div
+            <Motion.div
                 key={topic.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -367,9 +391,9 @@ const LearningPathDetailView = ({ path, onBack }) => {
                         </div>
                     )}
 
-                    {primaryVideoResource?.url && (
+                    {primaryVideoUrl && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); window.open(primaryVideoResource.url, '_blank'); }}
+                            onClick={(e) => { e.stopPropagation(); window.open(primaryVideoUrl, '_blank'); }}
                             className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                             title="Open linked video"
                         >
@@ -392,13 +416,24 @@ const LearningPathDetailView = ({ path, onBack }) => {
                         <Target size={14} />
                     </button>
 
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTopic(topic);
+                        }}
+                        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all hover:scale-110 active:scale-95 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                        title="Delete topic"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+
                     <ChevronRight
                         size={14}
                         className="text-gray-200 group-hover:text-gray-400 transition-colors flex-shrink-0 cursor-pointer"
                         onClick={() => handleEditTopic(topic)}
                     />
                 </div>
-            </motion.div>
+            </Motion.div>
         );
     };
 
@@ -457,7 +492,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
                         {/* Full Progress Bar */}
                         <div className="mt-4">
                             <div className="w-full h-3 bg-black/20 rounded-full overflow-hidden">
-                                <motion.div
+                                <Motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${progress}%` }}
                                     transition={{ duration: 1, ease: 'easeOut' }}
@@ -554,7 +589,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
 
                             <AnimatePresence>
                                 {showAddMenu && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -587,7 +622,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
                                                 AI Generate Topics
                                             </button>
                                         </div>
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
@@ -773,7 +808,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
                 onLogTime={logTime}
                 onDeleteTimeLog={deleteTimeLog}
                 availablePrerequisites={pathTopics.filter((topic) => topic.id !== editingTopic?.id)}
-                primaryVideoUrl={editingTopic ? getPrimaryVideoResource(editingTopic.id)?.url || '' : ''}
+                primaryVideoUrl={editingTopic ? getTopicVideoUrl(editingTopic) : ''}
             />
 
             {/* AI Topic Generator Modal */}
