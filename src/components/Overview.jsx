@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb, Sunrise, CheckCircle2, Settings, Activity, ListTodo } from 'lucide-react';
+import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb, Sunrise, CheckCircle2, Settings, Activity, ListTodo, StickyNote } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +35,12 @@ const OVERVIEW_WIDGETS = [
         label: 'Current Status',
         description: 'What is happening now and what comes next.',
         icon: Activity,
+    },
+    {
+        id: 'postIt',
+        label: 'Post-it Note',
+        description: 'A warm little note that stays on your Overview.',
+        icon: StickyNote,
     },
     {
         id: 'nextAction',
@@ -76,6 +82,49 @@ const OVERVIEW_WIDGETS = [
 
 const DEFAULT_OVERVIEW_WIDGET_IDS = OVERVIEW_WIDGETS.map((widget) => widget.id);
 const OVERVIEW_WIDGET_STORAGE_KEY = 'overview-widget-ids';
+const OVERVIEW_POST_IT_STORAGE_KEY = 'overview-post-it-note';
+const OVERVIEW_POST_IT_THEME_STORAGE_KEY = 'overview-post-it-theme';
+const POST_IT_THEMES = [
+    {
+        id: 'honey',
+        name: 'Honey',
+        shellClass: 'border-amber-200/80 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50',
+        paperClass: 'border-amber-200/80 bg-[#fff8d9] text-amber-950 placeholder:text-amber-700/45',
+        iconClass: 'bg-white/80 text-amber-600',
+        tapeClass: 'bg-amber-200/70',
+        textClass: 'text-amber-950',
+        subTextClass: 'text-amber-700/75',
+        buttonClass: 'text-amber-700 hover:bg-white/70',
+        lineColor: 'rgba(217, 119, 6, 0.16)',
+        swatchClass: 'bg-[#facc15]',
+    },
+    {
+        id: 'blush',
+        name: 'Blush',
+        shellClass: 'border-rose-200/80 bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50',
+        paperClass: 'border-rose-200/80 bg-[#fff1f2] text-rose-950 placeholder:text-rose-700/45',
+        iconClass: 'bg-white/80 text-rose-500',
+        tapeClass: 'bg-rose-200/75',
+        textClass: 'text-rose-950',
+        subTextClass: 'text-rose-700/75',
+        buttonClass: 'text-rose-700 hover:bg-white/70',
+        lineColor: 'rgba(225, 29, 72, 0.14)',
+        swatchClass: 'bg-[#fda4af]',
+    },
+    {
+        id: 'mint',
+        name: 'Mint',
+        shellClass: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-teal-50 to-yellow-50',
+        paperClass: 'border-emerald-200/80 bg-[#ecfdf5] text-emerald-950 placeholder:text-emerald-700/45',
+        iconClass: 'bg-white/80 text-emerald-600',
+        tapeClass: 'bg-emerald-200/75',
+        textClass: 'text-emerald-950',
+        subTextClass: 'text-emerald-700/75',
+        buttonClass: 'text-emerald-700 hover:bg-white/70',
+        lineColor: 'rgba(5, 150, 105, 0.14)',
+        swatchClass: 'bg-[#6ee7b7]',
+    },
+];
 
 // Proactive Suggestion Card Component
 const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
@@ -203,6 +252,113 @@ const OverviewWidgetPicker = ({ isOpen, onClose, visibleWidgetIds, onToggleWidge
             </div>
         </div>,
         document.body
+    );
+};
+
+const PostItWidget = () => {
+    const [note, setNote] = useState(() => {
+        try {
+            return localStorage.getItem(OVERVIEW_POST_IT_STORAGE_KEY) || '';
+        } catch {
+            return '';
+        }
+    });
+    const [themeId, setThemeId] = useState(() => {
+        try {
+            return localStorage.getItem(OVERVIEW_POST_IT_THEME_STORAGE_KEY) || 'honey';
+        } catch {
+            return 'honey';
+        }
+    });
+
+    const theme = POST_IT_THEMES.find((candidate) => candidate.id === themeId) || POST_IT_THEMES[0];
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(OVERVIEW_POST_IT_STORAGE_KEY, note);
+        } catch {
+            // Keep the note usable even if storage is unavailable.
+        }
+    }, [note]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(OVERVIEW_POST_IT_THEME_STORAGE_KEY, themeId);
+        } catch {
+            // Theme choice is a visual preference, so storage failure should not block typing.
+        }
+    }, [themeId]);
+
+    const handleNoteChange = (event) => {
+        setNote(event.target.value.slice(0, 280));
+    };
+
+    return (
+        <div className={`relative overflow-hidden rounded-[2rem] border p-5 shadow-sm transition-all ${theme.shellClass}`}>
+            <div className={`absolute left-1/2 top-3 h-3 w-24 -translate-x-1/2 rotate-[-2deg] rounded-full shadow-sm ${theme.tapeClass}`}></div>
+            <div className="absolute right-5 top-5 h-10 w-10 rounded-bl-[1.25rem] border-b border-l border-white/70 bg-white/35 shadow-sm"></div>
+            <div className="relative z-10 pt-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm ${theme.iconClass}`}>
+                            <StickyNote size={18} />
+                        </div>
+                        <div>
+                            <h3 className={`font-bold ${theme.textClass}`}>Post-it</h3>
+                            <p className={`text-xs font-medium ${theme.subTextClass}`}>Tiny note for today.</p>
+                        </div>
+                    </div>
+
+                    {note.trim() && (
+                        <button
+                            type="button"
+                            onClick={() => setNote('')}
+                            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors ${theme.buttonClass}`}
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+
+                <div className={`relative overflow-hidden rounded-[1.65rem] border shadow-[0_14px_30px_-24px_rgba(120,53,15,0.45)] ${theme.paperClass}`}>
+                    <Sparkles size={15} className="absolute right-4 top-4 opacity-30" />
+                    <textarea
+                        value={note}
+                        onChange={handleNoteChange}
+                        maxLength={280}
+                        rows={5}
+                        placeholder="Write one gentle reminder..."
+                        className="relative z-10 min-h-[152px] w-full resize-none bg-transparent px-5 py-5 pr-10 text-[15px] leading-7 outline-none"
+                        style={{
+                            backgroundImage: `linear-gradient(${theme.lineColor} 1px, transparent 1px)`,
+                            backgroundPosition: '0 45px',
+                            backgroundSize: '100% 28px',
+                            fontFamily: '"Noteworthy", "Marker Felt", "Bradley Hand", "Chalkboard SE", "Segoe Print", cursive',
+                            letterSpacing: '0.01em',
+                        }}
+                    />
+                </div>
+
+                <div className={`mt-3 flex items-center justify-between gap-3 text-xs font-semibold ${theme.subTextClass}`}>
+                    <div className="flex items-center gap-2">
+                        <span>{note.trim() ? 'Saved automatically' : 'Ready when you are'}</span>
+                        <div className="flex items-center gap-1">
+                            {POST_IT_THEMES.map((candidate) => (
+                                <button
+                                    key={candidate.id}
+                                    type="button"
+                                    onClick={() => setThemeId(candidate.id)}
+                                    className={`h-4 w-4 rounded-full border border-white/80 shadow-sm transition-transform ${candidate.swatchClass} ${candidate.id === theme.id ? 'scale-110 ring-2 ring-white/90' : 'hover:scale-110'}`}
+                                    aria-label={`Use ${candidate.name} post-it color`}
+                                    title={candidate.name}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <span>{note.length}/280</span>
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -833,7 +989,8 @@ const Overview = ({ onNavigate }) => {
             const saved = JSON.parse(localStorage.getItem(OVERVIEW_WIDGET_STORAGE_KEY) || 'null');
             if (Array.isArray(saved) && saved.length > 0) {
                 const validIds = new Set(OVERVIEW_WIDGETS.map((widget) => widget.id));
-                return saved.filter((id) => validIds.has(id));
+                const restoredIds = saved.filter((id) => validIds.has(id));
+                return restoredIds.includes('postIt') ? restoredIds : [...restoredIds, 'postIt'];
             }
         } catch {
             // Fall back to defaults.
@@ -1784,6 +1941,11 @@ const Overview = ({ onNavigate }) => {
                                 }))}
                         />
                     </div>
+                    )}
+
+                    {/* Post-it Widget */}
+                    {isWidgetVisible('postIt') && (
+                        <PostItWidget />
                     )}
 
                     {/* Next Best Action */}

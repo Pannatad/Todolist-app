@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
-import { DEFAULT_SEED_DURATION_DAYS, getSeedStageFromProgress } from '../constants/habitSeeds';
+import { DEFAULT_SEED_DURATION_DAYS, getNextSeedCompletionMilestone, getSeedStageFromCompletedDays, getSeedStageFromProgress } from '../constants/habitSeeds';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const HabitContext = createContext();
@@ -534,6 +534,8 @@ export const HabitProvider = ({ children }) => {
         let maxMissStreak = 0;
         let scheduledSlotsSeen = 0;
         let elapsedScheduledDays = 0;
+        let seedEnded = false;
+        let seedEndedAt = null;
 
         const maxTimelineDays = Math.max(durationDays * 14, durationDays + 14);
 
@@ -557,9 +559,13 @@ export const HabitProvider = ({ children }) => {
             const growthScale = 0.45 + ((Math.min(progressIndex, durationDays) / durationDays) * 0.8);
 
             let status = 'future';
+            let completionNumber = null;
+            let completionStage = null;
 
             if (!scheduled) {
-                status = isFuture ? 'future-free' : 'free';
+                status = seedEnded ? 'ended' : isFuture ? 'future-free' : 'free';
+            } else if (seedEnded) {
+                status = 'ended';
             } else if (completed) {
                 status = 'completed';
                 runningMissStreak = 0;
@@ -567,6 +573,8 @@ export const HabitProvider = ({ children }) => {
                 if (isPast || isToday) {
                     countedScheduledDays += 1;
                     completedDays += 1;
+                    completionNumber = completedDays;
+                    completionStage = getSeedStageFromCompletedDays(completedDays, durationDays);
                     pastScheduledResults.push({ completed: true, date: toLocalDateKey(date) });
                 }
             } else if (isFuture) {
@@ -578,8 +586,12 @@ export const HabitProvider = ({ children }) => {
                 runningMissStreak += 1;
                 maxMissStreak = Math.max(maxMissStreak, runningMissStreak);
 
-                if (runningMissStreak >= 6) status = 'dead';
-                else if (runningMissStreak >= 3) status = 'rotting';
+                if (runningMissStreak >= 4) {
+                    status = 'ended';
+                    seedEnded = true;
+                    seedEndedAt = toLocalDateKey(date);
+                } else if (runningMissStreak >= 3) status = 'final-warning';
+                else if (runningMissStreak >= 2) status = 'warning';
                 else status = 'missed';
 
                 pastScheduledResults.push({ completed: false, date: toLocalDateKey(date) });
@@ -596,6 +608,8 @@ export const HabitProvider = ({ children }) => {
                 status,
                 growthScale,
                 stage: getSeedStageFromProgress((index + 1) / durationDays),
+                completionNumber,
+                completionStage,
             });
         }
 
@@ -628,26 +642,33 @@ export const HabitProvider = ({ children }) => {
         });
 
         let health = 'healthy';
-        if (currentMissStreak >= 6) health = 'dead';
-        else if (currentMissStreak >= 3) health = 'rotting';
+        if (seedEnded || maxMissStreak >= 4) health = 'ended';
+        else if (currentMissStreak >= 3) health = 'final_warning';
+        else if (currentMissStreak >= 2) health = 'warning';
         else if (currentMissStreak > 0) health = 'dry';
         else if (recentDecay && currentRecoveryStreak > 0 && currentRecoveryStreak < 3) health = 'recovering';
 
         const elapsedDays = Math.max(1, Math.min(durationDays, elapsedScheduledDays || 1));
 
         const timeProgress = elapsedDays / durationDays;
+        const completionProgress = Math.min(1, completedDays / durationDays);
         const consistencyRate = countedScheduledDays > 0 ? completedDays / countedScheduledDays : 0;
-        const growthProgress = Math.min(1, Math.min(timeProgress, consistencyRate || 0));
-        const suggestedStage = getSeedStageFromProgress(growthProgress);
+        const growthProgress = completionProgress;
+        const suggestedStage = getSeedStageFromCompletedDays(completedDays, durationDays);
+        const nextGrowthMilestone = getNextSeedCompletionMilestone(completedDays, durationDays);
+        const completionsToNextStage = suggestedStage === 'blooming'
+            ? 0
+            : Math.max(0, nextGrowthMilestone - completedDays);
 
         let healthMessage = 'Only scheduled days count for this seed. Free days stay neutral.';
-        if (health === 'dry') {
-            const missesUntilRot = Math.max(1, 3 - currentMissStreak);
-            healthMessage = `${currentMissStreak} missed day${currentMissStreak === 1 ? '' : 's'}. Miss ${missesUntilRot} more to start rotting.`;
-        } else if (health === 'rotting') {
-            healthMessage = 'This seed is rotting. A few continuous completed days can still recover it.';
-        } else if (health === 'dead') {
-            healthMessage = 'This seed looks dead right now, but a new completion streak can still wake it up.';
+        if (health === 'ended') {
+            healthMessage = 'This seed ended after 4 missed days in a row. Replant a new seed to restart this habit.';
+        } else if (health === 'final_warning') {
+            healthMessage = 'Final warning: 3 missed days in a row. One more missed scheduled day will end this seed.';
+        } else if (health === 'warning') {
+            healthMessage = 'Warning: 2 missed days in a row. Complete the next scheduled day to keep this seed alive.';
+        } else if (health === 'dry') {
+            healthMessage = '1 missed day. The soil is dry, but this seed can recover with the next completion.';
         } else if (health === 'recovering') {
             healthMessage = 'Recovery has started. Keep the streak going for a few more days.';
         }
@@ -660,11 +681,14 @@ export const HabitProvider = ({ children }) => {
             scheduledDays: countedScheduledDays,
             completedDays,
             timeProgress,
+            completionProgress,
             consistencyRate,
             growthProgress,
             stage: suggestedStage,
             storedStage: habit.seed_stage,
             suggestedStage,
+            nextGrowthMilestone,
+            completionsToNextStage,
             readyToGraduate: elapsedDays >= durationDays && consistencyRate >= 0.8,
             timeline,
             health,
@@ -673,6 +697,8 @@ export const HabitProvider = ({ children }) => {
             maxMissStreak,
             recentDecay,
             healthMessage,
+            ended: health === 'ended',
+            endedAt: seedEndedAt,
         };
     }, [habitLogs, storedHabits]);
 

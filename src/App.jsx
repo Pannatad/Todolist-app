@@ -319,6 +319,7 @@ function App() {
                       onUpdateScheduleItem={updateScheduleItem}
                       onDeleteScheduleItem={deleteScheduleItem}
                       onDeleteTask={deleteTask}
+                      onUpdateTask={updateTask}
                       tasks={tasks}
                       scheduleItems={scheduleItems}
                       onCompleteTask={handleCompleteTask}

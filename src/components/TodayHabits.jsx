@@ -348,27 +348,32 @@ const TodayHabits = () => {
                                         <div className="h-px flex-1 bg-slate-200" />
                                     </div>
                                     <div className="space-y-3">
-                                        {sectionHabits.map((habit, index) => (
-                                            <HabitCard
-                                                key={habit.id}
-                                                habit={habit}
-                                                log={getHabitLog(habit.id, selectedDateStr)}
-                                                onLog={handleLog}
-                                                onSaveNote={handleSaveNote}
-                                                noteCount={getHabitNoteHistory(habit.id).length}
-                                                onViewNotes={() => setHistoryHabit(habit)}
-                                                onEdit={(selectedHabit) => {
-                                                    setEditingHabit(selectedHabit);
-                                                    setShowModal(true);
-                                                }}
-                                                onDelete={handleDelete}
-                                                streak={getHabitStreak(habit.id)}
-                                                seedInsight={seedInsightByHabitId[habit.id] || null}
-                                                index={index}
-                                                disabled={!canEditSelectedDate}
-                                                disabledReason={lockedReason}
-                                            />
-                                        ))}
+                                        {sectionHabits.map((habit, index) => {
+                                            const seedInsight = seedInsightByHabitId[habit.id] || null;
+                                            const seedEnded = Boolean(seedInsight?.ended);
+
+                                            return (
+                                                <HabitCard
+                                                    key={habit.id}
+                                                    habit={habit}
+                                                    log={getHabitLog(habit.id, selectedDateStr)}
+                                                    onLog={handleLog}
+                                                    onSaveNote={handleSaveNote}
+                                                    noteCount={getHabitNoteHistory(habit.id).length}
+                                                    onViewNotes={() => setHistoryHabit(habit)}
+                                                    onEdit={(selectedHabit) => {
+                                                        setEditingHabit(selectedHabit);
+                                                        setShowModal(true);
+                                                    }}
+                                                    onDelete={handleDelete}
+                                                    streak={getHabitStreak(habit.id)}
+                                                    seedInsight={seedInsight}
+                                                    index={index}
+                                                    disabled={!canEditSelectedDate || seedEnded}
+                                                    disabledReason={seedEnded ? 'This seed ended after 4 missed days. Replant a new seed to restart.' : lockedReason}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );

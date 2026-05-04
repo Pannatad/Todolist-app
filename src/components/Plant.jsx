@@ -4,9 +4,13 @@ import { Ghost, Skull, Flame, X, Edit2, Sparkles, Play, Loader2 } from 'lucide-r
 import Penguin from './Penguin';
 import { getColorForSubject } from '../constants/subjects';
 import { parseTaskInput } from '../services/aiClient';
+import { getTaskChunkEstimate, normalizeTaskSubtasks } from '../utils/taskState';
 
-const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], displayMode, onStartFocus }) => {
+const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existingSubjects = [], displayMode, onStartFocus, onSelect, isSelected = false }) => {
     const { status, difficulty, title, deadline, subject, description } = task;
+    const subtasks = normalizeTaskSubtasks(task.subtasks);
+    const completedSubtasks = subtasks.filter(subtask => subtask.completed).length;
+    const totalChunkEstimate = getTaskChunkEstimate(task);
     const [timeLeft, setTimeLeft] = React.useState('');
     const [showEditModal, setShowEditModal] = React.useState(false);
     const [isAnalyzing, setIsAnalyzing] = React.useState(false);
@@ -27,7 +31,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
         difficulty: difficulty,
         subject: subject || '',
         deadline: deadline ? toLocalISOString(deadline) : '',
-        estimatedTime: task.estimatedTime || task.estimated_time || 0
+        subtasks
     });
     const subjectColor = getColorForSubject(subject);
 
@@ -65,8 +69,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     title: analysis.title || prev.title,
                     difficulty: analysis.difficulty || prev.difficulty,
                     subject: analysis.subject || prev.subject,
-                    deadline: analysis.deadline || prev.deadline,
-                    estimatedTime: analysis.estimatedTime || prev.estimatedTime
+                    deadline: analysis.deadline || prev.deadline
                     // Description is preserved
                 }));
             }
@@ -100,6 +103,27 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
         }, 60000); // Update every minute
         return () => clearInterval(timer);
     }, [deadline]);
+
+    const formatMinutes = (minutes) => {
+        const value = Number(minutes);
+        if (!Number.isFinite(value) || value <= 0) return null;
+        const hours = Math.floor(value / 60);
+        const mins = value % 60;
+        if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+        if (hours > 0) return `${hours}h`;
+        return `${mins}m`;
+    };
+
+    const resetEditForm = () => {
+        setEditForm({
+            title: task.title || '',
+            description: task.description || '',
+            difficulty: task.difficulty,
+            subject: task.subject || '',
+            deadline: task.deadline ? toLocalISOString(task.deadline) : '',
+            subtasks: normalizeTaskSubtasks(task.subtasks)
+        });
+    };
 
     // Visual mapping based on status and difficulty
     const getTaskVisual = () => {
@@ -275,8 +299,15 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 animate={{ scale: 1, opacity: 1 }}
                 whileHover={{ scale: 1.03, y: -4 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={`relative p-5 rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all w-full aspect-square flex flex-col ${style.bg} ${style.border} ${style.shadow} ${status === 'harvested' ? 'opacity-50 grayscale' : ''} group`}
-                onClick={() => onComplete(task.id)}
+                className={`relative p-5 rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all w-full aspect-square flex flex-col ${style.bg} ${isSelected ? 'ring-4 ring-sage-400 dark:ring-magma-400' : style.border} ${style.shadow} ${status === 'harvested' ? 'opacity-50 grayscale' : ''} group`}
+                onClick={() => {
+                    if (status === 'harvested') {
+                        onComplete(task.id);
+                        return;
+                    }
+                    if (onSelect) onSelect(task.id);
+                    else onComplete(task.id);
+                }}
             >
                 {/* Difficulty Badge */}
                 <div className={`absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide text-white ${style.badge}`}>
@@ -299,14 +330,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        setEditForm({
-                            title: task.title || '',
-                            description: task.description || '',
-                            difficulty: task.difficulty,
-                            subject: task.subject || '',
-                            deadline: task.deadline ? toLocalISOString(task.deadline) : '',
-                            estimatedTime: task.estimatedTime || task.estimated_time || 0
-                        });
+                        resetEditForm();
                         setShowEditModal(true);
                     }}
                     className="absolute top-2 right-10 p-1.5 bg-white/90 dark:bg-black/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50 shadow-sm"
@@ -349,7 +373,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                     </div>
                 )}
 
-                {/* Due Date & Estimate Time */}
+                {/* Due Date & Chunk Summary */}
                 <div className="flex flex-wrap gap-2 mt-auto">
                     {deadline && (
                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${timeLeft === 'Expired' ? 'bg-red-500 text-white' : 'bg-white/70 dark:bg-black/30 ' + style.text}`}>
@@ -357,13 +381,11 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                             <span>{timeLeft || calculateTimeLeft()}</span>
                         </div>
                     )}
-                    {task.estimatedTime && (
+                    {subtasks.length > 0 && (
                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-white/70 dark:bg-black/30 ${style.text}`}>
-                            <span>⏱</span>
-                            <span>
-                                {Math.floor(task.estimatedTime / 60) > 0 && `${Math.floor(task.estimatedTime / 60)}h `}
-                                {task.estimatedTime % 60}m
-                            </span>
+                            <span>☑</span>
+                            <span>{completedSubtasks}/{subtasks.length}</span>
+                            {totalChunkEstimate > 0 && <span>{formatMinutes(totalChunkEstimate)}</span>}
                         </div>
                     )}
                 </div>
@@ -379,8 +401,15 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
             animate={{ scale: 1, opacity: 1, y: 0 }}
             whileHover={{ scale: 1.05, y: -5 }}
             transition={{ type: "spring", stiffness: 300, damping: 15 }}
-            className="flex flex-col items-center justify-end relative w-32 min-h-40 h-auto cursor-pointer group pb-2"
-            onClick={() => onComplete(task.id)}
+            className={`flex flex-col items-center justify-end relative w-32 min-h-40 h-auto cursor-pointer group pb-2 rounded-2xl transition-shadow ${isSelected ? 'ring-4 ring-sage-400 dark:ring-magma-400 ring-offset-4 ring-offset-transparent' : ''}`}
+            onClick={() => {
+                if (status === 'harvested') {
+                    onComplete(task.id);
+                    return;
+                }
+                if (onSelect) onSelect(task.id);
+                else onComplete(task.id);
+            }}
         >
             {/* Plant Visual Container */}
             <div className="relative w-28 h-28 flex items-center justify-center">
@@ -425,14 +454,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        setEditForm({
-                            title: task.title || '',
-                            description: task.description || '',
-                            difficulty: task.difficulty,
-                            subject: task.subject || '',
-                            deadline: task.deadline || '',
-                            estimatedTime: task.estimatedTime || task.estimated_time || 0
-                        });
+                        resetEditForm();
                         setShowEditModal(true);
                     }}
                     className="absolute top-2 right-10 p-1 bg-white/80 dark:bg-black/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-500 rounded-full opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all transform hover:scale-110 z-50"
@@ -491,16 +513,10 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                             {timeLeft === 'Expired' && <span>⚠️</span>}
                             {timeLeft || "No Due Date"}
                         </p>
-                        {task.estimatedTime && (
-                            <p className="text-xs font-medium text-center w-full leading-tight" style={{ color: subjectColor.color }}>
-                                ⏱ {(() => {
-                                    const minutes = task.estimatedTime;
-                                    const hours = Math.floor(minutes / 60);
-                                    const mins = minutes % 60;
-                                    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
-                                    if (hours > 0) return `${hours}h`;
-                                    return `${mins}m`;
-                                })()}
+                        {subtasks.length > 0 && (
+                            <p className="text-xs font-medium text-center w-full leading-tight text-sage-500 dark:text-sage-400">
+                                {completedSubtasks}/{subtasks.length} chunks
+                                {totalChunkEstimate > 0 && ` - ${formatMinutes(totalChunkEstimate)}`}
                             </p>
                         )}
                     </>
@@ -527,7 +543,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="bg-white dark:bg-void-900 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border border-white/10"
+                            className="bg-white dark:bg-void-900 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex justify-between items-center mb-4">
@@ -604,17 +620,6 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                                     />
                                 </div>
 
-                                {/* Estimated Time */}
-                                <div>
-                                    <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">Estimated Time (minutes)</label>
-                                    <input
-                                        type="number"
-                                        value={editForm.estimatedTime}
-                                        onChange={(e) => setEditForm({ ...editForm, estimatedTime: parseInt(e.target.value) || 0 })}
-                                        placeholder="e.g. 30"
-                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400"
-                                    />
-                                </div>
                             </div>
 
                             {/* Buttons */}
@@ -637,7 +642,7 @@ const Plant = ({ task, onComplete, onDelete, onUpdate, onRequestAIHelp, existing
                                             difficulty: editForm.difficulty,
                                             subject: editForm.subject || null,
                                             deadline: editForm.deadline || null,
-                                            estimatedTime: editForm.estimatedTime || 0
+                                            subtasks: normalizeTaskSubtasks(editForm.subtasks)
                                         });
                                         setShowEditModal(false);
                                     }}

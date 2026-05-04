@@ -193,6 +193,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
     const seedHealthMeta = habit.is_seed
         ? (SEED_HEALTH_META[seedInsight?.health || 'healthy'] || SEED_HEALTH_META.healthy)
         : null;
+    const seedEnded = Boolean(seedInsight?.ended);
 
     const pulseCompletion = () => {
         setJustCompleted(true);
@@ -322,12 +323,12 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                     {disabled && (
                                         <span className="inline-flex items-center gap-1 font-medium text-slate-400" title={disabledReason}>
                                             <Lock size={13} />
-                                            Read-only
+                                            {seedEnded ? 'Seed ended' : 'Read-only'}
                                         </span>
                                     )}
                                     {habit.is_seed && seedInsight && (
-                                        <span className="font-medium text-emerald-700">
-                                            Step {seedInsight.elapsedDays} of {seedInsight.durationDays}
+                                        <span className={`font-medium ${seedEnded ? 'text-zinc-600' : 'text-emerald-700'}`}>
+                                            {seedEnded ? 'Replant needed' : `Step ${seedInsight.elapsedDays} of ${seedInsight.durationDays}`}
                                         </span>
                                     )}
                                 </div>

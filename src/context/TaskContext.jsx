@@ -53,6 +53,10 @@ const withDefinedValues = (payload) => Object.fromEntries(
     Object.entries(payload).filter(([, value]) => value !== undefined)
 );
 
+const writeGuestTasks = (nextTasks) => {
+    localStorage.setItem('growth-tasks-guest', JSON.stringify(nextTasks));
+};
+
 const buildScheduleUpdatePayloads = (updates) => {
     const fullPayload = withDefinedValues({
         title: updates.title,
@@ -241,7 +245,7 @@ export const TaskProvider = ({ children }) => {
     }, [tasks, scheduleItems, user, isLoaded]);
 
     // Task Handlers
-    const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description }) => {
+    const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description, subtasks = [] }) => {
         // Convert local deadline string to UTC ISO string for storage
         const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
         console.log("🕒 Timezone Debug:", {
@@ -259,6 +263,7 @@ export const TaskProvider = ({ children }) => {
             deadline: isoDeadline,
             estimated_time: estimatedTime,
             estimatedTime: estimatedTime,
+            subtasks,
             status: 'growing',
             completed: false,
             completed_at: null,
@@ -280,11 +285,12 @@ export const TaskProvider = ({ children }) => {
             // Try inserting with all fields
             let { data, error } = await supabase.from('tasks').insert([dbTask]).select().single();
 
-            // Fallback: If insert fails (likely due to missing estimated_time column), try without it
+            // Fallback: If insert fails (likely due to missing newer columns), try without them
             if (error) {
-                console.warn("Insert failed, retrying without estimated_time...", error);
+                console.warn("Insert failed, retrying without newer task fields...", error);
                 const legacyTask = { ...dbTask };
                 delete legacyTask.estimated_time;
+                delete legacyTask.subtasks;
                 const retry = await supabase.from('tasks').insert([legacyTask]).select().single();
                 data = retry.data;
                 error = retry.error;
@@ -371,9 +377,6 @@ export const TaskProvider = ({ children }) => {
     };
 
     const updateTask = async (id, updates) => {
-        const existingTask = tasks.find(t => t.id === id);
-        if (!existingTask) return;
-
         // Handle deadline conversion if present in updates
         const processedUpdates = { ...updates };
         if (processedUpdates.deadline) {
@@ -389,31 +392,57 @@ export const TaskProvider = ({ children }) => {
             processedUpdates.status = processedUpdates.completed_at ? 'harvested' : 'growing';
         }
 
-        const mergedTask = normalizeTaskRecord({ ...existingTask, ...processedUpdates });
+        const existingTaskForSave = tasks.find(t => t.id === id);
+        if (!existingTaskForSave) return;
+        const mergedTaskForSave = normalizeTaskRecord({ ...existingTaskForSave, ...processedUpdates });
 
-        setTasks(tasks.map(t => t.id === id ? mergedTask : t));
+        setTasks(prevTasks => {
+            const existingTask = prevTasks.find(t => t.id === id);
+            if (!existingTask) return prevTasks;
+
+            const mergedTask = normalizeTaskRecord({ ...existingTask, ...processedUpdates });
+            const nextTasks = prevTasks.map(t => t.id === id ? mergedTask : t);
+
+            if (!user) {
+                writeGuestTasks(nextTasks);
+            }
+
+            return nextTasks;
+        });
 
         if (user) {
             const dbUpdates = {};
-            if (processedUpdates.title !== undefined) dbUpdates.title = mergedTask.title;
-            if (processedUpdates.description !== undefined) dbUpdates.description = mergedTask.description;
-            if (processedUpdates.difficulty !== undefined) dbUpdates.difficulty = mergedTask.difficulty;
-            if (processedUpdates.subject !== undefined) dbUpdates.subject = mergedTask.subject;
-            if (processedUpdates.deadline !== undefined) dbUpdates.deadline = mergedTask.deadline;
-            if (processedUpdates.archived !== undefined) dbUpdates.archived = mergedTask.archived;
+            if (processedUpdates.title !== undefined) dbUpdates.title = mergedTaskForSave.title;
+            if (processedUpdates.description !== undefined) dbUpdates.description = mergedTaskForSave.description;
+            if (processedUpdates.difficulty !== undefined) dbUpdates.difficulty = mergedTaskForSave.difficulty;
+            if (processedUpdates.subject !== undefined) dbUpdates.subject = mergedTaskForSave.subject;
+            if (processedUpdates.deadline !== undefined) dbUpdates.deadline = mergedTaskForSave.deadline;
+            if (processedUpdates.archived !== undefined) dbUpdates.archived = mergedTaskForSave.archived;
             if (processedUpdates.estimatedTime !== undefined || processedUpdates.estimated_time !== undefined) {
-                dbUpdates.estimated_time = mergedTask.estimated_time;
+                dbUpdates.estimated_time = mergedTaskForSave.estimated_time;
             }
+            if (processedUpdates.subtasks !== undefined) dbUpdates.subtasks = mergedTaskForSave.subtasks;
             if (
                 processedUpdates.status !== undefined ||
                 processedUpdates.completed !== undefined ||
                 processedUpdates.completedAt !== undefined ||
                 processedUpdates.completed_at !== undefined
             ) {
-                dbUpdates.status = mergedTask.status;
-                dbUpdates.completed_at = mergedTask.completed_at;
+                dbUpdates.status = mergedTaskForSave.status;
+                dbUpdates.completed_at = mergedTaskForSave.completed_at;
             }
-            await supabase.from('tasks').update(dbUpdates).eq('id', id);
+            if (Object.keys(dbUpdates).length > 0) {
+                const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', id);
+
+                if (error && dbUpdates.subtasks !== undefined) {
+                    console.warn('Task update with subtasks failed, retrying without subtasks...', error);
+                    const fallbackUpdates = { ...dbUpdates };
+                    delete fallbackUpdates.subtasks;
+                    if (Object.keys(fallbackUpdates).length > 0) {
+                        await supabase.from('tasks').update(fallbackUpdates).eq('id', id);
+                    }
+                }
+            }
         }
     };
 
