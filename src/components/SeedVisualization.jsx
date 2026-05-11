@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CircleDot, CircleX, Flower2, Leaf, Sparkles, Sprout } from 'lucide-react';
+import { AlertTriangle, Check, Circle, CircleDot, CircleX, Flower2, Leaf, Sparkles, Sprout } from 'lucide-react';
 import { SEED_HEALTH_META, SEED_STAGE_META } from '../constants/habitSeeds';
 
 const plantVisuals = {
@@ -56,6 +56,7 @@ const PlantBadge = ({ stage, progress }) => {
 const statusStyles = {
     completed: {
         cell: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        icon: <Check size={14} strokeWidth={3} />,
         label: 'Done',
     },
     today: {
@@ -100,21 +101,21 @@ const statusStyles = {
     },
     future: {
         cell: 'border-slate-200 bg-white text-slate-300',
-        icon: <span className="text-xs">·</span>,
+        icon: <Circle size={10} strokeWidth={2.4} />,
         label: 'Soon',
     },
     'future-free': {
         cell: 'border-slate-200 bg-white text-slate-300',
-        icon: <span className="text-xs">·</span>,
+        icon: <Circle size={10} strokeWidth={2.4} />,
         label: 'Soon',
     },
 };
 
 const completedCellStyles = {
-    seed: 'border-amber-200 bg-amber-50 text-amber-700',
-    sprout: 'border-lime-200 bg-lime-50 text-lime-700',
+    seed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    sprout: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     rooted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    blooming: 'border-pink-200 bg-pink-50 text-pink-700',
+    blooming: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 };
 
 const completedIconSizes = {
@@ -127,11 +128,9 @@ const completedIconSizes = {
 const SeedCell = ({ entry }) => {
     const style = statusStyles[entry.status] || statusStyles.future;
     const completedStage = entry.completionStage || 'seed';
-    const completedVisual = plantVisuals[completedStage] || plantVisuals.seed;
-    const CompletedIcon = completedVisual.Icon;
     const isCompleted = entry.status === 'completed';
     const icon = isCompleted
-        ? <CompletedIcon size={completedIconSizes[completedStage] || 14} strokeWidth={2.6} />
+        ? <Check size={completedIconSizes[completedStage] || 14} strokeWidth={3} />
         : style.icon;
     const cellClass = isCompleted
         ? completedCellStyles[completedStage] || completedCellStyles.seed

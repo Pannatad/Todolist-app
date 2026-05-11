@@ -195,7 +195,10 @@ const ChatSidebar = () => {
         sendMessage,
         confirmActions,
         cancelActions,
-        clearConversation
+        clearConversation,
+        selectedAIProvider,
+        setSelectedAIProvider,
+        aiProviderOptions
     } = useChatContext();
 
     const [input, setInput] = useState('');
@@ -439,6 +442,31 @@ const ChatSidebar = () => {
                             </div>
 
                             <div className="px-4 pb-3">
+                                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                    <div className="grid grid-cols-2 gap-1">
+                                        {aiProviderOptions.map((option) => {
+                                            const isSelected = selectedAIProvider === option.id;
+                                            return (
+                                                <button
+                                                    key={option.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedAIProvider(option.id)}
+                                                    disabled={isTyping}
+                                                    className={`rounded-lg px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isSelected
+                                                        ? 'bg-slate-900 text-white shadow-sm'
+                                                        : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                                        }`}
+                                                    title={option.description}
+                                                >
+                                                    <div className="text-xs font-semibold uppercase tracking-wide">{option.label}</div>
+                                                    <div className={`mt-0.5 truncate text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                                                        {option.id === 'qwen' ? 'Local via LM Studio' : 'Cloud default'}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-5 gap-1.5">
                                     {GUIDE_MODES.map((command) => {
                                         const Icon = command.icon;

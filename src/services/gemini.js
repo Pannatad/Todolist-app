@@ -1,8 +1,9 @@
 import { createGenerativeModel } from './generativeClient';
+import { getAIProviderRequestOptions, DEFAULT_GEMINI_MODEL } from './aiProvider';
 import { buildRouteAgentPrompt } from './agentPrompts';
 import { isTaskActive } from '../utils/taskState';
 
-const MODEL_NAME = import.meta.env.VITE_AI_MODEL || 'gemini-3.1-flash-lite-preview';
+const MODEL_NAME = import.meta.env.VITE_AI_MODEL || DEFAULT_GEMINI_MODEL;
 const AI_BACKEND_AVAILABLE = true; // AI credentials now live behind the dev-server API proxy.
 const genAI = {
     getGenerativeModel: createGenerativeModel
@@ -746,7 +747,7 @@ export const parseScheduleCommand = async (transcript) => {
  * @param {Object} context - Optional context about current state (tasks, schedule, user profile).
  * @returns {Promise<Object>} - { actions: [...], summary: "..." }
  */
-export const routeAgentCommand = async (input, context = {}) => {
+export const routeAgentCommand = async (input, context = {}, aiProvider = undefined) => {
     console.log("🤖 routeAgentCommand called with input:", input);
 
     if (!AI_BACKEND_AVAILABLE) {
@@ -759,9 +760,10 @@ export const routeAgentCommand = async (input, context = {}) => {
 
     try {
         const prompt = buildRouteAgentPrompt(input, context);
+        const routingModel = genAI.getGenerativeModel(getAIProviderRequestOptions(aiProvider));
 
-        console.log("📤 Sending agent routing request to Gemini...");
-        const result = await model.generateContent(prompt);
+        console.log("📤 Sending agent routing request...");
+        const result = await routingModel.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
         console.log("📄 Raw agent response:", text);

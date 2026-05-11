@@ -552,6 +552,7 @@ export const HabitProvider = ({ children }) => {
             }
             const log = getHabitLogFromMap(habitLogs, habitId, date);
             const completed = Boolean(log?.completed);
+            const explicitlyMarkedIncomplete = Boolean(log && log.completed === false && Number(log.value || 0) <= 0);
             const isFuture = date > today;
             const isToday = isSameDay(date, today);
             const isPast = date < today;
@@ -579,7 +580,7 @@ export const HabitProvider = ({ children }) => {
                 }
             } else if (isFuture) {
                 status = 'future';
-            } else if (isToday) {
+            } else if (isToday && !explicitlyMarkedIncomplete) {
                 status = 'today';
             } else {
                 countedScheduledDays += 1;

@@ -84,7 +84,8 @@ const toOpenAIMessages = ({ systemInstruction, history = [], message, contents }
   return messages;
 };
 
-const resolveLmStudioModel = async (env) => {
+const resolveLmStudioModel = async (env, requestedModel) => {
+  if (requestedModel) return requestedModel;
   if (env.LM_STUDIO_MODEL) return env.LM_STUDIO_MODEL;
 
   const baseUrl = (env.LM_STUDIO_BASE_URL || DEFAULT_LM_STUDIO_BASE_URL).replace(/\/$/, '');
@@ -101,7 +102,7 @@ const resolveLmStudioModel = async (env) => {
   const data = await response.json();
   const model = data?.data?.[0]?.id;
   if (!model) {
-    throw new Error('LM Studio returned no loaded/visible models. Load your Gemma model or set LM_STUDIO_MODEL.');
+    throw new Error('LM Studio returned no loaded/visible models. Load your local model or set LM_STUDIO_MODEL.');
   }
 
   return model;
@@ -109,7 +110,7 @@ const resolveLmStudioModel = async (env) => {
 
 const callLmStudio = async (env, body) => {
   const baseUrl = (env.LM_STUDIO_BASE_URL || DEFAULT_LM_STUDIO_BASE_URL).replace(/\/$/, '');
-  const model = await resolveLmStudioModel(env);
+  const model = await resolveLmStudioModel(env, body.model);
   const generationConfig = body.generationConfig || {};
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -144,7 +145,7 @@ const callGeminiGenerate = async (env, body) => {
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
-    model: env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+    model: body.model || env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     ...(body.systemInstruction ? { systemInstruction: body.systemInstruction } : {})
   });
 
@@ -161,7 +162,7 @@ const callGeminiChat = async (env, body) => {
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
-    model: env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+    model: body.model || env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     ...(body.systemInstruction ? { systemInstruction: body.systemInstruction } : {})
   });
   const chat = model.startChat({
@@ -174,7 +175,7 @@ const callGeminiChat = async (env, body) => {
 };
 
 const callAI = async (env, body, mode) => {
-  const provider = (body.provider || env.AI_PROVIDER || 'lmstudio').toLowerCase();
+  const provider = (body.provider || env.AI_PROVIDER || 'gemini').toLowerCase();
   const canUseLocal = !hasNonTextInput(body.contents) || provider === 'lmstudio';
 
   if (provider === 'gemini') {
@@ -185,7 +186,7 @@ const callAI = async (env, body, mode) => {
     if (!canUseLocal) throw new Error('Non-text input requested.');
     return await callLmStudio(env, body);
   } catch (localError) {
-    if (env.GEMINI_API_KEY) {
+    if (body.fallbackToGemini !== false && env.GEMINI_API_KEY) {
       console.warn('[ai-proxy] LM Studio failed; falling back to Gemini:', localError.message);
       return mode === 'chat' ? callGeminiChat(env, body) : callGeminiGenerate(env, body);
     }

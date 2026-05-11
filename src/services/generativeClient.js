@@ -1,4 +1,6 @@
-const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
+import { DEFAULT_GEMINI_MODEL } from './aiProvider.js';
+
+const DEFAULT_MODEL = DEFAULT_GEMINI_MODEL;
 
 const readTextResponse = async (response) => {
     if (!response.ok) {
@@ -26,9 +28,11 @@ const postAI = async (path, body) => {
     return readTextResponse(response);
 };
 
-export const createGenerativeModel = ({ model = DEFAULT_MODEL, systemInstruction = null } = {}) => ({
+export const createGenerativeModel = ({ model = DEFAULT_MODEL, provider = null, fallbackToGemini = undefined, systemInstruction = null } = {}) => ({
     generateContent: async (contents, options = {}) => {
         const text = await postAI('/api/ai/generate', {
+            provider,
+            fallbackToGemini,
             model,
             systemInstruction,
             contents,
@@ -45,6 +49,8 @@ export const createGenerativeModel = ({ model = DEFAULT_MODEL, systemInstruction
     startChat: ({ history = [], generationConfig = {} } = {}) => ({
         sendMessage: async (message) => {
             const text = await postAI('/api/ai/chat', {
+                provider,
+                fallbackToGemini,
                 model,
                 systemInstruction,
                 history,

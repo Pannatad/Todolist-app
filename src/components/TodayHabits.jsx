@@ -5,6 +5,7 @@ import HabitCard from './HabitCard';
 import HabitModal from './HabitModal';
 import HabitNotesModal from './HabitNotesModal';
 import SeedGarden from './SeedGarden';
+import SeedProgressList from './SeedProgressList';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
@@ -228,6 +229,16 @@ const TodayHabits = () => {
                     </div>
                 </div>
             </section>
+
+            {seedEntries.length > 0 && (
+                <SeedProgressList
+                    seeds={seedEntries}
+                    selectedDateStr={selectedDateStr}
+                    canCheckSelectedDate={canEditSelectedDate}
+                    onQuickCheck={(habit) => handleLog(habit.id, getCompletionValue(habit), true)}
+                    onQuickMiss={(habit) => handleLog(habit.id, 0, false)}
+                />
+            )}
 
             <AnimatePresence>
                 {yesterdayReviewHabits.length > 0 && (

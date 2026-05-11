@@ -8,9 +8,9 @@ import { useGoal } from './GoalContext';
 import { useUserProfile } from './UserProfileContext';
 import { useAgentMemory } from './AgentMemoryContext';
 import { useUserIntelligence } from './UserIntelligenceContext';
-import { routeAgentCommand } from '../services/aiClient';
 import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey } from '../services/localAgentHandler';
 import { sendChatMessage, clearChatSession } from '../services/ConversationService';
+import { AI_PROVIDER_OPTIONS, DEFAULT_AI_PROVIDER, normalizeAIProvider } from '../services/aiProvider';
 import { extractInsightsFromExchange } from '../services/InsightExtractionService';
 import { isTaskActive } from '../utils/taskState';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
@@ -51,6 +51,10 @@ export const ChatProvider = ({ children }) => {
     const [messages, setMessages] = useState([]);
     const [isTyping, setIsTyping] = useState(false);
     const [pendingActions, setPendingActions] = useState(null); // { messageId, actions }
+    const [selectedAIProvider, setSelectedAIProviderState] = useState(() => {
+        if (typeof localStorage === 'undefined') return DEFAULT_AI_PROVIDER;
+        return normalizeAIProvider(localStorage.getItem('chat_ai_provider'));
+    });
 
     // Active subject tracking - remembers what item user is currently discussing
     // Format: { type: 'schedule'|'task', id: string, title: string } or null
@@ -64,6 +68,15 @@ export const ChatProvider = ({ children }) => {
     useEffect(() => {
         loadConversation();
     }, [user]);
+
+    const setSelectedAIProvider = useCallback((provider) => {
+        const normalized = normalizeAIProvider(provider);
+        setSelectedAIProviderState(normalized);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('chat_ai_provider', normalized);
+        }
+        clearChatSession();
+    }, []);
 
     const loadConversation = async () => {
         try {
@@ -217,7 +230,7 @@ export const ChatProvider = ({ children }) => {
                 plan = generateLocalResponse(patternType, context);
             } else {
                 // Check cache for simple repeated queries
-                const cacheKey = generateCacheKey(text);
+                const cacheKey = generateCacheKey(`${selectedAIProvider}:${text}`);
                 const cachedPlan = getCachedResponse(cacheKey);
 
                 if (cachedPlan) {
@@ -225,8 +238,8 @@ export const ChatProvider = ({ children }) => {
                     plan = cachedPlan;
                 } else {
                     // Use multi-turn chat API for better context retention
-                    console.log('🤖 Using multi-turn chat API...');
-                    plan = await sendChatMessage(text, newMessages, context);
+                    console.log('🤖 Using multi-turn chat API with provider:', selectedAIProvider);
+                    plan = await sendChatMessage(text, newMessages, context, selectedAIProvider);
 
                     // Only cache non-conversational responses
                     if (!text.toLowerCase().includes('earlier') &&
@@ -355,7 +368,7 @@ export const ChatProvider = ({ children }) => {
         } finally {
             setIsTyping(false);
         }
-    }, [messages, buildContext, saveConversation, logInteraction, intelligence, learnMultipleFacts]);
+    }, [messages, buildContext, saveConversation, logInteraction, intelligence, learnMultipleFacts, selectedAIProvider]);
 
     // Execute actions internally (for auto-execution)
     const executeActionsInternal = async (actions) => {
@@ -618,6 +631,9 @@ export const ChatProvider = ({ children }) => {
                 messages,
                 isTyping,
                 pendingActions,
+                selectedAIProvider,
+                setSelectedAIProvider,
+                aiProviderOptions: AI_PROVIDER_OPTIONS,
                 toggleSidebar,
                 openSidebar,
                 closeSidebar,

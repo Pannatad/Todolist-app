@@ -4,6 +4,7 @@
  */
 
 import { createGenerativeModel } from './generativeClient';
+import { getAIProviderRequestOptions, DEFAULT_GEMINI_MODEL } from './aiProvider';
 import {
     buildAgentStateMessage,
     buildAgentSystemPrompt as buildConfiguredAgentSystemPrompt
@@ -18,7 +19,7 @@ const genAI = {
 const CONFIG = {
     RECENT_MESSAGES_WINDOW: 20,  // Keep last 20 messages in full detail
     SUMMARY_BATCH_SIZE: 10,      // Summarize 10 messages at a time
-    MODEL_NAME: "gemini-3.1-flash-lite-preview"
+    MODEL_NAME: DEFAULT_GEMINI_MODEL
 };
 
 // Active chat session cache (per-session, not persisted)
@@ -74,7 +75,7 @@ export const formatHistoryForGemini = (messages) => {
  * @param {Array} oldMessages - Messages to summarize (beyond the recent window)
  * @returns {Promise<string>} - Concise summary of older conversation
  */
-export const summarizeOlderMessages = async (oldMessages) => {
+export const summarizeOlderMessages = async (oldMessages, aiProvider = undefined) => {
     if (!oldMessages || oldMessages.length === 0) {
         return '';
     }
@@ -87,7 +88,7 @@ export const summarizeOlderMessages = async (oldMessages) => {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: CONFIG.MODEL_NAME });
+        const model = genAI.getGenerativeModel(getAIProviderRequestOptions(aiProvider));
 
         const conversationText = oldMessages.map(m =>
             `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`
@@ -126,7 +127,7 @@ Summary (be concise, focus on context the agent needs to remember):`;
  * @param {Array} allMessages - All conversation messages
  * @returns {Promise<{ recentHistory: Array, olderSummary: string }>}
  */
-export const prepareConversationContext = async (allMessages) => {
+export const prepareConversationContext = async (allMessages, aiProvider = undefined) => {
     if (!allMessages || allMessages.length === 0) {
         return { recentHistory: [], olderSummary: '' };
     }
@@ -136,7 +137,7 @@ export const prepareConversationContext = async (allMessages) => {
 
     let olderSummary = '';
     if (olderMessages.length > 0) {
-        olderSummary = await summarizeOlderMessages(olderMessages);
+        olderSummary = await summarizeOlderMessages(olderMessages, aiProvider);
     }
 
     return {
@@ -161,7 +162,7 @@ export const buildAgentSystemPrompt = (context, olderSummary = '') => {
  * @param {Object} context - User context
  * @returns {Promise<Object>} - Chat session object
  */
-export const createChatSession = async (messages, context) => {
+export const createChatSession = async (messages, context, aiProvider = undefined) => {
     if (!API_BACKEND_AVAILABLE) {
         console.warn('⚠️ Gemini API Key missing');
         return null;
@@ -169,7 +170,7 @@ export const createChatSession = async (messages, context) => {
 
     try {
         // Prepare conversation context with summarization
-        const { recentHistory, olderSummary } = await prepareConversationContext(messages);
+        const { recentHistory, olderSummary } = await prepareConversationContext(messages, aiProvider);
 
         // Build system prompt
         const systemPrompt = buildAgentSystemPrompt(context, olderSummary);
@@ -179,7 +180,7 @@ export const createChatSession = async (messages, context) => {
 
         // Create the model with system instruction
         const model = genAI.getGenerativeModel({
-            model: CONFIG.MODEL_NAME,
+            ...getAIProviderRequestOptions(aiProvider),
             systemInstruction: systemPrompt
         });
 
@@ -213,7 +214,7 @@ export const createChatSession = async (messages, context) => {
  * @param {Object} context - User context (tasks, schedule, etc.)
  * @returns {Promise<Object>} - Parsed response { actions, summary }
  */
-export const sendChatMessage = async (userMessage, allMessages, context) => {
+export const sendChatMessage = async (userMessage, allMessages, context, aiProvider = undefined) => {
     if (!API_BACKEND_AVAILABLE) {
         return {
             actions: [{
@@ -227,7 +228,7 @@ export const sendChatMessage = async (userMessage, allMessages, context) => {
 
     try {
         // Create/update chat session
-        const chat = await createChatSession(allMessages, context);
+        const chat = await createChatSession(allMessages, context, aiProvider);
 
         if (!chat) {
             throw new Error('Failed to create chat session');
@@ -260,7 +261,7 @@ export const sendChatMessage = async (userMessage, allMessages, context) => {
 
         // Fallback: try single-shot if chat fails
         console.log('🔄 Falling back to single-shot mode...');
-        return fallbackSingleShot(userMessage, allMessages, context);
+        return fallbackSingleShot(userMessage, allMessages, context, aiProvider);
     }
 };
 
@@ -274,7 +275,7 @@ const buildMessageWithContext = (userMessage, context) => {
 /**
  * Fallback to single-shot generation if chat session fails
  */
-const fallbackSingleShot = async (userMessage, allMessages, context) => {
+const fallbackSingleShot = async (userMessage, allMessages, context, aiProvider = undefined) => {
     try {
         const { routeAgentCommand } = await import('./gemini.js');
 
@@ -287,7 +288,7 @@ const fallbackSingleShot = async (userMessage, allMessages, context) => {
         return await routeAgentCommand(userMessage, {
             ...context,
             conversationHistory
-        });
+        }, aiProvider);
     } catch (error) {
         console.error('Fallback also failed:', error);
         return {
