@@ -5,6 +5,9 @@ import process from 'node:process'
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 const DEFAULT_LM_STUDIO_BASE_URL = 'http://localhost:1234/v1';
 
+const getLmStudioHelpMessage = (baseUrl) =>
+  `LM Studio is not reachable at ${baseUrl}. Start LM Studio's local server, load your Gemma model, and confirm the server URL matches LM_STUDIO_BASE_URL.`;
+
 const readJsonBody = async (req) => new Promise((resolve, reject) => {
   let raw = '';
   req.on('data', chunk => {
@@ -89,11 +92,17 @@ const resolveLmStudioModel = async (env, requestedModel) => {
   if (env.LM_STUDIO_MODEL) return env.LM_STUDIO_MODEL;
 
   const baseUrl = (env.LM_STUDIO_BASE_URL || DEFAULT_LM_STUDIO_BASE_URL).replace(/\/$/, '');
-  const response = await fetch(`${baseUrl}/models`, {
-    headers: env.LM_STUDIO_API_KEY
-      ? { Authorization: `Bearer ${env.LM_STUDIO_API_KEY}` }
-      : {}
-  });
+  let response;
+
+  try {
+    response = await fetch(`${baseUrl}/models`, {
+      headers: env.LM_STUDIO_API_KEY
+        ? { Authorization: `Bearer ${env.LM_STUDIO_API_KEY}` }
+        : {}
+    });
+  } catch {
+    throw new Error(getLmStudioHelpMessage(baseUrl));
+  }
 
   if (!response.ok) {
     throw new Error(`Could not list LM Studio models (${response.status}). Is the LM Studio server running?`);
@@ -113,20 +122,26 @@ const callLmStudio = async (env, body) => {
   const model = await resolveLmStudioModel(env, body.model);
   const generationConfig = body.generationConfig || {};
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(env.LM_STUDIO_API_KEY ? { Authorization: `Bearer ${env.LM_STUDIO_API_KEY}` } : {})
-    },
-    body: JSON.stringify({
-      model,
-      messages: toOpenAIMessages(body),
-      temperature: generationConfig.temperature ?? 0.4,
-      top_p: generationConfig.topP ?? generationConfig.top_p,
-      max_tokens: generationConfig.maxOutputTokens ?? generationConfig.max_tokens ?? 2048
-    })
-  });
+  let response;
+
+  try {
+    response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(env.LM_STUDIO_API_KEY ? { Authorization: `Bearer ${env.LM_STUDIO_API_KEY}` } : {})
+      },
+      body: JSON.stringify({
+        model,
+        messages: toOpenAIMessages(body),
+        temperature: generationConfig.temperature ?? 0.4,
+        top_p: generationConfig.topP ?? generationConfig.top_p,
+        max_tokens: generationConfig.maxOutputTokens ?? generationConfig.max_tokens ?? 2048
+      })
+    });
+  } catch {
+    throw new Error(getLmStudioHelpMessage(baseUrl));
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

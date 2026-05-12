@@ -460,7 +460,7 @@ const ChatSidebar = () => {
                                                 >
                                                     <div className="text-xs font-semibold uppercase tracking-wide">{option.label}</div>
                                                     <div className={`mt-0.5 truncate text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                                                        {option.id === 'qwen' ? 'Local via LM Studio' : 'Cloud default'}
+                                                        {option.id === 'local' ? 'Local via LM Studio' : 'Cloud default'}
                                                     </div>
                                                 </button>
                                             );

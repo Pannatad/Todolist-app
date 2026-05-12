@@ -19,21 +19,29 @@ const readTextResponse = async (response) => {
 };
 
 const postAI = async (path, body) => {
-    const response = await fetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
+    let response;
+
+    try {
+        response = await fetch(path, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+    } catch {
+        throw new Error('AI proxy is not reachable. Make sure the Vite dev server is running, then retry.');
+    }
 
     return readTextResponse(response);
 };
 
-export const createGenerativeModel = ({ model = DEFAULT_MODEL, provider = null, fallbackToGemini = undefined, systemInstruction = null } = {}) => ({
+const resolveRequestModel = (provider, model) => model ?? (provider === null || provider === 'gemini' ? DEFAULT_MODEL : undefined);
+
+export const createGenerativeModel = ({ model = undefined, provider = null, fallbackToGemini = undefined, systemInstruction = null } = {}) => ({
     generateContent: async (contents, options = {}) => {
         const text = await postAI('/api/ai/generate', {
             provider,
             fallbackToGemini,
-            model,
+            model: resolveRequestModel(provider, model),
             systemInstruction,
             contents,
             generationConfig: options.generationConfig || options
@@ -51,7 +59,7 @@ export const createGenerativeModel = ({ model = DEFAULT_MODEL, provider = null, 
             const text = await postAI('/api/ai/chat', {
                 provider,
                 fallbackToGemini,
-                model,
+                model: resolveRequestModel(provider, model),
                 systemInstruction,
                 history,
                 message,

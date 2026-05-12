@@ -1801,25 +1801,24 @@ const Overview = ({ onNavigate }) => {
     };
 
     return (
-        <div className="h-full flex flex-col p-4 md:p-6 overflow-y-auto space-y-8 custom-scrollbar bg-transparent">
+        <div className="h-full flex flex-col p-2 md:p-4 overflow-y-auto space-y-5 custom-scrollbar bg-transparent">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-gray-900">
                         {greeting}, {profile?.nickname || user?.email?.split('@')[0] || 'Traveler'}
                     </h1>
-                    <p className="text-gray-600 mt-1 flex items-center gap-2 italic">
-                        <Flame size={16} className="text-orange-500" />
-                        "The best way to predict the future is to create it."
+                    <p className="mt-1 text-sm text-gray-500">
+                        A quick read on your day and the next useful move.
                     </p>
                 </div>
 
-                <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
-                    <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                         <button
                             type="button"
                             onClick={() => setShowDailyRitual(true)}
-                            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${ritualCompletedAt
+                            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors ${ritualCompletedAt
                                 ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                 : 'bg-gray-900 text-white hover:bg-gray-800'
                                 }`}
@@ -1830,7 +1829,7 @@ const Overview = ({ onNavigate }) => {
                         <button
                             type="button"
                             onClick={() => setShowWidgetPicker(true)}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
                         >
                             <Settings size={18} />
                             Customize Widgets
@@ -1838,31 +1837,31 @@ const Overview = ({ onNavigate }) => {
                     </div>
 
                     {/* Quick Stats Row */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
-                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                            <span className="text-2xl font-bold text-purple-600">{todaySummary.eventsToday}</span>
-                            <span className="text-xs text-gray-600 uppercase font-bold">Events Today</span>
+                    <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-4 lg:w-auto">
+                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+                            <span className="text-xl font-bold text-purple-600">{todaySummary.eventsToday}</span>
+                            <span className="text-[11px] font-bold uppercase text-gray-500">Events</span>
                         </div>
-                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                            <span className="text-2xl font-bold text-teal-600">{todaySummary.habitsLeft}</span>
-                            <span className="text-xs text-gray-600 uppercase font-bold">Habits Left</span>
+                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+                            <span className="text-xl font-bold text-teal-600">{todaySummary.habitsLeft}</span>
+                            <span className="text-[11px] font-bold uppercase text-gray-500">Habits</span>
                         </div>
-                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                            <span className="text-2xl font-bold text-orange-600 flex items-center gap-1">
-                                {todaySummary.streakDays} <span className="text-sm">🔥</span>
+                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+                            <span className="flex items-center gap-1 text-xl font-bold text-orange-600">
+                                {todaySummary.streakDays} <Flame size={14} />
                             </span>
-                            <span className="text-xs text-gray-600 uppercase font-bold">Streak</span>
+                            <span className="text-[11px] font-bold uppercase text-gray-500">Streak</span>
                         </div>
-                        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow transition-shadow flex flex-col items-center min-w-[100px]">
-                            <span className="text-2xl font-bold text-red-600">{todaySummary.overdueTasks}</span>
-                            <span className="text-xs text-gray-600 uppercase font-bold">Overdue</span>
+                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+                            <span className="text-xl font-bold text-red-600">{todaySummary.overdueTasks}</span>
+                            <span className="text-[11px] font-bold uppercase text-gray-500">Overdue</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Magic Box - AI Agent Command Bar */}
-            <div className="py-4">
+            <div>
                 <MagicBox />
 
                 {/* Proactive Suggestions */}
@@ -1878,7 +1877,7 @@ const Overview = ({ onNavigate }) => {
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
                 {/* LEFT COLUMN: Today's Schedule */}
                 {isWidgetVisible('schedule') && (
@@ -2081,7 +2080,7 @@ const Overview = ({ onNavigate }) => {
                 )}
 
                 {/* MIDDLE/RIGHT COLUMN: Vision Board + Widgets */}
-                <div className={`${isWidgetVisible('schedule') ? 'lg:col-span-2' : 'lg:col-span-3'} grid grid-cols-1 md:grid-cols-2 gap-6`}>
+                <div className={`${isWidgetVisible('schedule') ? 'lg:col-span-2' : 'lg:col-span-3'} grid grid-cols-1 gap-5 md:grid-cols-2`}>
 
                     {/* Current Event Widget */}
                     {isWidgetVisible('current') && (

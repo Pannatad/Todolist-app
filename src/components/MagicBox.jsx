@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, Loader2, Mic, MicOff } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
 import { useTask } from '../context/TaskContext';
@@ -30,7 +30,13 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     const [input, setInput] = useState('');
     const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
     const [isListening, setIsListening] = useState(false);
-    const [speechSupported, setSpeechSupported] = useState(false);
+    const [speechSupported, setSpeechSupported] = useState(() => {
+        const SpeechRecognition = window.SpeechRecognition ||
+            window.webkitSpeechRecognition ||
+            window.mozSpeechRecognition ||
+            window.msSpeechRecognition;
+        return Boolean(SpeechRecognition);
+    });
     const inputRef = useRef(null);
     const recognitionRef = useRef(null);
 
@@ -84,7 +90,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
 
         // 4. Learned intelligence/preferences
         if (intelligence && intelligence.length > 0) {
-            const randomFact = intelligence[Math.floor(Math.random() * intelligence.length)];
+            const randomFact = intelligence[0];
             if (randomFact?.category === 'schedule' || randomFact?.category === 'routine') {
                 suggestions.push("Help me optimize my daily routine");
             }
@@ -115,8 +121,6 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
             window.msSpeechRecognition;
 
         if (SpeechRecognition) {
-            setSpeechSupported(true);
-
             try {
                 recognitionRef.current = new SpeechRecognition();
                 recognitionRef.current.continuous = false;
@@ -156,18 +160,17 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                 };
             } catch (error) {
                 console.error('Error initializing speech recognition:', error);
-                setSpeechSupported(false);
+                setTimeout(() => setSpeechSupported(false), 0);
             }
         } else {
             console.log('Speech recognition not supported in this browser');
-            setSpeechSupported(false);
         }
 
         return () => {
             if (recognitionRef.current) {
                 try {
                     recognitionRef.current.stop();
-                } catch (e) {
+                } catch {
                     // Ignore errors during cleanup
                 }
             }
@@ -241,19 +244,19 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     };
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="mx-auto w-full max-w-2xl">
             {/* Main Search Bar */}
             <form onSubmit={handleSubmit} className="relative">
-                <div className="relative bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow overflow-hidden">
+                <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                     {/* Gradient accent line at top */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${isListening
                         ? 'bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 animate-pulse'
                         : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'}`}></div>
 
-                    <div className="flex items-center p-4 pt-5">
+                    <div className="flex items-center p-3 pt-4">
                         {/* Magic Icon */}
                         <div className="flex-shrink-0 mr-3 sm:mr-4">
-                            <motion.div
+                            <Motion.div
                                 animate={{
                                     rotate: isLoading ? 360 : 0,
                                     scale: isLoading ? [1, 1.1, 1] : 1
@@ -262,14 +265,14 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                                     rotate: { duration: 2, repeat: isLoading ? Infinity : 0, ease: "linear" },
                                     scale: { duration: 1, repeat: isLoading ? Infinity : 0 }
                                 }}
-                                className="p-2 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md"
+                                className="rounded-xl bg-indigo-600 p-2 shadow-sm"
                             >
                                 {isLoading ? (
-                                    <Loader2 size={20} className="text-white animate-spin sm:w-6 sm:h-6" />
+                                    <Loader2 size={20} className="animate-spin text-white" />
                                 ) : (
-                                    <Sparkles size={20} className="text-white sm:w-6 sm:h-6" />
+                                    <Sparkles size={20} className="text-white" />
                                 )}
-                            </motion.div>
+                            </Motion.div>
                         </div>
 
                         {/* Input Field */}
@@ -278,9 +281,9 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={isListening ? "🎤 Listening..." : "What would you like to do today?"}
+                            placeholder={isListening ? "Listening..." : "What would you like to do today?"}
                             disabled={isLoading}
-                            className="flex-1 text-base sm:text-lg text-gray-900 placeholder-gray-400 bg-transparent border-none outline-none focus:ring-0 disabled:opacity-50 min-w-0"
+                            className="min-w-0 flex-1 border-none bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400 focus:ring-0 disabled:opacity-50"
                         />
 
                         {/* Voice Input Button - Only show if supported */}
@@ -289,14 +292,14 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                                 type="button"
                                 onClick={toggleListening}
                                 disabled={isLoading}
-                                className={`flex-shrink-0 ml-2 p-2 sm:p-3 rounded-xl transition-all hover:scale-105 active:scale-95 touch-manipulation ${isListening
+                                className={`ml-2 flex-shrink-0 touch-manipulation rounded-xl p-2.5 transition-colors active:scale-95 ${isListening
                                     ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
                                     : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                                     }`}
                                 title={isListening ? "Stop listening" : "Voice input"}
                                 aria-label={isListening ? "Stop listening" : "Start voice input"}
                             >
-                                {isListening ? <MicOff size={18} className="sm:w-5 sm:h-5" /> : <Mic size={18} className="sm:w-5 sm:h-5" />}
+                                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
                             </button>
                         )}
 
@@ -304,30 +307,30 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                         <button
                             type="submit"
                             disabled={!input.trim() || isLoading}
-                            className="flex-shrink-0 ml-2 p-2 sm:p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-xl text-white transition-all hover:scale-105 active:scale-95 shadow-md touch-manipulation"
+                            className="ml-2 flex-shrink-0 touch-manipulation rounded-xl bg-indigo-600 p-2.5 text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300"
                             aria-label="Send"
                         >
-                            <Send size={18} className="sm:w-5 sm:h-5" />
+                            <Send size={18} />
                         </button>
                     </div>
                 </div>
             </form>
 
             {/* Animated Personalized Suggestions */}
-            <div className="mt-4 text-center">
+            <div className="mt-2 text-center">
                 <span className="text-gray-500 text-sm">Try: </span>
                 <AnimatePresence mode="wait">
-                    <motion.button
+                    <Motion.button
                         key={currentExampleIndex}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
                         onClick={handleExampleClick}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium italic cursor-pointer hover:underline"
+                        className="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                     >
                         "{personalizedPrompts[currentExampleIndex] || FALLBACK_PROMPTS[0]}"
-                    </motion.button>
+                    </Motion.button>
                 </AnimatePresence>
             </div>
         </div>

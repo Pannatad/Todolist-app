@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { Calendar, Clock, Plus, X } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 
@@ -75,10 +75,10 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
     };
 
     return (
-        <div className="w-full max-w-3xl mx-auto mb-6 sm:mb-8 relative z-20 px-2 sm:px-0">
+        <div className="relative z-20 mx-auto mb-5 w-full max-w-3xl px-2 sm:px-0">
             <form
                 onSubmit={handleSubmit}
-                className="glass-panel px-3 py-2 sm:px-4 flex flex-wrap sm:flex-nowrap items-center gap-3 relative bg-white dark:bg-void-900 shadow-lg border border-sage-100 dark:border-white/10 rounded-2xl sm:rounded-full"
+                className="relative flex flex-wrap items-center gap-3 rounded-2xl border border-sage-100 bg-white px-3 py-2 shadow-sm sm:flex-nowrap sm:px-4 dark:border-white/10 dark:bg-void-900"
             >
                 <div className="relative shrink-0" ref={datePickerRef}>
                     <button
@@ -92,7 +92,7 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
 
                     <AnimatePresence>
                         {showDatePicker && (
-                            <motion.div
+                            <Motion.div
                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -122,7 +122,7 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                                     onChange={(event) => setDeadline(event.target.value)}
                                     className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sm text-sage-800 dark:text-bone-200 focus:outline-none focus:ring-2 focus:ring-sage-400"
                                 />
-                            </motion.div>
+                            </Motion.div>
                         )}
                     </AnimatePresence>
                 </div>
@@ -131,7 +131,7 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                     type="text"
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
-                    placeholder="Summon a new task..."
+                    placeholder="Add a task..."
                     className="flex-[1_1_10rem] bg-transparent border-none focus:ring-0 text-ink-800 dark:text-bone-100 placeholder-sage-400 text-sm sm:text-base font-medium min-w-0"
                 />
 
@@ -147,7 +147,7 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
 
                     <AnimatePresence>
                         {showSubjectSuggestions && existingSubjects.length > 0 && (
-                            <motion.div
+                            <Motion.div
                                 initial={{ opacity: 0, y: 8, scale: 0.97 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 8, scale: 0.97 }}
@@ -173,7 +173,7 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                                         </button>
                                     );
                                 })}
-                            </motion.div>
+                            </Motion.div>
                         )}
                     </AnimatePresence>
                 </div>

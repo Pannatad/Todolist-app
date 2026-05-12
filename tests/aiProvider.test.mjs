@@ -22,20 +22,27 @@ test('Gemini requests are explicitly routed to the Gemini proxy provider', () =>
   });
 });
 
-test('Qwen requests are routed to LM Studio with the local Qwen model id', () => {
+test('Local requests are routed to LM Studio without pinning a model id', () => {
+  assert.deepEqual(getAIProviderRequestOptions('local'), {
+    provider: 'lmstudio',
+    fallbackToGemini: false
+  });
+});
+
+test('Old Qwen provider setting is normalized to local', () => {
+  assert.equal(normalizeAIProvider('qwen'), 'local');
   assert.deepEqual(getAIProviderRequestOptions('qwen'), {
     provider: 'lmstudio',
-    model: 'qwen/qwen3.6-35b-a3b',
     fallbackToGemini: false
   });
 });
 
 test('Provider labels are user-facing and concise', () => {
   assert.equal(getAIProviderLabel('gemini'), 'Gemini');
-  assert.equal(getAIProviderLabel('qwen'), 'Qwen Local');
+  assert.equal(getAIProviderLabel('local'), 'Gemma Local');
 });
 
-test('Generative client forwards Qwen provider options to the AI proxy', async () => {
+test('Generative client forwards local provider options to the AI proxy', async () => {
   const requests = [];
   const originalFetch = globalThis.fetch;
 
@@ -48,9 +55,9 @@ test('Generative client forwards Qwen provider options to the AI proxy', async (
   };
 
   try {
-    const model = createGenerativeModel(getAIProviderRequestOptions('qwen'));
+    const model = createGenerativeModel(getAIProviderRequestOptions('local'));
 
-    await model.generateContent('hello qwen');
+    await model.generateContent('hello local model');
     await model.startChat({ history: [] }).sendMessage('continue');
 
     assert.deepEqual(requests.map(request => request.path), [
@@ -60,7 +67,7 @@ test('Generative client forwards Qwen provider options to the AI proxy', async (
 
     for (const request of requests) {
       assert.equal(request.body.provider, 'lmstudio');
-      assert.equal(request.body.model, 'qwen/qwen3.6-35b-a3b');
+      assert.equal(request.body.model, undefined);
       assert.equal(request.body.fallbackToGemini, false);
     }
   } finally {

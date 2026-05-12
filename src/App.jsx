@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { LogIn, LogOut, Palette, LayoutDashboard, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, ListChecks, GraduationCap } from 'lucide-react';
+import { LogIn, LogOut, Palette, LayoutDashboard, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, ListChecks, GraduationCap, ClipboardList, Coins } from 'lucide-react';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
 import { getPersonalizedAdvice } from './services/aiClient';
@@ -185,56 +185,56 @@ function App() {
         <ProjectProvider>
           <ChatProvider>
             <SmartNotificationBridge scheduleItems={scheduleItems} tasks={tasks} />
-            <div className="min-h-screen bg-gradient-to-br from-sage-50 via-bone-100 to-sage-100 dark:from-void-950 dark:via-void-900 dark:to-void-950 text-ink-900 dark:text-bone-200 transition-colors duration-500">
+            <div className="min-h-screen bg-cream-50 text-ink-900 transition-colors duration-300 dark:bg-void-950 dark:text-bone-200">
             {/* Persona Avatar */}
 
 
-            <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
-              <header className="mb-4 sm:mb-8">
-                <div className="flex items-center justify-between mb-3 sm:mb-6">
+            <div className="mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5">
+              <header className="mb-4">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="flex-shrink-0">
-                      <span className="text-3xl sm:text-4xl drop-shadow-md">📋</span>
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-sage-200 bg-white text-sage-700 shadow-sm dark:border-white/10 dark:bg-void-800 dark:text-bone-200">
+                      <ClipboardList size={21} />
                     </div>
                     <div className="min-w-0">
-                      <h1 className="text-2xl sm:text-4xl md:text-5xl font-serif font-bold text-sage-600 dark:text-magma-500 drop-shadow-md dark:drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] leading-tight">
+                      <h1 className="text-xl font-bold leading-tight text-sage-700 dark:text-bone-100 sm:text-2xl">
                         Personal Agent
                       </h1>
-                      <p className="text-xs sm:text-sm text-sage-500 dark:text-bone-200/60 italic mt-1">
+                      <p className="mt-0.5 truncate text-xs text-sage-600/75 dark:text-bone-200/60 sm:text-sm">
                         {user ? `Welcome back, ${profile?.nickname || user.email?.split('@')[0] || 'User'}` : 'Guest Mode'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
 
                     {/* Digital Clock */}
-                    <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/50 dark:bg-void-800/50 backdrop-blur-md rounded-full shadow-sm border border-sage-200 dark:border-white/5 font-mono text-sage-700 dark:text-bone-200 font-bold">
+                    <div className="hidden items-center gap-2 rounded-xl border border-sage-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-sage-700 shadow-sm dark:border-white/10 dark:bg-void-800 dark:text-bone-200 md:flex">
                       <DigitalClock />
                     </div>
 
                     {/* Coins Display */}
-                    <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-white/50 dark:bg-void-800/50 backdrop-blur-md rounded-full shadow-sm border border-sage-200 dark:border-white/5">
-                      <span className="text-base sm:text-xl">🪙</span>
-                      <span className="font-bold text-sage-700 dark:text-magma-400 text-sm sm:text-base">{coins}</span>
+                    <div className="flex items-center gap-1.5 rounded-xl border border-sage-200 bg-white px-2.5 py-2 text-sage-700 shadow-sm dark:border-white/10 dark:bg-void-800 dark:text-bone-200 sm:px-3">
+                      <Coins className="h-4 w-4" />
+                      <span className="text-sm font-bold">{coins}</span>
                     </div>
 
                     {/* User Profile Icon */}
                     {user ? (
                       <button
                         onClick={signOut}
-                        className="p-2.5 sm:p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 group"
+                        className="rounded-xl border border-sage-200 bg-white p-2 text-sage-700 shadow-sm transition-colors hover:bg-sage-50 active:scale-95 dark:border-white/10 dark:bg-void-800 dark:text-bone-200 dark:hover:bg-void-700"
                         title="Sign Out"
                       >
-                        <LogOut className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 hover:text-red-600 transition-colors" />
+                        <LogOut className="h-5 w-5 text-red-500" />
                       </button>
                     ) : (
                       <button
                         onClick={() => setShowAuthModal(true)}
-                        className="p-2.5 sm:p-4 rounded-full backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 group"
+                        className="rounded-xl border border-sage-200 bg-white p-2 text-sage-700 shadow-sm transition-colors hover:bg-sage-50 active:scale-95 dark:border-white/10 dark:bg-void-800 dark:text-bone-200 dark:hover:bg-void-700"
                         title="Sign In"
                       >
-                        <LogIn className="w-5 h-5 sm:w-6 sm:h-6 text-sage-600 dark:text-bone-200" />
+                        <LogIn className="h-5 w-5" />
                       </button>
                     )}
 
@@ -242,33 +242,33 @@ function App() {
 
                     <button
                       onClick={toggleTheme}
-                      className="p-2.5 sm:p-4 rounded-full bg-white/50 dark:bg-void-800/50 hover:bg-white/80 dark:hover:bg-void-700 backdrop-blur-md transition-all shadow-sm hover:scale-105 active:scale-95 border border-sage-200 dark:border-white/5 group"
+                      className="rounded-xl border border-sage-200 bg-white p-2 shadow-sm transition-colors hover:bg-sage-50 active:scale-95 dark:border-white/10 dark:bg-void-800 dark:hover:bg-void-700 group"
                       title={`Current Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)} (Click to cycle)`}
                     >
-                      {theme === 'cozy' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-sage-600 group-hover:text-sage-800 transition-colors" />}
-                      {theme === 'professional' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500 group-hover:text-indigo-400 transition-colors" />}
-                      {theme === 'pink' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 group-hover:text-pink-400 transition-colors" />}
-                      {theme === 'blue' && <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-sky-500 group-hover:text-sky-400 transition-colors" />}
+                      {theme === 'cozy' && <Palette className="h-5 w-5 text-sage-600 transition-colors group-hover:text-sage-800" />}
+                      {theme === 'professional' && <Palette className="h-5 w-5 text-indigo-500 transition-colors group-hover:text-indigo-400" />}
+                      {theme === 'pink' && <Palette className="h-5 w-5 text-pink-500 transition-colors group-hover:text-pink-400" />}
+                      {theme === 'blue' && <Palette className="h-5 w-5 text-sky-500 transition-colors group-hover:text-sky-400" />}
                     </button>
                   </div>
                 </div>
               </header>
 
-              <nav className="flex justify-center gap-2 sm:gap-4 mb-4 sm:mb-8 flex-wrap overflow-x-auto p-2">
+              <nav className="mb-5 flex gap-1.5 overflow-x-auto border-b border-sage-200/80 pb-2 dark:border-white/10">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 sm:px-6 py-2 rounded-full font-bold transition-all border capitalize text-sm sm:text-base whitespace-nowrap ${(theme === 'professional' || theme === 'pink' || theme === 'blue')
+                    className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold capitalize transition-colors sm:px-3.5 ${(theme === 'professional' || theme === 'pink' || theme === 'blue')
                       ? activeTab === tab.id
-                        ? 'pro-gradient-btn-active scale-105'
+                        ? 'pro-gradient-btn-active'
                         : 'pro-gradient-btn-inactive'
                       : activeTab === tab.id
-                        ? 'bg-sage-100 dark:bg-magma-900/20 border-sage-500 dark:border-magma-500 text-sage-700 dark:text-magma-400 shadow-sm dark:shadow-[0_0_10px_rgba(239,68,68,0.2)] scale-105'
-                        : 'bg-white/50 dark:bg-void-800/30 border-transparent text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800/50'
+                        ? 'border-sage-500 bg-sage-100 text-sage-800 shadow-sm dark:border-white/20 dark:bg-void-800 dark:text-bone-100'
+                        : 'border-transparent bg-white/60 text-sage-700 hover:border-sage-200 hover:bg-white dark:bg-void-800/40 dark:text-bone-200 dark:hover:bg-void-800'
                       }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {tab.icon}
                       <span>{tab.label}</span>
                     </div>
@@ -287,12 +287,6 @@ function App() {
                 <Suspense fallback={<TabFallback />}>
                   {activeTab === 'garden' && (
                     <>
-                      <div className="mb-12 text-center">
-                        <h2 className="text-2xl mb-2 font-serif italic text-sage-600/60 dark:text-bone-200/60">
-                          "Stop procrastinating, just do the work"
-                        </h2>
-                      </div>
-
                       <Garden
                         tasks={tasks}
                         onCompleteTask={handleCompleteTask}
