@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb, Sunrise, CheckCircle2, Settings, Activity, ListTodo, StickyNote } from 'lucide-react';
+import { Zap, Clock, Calendar, ChevronLeft, ChevronRight, Plus, Flame, Check, Trash2, Mic, MicOff, Loader2, X, Sparkles, AlertTriangle, FileText, Lightbulb, Sunrise, CheckCircle2, Settings, Activity, ListTodo, StickyNote, BookOpen, Pin, ListChecks } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import { useUserProfile } from '../context/UserProfileContext';
 import { useAgentMemory } from '../context/AgentMemoryContext';
 import { useProject } from '../context/ProjectContext';
 import { useHabit } from '../context/HabitContext';
+import { useLearning } from '../context/LearningContext';
 import { useChatContext } from '../context/ChatContext';
 import { useIdeaBoard } from '../context/IdeaBoardContext';
 import { parseTaskInput, routeAgentCommand } from '../services/aiClient';
@@ -41,6 +42,18 @@ const OVERVIEW_WIDGETS = [
         label: 'Post-it Note',
         description: 'A warm little note that stays on your Overview.',
         icon: StickyNote,
+    },
+    {
+        id: 'pinnedLearning',
+        label: 'Pinned Learning',
+        description: 'Pinned learning paths with one-click access to study.',
+        icon: BookOpen,
+    },
+    {
+        id: 'todayHabits',
+        label: "Today's Habits",
+        description: 'A compact habit list with quick check and miss actions.',
+        icon: ListChecks,
     },
     {
         id: 'nextAction',
@@ -82,8 +95,23 @@ const OVERVIEW_WIDGETS = [
 
 const DEFAULT_OVERVIEW_WIDGET_IDS = OVERVIEW_WIDGETS.map((widget) => widget.id);
 const OVERVIEW_WIDGET_STORAGE_KEY = 'overview-widget-ids';
+const OVERVIEW_USEFUL_WIDGETS_MIGRATION_KEY = 'overview-useful-widgets-v1';
 const OVERVIEW_POST_IT_STORAGE_KEY = 'overview-post-it-note';
 const OVERVIEW_POST_IT_THEME_STORAGE_KEY = 'overview-post-it-theme';
+const LEARNING_PINNED_PATHS_STORAGE_KEY = 'learning-pinned-path-ids';
+const USEFUL_OVERVIEW_WIDGET_IDS = ['postIt', 'pinnedLearning', 'todayHabits'];
+
+const readPinnedLearningPathIds = () => {
+    if (typeof window === 'undefined') return [];
+
+    try {
+        const saved = JSON.parse(localStorage.getItem(LEARNING_PINNED_PATHS_STORAGE_KEY) || '[]');
+        return Array.isArray(saved) ? saved : [];
+    } catch {
+        return [];
+    }
+};
+
 const POST_IT_THEMES = [
     {
         id: 'honey',
@@ -974,6 +1002,7 @@ const Overview = ({ onNavigate }) => {
     const { logInteraction, getMemorySummary, getRecentInteractions, generatePatternInsights } = useAgentMemory();
     const { projects } = useProject();
     const { habits, logHabit, getHabitsForDate, getHabitLog, getHabitNoteHistory } = useHabit();
+    const { learningPaths, topics, setCurrentPathId, getPathProgress } = useLearning();
     const { sendMessage, openSidebar } = useChatContext();
     const { nodes: ideaNodes } = useIdeaBoard();
 
@@ -989,8 +1018,7 @@ const Overview = ({ onNavigate }) => {
             const saved = JSON.parse(localStorage.getItem(OVERVIEW_WIDGET_STORAGE_KEY) || 'null');
             if (Array.isArray(saved) && saved.length > 0) {
                 const validIds = new Set(OVERVIEW_WIDGETS.map((widget) => widget.id));
-                const restoredIds = saved.filter((id) => validIds.has(id));
-                return restoredIds.includes('postIt') ? restoredIds : [...restoredIds, 'postIt'];
+                return saved.filter((id) => validIds.has(id));
             }
         } catch {
             // Fall back to defaults.
@@ -998,6 +1026,7 @@ const Overview = ({ onNavigate }) => {
 
         return DEFAULT_OVERVIEW_WIDGET_IDS;
     });
+    const [pinnedLearningPathIds, setPinnedLearningPathIds] = useState(readPinnedLearningPathIds);
     const [showQuickSchedulePopup, setShowQuickSchedulePopup] = useState(false);
     const [showQuickAddTaskPopup, setShowQuickAddTaskPopup] = useState(false);
     const quickScheduleButtonRef = useRef(null);
@@ -1044,6 +1073,35 @@ const Overview = ({ onNavigate }) => {
         setShowTaskModal(true);
     };
 
+    const openLearningPath = (pathId) => {
+        setCurrentPathId(pathId);
+        onNavigate('learning');
+    };
+
+    const openLearningHome = () => {
+        setCurrentPathId(null);
+        onNavigate('learning');
+    };
+
+    const togglePinnedLearningPath = (pathId) => {
+        setPinnedLearningPathIds((previous) => (
+            previous.includes(pathId)
+                ? previous.filter((id) => id !== pathId)
+                : [pathId, ...previous]
+        ));
+    };
+
+    const markHabitForToday = (habit, completed) => {
+        logHabit(
+            habit.id,
+            todayKey,
+            completed
+                ? (habit.type === 'count' || habit.type === 'duration' ? (habit.target || 1) : 1)
+                : 0,
+            completed
+        );
+    };
+
     useEffect(() => {
         const timer = window.setInterval(() => {
             setNowTick(Date.now());
@@ -1055,6 +1113,43 @@ const Overview = ({ onNavigate }) => {
     useEffect(() => {
         localStorage.setItem(OVERVIEW_WIDGET_STORAGE_KEY, JSON.stringify(visibleWidgetIds));
     }, [visibleWidgetIds]);
+
+    useEffect(() => {
+        try {
+            if (localStorage.getItem(OVERVIEW_USEFUL_WIDGETS_MIGRATION_KEY)) return;
+
+            setVisibleWidgetIds((previous) => {
+                const validIds = new Set(OVERVIEW_WIDGETS.map((widget) => widget.id));
+                const nextIds = previous.filter((id) => validIds.has(id));
+
+                USEFUL_OVERVIEW_WIDGET_IDS.forEach((id) => {
+                    if (!nextIds.includes(id)) {
+                        nextIds.push(id);
+                    }
+                });
+
+                return nextIds;
+            });
+            localStorage.setItem(OVERVIEW_USEFUL_WIDGETS_MIGRATION_KEY, 'true');
+        } catch {
+            // Widget customizations are optional.
+        }
+    }, []);
+
+    useEffect(() => {
+        const refreshPinnedPaths = () => setPinnedLearningPathIds(readPinnedLearningPathIds());
+
+        window.addEventListener('storage', refreshPinnedPaths);
+        return () => window.removeEventListener('storage', refreshPinnedPaths);
+    }, []);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(LEARNING_PINNED_PATHS_STORAGE_KEY, JSON.stringify(pinnedLearningPathIds));
+        } catch {
+            // Pinning is still usable for the current session.
+        }
+    }, [pinnedLearningPathIds]);
 
     const handleToggleWidget = (widgetId) => {
         setVisibleWidgetIds((previous) => (
@@ -1160,6 +1255,70 @@ const Overview = ({ onNavigate }) => {
             })
             .filter((habit) => !habit.completed);
     }, [getHabitLog, now, todaysHabits]);
+
+    const todayHabitWidgetItems = useMemo(() => (
+        todaysHabits.map((habit) => {
+            const log = getHabitLog(habit.id, todayKey);
+            const targetValue = habit.type === 'count' || habit.type === 'duration'
+                ? (habit.target || 1)
+                : 1;
+            const targetLabel = habit.type === 'duration'
+                ? `${targetValue} min`
+                : habit.type === 'count'
+                    ? `${targetValue}x`
+                    : habit.time_of_day || 'Anytime';
+
+            return {
+                ...habit,
+                log,
+                completed: log?.completed === true,
+                missed: log?.completed === false,
+                targetValue,
+                targetLabel,
+            };
+        })
+    ), [getHabitLog, todayKey, todaysHabits]);
+
+    const completedHabitWidgetCount = useMemo(() => (
+        todayHabitWidgetItems.filter((habit) => habit.completed).length
+    ), [todayHabitWidgetItems]);
+
+    const activeLearningPaths = useMemo(() => (
+        (learningPaths || []).filter((path) => !path.archived)
+    ), [learningPaths]);
+
+    const pinnedLearningPaths = useMemo(() => {
+        const pinnedSet = new Set(pinnedLearningPathIds);
+        return activeLearningPaths
+            .filter((path) => pinnedSet.has(path.id))
+            .sort((left, right) => pinnedLearningPathIds.indexOf(left.id) - pinnedLearningPathIds.indexOf(right.id));
+    }, [activeLearningPaths, pinnedLearningPathIds]);
+
+    const learningWidgetItems = useMemo(() => {
+        const inProgressPaths = activeLearningPaths.filter((path) => getPathProgress(path.id) < 100);
+        const sourcePaths = pinnedLearningPaths.length > 0
+            ? pinnedLearningPaths
+            : (inProgressPaths.length > 0 ? inProgressPaths : activeLearningPaths);
+
+        return sourcePaths.slice(0, 3).map((path) => {
+            const pathTopics = (topics || [])
+                .filter((topic) => topic.learning_path_id === path.id)
+                .sort((left, right) => (left.display_order || 0) - (right.display_order || 0));
+            const completedCount = pathTopics.filter((topic) => topic.status === 'completed' || topic.status === 'mastered').length;
+            const nextTopic = pathTopics.find((topic) => topic.status !== 'completed' && topic.status !== 'mastered');
+            const nextTopicTitle = nextTopic?.title || nextTopic?.name;
+            const progress = getPathProgress(path.id);
+
+            return {
+                path,
+                progress,
+                topicCount: pathTopics.length,
+                completedCount,
+                nextTopicName: nextTopicTitle || (pathTopics.length ? 'All topics completed' : 'Add the first topic'),
+                isPinned: pinnedLearningPathIds.includes(path.id),
+            };
+        });
+    }, [activeLearningPaths, getPathProgress, pinnedLearningPathIds, pinnedLearningPaths, topics]);
 
     const todayTimelineItems = useMemo(() => {
         const scheduleTimelineItems = todaySchedule.map((item) => {
@@ -1946,6 +2105,211 @@ const Overview = ({ onNavigate }) => {
                     {/* Post-it Widget */}
                     {isWidgetVisible('postIt') && (
                         <PostItWidget />
+                    )}
+
+                    {/* Today's Habits Widget */}
+                    {isWidgetVisible('todayHabits') && (
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100 flex flex-col">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                        <div className="relative z-10 flex items-start justify-between gap-4 mb-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600">
+                                    <ListChecks size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-gray-900">Today's Habits</h3>
+                                    <p className="text-xs text-gray-500">
+                                        {todayHabitWidgetItems.length
+                                            ? `${completedHabitWidgetCount}/${todayHabitWidgetItems.length} complete`
+                                            : 'Nothing scheduled today'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => onNavigate('habits')}
+                                className="shrink-0 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+                            >
+                                Open
+                            </button>
+                        </div>
+
+                        <div className="space-y-2 flex-1 relative z-10 overflow-y-auto max-h-[260px] custom-scrollbar">
+                            {todayHabitWidgetItems.length === 0 && (
+                                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                                    Add scheduled habits to see quick actions here.
+                                </div>
+                            )}
+
+                            {todayHabitWidgetItems.slice(0, 6).map((habit) => (
+                                <div
+                                    key={habit.id}
+                                    className={`rounded-2xl border px-3 py-3 flex items-center gap-3 transition-colors ${
+                                        habit.completed
+                                            ? 'border-emerald-100 bg-emerald-50/70'
+                                            : habit.missed
+                                                ? 'border-rose-100 bg-rose-50/70'
+                                                : 'border-gray-100 bg-gray-50'
+                                    }`}
+                                >
+                                    <div className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                                        habit.completed
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : habit.missed
+                                                ? 'bg-rose-100 text-rose-700'
+                                                : 'bg-white text-gray-500'
+                                    }`}>
+                                        {habit.completed ? <CheckCircle2 size={18} /> : habit.missed ? <X size={18} /> : <ListChecks size={18} />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-bold text-gray-900 truncate">{habit.name}</div>
+                                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-gray-500">
+                                            {habit.reminder_time && <span>{habit.reminder_time}</span>}
+                                            {habit.reminder_time && <span className="text-gray-300">•</span>}
+                                            <span>{habit.targetLabel}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                            onClick={() => markHabitForToday(habit, true)}
+                                            className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${
+                                                habit.completed
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50'
+                                            }`}
+                                            title="Mark complete"
+                                        >
+                                            <Check size={15} />
+                                        </button>
+                                        <button
+                                            onClick={() => markHabitForToday(habit, false)}
+                                            className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${
+                                                habit.missed
+                                                    ? 'bg-rose-600 text-white'
+                                                    : 'bg-white text-rose-500 border border-rose-100 hover:bg-rose-50'
+                                            }`}
+                                            title="Mark missed"
+                                        >
+                                            <X size={15} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {todayHabitWidgetItems.length > 6 && (
+                            <button
+                                onClick={() => onNavigate('habits')}
+                                className="mt-4 text-gray-700 hover:text-gray-900 text-sm font-medium flex items-center gap-1 transition-colors relative z-10"
+                            >
+                                View {todayHabitWidgetItems.length - 6} more <ChevronRight size={14} />
+                            </button>
+                        )}
+                    </div>
+                    )}
+
+                    {/* Pinned Learning Widget */}
+                    {isWidgetVisible('pinnedLearning') && (
+                    <div className="md:col-span-2 bg-white rounded-[2rem] p-6 shadow-sm relative overflow-hidden border border-gray-100">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-violet-50/60 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-28 h-28 bg-sky-50/50 rounded-full blur-2xl -ml-8 -mb-8 pointer-events-none"></div>
+                        <div className="relative z-10 flex items-start justify-between gap-4 mb-5">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 rounded-2xl bg-violet-50 text-violet-600">
+                                    <BookOpen size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-gray-900">Pinned Learning</h3>
+                                    <p className="text-xs text-gray-500">
+                                        {pinnedLearningPaths.length > 0
+                                            ? 'Jump straight back into your pinned courses.'
+                                            : 'Pin courses in Learning; showing active paths for now.'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={openLearningHome}
+                                className="shrink-0 rounded-xl bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 transition-colors hover:bg-violet-100"
+                            >
+                                Learning
+                            </button>
+                        </div>
+
+                        {learningWidgetItems.length === 0 ? (
+                            <div className="relative z-10 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                                Create a learning path, then pin the courses you want to keep on this dashboard.
+                            </div>
+                        ) : (
+                            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-3">
+                                {learningWidgetItems.map((item) => (
+                                    <div
+                                        key={item.path.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => openLearningPath(item.path.id)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                openLearningPath(item.path.id);
+                                            }
+                                        }}
+                                        className="rounded-2xl border border-gray-100 bg-gray-50 p-4 cursor-pointer hover:border-violet-200 hover:bg-violet-50/40 transition-all group"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex items-center gap-3">
+                                                <div className="h-11 w-11 rounded-2xl bg-white text-violet-600 border border-violet-100 flex items-center justify-center shrink-0">
+                                                    <BookOpen size={20} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-bold text-gray-900 truncate">{item.path.name}</div>
+                                                    <div className="text-[11px] font-semibold text-gray-500 truncate mt-0.5">
+                                                        {item.path.category?.trim() || 'Learning path'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    togglePinnedLearningPath(item.path.id);
+                                                }}
+                                                className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors shrink-0 ${
+                                                    item.isPinned
+                                                        ? 'bg-amber-100 text-amber-600'
+                                                        : 'bg-white text-gray-400 border border-gray-100 hover:text-amber-600 hover:bg-amber-50'
+                                                }`}
+                                                title={item.isPinned ? 'Unpin course' : 'Pin course'}
+                                            >
+                                                <Pin size={15} fill={item.isPinned ? 'currentColor' : 'none'} />
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-4 flex items-center gap-3">
+                                            <div
+                                                className="relative h-14 w-14 rounded-full shrink-0"
+                                                style={{ background: `conic-gradient(#7c3aed ${item.progress * 3.6}deg, #ede9fe 0deg)` }}
+                                            >
+                                                <div className="absolute inset-1.5 rounded-full bg-white flex items-center justify-center text-[11px] font-black text-violet-700">
+                                                    {item.progress}%
+                                                </div>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-[11px] font-bold uppercase text-violet-500">Next topic</div>
+                                                <div className="mt-1 text-sm font-semibold text-gray-800 line-clamp-2">{item.nextTopicName}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                                            <span className="font-semibold text-gray-500">
+                                                {item.completedCount}/{item.topicCount} topics
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 font-bold text-violet-600">
+                                                Learn <ChevronRight size={13} />
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     )}
 
                     {/* Next Best Action */}

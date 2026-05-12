@@ -40,7 +40,7 @@ const ChunkReorderItem = ({
             className={`relative p-3 rounded-xl border shadow-sm cursor-default ${difficultyStyle.panel}`}
             whileDrag={{ scale: 1.02, boxShadow: '0 18px 35px rgba(15, 23, 42, 0.18)', zIndex: 40 }}
         >
-            <div className="grid grid-cols-[auto_auto_1fr_auto_4.5rem_auto_auto] items-center gap-2">
+            <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2">
                 <button
                     type="button"
                     onPointerDown={(event) => {
@@ -62,35 +62,9 @@ const ChunkReorderItem = ({
                     type="text"
                     value={chunk.title}
                     onChange={(event) => onUpdate(chunk.id, { title: event.target.value })}
-                    className={`min-w-0 px-1 py-2 rounded-lg bg-transparent border border-transparent text-sm font-semibold ${difficultyStyle.text} placeholder-sage-400 focus:outline-none focus:ring-2 ${difficultyStyle.focus} focus:bg-white/45 dark:focus:bg-void-900/45 ${chunk.completed ? 'line-through opacity-60' : ''}`}
+                    className={`min-w-0 w-full px-2 py-2 rounded-lg bg-transparent border border-transparent text-sm font-semibold leading-6 ${difficultyStyle.text} placeholder-sage-400 focus:outline-none focus:ring-2 ${difficultyStyle.focus} focus:bg-white/45 dark:focus:bg-void-900/45 ${chunk.completed ? 'line-through opacity-60' : ''}`}
                     placeholder="Small next step"
                 />
-                <button
-                    type="button"
-                    onClick={() => onToggleExpanded(chunk.id)}
-                    className={`p-2 rounded-lg transition-colors ${hasNestedSubtasks ? difficultyStyle.icon : 'text-sage-400 hover:text-sage-700 hover:bg-white/55 dark:text-bone-300 dark:hover:text-bone-100'}`}
-                    title="Show sub-steps"
-                >
-                    <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                </button>
-                <input
-                    type="number"
-                    min="0"
-                    value={hasNestedSubtasks ? nestedTotalMinutes || '' : chunk.estimatedTime || ''}
-                    onChange={(event) => onUpdate(chunk.id, { estimatedTime: parseInt(event.target.value, 10) || 0 })}
-                    readOnly={hasNestedSubtasks}
-                    className={`w-full px-2 py-2 text-right rounded-lg bg-transparent border border-transparent text-sm font-bold ${difficultyStyle.text} placeholder-sage-400 focus:outline-none focus:ring-2 ${difficultyStyle.focus} focus:bg-white/45 dark:focus:bg-void-900/45 ${hasNestedSubtasks ? 'cursor-default opacity-80' : ''}`}
-                    placeholder="min"
-                    title={hasNestedSubtasks ? 'Total from sub-steps' : 'Chunk minutes'}
-                />
-                <button
-                    type="button"
-                    onClick={() => onSetEditingDifficulty(editingChunkDifficultyId === chunk.id ? null : chunk.id)}
-                    className={`relative p-2 rounded-lg transition-colors ${difficultyStyle.icon}`}
-                    title="Edit chunk difficulty"
-                >
-                    <Palette size={16} />
-                </button>
                 <button
                     type="button"
                     onClick={() => onDelete(chunk.id)}
@@ -99,6 +73,37 @@ const ChunkReorderItem = ({
                 >
                     <Trash2 size={16} />
                 </button>
+                <div className="col-start-3 col-span-2 flex min-w-0 flex-wrap items-center justify-between gap-2 pl-2">
+                    <button
+                        type="button"
+                        onClick={() => onToggleExpanded(chunk.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold transition-colors ${hasNestedSubtasks ? difficultyStyle.icon : 'text-sage-400 hover:text-sage-700 hover:bg-white/55 dark:text-bone-300 dark:hover:text-bone-100'}`}
+                        title="Show sub-steps"
+                    >
+                        <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        {hasNestedSubtasks ? `${nestedSubtasks.length} sub` : 'Sub-steps'}
+                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <input
+                            type="number"
+                            min="0"
+                            value={hasNestedSubtasks ? nestedTotalMinutes || '' : chunk.estimatedTime || ''}
+                            onChange={(event) => onUpdate(chunk.id, { estimatedTime: parseInt(event.target.value, 10) || 0 })}
+                            readOnly={hasNestedSubtasks}
+                            className={`w-16 px-2 py-1.5 text-right rounded-lg bg-transparent border border-transparent text-sm font-bold ${difficultyStyle.text} placeholder-sage-400 focus:outline-none focus:ring-2 ${difficultyStyle.focus} focus:bg-white/45 dark:focus:bg-void-900/45 ${hasNestedSubtasks ? 'cursor-default opacity-80' : ''}`}
+                            placeholder="min"
+                            title={hasNestedSubtasks ? 'Total from sub-steps' : 'Chunk minutes'}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => onSetEditingDifficulty(editingChunkDifficultyId === chunk.id ? null : chunk.id)}
+                            className={`relative p-2 rounded-lg transition-colors ${difficultyStyle.icon}`}
+                            title="Edit chunk difficulty"
+                        >
+                            <Palette size={16} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {editingChunkDifficultyId === chunk.id && (

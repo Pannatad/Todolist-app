@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Check, CheckCircle2, Circle, CircleX, Flower2, Leaf, Sprout } from 'lucide-react';
+import { AlertTriangle, Award, Check, CheckCircle2, Circle, CircleX, Flower2, Leaf, Sprout } from 'lucide-react';
 import { SEED_HEALTH_META, SEED_STAGE_META } from '../constants/habitSeeds';
 
 const boxStyles = {
@@ -85,6 +85,12 @@ const CircularProgress = ({ percent, ended }) => {
     );
 };
 
+const milestones = [
+    { days: 7, label: 'Sprout' },
+    { days: 14, label: 'Rooted' },
+    { days: 21, label: 'Bloom' },
+];
+
 const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false, onQuickCheck, onQuickMiss }) => {
     if (!seeds?.length) return null;
 
@@ -127,6 +133,8 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                         !['missed', 'warning', 'final-warning', 'ended', 'dead', 'rotting'].includes(selectedEntry.status) &&
                         !insight.ended
                     );
+                    const visibleMilestones = milestones.filter((milestone) => milestone.days <= insight.durationDays);
+                    const currentStreak = insight.currentRecoveryStreak || 0;
 
                     return (
                         <div key={habit.id} className="rounded-[18px] border border-slate-200 bg-slate-50 p-3">
@@ -142,6 +150,24 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                                                 <span className="rounded-full bg-white px-2 py-0.5 text-slate-600">{stageMeta.shortLabel}</span>
                                                 <span className={`rounded-full border px-2 py-0.5 ${healthMeta.badge}`}>{healthMeta.label}</span>
                                             </div>
+                                            <div className="mt-1.5 flex flex-wrap gap-1">
+                                                {visibleMilestones.map((milestone) => {
+                                                    const unlocked = insight.completedDays >= milestone.days;
+                                                    return (
+                                                        <span
+                                                            key={milestone.days}
+                                                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                                                unlocked
+                                                                    ? 'border-amber-200 bg-amber-100 text-amber-700'
+                                                                    : 'border-slate-200 bg-white text-slate-400'
+                                                            }`}
+                                                        >
+                                                            <Award size={10} />
+                                                            {milestone.days} {milestone.label}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -154,6 +180,10 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                                     <div className="flex h-14 w-16 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-white text-emerald-700 shadow-sm">
                                         <div className="text-2xl font-bold leading-none">{insight.completedDays}</div>
                                         <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-600">done</div>
+                                    </div>
+                                    <div className="flex h-14 w-16 flex-col items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 shadow-sm">
+                                        <div className="text-2xl font-bold leading-none">{currentStreak}</div>
+                                        <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-orange-600">streak</div>
                                     </div>
                                 </div>
 

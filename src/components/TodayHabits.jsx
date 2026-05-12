@@ -27,11 +27,17 @@ const getMotivationalMessage = (completionRate, bestStreak) => {
     return 'Start with one easy habit.';
 };
 
+const REFLECTION_TAGS = {
+    completed: ['easy', 'proud', 'focused', 'tired'],
+    missed: ['forgot', 'busy', 'low energy', 'too hard'],
+};
+
 const TodayHabits = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingHabit, setEditingHabit] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [historyHabit, setHistoryHabit] = useState(null);
+    const [pendingReflection, setPendingReflection] = useState(null);
 
     const {
         habits,
@@ -135,9 +141,21 @@ const TodayHabits = () => {
         dismissYesterdayReview(habit.id);
     };
 
-    const handleLog = (habitId, value, completed) => {
+    const handleLog = async (habitId, value, completed) => {
         if (!canEditSelectedDate) return;
-        logHabit(habitId, selectedDateStr, value, completed);
+        const savedLog = await logHabit(habitId, selectedDateStr, value, completed);
+        const habit = habits.find((item) => item.id === habitId);
+
+        if (habit && (completed || Number(value || 0) <= 0)) {
+            setPendingReflection({
+                habitId,
+                habitName: habit.name,
+                date: selectedDateStr,
+                completed,
+                value,
+                notes: savedLog?.notes || '',
+            });
+        }
     };
 
     const handleSaveNote = (habitId, notes) => {
@@ -164,6 +182,24 @@ const TodayHabits = () => {
         if (confirm('Are you sure you want to delete this habit?')) {
             deleteHabit(habitId);
         }
+    };
+
+    const handleReflection = async (tag) => {
+        if (!pendingReflection) return;
+
+        const existingLog = getHabitLog(pendingReflection.habitId, pendingReflection.date);
+        const currentNotes = existingLog?.notes || pendingReflection.notes || '';
+        const reflectionLine = `Reflection: ${tag}`;
+        const nextNotes = currentNotes ? `${currentNotes}\n${reflectionLine}` : reflectionLine;
+
+        await logHabit(
+            pendingReflection.habitId,
+            pendingReflection.date,
+            existingLog?.value ?? pendingReflection.value,
+            existingLog?.completed ?? pendingReflection.completed,
+            { notes: nextNotes }
+        );
+        setPendingReflection(null);
     };
 
     return (
@@ -323,6 +359,43 @@ const TodayHabits = () => {
                             Everything scheduled for today is complete.
                         </div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {pendingReflection && (
+                    <motion.section
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="rounded-[18px] border border-slate-200 bg-white/92 px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <div className="text-sm font-semibold text-slate-900">How did {pendingReflection.habitName} feel?</div>
+                                <div className="mt-0.5 text-xs text-slate-500">One tap saves a small reflection to today&apos;s habit note.</div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {(pendingReflection.completed ? REFLECTION_TAGS.completed : REFLECTION_TAGS.missed).map((tag) => (
+                                    <button
+                                        key={tag}
+                                        type="button"
+                                        onClick={() => handleReflection(tag)}
+                                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100"
+                                    >
+                                        {tag}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingReflection(null)}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:text-slate-700"
+                                >
+                                    skip
+                                </button>
+                            </div>
+                        </div>
+                    </motion.section>
                 )}
             </AnimatePresence>
 
