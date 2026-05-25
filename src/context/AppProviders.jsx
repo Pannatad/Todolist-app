@@ -7,6 +7,7 @@ import { LearningProvider } from './LearningContext';
 import { UserProfileProvider } from './UserProfileContext';
 import { UserIntelligenceProvider } from './UserIntelligenceContext';
 import { AgentMemoryProvider } from './AgentMemoryContext';
+import { FocusProvider } from './FocusContext';
 
 /**
  * AppProviders wraps the entire app with all context providers
@@ -22,7 +23,9 @@ export const AppProviders = ({ children }) => {
                             <GameProvider>
                                 <GoalProvider>
                                     <LearningProvider>
-                                        {children}
+                                        <FocusProvider>
+                                            {children}
+                                        </FocusProvider>
                                     </LearningProvider>
                                 </GoalProvider>
                             </GameProvider>

@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { LogIn, LogOut, Palette, LayoutDashboard, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, ListChecks, GraduationCap, ClipboardList, Coins } from 'lucide-react';
+import { LogIn, LogOut, Palette, LayoutDashboard, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, ListChecks, GraduationCap, ClipboardList, Coins, TimerReset } from 'lucide-react';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
 import { getPersonalizedAdvice } from './services/aiClient';
@@ -26,6 +26,7 @@ const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
 const Overview = lazy(() => import('./components/Overview'));
 const HabitTracker = lazy(() => import('./components/HabitTracker'));
 const LearningTracker = lazy(() => import('./components/LearningTracker'));
+const Focus = lazy(() => import('./components/Focus'));
 const SleepTrendsDashboard = lazy(() => import('./components/SleepTrendsDashboard'));
 const NotificationToast = lazy(() => import('./components/NotificationToast'));
 const IdeasBoard = lazy(() => import('./components/IdeasBoard'));
@@ -107,6 +108,7 @@ function App() {
     { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
     { id: 'garden', label: 'Tasks', icon: <Sprout size={20} /> },
     { id: 'habits', label: 'Habits', icon: <ListChecks size={20} /> },
+    { id: 'focus', label: 'Focus', icon: <TimerReset size={20} /> },
     { id: 'ideas', label: 'Ideas', icon: <ScrollText size={20} /> },
     { id: 'learning', label: 'Learning', icon: <GraduationCap size={20} /> },
     { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
@@ -334,6 +336,10 @@ function App() {
 
                   {activeTab === 'habits' && (
                     <HabitTracker />
+                  )}
+
+                  {activeTab === 'focus' && (
+                    <Focus />
                   )}
 
                   {activeTab === 'ideas' && (

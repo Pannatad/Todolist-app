@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Calendar, Clock, Plus, X } from 'lucide-react';
+import { Calendar, Clock, Plus, Tag, X } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 
 const TaskInput = ({ onAdd, existingSubjects = [] }) => {
@@ -75,20 +75,26 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
     };
 
     return (
-        <div className="relative z-20 mx-auto mb-5 w-full max-w-3xl px-2 sm:px-0">
-            <form
+        <div className="relative z-20 mx-auto mb-5 w-full max-w-5xl px-2 sm:px-0">
+            <Motion.form
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 360, damping: 30 }}
                 onSubmit={handleSubmit}
-                className="relative flex flex-wrap items-center gap-3 rounded-2xl border border-sage-100 bg-white px-3 py-2 shadow-sm sm:flex-nowrap sm:px-4 dark:border-white/10 dark:bg-void-900"
+                className="relative flex flex-wrap items-center gap-3 overflow-visible rounded-3xl border border-sage-100 bg-white/90 px-3 py-3 shadow-lg shadow-sage-900/5 backdrop-blur sm:flex-nowrap sm:px-4 dark:border-white/10 dark:bg-void-900/90"
             >
+                <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-sage-300 to-transparent" />
+
                 <div className="relative shrink-0" ref={datePickerRef}>
-                    <button
+                    <Motion.button
                         type="button"
+                        whileTap={{ scale: 0.92 }}
                         onClick={() => setShowDatePicker(!showDatePicker)}
-                        className={`p-2.5 rounded-full transition-colors ${deadline ? 'text-sage-600 bg-sage-100 dark:bg-sage-900 dark:text-sage-300' : 'text-sage-400 hover:text-sage-600 hover:bg-sage-50 dark:hover:bg-void-800 dark:hover:text-sage-300'}`}
+                        className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-colors ${deadline ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900/30' : 'text-sage-400 hover:bg-sage-50 hover:text-sage-700 dark:hover:bg-void-800 dark:hover:text-sage-300'}`}
                         title="Due date"
                     >
                         {deadline ? <Clock size={20} /> : <Calendar size={20} />}
-                    </button>
+                    </Motion.button>
 
                     <AnimatePresence>
                         {showDatePicker && (
@@ -96,7 +102,7 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute top-full left-0 mt-2 w-[calc(100vw-2rem)] sm:w-72 max-w-sm bg-white dark:bg-void-900 rounded-2xl shadow-xl border border-sage-100 dark:border-white/10 p-4 z-50"
+                                className="absolute top-full left-0 mt-2 w-[calc(100vw-2rem)] sm:w-72 max-w-sm bg-white dark:bg-void-900 rounded-2xl shadow-2xl border border-sage-100 dark:border-white/10 p-4 z-50"
                             >
                                 <div className="flex justify-between items-center mb-3">
                                     <h3 className="text-sm font-bold text-sage-700 dark:text-sage-300">Due Date</h3>
@@ -132,17 +138,18 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     placeholder="Add a task..."
-                    className="flex-[1_1_10rem] bg-transparent border-none focus:ring-0 text-ink-800 dark:text-bone-100 placeholder-sage-400 text-sm sm:text-base font-medium min-w-0"
+                    className="min-w-0 flex-[1_1_14rem] rounded-2xl border border-transparent bg-sage-50/70 px-4 py-3 text-base font-bold text-ink-800 outline-none transition placeholder:text-sage-400 focus:border-sage-200 focus:bg-white focus:ring-2 focus:ring-sage-100 dark:bg-void-800 dark:text-bone-100 dark:focus:border-white/10 dark:focus:bg-void-800"
                 />
 
                 <div className="relative shrink-0" ref={subjectRef}>
+                    <Tag className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sage-400" />
                     <input
                         type="text"
                         value={subject}
                         onChange={(event) => setSubject(event.target.value)}
                         onFocus={() => setShowSubjectSuggestions(true)}
-                        placeholder="Subject"
-                        className="w-24 sm:w-28 lg:w-36 bg-sage-50 dark:bg-void-800 text-sage-700 dark:text-sage-300 placeholder-sage-400 text-xs sm:text-sm rounded-full px-3 py-2 border-none focus:ring-2 focus:ring-sage-300 font-bold"
+                        placeholder="Tag"
+                        className="w-28 rounded-2xl border border-transparent bg-sage-50 py-3 pl-8 pr-3 text-xs font-black text-sage-700 outline-none transition placeholder:text-sage-400 focus:border-sage-200 focus:bg-white focus:ring-2 focus:ring-sage-100 dark:bg-void-800 dark:text-sage-300 sm:w-32 lg:w-40"
                     />
 
                     <AnimatePresence>
@@ -181,28 +188,33 @@ const TaskInput = ({ onAdd, existingSubjects = [] }) => {
                 <select
                     value={difficulty}
                     onChange={(event) => setDifficulty(event.target.value)}
-                    className="shrink-0 bg-sage-50 dark:bg-void-800 text-sage-700 dark:text-sage-300 text-xs sm:text-sm rounded-full px-3 py-2 border-none focus:ring-2 focus:ring-sage-300 cursor-pointer font-bold hover:bg-sage-100 dark:hover:bg-void-700 transition-colors"
+                    className="shrink-0 cursor-pointer rounded-2xl border border-transparent bg-sage-50 px-3 py-3 text-xs font-black text-sage-700 outline-none transition hover:bg-sage-100 focus:border-sage-200 focus:ring-2 focus:ring-sage-100 dark:bg-void-800 dark:text-sage-300 dark:hover:bg-void-700 sm:text-sm"
                 >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                 </select>
 
-                <button
+                <Motion.button
                     type="submit"
                     disabled={!title.trim()}
-                    className="bg-sage-500 hover:bg-sage-600 text-white p-2.5 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-105 shrink-0"
+                    whileTap={{ scale: 0.92 }}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sage-600 text-white shadow-lg shadow-sage-600/20 transition-colors hover:bg-sage-700 disabled:cursor-not-allowed disabled:bg-sage-200 disabled:text-sage-400"
                     title="Add task"
                 >
                     <Plus size={22} />
-                </button>
-            </form>
+                </Motion.button>
+            </Motion.form>
 
             {deadline && (
-                <div className="absolute -bottom-5 sm:-bottom-6 left-4 text-xs font-medium text-sage-500 flex items-center gap-1">
-                    <Clock size={10} />
+                <Motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -bottom-5 left-5 flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-amber-100 sm:-bottom-6"
+                >
+                    <Clock size={11} />
                     {getDeadlineLabel()}
-                </div>
+                </Motion.div>
             )}
         </div>
     );

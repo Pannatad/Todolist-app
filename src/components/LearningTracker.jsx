@@ -72,8 +72,8 @@ const SubjectProgressDashboard = ({
 
     if (subjects.length === 0) {
         return (
-            <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+            <section className="rounded-[1.75rem] border border-sage-100 bg-white/85 p-10 text-center shadow-sm dark:border-white/10 dark:bg-void-900/80">
+                <div className="w-14 h-14 rounded-2xl bg-sage-50 text-sage-600 flex items-center justify-center mx-auto mb-4">
                     <BarChart3 size={24} />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900">No subjects to visualize yet</h3>
@@ -83,10 +83,10 @@ const SubjectProgressDashboard = ({
     }
 
     return (
-        <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <section className="overflow-hidden rounded-[1.75rem] border border-sage-100 bg-white/85 shadow-sm dark:border-white/10 dark:bg-void-900/80">
+            <div className="px-5 py-4 border-b border-sage-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4 dark:border-white/10">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-sage-50 text-sage-600 flex items-center justify-center">
                         <BarChart3 size={20} />
                     </div>
                     <div>
@@ -96,8 +96,8 @@ const SubjectProgressDashboard = ({
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 min-w-full lg:min-w-[360px]">
-                    <div className="rounded-xl bg-gray-50 px-3 py-2">
-                        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wide">Average</div>
+                    <div className="rounded-xl bg-sage-50 px-3 py-2">
+                        <div className="text-[10px] uppercase font-bold text-sage-500 tracking-wide">Average</div>
                         <div className="text-lg font-bold text-gray-900">{averageProgress}%</div>
                     </div>
                     <div className="rounded-xl bg-emerald-50 px-3 py-2">
@@ -111,9 +111,9 @@ const SubjectProgressDashboard = ({
                 </div>
             </div>
 
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/70 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+            <div className="px-5 py-3 border-b border-sage-100 bg-sage-50/50 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between dark:border-white/10 dark:bg-void-800/40">
                 <div className="flex flex-col sm:flex-row gap-2">
-                    <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">
+                    <label className="flex items-center gap-2 rounded-xl border border-sage-100 bg-white px-3 py-2 text-sm text-gray-500">
                         <SlidersHorizontal size={15} className="text-gray-400" />
                         <select
                             value={sortMode}
@@ -126,7 +126,7 @@ const SubjectProgressDashboard = ({
                         </select>
                     </label>
 
-                    <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">
+                    <label className="flex items-center gap-2 rounded-xl border border-sage-100 bg-white px-3 py-2 text-sm text-gray-500">
                         <Tags size={15} className="text-gray-400" />
                         <select
                             value={selectedCategory}
@@ -145,8 +145,8 @@ const SubjectProgressDashboard = ({
                     onClick={() => onShowArchivedChange(!showArchived)}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-all ${
                         showArchived
-                            ? 'border-purple-200 bg-purple-50 text-purple-700'
-                            : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                            ? 'border-sage-200 bg-sage-50 text-sage-700'
+                            : 'border-sage-100 bg-white text-gray-500 hover:bg-sage-50'
                     }`}
                 >
                     <Archive size={15} />
@@ -155,7 +155,7 @@ const SubjectProgressDashboard = ({
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px]">
-                <div className="divide-y divide-gray-100">
+                <div className="space-y-3 p-3">
                     {subjects.map((subject, index) => {
                         const colorConfig = COLOR_OPTIONS.find((color) => color.name === subject.color) || COLOR_OPTIONS[0];
                         const hasTopics = subject.topicCount > 0;
@@ -165,14 +165,20 @@ const SubjectProgressDashboard = ({
                                 key={subject.id}
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.04 }}
+                                transition={{ type: 'spring', stiffness: 320, damping: 32, delay: index * 0.03 }}
+                                whileHover={{ x: 3 }}
+                                whileTap={{ scale: 0.99 }}
                                 onClick={() => onOpenSubject(subject.id)}
-                                className="w-full px-5 py-4 text-left hover:bg-gray-50 transition-colors group"
+                                className={`group w-full rounded-[1.35rem] border p-3 text-left shadow-sm transition-colors hover:bg-white/70 hover:shadow-md dark:bg-void-900/70 ${
+                                    subject.archived
+                                        ? 'border-slate-200 bg-slate-50/90'
+                                        : `${colorConfig.soft || 'bg-sage-50'} ${colorConfig.border || 'border-sage-100'}`
+                                }`}
                             >
                                 <div className="flex items-center gap-4">
                                     <div
-                                        className="w-14 h-14 rounded-full flex-shrink-0 grid place-items-center"
-                                        style={{ background: `conic-gradient(rgb(99 102 241) ${subject.progress * 3.6}deg, rgb(243 244 246) 0deg)` }}
+                                        className="w-14 h-14 rounded-full flex-shrink-0 grid place-items-center shadow-sm"
+                                        style={{ background: `conic-gradient(rgb(106 158 133) ${subject.progress * 3.6}deg, rgba(255,255,255,0.72) 0deg)` }}
                                     >
                                         <div className="w-11 h-11 rounded-full bg-white grid place-items-center text-xl shadow-sm">
                                             {subject.icon || '📚'}
@@ -183,59 +189,61 @@ const SubjectProgressDashboard = ({
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <h4 className="text-sm font-bold text-gray-900 truncate">{subject.name}</h4>
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">
+                                                    <h4 className="truncate text-sm font-black text-slate-950">{subject.name}</h4>
+                                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ring-1 ${colorConfig.text || 'text-sage-700'} bg-white/60 ${colorConfig.border || 'border-sage-100'}`}>
                                                         {subject.category}
                                                     </span>
                                                     {subject.archived && (
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-bold">
+                                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
                                                             Archived
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                                <p className="mt-0.5 truncate text-xs font-semibold text-slate-500/80">
                                                     {hasTopics ? subject.nextTopic || 'All topics completed' : 'No topics yet'}
                                                 </p>
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                                <div className="text-lg font-bold text-gray-900">{subject.progress}%</div>
-                                                <div className="text-[10px] text-gray-400 font-medium">{getLastStudiedLabel(subject.lastStudiedAt)}</div>
+                                                <div className="text-lg font-black text-slate-950">{subject.progress}%</div>
+                                                <div className="text-[10px] font-semibold text-slate-400">{getLastStudiedLabel(subject.lastStudiedAt)}</div>
                                             </div>
                                         </div>
 
-                                        <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
-                                            <div
+                                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/65">
+                                            <Motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${subject.progress}%` }}
+                                                transition={{ type: 'spring', stiffness: 210, damping: 26 }}
                                                 className={`h-full rounded-full bg-gradient-to-r ${colorConfig.gradient}`}
-                                                style={{ width: `${subject.progress}%` }}
                                             />
                                         </div>
 
                                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                                            <span className="rounded-full bg-white/60 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-100">
                                                 {subject.completedCount}/{subject.topicCount} done
                                             </span>
-                                            <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
+                                            <span className="rounded-full bg-white/60 px-2 py-0.5 text-amber-700 ring-1 ring-amber-100">
                                                 {subject.inProgressCount} active
                                             </span>
-                                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                                            <span className="rounded-full bg-white/60 px-2 py-0.5 text-sky-700 ring-1 ring-sky-100">
                                                 {formatStudyTime(subject.studiedTime)} studied
                                             </span>
                                             {subject.plannedTime > 0 && (
-                                                <span className="px-2 py-0.5 rounded-full bg-gray-50 text-gray-500">
+                                                <span className="rounded-full bg-white/50 px-2 py-0.5 text-slate-500 ring-1 ring-white/70">
                                                     {formatStudyTime(subject.plannedTime)} planned
                                                 </span>
                                             )}
                                         </div>
                                     </div>
 
-                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                                    <ChevronRight size={16} className="flex-shrink-0 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-slate-600" />
                                 </div>
                             </Motion.button>
                         );
                     })}
                 </div>
 
-                <aside className="border-t xl:border-t-0 xl:border-l border-gray-100 p-5 bg-gray-50/60 space-y-4">
+                <aside className="border-t xl:border-t-0 xl:border-l border-sage-100 p-5 bg-sage-50/45 space-y-4 dark:border-white/10 dark:bg-void-800/30">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Award size={16} className="text-yellow-500" />
@@ -510,27 +518,31 @@ const LearningTracker = () => {
     return (
         <div className="space-y-6">
             {/* Header Section */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                        <div className="bg-purple-100 p-2 rounded-xl">
-                            <GraduationCap className="text-purple-600" size={24} />
+            <Motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="overflow-hidden rounded-[1.75rem] border border-sage-100 bg-white/80 shadow-sm backdrop-blur dark:border-white/10 dark:bg-void-900/70"
+            >
+                <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sage-500">
+                            <GraduationCap size={16} />
+                            Learning paths
                         </div>
-                        Learning Tracker
-                    </h2>
-                    <p className="text-sm text-gray-500 mt-1 ml-14">
-                        Track your learning journey across different subjects
-                    </p>
-                </div>
+                        <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
+                            <span className="text-4xl font-black leading-none text-sage-950 dark:text-bone-100">{stats.totalPaths}</span>
+                            <span className="pb-1 text-sm font-bold text-sage-500 dark:text-bone-200/60">active paths</span>
+                        </div>
+                    </div>
 
-                <div className="flex items-center gap-3 flex-wrap justify-end">
-                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-2xl p-1 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <div className="flex items-center gap-1 rounded-2xl border border-sage-100 bg-white p-1 shadow-sm dark:border-white/10 dark:bg-void-800">
                         <button
                             onClick={() => setLearningView('paths')}
                             className={`px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
                                 learningView === 'paths'
-                                    ? 'bg-purple-100 text-purple-700'
-                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                    ? 'bg-sage-600 text-white shadow-sm'
+                                    : 'text-slate-500 hover:bg-sage-50 hover:text-sage-700 dark:text-bone-200/70 dark:hover:bg-void-700'
                             }`}
                         >
                             <BookOpen size={15} />
@@ -540,8 +552,8 @@ const LearningTracker = () => {
                             onClick={() => setLearningView('dashboard')}
                             className={`px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
                                 learningView === 'dashboard'
-                                    ? 'bg-indigo-100 text-indigo-700'
-                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                    ? 'bg-sage-600 text-white shadow-sm'
+                                    : 'text-slate-500 hover:bg-sage-50 hover:text-sage-700 dark:text-bone-200/70 dark:hover:bg-void-700'
                             }`}
                         >
                             <BarChart3 size={15} />
@@ -552,8 +564,8 @@ const LearningTracker = () => {
                         onClick={() => setShowSettings(!showSettings)}
                         className={`p-2.5 rounded-2xl transition-all ${
                             showSettings
-                                ? 'bg-gray-200 text-gray-800'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                                ? 'bg-sage-100 text-sage-800'
+                                : 'bg-white text-slate-500 ring-1 ring-sage-100 hover:bg-sage-50 hover:text-sage-700 dark:bg-void-800 dark:ring-white/10'
                         }`}
                         title="Learning Tracker Settings"
                     >
@@ -569,7 +581,7 @@ const LearningTracker = () => {
                         disabled={!canStart}
                         className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all
                             ${canStart
-                                ? 'text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 active:scale-95'
+                                ? 'bg-sage-600 text-white shadow-lg shadow-sage-600/20 hover:bg-sage-700 active:scale-95'
                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
                             }`}
                     >
@@ -577,7 +589,9 @@ const LearningTracker = () => {
                         New Learning Path
                     </button>
                 </div>
-            </div>
+                </div>
+                <div className="h-1 bg-gradient-to-r from-sage-500 via-amber-400 to-sky-500" />
+            </Motion.div>
 
             {/* Settings Panel */}
             <AnimatePresence>
@@ -588,14 +602,14 @@ const LearningTracker = () => {
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="bg-white/85 border border-sage-100 rounded-[1.5rem] p-5 shadow-sm mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 dark:border-white/10 dark:bg-void-900/80">
                             <div>
                                 <h3 className="text-sm font-bold text-gray-800">Concurrent Learning Paths Limit</h3>
                                 <p className="text-xs text-gray-500 mt-1 max-w-lg">
                                     Set the maximum number of courses you want to focus on at the same time. This encourages completing ongoing paths before starting new ones.
                                 </p>
                             </div>
-                            <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                            <div className="flex items-center gap-3 bg-sage-50 p-1.5 rounded-xl border border-sage-100">
                                 <button
                                     onClick={() => setMaxConcurrentPaths(Math.max(1, maxConcurrentPaths - 1))}
                                     className="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all text-gray-600 disabled:opacity-50"
@@ -650,57 +664,57 @@ const LearningTracker = () => {
                 />
             ) : (
                 <>
-            {/* Stats Overview - Vibrant Gradient Cards like Habit Tracker */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Stats Overview */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0 }}
-                    className="bg-gradient-to-r from-purple-500 via-purple-400 to-indigo-400 rounded-2xl p-4 shadow-lg shadow-purple-500/20"
+                    className="rounded-[1.35rem] border border-sage-100 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-void-900/75"
                 >
-                    <div className="flex items-center gap-2 text-white/80 mb-1">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-sage-500 mb-1">
                         <BookOpen size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Paths</span>
+                        <span>Paths</span>
                     </div>
-                    <div className="text-3xl font-bold text-white">{stats.totalPaths}</div>
+                    <div className="text-3xl font-black text-sage-950 dark:text-bone-100">{stats.totalPaths}</div>
                 </Motion.div>
                 <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 }}
-                    className="bg-gradient-to-r from-yellow-400 via-orange-400 to-orange-500 rounded-2xl p-4 shadow-lg shadow-orange-500/20"
+                    className="rounded-[1.35rem] border border-amber-100 bg-amber-50/80 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20"
                 >
-                    <div className="flex items-center gap-2 text-white/80 mb-1">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-amber-600 dark:text-amber-200 mb-1">
                         <Flame size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wide">In Progress</span>
+                        <span>In Progress</span>
                     </div>
-                    <div className="text-3xl font-bold text-white">{stats.inProgress}</div>
+                    <div className="text-3xl font-black text-amber-900 dark:text-amber-100">{stats.inProgress}</div>
                 </Motion.div>
                 <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-r from-teal-400 via-emerald-400 to-green-400 rounded-2xl p-4 shadow-lg shadow-teal-500/20"
+                    className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/20"
                 >
-                    <div className="flex items-center gap-2 text-white/80 mb-1">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-200 mb-1">
                         <TrendingUp size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Completed</span>
+                        <span>Completed</span>
                     </div>
-                    <div className="text-3xl font-bold text-white">{stats.completed}</div>
+                    <div className="text-3xl font-black text-emerald-900 dark:text-emerald-100">{stats.completed}</div>
                 </Motion.div>
                 <Motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
-                    className="bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-2xl p-4 shadow-lg shadow-blue-500/20"
+                    className="rounded-[1.35rem] border border-sky-100 bg-sky-50/80 p-4 shadow-sm dark:border-sky-900/30 dark:bg-sky-950/20"
                 >
-                    <div className="flex items-center gap-2 text-white/80 mb-1">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-200 mb-1">
                         <Clock size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Studied</span>
+                        <span>Studied</span>
                     </div>
-                    <div className="text-3xl font-bold text-white">{formatTime(stats.studiedTime)}</div>
+                    <div className="text-3xl font-black text-sky-900 dark:text-sky-100">{formatTime(stats.studiedTime)}</div>
                     {stats.plannedTime > 0 && (
-                        <div className="text-xs text-white/60 font-medium mt-0.5">planned {formatTime(stats.plannedTime)}</div>
+                        <div className="text-xs text-sky-500 font-bold mt-0.5">planned {formatTime(stats.plannedTime)}</div>
                     )}
                 </Motion.div>
             </div>
@@ -718,7 +732,7 @@ const LearningTracker = () => {
                             {focusTopics.length} focus topic{focusTopics.length !== 1 ? 's' : ''}
                         </span>
                     </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sage-200">
                         {focusTopics.map((topic, idx) => {
                             const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
                             return (
@@ -726,9 +740,10 @@ const LearningTracker = () => {
                                     key={topic.id}
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.18 + idx * 0.05 }}
+                                    transition={{ type: 'spring', stiffness: 320, damping: 30, delay: 0.18 + idx * 0.04 }}
+                                    whileHover={{ y: -2 }}
                                     onClick={() => setCurrentPathId(topic.learning_path_id)}
-                                    className="flex-shrink-0 min-w-[240px] max-w-[300px] bg-white border border-rose-200/80 rounded-2xl p-4 text-left hover:shadow-md hover:border-rose-300 hover:scale-[1.02] transition-all group"
+                                    className="group flex-shrink-0 min-w-[240px] max-w-[300px] rounded-[1.35rem] border border-rose-100 bg-white/85 p-4 text-left shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50/40 dark:border-white/10 dark:bg-void-900/80"
                                 >
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${pathColor.gradient} flex items-center justify-center text-sm shadow-sm`}>
@@ -764,7 +779,7 @@ const LearningTracker = () => {
                             {inProgressTopics.length} in progress
                         </span>
                     </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sage-200">
                         {inProgressTopics.map((topic, idx) => {
                             const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
                             return (
@@ -772,9 +787,10 @@ const LearningTracker = () => {
                                     key={topic.id}
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.2 + idx * 0.05 }}
+                                    transition={{ type: 'spring', stiffness: 320, damping: 30, delay: 0.2 + idx * 0.04 }}
+                                    whileHover={{ y: -2 }}
                                     onClick={() => setCurrentPathId(topic.learning_path_id)}
-                                    className="flex-shrink-0 min-w-[240px] max-w-[300px] bg-white border border-amber-200/80 rounded-2xl p-4 text-left hover:shadow-md hover:border-amber-300 hover:scale-[1.02] transition-all group"
+                                    className="group flex-shrink-0 min-w-[240px] max-w-[300px] rounded-[1.35rem] border border-amber-100 bg-white/85 p-4 text-left shadow-sm transition-colors hover:border-amber-200 hover:bg-amber-50/40 dark:border-white/10 dark:bg-void-900/80"
                                 >
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${pathColor.gradient} flex items-center justify-center text-sm shadow-sm`}>
@@ -800,21 +816,21 @@ const LearningTracker = () => {
             {/* Search & Filter Bar */}
             <div className="flex items-center gap-3">
                 <div className="flex-1 relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search learning paths..."
-                        className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-300 shadow-sm transition-all"
+                        className="w-full rounded-2xl border border-sage-100 bg-white/85 py-3 pl-9 pr-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sage-300 focus:ring-2 focus:ring-sage-100 dark:border-white/10 dark:bg-void-900/80 dark:text-bone-100"
                     />
                 </div>
                 <button
                     onClick={() => setShowArchived(!showArchived)}
-                    className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 text-sm shadow-sm
+                    className={`p-3 rounded-2xl border transition-all flex items-center gap-2 text-sm shadow-sm
                         ${showArchived
-                            ? 'bg-purple-50 border-purple-200 text-purple-600'
-                            : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+                            ? 'bg-sage-100 border-sage-200 text-sage-700'
+                            : 'bg-white border-sage-100 text-slate-400 hover:bg-sage-50 hover:text-sage-700'
                         }`}
                     title={showArchived ? 'Showing archived' : 'Show archived'}
                 >
@@ -870,11 +886,11 @@ const LearningTracker = () => {
                         <div key={category}>
                             {/* Category Header */}
                             {groupedPaths.length > 1 || category !== 'Uncategorized' ? (
-                                <div className="flex items-center gap-2.5 mb-4">
+                                <div className="mb-4 flex items-center gap-2.5">
                                     <div className={`w-1 h-6 rounded-full ${
                                         category === 'Pinned'
                                             ? 'bg-gradient-to-b from-amber-300 to-orange-500'
-                                            : 'bg-gradient-to-b from-purple-400 to-indigo-500'
+                                            : 'bg-gradient-to-b from-sage-400 to-sky-500'
                                     }`} />
                                     {category === 'Pinned' ? (
                                         <Target size={16} className="text-amber-500" />
@@ -882,14 +898,14 @@ const LearningTracker = () => {
                                         <FolderOpen size={16} className="text-gray-400" />
                                     )}
                                     <h3 className={`text-sm font-bold uppercase tracking-wider ${
-                                        category === 'Pinned' ? 'text-amber-600' : 'text-gray-600'
+                                        category === 'Pinned' ? 'text-amber-600' : 'text-slate-600'
                                     }`}>{category}</h3>
                                     <span className="text-xs text-gray-400 font-medium">{catPaths.length}</span>
                                 </div>
                             ) : null}
 
                             {/* Path Cards Grid */}
-                            <Motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <Motion.div layout className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 <AnimatePresence>
                                     {catPaths.map((path, index) => {
                                         const pathTopics = topics.filter(t => t.learning_path_id === path.id);
@@ -902,7 +918,7 @@ const LearningTracker = () => {
                                                 initial={{ opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.9 }}
-                                                transition={{ delay: index * 0.05 }}
+                                                transition={{ type: 'spring', stiffness: 320, damping: 32, delay: index * 0.035 }}
                                             >
                                                 <LearningPathCard
                                                     path={path}

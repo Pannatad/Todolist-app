@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Calendar, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Layers, ListChecks, RotateCcw, Trash2, X } from 'lucide-react';
+import { Calendar, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, GraduationCap, Layers, ListChecks, RotateCcw, Trash2, X } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
+import { useLearning } from '../context/LearningContext';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
+import { COLOR_OPTIONS } from './LearningPathModal';
 import ScheduleEventModal from './ScheduleEventModal';
 
 const getMonday = (date) => {
@@ -28,7 +30,23 @@ const formatTime = (value) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const PATH_COLOR_HEX = {
+    purple: '#8b5cf6',
+    blue: '#3b82f6',
+    teal: '#14b8a6',
+    emerald: '#10b981',
+    amber: '#f59e0b',
+    pink: '#ec4899',
+    red: '#ef4444',
+    indigo: '#6366f1',
+};
+
 const getItemColor = (item) => {
+    if (item.type === 'learning') {
+        const color = PATH_COLOR_HEX[item.pathColor] || '#8b5cf6';
+        return { color, bg: `${color}1F`, border: `${color}55` };
+    }
+
     if (item.type === 'schedule' && item.color) {
         return { color: item.color, bg: `${item.color}1F`, border: `${item.color}55` };
     }
@@ -256,6 +274,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
     const [subjectFilter, setSubjectFilter] = useState('all');
     const [editingScheduleItem, setEditingScheduleItem] = useState(null);
     const [editingTask, setEditingTask] = useState(null);
+    const { getTimetableForDay } = useLearning();
 
     const weekDates = useMemo(() => {
         const start = getMonday(new Date());
@@ -293,11 +312,32 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                 label: item.category || 'Schedule',
             }));
 
-            return [...dayTasks, ...daySchedule].sort((a, b) => (
+            const dayLearning = getTimetableForDay(date.getDay(), date).map((slot, index) => {
+                const [startH = 9, startM = 0] = (slot.start || '09:00').split(':').map(Number);
+                const [endH = startH + 1, endM = startM] = (slot.end || '10:00').split(':').map(Number);
+                const startDate = new Date(date);
+                startDate.setHours(startH, startM, 0, 0);
+                const duration = Math.max(15, (endH * 60 + endM) - (startH * 60 + startM));
+
+                return {
+                    ...slot,
+                    id: `learning-${slot.pathId}-${dateKey}-${slot.start || 'slot'}-${index}`,
+                    type: 'learning',
+                    title: slot.pathName,
+                    date,
+                    dateKey,
+                    displayTime: startDate.toISOString(),
+                    duration,
+                    label: slot.pathName || 'Learning',
+                    category: 'Learning',
+                };
+            });
+
+            return [...dayTasks, ...daySchedule, ...dayLearning].sort((a, b) => (
                 new Date(a.displayTime || 0) - new Date(b.displayTime || 0)
             ));
         });
-    }, [scheduleItems, tasks, weekDates]);
+    }, [getTimetableForDay, scheduleItems, tasks, weekDates]);
 
     const subjects = useMemo(() => {
         const labels = weekItems.map((item) => item.label).filter(Boolean);
@@ -323,12 +363,13 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
     const weeklyStats = useMemo(() => {
         const taskCount = visibleItems.filter((item) => item.type === 'task').length;
         const scheduleCount = visibleItems.filter((item) => item.type === 'schedule').length;
+        const learningCount = visibleItems.filter((item) => item.type === 'learning').length;
         const minutes = visibleItems.reduce((sum, item) => sum + (Number(item.duration) || 0), 0);
         const busiest = weekDates
             .map((date) => ({ date, count: itemsByDate[toLocalDateKey(date)]?.length || 0 }))
             .sort((a, b) => b.count - a.count)[0];
 
-        return { taskCount, scheduleCount, minutes, busiest };
+        return { taskCount, scheduleCount, learningCount, minutes, busiest };
     }, [itemsByDate, visibleItems, weekDates]);
 
     const weekLabel = `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} - ${weekDates[6].toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
@@ -341,7 +382,9 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
             return;
         }
 
-        setEditingScheduleItem(item);
+        if (item.type === 'schedule') {
+            setEditingScheduleItem(item);
+        }
     };
 
     const handleSaveScheduleItem = (eventData) => (
@@ -382,7 +425,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                 </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <div className="rounded-2xl bg-indigo-50 p-4">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-500">
                         <ListChecks size={14} />
@@ -396,6 +439,13 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                         Schedule
                     </div>
                     <div className="mt-1 text-2xl font-bold text-violet-900">{weeklyStats.scheduleCount}</div>
+                </div>
+                <div className="rounded-2xl bg-sky-50 p-4">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-500">
+                        <GraduationCap size={14} />
+                        Learning
+                    </div>
+                    <div className="mt-1 text-2xl font-bold text-sky-900">{weeklyStats.learningCount}</div>
                 </div>
                 <div className="rounded-2xl bg-emerald-50 p-4">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-500">
@@ -418,9 +468,10 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                     onChange={(event) => setTypeFilter(event.target.value)}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
-                    <option value="all">Tasks + schedule</option>
+                    <option value="all">Tasks + schedule + learning</option>
                     <option value="task">Tasks only</option>
                     <option value="schedule">Schedule only</option>
+                    <option value="learning">Learning only</option>
                 </select>
                 <select
                     value={subjectFilter}
@@ -473,24 +524,36 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                 ) : (
                                     dayItems.map((item) => {
                                         const color = getItemColor(item);
+                                        const isLearning = item.type === 'learning';
+                                        const learningColor = COLOR_OPTIONS.find((option) => option.name === item.pathColor) || COLOR_OPTIONS[0];
+                                        const typeLabel = item.type === 'task' ? 'Task' : item.type === 'learning' ? 'Learning' : 'Schedule';
+                                        const typeColor = item.type === 'task' ? 'text-indigo-600' : item.type === 'learning' ? 'text-sky-600' : 'text-violet-600';
                                         return (
                                             <div
                                                 key={`${item.type}-${item.id}-${item.dateKey}`}
-                                                role="button"
-                                                tabIndex={0}
+                                                role={isLearning ? undefined : 'button'}
+                                                tabIndex={isLearning ? -1 : 0}
                                                 onClick={() => handleItemClick(item)}
                                                 onKeyDown={(event) => {
+                                                    if (isLearning) return;
                                                     if (event.key !== 'Enter' && event.key !== ' ') return;
                                                     event.preventDefault();
                                                     handleItemClick(item);
                                                 }}
-                                                className="rounded-xl border bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                                className={`rounded-xl border bg-white p-2 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-300 ${isLearning ? 'cursor-default' : 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
                                                 style={{ borderColor: color.border, backgroundColor: color.bg }}
-                                                title={`Edit ${item.type === 'task' ? 'task' : 'schedule item'}`}
+                                                title={isLearning ? 'Learning timetable slot' : `Edit ${item.type === 'task' ? 'task' : 'schedule item'}`}
                                             >
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="min-w-0">
-                                                        <div className="truncate text-xs font-bold text-slate-900">{item.title}</div>
+                                                        <div className="flex min-w-0 items-center gap-1.5">
+                                                            {isLearning && (
+                                                                <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full bg-gradient-to-r ${learningColor.gradient}`} />
+                                                            )}
+                                                            <div className="truncate text-xs font-bold text-slate-900">
+                                                                {isLearning ? `${item.pathIcon || '📚'} ${item.title}` : item.title}
+                                                            </div>
+                                                        </div>
                                                         <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                                                             <Clock size={10} />
                                                             {formatTime(item.displayTime)}
@@ -514,8 +577,8 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                                     <span className="truncate rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-slate-500">
                                                         {item.label}
                                                     </span>
-                                                    <span className={`text-[10px] font-bold ${item.type === 'task' ? 'text-indigo-600' : 'text-violet-600'}`}>
-                                                        {item.type === 'task' ? 'Task' : 'Schedule'}
+                                                    <span className={`text-[10px] font-bold ${typeColor}`}>
+                                                        {typeLabel}
                                                     </span>
                                                 </div>
                                             </div>

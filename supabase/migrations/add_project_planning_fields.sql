@@ -1,0 +1,9 @@
+ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS vision TEXT,
+    ADD COLUMN IF NOT EXISTS notes TEXT,
+    ADD COLUMN IF NOT EXISTS deadline DATE,
+    ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General',
+    ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS phases JSONB NOT NULL DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_projects_deadline ON projects(deadline);

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
-import { ArrowUpDown, CheckCircle2, ChevronDown, Circle, Clock, GripVertical, Palette, Play, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { motion as Motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
+import { ArrowUpDown, CalendarDays, CheckCircle2, ChevronDown, Circle, Clock, GripVertical, Palette, Play, Plus, Save, Sparkles, Target, Trash2, X } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { getTaskChunkEstimate, isTaskActive, isTaskCompleted, normalizeTaskSubtasks } from '../utils/taskState';
 
@@ -129,7 +129,7 @@ const ChunkReorderItem = ({
 
             <AnimatePresence initial={false}>
                 {isExpanded && (
-                    <motion.div
+                    <Motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -209,7 +209,7 @@ const ChunkReorderItem = ({
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 )}
             </AnimatePresence>
         </Reorder.Item>
@@ -231,6 +231,7 @@ const TaskListRow = ({
     const subtasks = normalizeTaskSubtasks(task.subtasks);
     const completedSubtasks = subtasks.filter(subtask => subtask.completed).length;
     const chunkTotalMinutes = getTaskChunkEstimate(task);
+    const progress = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
     const formatEstimatedTime = (minutes) => {
         if (!minutes) return null;
@@ -241,152 +242,228 @@ const TaskListRow = ({
         return `${mins}m`;
     };
 
-    const getDueLabel = () => {
-        if (!task.deadline) return 'No due date';
+    const getDueMeta = () => {
+        if (!task.deadline) {
+            return {
+                label: 'No due date',
+                tone: 'text-slate-500 bg-slate-100 dark:bg-void-800 dark:text-bone-300'
+            };
+        }
+
         const due = new Date(task.deadline);
         const now = new Date();
         const isToday = due.toDateString() === now.toDateString();
         const tomorrow = new Date(now);
         tomorrow.setDate(now.getDate() + 1);
+        const isOverdue = due < now && !isCompleted;
         const datePart = isToday
             ? 'Today'
             : due.toDateString() === tomorrow.toDateString()
                 ? 'Tomorrow'
                 : due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        return `${datePart} ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        return {
+            label: `${isOverdue ? 'Overdue' : datePart} ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+            tone: isOverdue
+                ? 'text-rose-700 bg-rose-50 dark:bg-rose-950/30 dark:text-rose-200'
+                : isToday
+                    ? 'text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-200'
+                    : 'text-sage-700 bg-sage-50 dark:bg-sage-950/30 dark:text-sage-200'
+        };
     };
 
+    const dueMeta = getDueMeta();
+    const difficultyTone = {
+        easy: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200',
+        medium: 'bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-200',
+        hard: 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-200'
+    }[task.difficulty] || 'bg-slate-100 text-slate-600 dark:bg-void-800 dark:text-bone-300';
+
     return (
-        <motion.div
+        <Motion.div
             layout
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className={`group rounded-xl border bg-white/80 dark:bg-void-900/80 shadow-sm transition-all ${isSelected ? 'border-sage-500 ring-2 ring-sage-300 dark:ring-magma-500/30' : 'border-sage-200 dark:border-white/10 hover:border-sage-300 dark:hover:border-white/20 hover:shadow-md'} ${isCompleted ? 'opacity-65' : ''}`}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            whileHover={!isCompleted ? { x: 4 } : undefined}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+            className={`group relative overflow-hidden transition-colors dark:bg-transparent ${
+                isSelected
+                    ? 'rounded-[1.35rem] border-transparent bg-sage-50/95 shadow-[0_18px_42px_rgba(86,129,113,0.12)] ring-1 ring-sage-200 dark:bg-void-800/80 dark:ring-magma-500/20'
+                    : 'bg-transparent hover:rounded-[1.35rem] hover:bg-white/60 dark:hover:bg-void-900/50'
+            } ${isCompleted ? 'opacity-60 grayscale-[0.15]' : ''}`}
         >
             <div
+                className="absolute left-0 top-5 h-10 w-1.5 rounded-full"
+                style={{ backgroundColor: task.subject ? subjectColor.color : '#84b59f' }}
+            />
+            <div
                 onClick={() => isCompleted ? onRestore(task.id) : onSelect(task.id)}
-                className="w-full px-3 sm:px-4 py-3 flex items-center gap-3 text-left cursor-pointer"
+                className="w-full cursor-pointer px-2 py-4 pl-5 text-left sm:px-4"
             >
-                <button
-                    type="button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        if (isCompleted) onRestore(task.id);
-                        else onComplete(task.id);
-                    }}
-                    onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (isCompleted) onRestore(task.id);
-                        else onComplete(task.id);
-                    }}
-                    className={`shrink-0 rounded-full transition-colors ${isCompleted ? 'text-sage-500' : 'text-sage-400 hover:text-sage-700 dark:hover:text-bone-200'}`}
-                    title={isCompleted ? 'Restore task' : 'Complete task'}
-                >
-                    {isCompleted ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-                </button>
-
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <h3 className={`font-bold text-sm sm:text-base text-sage-800 dark:text-bone-100 truncate ${isCompleted ? 'line-through' : ''}`}>
-                            {task.title || 'Untitled Task'}
-                        </h3>
-                        {isSelected && (
-                            <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-wide text-sage-600 dark:text-magma-300">
-                                Open
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-sage-500 dark:text-bone-200/60">
-                        {task.subject && (
-                            <span
-                                className="px-2 py-0.5 rounded-full font-bold"
-                                style={{
-                                    backgroundColor: subjectColor.bgColor,
-                                    color: subjectColor.color
-                                }}
-                            >
-                                {task.subject}
-                            </span>
-                        )}
-                        <span className="capitalize">{task.difficulty || 'easy'}</span>
-                        <span>{getDueLabel()}</span>
-                        {subtasks.length > 0 && (
-                            <span>
-                                {completedSubtasks}/{subtasks.length} chunks
-                                {chunkTotalMinutes > 0 ? ` - ${formatEstimatedTime(chunkTotalMinutes)}` : ''}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                <div className="shrink-0 flex items-center gap-1">
-                    {!isCompleted && onStartFocus && (
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onStartFocus(task);
-                            }}
-                            onKeyDown={(event) => {
-                                if (event.key !== 'Enter' && event.key !== ' ') return;
-                                event.preventDefault();
-                                event.stopPropagation();
-                                onStartFocus(task);
-                            }}
-                            className="hidden sm:inline-flex p-2 rounded-lg text-sage-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
-                            title="Start focus"
-                        >
-                            <Play size={16} fill="currentColor" />
-                        </button>
-                    )}
-                    {!isCompleted && (
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onRequestAIHelp(task);
-                            }}
-                            onKeyDown={(event) => {
-                                if (event.key !== 'Enter' && event.key !== ' ') return;
-                                event.preventDefault();
-                                event.stopPropagation();
-                                onRequestAIHelp(task);
-                            }}
-                            className="hidden sm:inline-flex p-2 rounded-lg text-sage-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                            title="Get AI help"
-                        >
-                            <Sparkles size={16} />
-                        </button>
-                    )}
-                    <button
+                <div className="flex items-start gap-3">
+                    <Motion.button
                         type="button"
+                        whileTap={{ scale: 0.86 }}
                         onClick={(event) => {
                             event.stopPropagation();
-                            onDelete(task.id);
+                            if (isCompleted) onRestore(task.id);
+                            else onComplete(task.id);
                         }}
                         onKeyDown={(event) => {
                             if (event.key !== 'Enter' && event.key !== ' ') return;
                             event.preventDefault();
                             event.stopPropagation();
-                            onDelete(task.id);
+                            if (isCompleted) onRestore(task.id);
+                            else onComplete(task.id);
                         }}
-                        className="p-2 rounded-lg text-sage-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        title="Delete task"
+                        className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                            isCompleted
+                                ? 'border-sage-500 bg-sage-500 text-white'
+                                : 'border-sage-200 bg-white text-sage-500 shadow-sm hover:border-sage-500 hover:bg-sage-500 hover:text-white dark:border-white/10 dark:bg-void-800'
+                        }`}
+                        title={isCompleted ? 'Restore task' : 'Complete task'}
                     >
-                        <Trash2 size={16} />
-                    </button>
-                    {!isCompleted && <ChevronDown size={16} className={`text-sage-400 transition-transform ${isSelected ? 'rotate-180' : ''}`} />}
+                        {isCompleted ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                    </Motion.button>
+
+                    <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <h3 className={`truncate text-base font-extrabold leading-6 text-sage-950 dark:text-bone-100 ${isCompleted ? 'line-through' : ''}`}>
+                                        {task.title || 'Untitled Task'}
+                                    </h3>
+                                    {isSelected && (
+                                        <Motion.span
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className="hidden rounded-full bg-sage-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-sage-700 sm:inline-flex dark:bg-magma-900/40 dark:text-magma-200"
+                                        >
+                                            Open
+                                        </Motion.span>
+                                    )}
+                                </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold">
+                                    {task.subject && (
+                                        <span
+                                            className="rounded-full px-2.5 py-1"
+                                            style={{
+                                                backgroundColor: subjectColor.bgColor,
+                                                color: subjectColor.color
+                                            }}
+                                        >
+                                            {task.subject}
+                                        </span>
+                                    )}
+                                    <span className={`rounded-full px-2.5 py-1 capitalize ${difficultyTone}`}>{task.difficulty || 'easy'}</span>
+                                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${dueMeta.tone}`}>
+                                        <Clock size={12} />
+                                        {dueMeta.label}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-1">
+                                {!isCompleted && onStartFocus && (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onStartFocus(task);
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            onStartFocus(task);
+                                        }}
+                                        className="hidden h-9 w-9 items-center justify-center rounded-xl text-sage-400 transition-colors hover:bg-amber-50 hover:text-amber-600 sm:inline-flex dark:hover:bg-amber-900/20"
+                                        title="Start focus"
+                                    >
+                                        <Play size={16} fill="currentColor" />
+                                    </button>
+                                )}
+                                {!isCompleted && (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onRequestAIHelp(task);
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            onRequestAIHelp(task);
+                                        }}
+                                        className="hidden h-9 w-9 items-center justify-center rounded-xl text-sage-400 transition-colors hover:bg-sky-50 hover:text-sky-600 sm:inline-flex dark:hover:bg-sky-900/20"
+                                        title="Get AI help"
+                                    >
+                                        <Sparkles size={16} />
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onDelete(task.id);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        onDelete(task.id);
+                                    }}
+                                    className="flex h-9 w-9 items-center justify-center rounded-xl text-sage-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20"
+                                    title="Delete task"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                                {!isCompleted && <ChevronDown size={17} className={`text-sage-400 transition-transform ${isSelected ? 'rotate-180' : ''}`} />}
+                            </div>
+                        </div>
+
+                        {subtasks.length > 0 && (
+                            <div className="mt-3 max-w-xl">
+                                <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-sage-500 dark:text-bone-200/60">
+                                    <span>{completedSubtasks}/{subtasks.length} chunks</span>
+                                    <span>{chunkTotalMinutes > 0 ? formatEstimatedTime(chunkTotalMinutes) : `${progress}%`}</span>
+                                </div>
+                                <div className="h-1.5 overflow-hidden rounded-full bg-sage-100 dark:bg-void-800">
+                                    <Motion.div
+                                        className="h-full rounded-full bg-sage-500"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${progress}%` }}
+                                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-        </motion.div>
+        </Motion.div>
     );
 };
 
-const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [], unlockedPlots = 12, coins = 0, onBuyPlot, displayMode, onStartFocus }) => {
+const toDateInputValue = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const toTimeInputValue = (value) => {
+    if (!value) return '09:00';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '09:00';
+    return date.toTimeString().slice(0, 5);
+};
+
+const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [], onStartFocus }) => {
     const [sortBy, setSortBy] = useState('deadline');
     const [showSort, setShowSort] = useState(false);
     const [selectedSubject, setSelectedSubject] = useState('all');
@@ -405,6 +482,15 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
     const [orderedChunks, setOrderedChunks] = useState([]);
     const [expandedChunkIds, setExpandedChunkIds] = useState(() => new Set());
     const [newNestedDrafts, setNewNestedDrafts] = useState({});
+    const [taskDraft, setTaskDraft] = useState({
+        title: '',
+        date: '',
+        time: '09:00',
+        subject: '',
+        difficulty: 'easy'
+    });
+    const [isTaskDraftDirty, setIsTaskDraftDirty] = useState(false);
+    const [isTaskSaving, setIsTaskSaving] = useState(false);
     const sortRef = useRef(null);
 
     const chunkDifficultyOptions = [
@@ -452,6 +538,10 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
     const activeTasks = filteredTasks.filter(isTaskActive);
     const completedTasks = filteredTasks.filter(isTaskCompleted);
     const selectedTask = tasks.find(task => String(task.id) === String(selectedTaskId) && isTaskActive(task));
+    const selectedTaskTitle = selectedTask?.title || '';
+    const selectedTaskDeadline = selectedTask?.deadline || null;
+    const selectedTaskSubject = selectedTask?.subject || '';
+    const selectedTaskDifficulty = selectedTask?.difficulty || 'easy';
     const selectedChunks = normalizeTaskSubtasks(selectedTask?.subtasks);
     const selectedChunkKey = JSON.stringify(selectedChunks);
     const hasMatchingOrderedChunks = orderedChunks.length === selectedChunks.length
@@ -505,6 +595,36 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
     useEffect(() => {
         setOrderedChunks(selectedChunks);
     }, [selectedTask?.id, selectedChunkKey]);
+
+    useEffect(() => {
+        if (!selectedTask) {
+            setTaskDraft({
+                title: '',
+                date: '',
+                time: '09:00',
+                subject: '',
+                difficulty: 'easy'
+            });
+            setIsTaskDraftDirty(false);
+            setIsTaskSaving(false);
+            return;
+        }
+
+        setTaskDraft({
+            title: selectedTaskTitle,
+            date: toDateInputValue(selectedTaskDeadline),
+            time: toTimeInputValue(selectedTaskDeadline),
+            subject: selectedTaskSubject,
+            difficulty: selectedTaskDifficulty
+        });
+        setIsTaskDraftDirty(false);
+        setIsTaskSaving(false);
+    }, [selectedTask?.id, selectedTaskDeadline, selectedTaskDifficulty, selectedTaskSubject, selectedTaskTitle]);
+
+    const updateTaskDraft = (updates) => {
+        setTaskDraft(prev => ({ ...prev, ...updates }));
+        setIsTaskDraftDirty(true);
+    };
 
     const handleSelectTask = (taskId) => {
         setSelectedTaskId(taskId);
@@ -653,6 +773,30 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
         updateSelectedChunks(visibleChunks.filter(chunk => chunk.id !== chunkId));
     };
 
+    const saveTaskDetails = async () => {
+        if (!selectedTask || !taskDraft.title.trim() || isTaskSaving) return;
+
+        const deadline = taskDraft.date
+            ? new Date(`${taskDraft.date}T${taskDraft.time || '09:00'}`).toISOString()
+            : null;
+
+        setIsTaskSaving(true);
+        try {
+            await onUpdateTask(selectedTask.id, {
+                title: taskDraft.title.trim(),
+                deadline,
+                subject: taskDraft.subject.trim() || null,
+                difficulty: taskDraft.difficulty
+            });
+            setIsTaskDraftDirty(false);
+        } catch (error) {
+            console.error('Failed to save task details:', error);
+            alert(error?.message || 'Could not save this task.');
+        } finally {
+            setIsTaskSaving(false);
+        }
+    };
+
     const clearSelectedTask = () => {
         setSelectedTaskId(null);
         setNewChunkTitle('');
@@ -702,20 +846,63 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
             date.getMonth() === today.getMonth() &&
             date.getFullYear() === today.getFullYear();
     }).sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+    const overdueCount = tasks.filter(task => task.deadline && isTaskActive(task) && new Date(task.deadline) < new Date()).length;
+    const chunkedCount = tasks.filter(task => isTaskActive(task) && normalizeTaskSubtasks(task.subtasks).length > 0).length;
 
     return (
-        <div className="w-full flex flex-col lg:flex-row gap-8 lg:gap-16">
+        <div className="w-full">
+            <Motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-5 mx-2 overflow-hidden rounded-[1.75rem] border border-sage-100 bg-white/80 shadow-sm backdrop-blur dark:border-white/10 dark:bg-void-900/70"
+            >
+                <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sage-500">
+                            <Target size={15} />
+                            Today’s task lane
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
+                            <span className="text-4xl font-black leading-none text-sage-950 dark:text-bone-100">{allCount}</span>
+                            <span className="pb-1 text-sm font-bold text-sage-500 dark:text-bone-200/60">active tasks moving</span>
+                        </div>
+                    </div>
+
+                    <div className="grid min-w-0 grid-cols-3 gap-2 sm:w-[23rem]">
+                        <div className="rounded-2xl bg-amber-50 px-3 py-2 text-amber-800 ring-1 ring-amber-100 dark:bg-amber-950/25 dark:text-amber-100 dark:ring-amber-900/30">
+                            <div className="text-[10px] font-black uppercase tracking-wide">Today</div>
+                            <div className="text-xl font-black">{todayTasks.length}</div>
+                        </div>
+                        <div className="rounded-2xl bg-sky-50 px-3 py-2 text-sky-800 ring-1 ring-sky-100 dark:bg-sky-950/25 dark:text-sky-100 dark:ring-sky-900/30">
+                            <div className="text-[10px] font-black uppercase tracking-wide">Chunked</div>
+                            <div className="text-xl font-black">{chunkedCount}</div>
+                        </div>
+                        <div className="rounded-2xl bg-rose-50 px-3 py-2 text-rose-800 ring-1 ring-rose-100 dark:bg-rose-950/25 dark:text-rose-100 dark:ring-rose-900/30">
+                            <div className="text-[10px] font-black uppercase tracking-wide">Late</div>
+                            <div className="text-xl font-black">{overdueCount}</div>
+                        </div>
+                    </div>
+                </div>
+                <div className="h-1 bg-gradient-to-r from-sage-500 via-amber-400 to-sky-500" />
+            </Motion.div>
+
+            <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
             {/* Main Task List */}
-            <div className="flex-1">
-                <div className="mb-6 sm:mb-12">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 sm:mb-6 px-2 gap-3">
+            <div className="min-w-0 flex-1">
+                <div className="mb-6 px-2">
+                    <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
                         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                            <h2 className="text-xl sm:text-2xl font-serif text-sage-600 dark:text-magma-500 drop-shadow-sm dark:drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]">Tasks</h2>
+                            <div>
+                                <h2 className="text-xl sm:text-2xl font-serif text-sage-700 dark:text-bone-100">Task Flow</h2>
+                                <p className="mt-0.5 text-xs font-medium text-sage-500 dark:text-bone-200/60">
+                                    Pick a task, shape the next steps, keep it moving.
+                                </p>
+                            </div>
 
                             <div className="relative z-20" ref={sortRef}>
                                 <button
                                     onClick={() => setShowSort(!showSort)}
-                                    className={`flex items-center gap-1 text-xs font-bold px-2 sm:px-3 py-1.5 rounded-full border transition-all ${showSort ? 'bg-sage-100 dark:bg-void-800 border-sage-500 dark:border-magma-500/50 text-sage-700 dark:text-magma-400' : 'bg-white/50 dark:bg-void-800/50 border-sage-200 dark:border-white/10 text-sage-600 dark:text-bone-200 hover:bg-white/80 dark:hover:bg-void-800'}`}
+                                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all ${showSort ? 'bg-sage-600 border-sage-600 text-white shadow-md' : 'bg-white border-sage-200 text-sage-700 hover:border-sage-300 hover:bg-sage-50 dark:bg-void-800 dark:border-white/10 dark:text-bone-200'}`}
                                 >
                                     <ArrowUpDown size={12} />
                                     <span className="capitalize">{sortBy === 'deadline' ? 'Due Date' : sortBy === 'chunkTime' ? 'Chunk Time' : sortBy}</span>
@@ -724,43 +911,43 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
 
                                 <AnimatePresence>
                                     {showSort && (
-                                        <motion.div
+                                        <Motion.div
                                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            className="absolute top-full left-0 mt-2 w-32 bg-gradient-to-br from-indigo-900/95 to-purple-900/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden z-30"
+                                            className="absolute top-full left-0 mt-2 w-36 overflow-hidden rounded-2xl border border-sage-100 bg-white shadow-2xl z-30 dark:border-white/10 dark:bg-void-900"
                                         >
-                                            <button onClick={() => { setSortBy('deadline'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'deadline' ? 'text-purple-300' : 'text-white/70'}`}>
+                                            <button onClick={() => { setSortBy('deadline'); setShowSort(false); }} className={`w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-sage-50 dark:hover:bg-void-800 ${sortBy === 'deadline' ? 'text-sage-700' : 'text-slate-500 dark:text-bone-300'}`}>
                                                 Due Date
                                             </button>
-                                            <button onClick={() => { setSortBy('difficulty'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'difficulty' ? 'text-purple-300' : 'text-white/70'}`}>
+                                            <button onClick={() => { setSortBy('difficulty'); setShowSort(false); }} className={`w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-sage-50 dark:hover:bg-void-800 ${sortBy === 'difficulty' ? 'text-sage-700' : 'text-slate-500 dark:text-bone-300'}`}>
                                                 Difficulty
                                             </button>
-                                            <button onClick={() => { setSortBy('newest'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'newest' ? 'text-purple-300' : 'text-white/70'}`}>
+                                            <button onClick={() => { setSortBy('newest'); setShowSort(false); }} className={`w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-sage-50 dark:hover:bg-void-800 ${sortBy === 'newest' ? 'text-sage-700' : 'text-slate-500 dark:text-bone-300'}`}>
                                                 Newest
                                             </button>
-                                            <button onClick={() => { setSortBy('chunkTime'); setShowSort(false); }} className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/10 ${sortBy === 'chunkTime' ? 'text-purple-300' : 'text-white/70'}`}>
+                                            <button onClick={() => { setSortBy('chunkTime'); setShowSort(false); }} className={`w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-sage-50 dark:hover:bg-void-800 ${sortBy === 'chunkTime' ? 'text-sage-700' : 'text-slate-500 dark:text-bone-300'}`}>
                                                 Chunk Time
                                             </button>
-                                        </motion.div>
+                                        </Motion.div>
                                     )}
                                 </AnimatePresence>
                             </div>
                         </div>
 
-                        <p className="text-xs text-sage-500 dark:text-bone-200/60 px-2 sm:px-0">
-                            Click a task to open chunks on the right.
-                        </p>
+                        <span className="rounded-full bg-sage-50 px-3 py-1.5 text-xs font-bold text-sage-600 dark:bg-void-800 dark:text-bone-200">
+                            {sortedTasks.length} shown
+                        </span>
                     </div>
 
                     {/* Subject Filter Pills */}
                     {uniqueSubjects.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4 px-2">
+                        <div className="flex flex-wrap gap-2 mb-4 px-1">
                             <button
                                 onClick={() => setSelectedSubject('all')}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${selectedSubject === 'all'
-                                    ? 'bg-sage-600 text-white shadow-md'
-                                    : 'bg-sage-100 text-sage-600 hover:bg-sage-200'
+                                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedSubject === 'all'
+                                    ? 'bg-sage-600 text-white shadow-md shadow-sage-600/20'
+                                    : 'bg-white text-sage-600 ring-1 ring-sage-100 hover:bg-sage-50'
                                     }`}
                             >
                                 All ({allCount})
@@ -769,9 +956,9 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                 <button
                                     key={subject.name}
                                     onClick={() => setSelectedSubject(subject.name)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${selectedSubject === subject.name
-                                        ? 'shadow-md'
-                                        : 'hover:opacity-80'
+                                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedSubject === subject.name
+                                        ? 'shadow-md scale-[1.02]'
+                                        : 'hover:opacity-80 ring-1 ring-white/60'
                                         }`}
                                     style={{
                                         backgroundColor: selectedSubject === subject.name ? subject.color.color : subject.color.bgColor,
@@ -784,7 +971,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                         </div>
                     )}
 
-                    <div className="space-y-2 px-2">
+                    <Motion.div layout className="relative">
                         <AnimatePresence mode="popLayout">
                             {sortedTasks.map(task => (
                                 <TaskListRow
@@ -802,17 +989,17 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                         </AnimatePresence>
 
                         {sortedTasks.length === 0 && (
-                            <div className="rounded-xl border border-dashed border-sage-200 dark:border-white/10 bg-white/60 dark:bg-void-900/60 p-6 text-center text-sm text-sage-500 dark:text-bone-200/60">
+                            <div className="rounded-2xl border border-dashed border-sage-200 bg-white/70 p-8 text-center text-sm font-medium text-sage-500 dark:border-white/10 dark:bg-void-900/60 dark:text-bone-200/60">
                                 No active tasks here.
                             </div>
                         )}
-                    </div>
+                    </Motion.div>
                 </div>
 
                 {completedTasks.length > 0 && (
-                    <div className="border-t border-sage-200 dark:border-white/10 pt-6 sm:pt-8">
-                        <h2 className="text-lg sm:text-xl font-serif text-sage-400 dark:text-bone-200/50 mb-4 pl-2">Completed</h2>
-                        <div className="space-y-2 px-2 opacity-75 hover:opacity-100 transition-opacity">
+                    <div className="rounded-3xl border border-sage-100 bg-white/50 p-3 shadow-sm dark:border-white/10 dark:bg-void-900/40 sm:p-4">
+                        <h2 className="mb-4 pl-1 text-lg font-serif text-sage-500 dark:text-bone-200/60">Completed</h2>
+                        <div className="space-y-3 opacity-75 hover:opacity-100 transition-opacity">
                             {completedTasks.map(task => (
                                 <TaskListRow
                                     key={`completed-${task.id}`}
@@ -832,42 +1019,125 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
             </div>
 
             {/* Task Chunking / Daily Schedule Sidebar */}
-            <div className="w-full lg:w-[26rem] shrink-0 order-first lg:order-last">
-                <div className="lg:sticky lg:top-8">
+            <div className="w-full lg:w-[28rem] shrink-0 order-first lg:order-last">
+                <div className="lg:sticky lg:top-6">
+                    <AnimatePresence mode="wait">
                     {selectedTask ? (
-                        <div className="rounded-2xl bg-white/80 dark:bg-void-900/80 border border-sage-200 dark:border-white/10 shadow-xl overflow-hidden">
-                            <div className="p-5 border-b border-sage-100 dark:border-white/10">
+                        <Motion.div
+                            key="selected-task"
+                            initial={{ opacity: 0, x: 24, scale: 0.98 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 16, scale: 0.98 }}
+                            transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+                            className="overflow-hidden rounded-[2rem] border border-sage-100 bg-white/90 shadow-xl shadow-sage-900/5 backdrop-blur dark:border-white/10 dark:bg-void-900/90"
+                        >
+                            <div className="border-b border-sage-100 bg-sage-50/75 p-5 dark:border-white/10 dark:bg-void-800/45">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-xs font-bold uppercase text-sage-400 dark:text-bone-200/50 tracking-wide">Selected Task</p>
-                                        <h3 className="text-xl font-bold text-sage-800 dark:text-bone-100 leading-tight mt-1 break-words">
-                                            {selectedTask.title || 'Untitled Task'}
-                                        </h3>
+                                        <p className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-black uppercase tracking-wide text-sage-500 ring-1 ring-sage-100 dark:bg-void-900 dark:ring-white/10">
+                                            <Target size={12} />
+                                            Selected task
+                                        </p>
+                                        <input
+                                            type="text"
+                                            value={taskDraft.title}
+                                            onChange={(event) => updateTaskDraft({ title: event.target.value })}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    saveTaskDetails();
+                                                }
+                                            }}
+                                            className="mt-3 w-full rounded-xl border border-transparent bg-transparent px-0 py-1 text-2xl font-black leading-tight text-sage-900 outline-none transition focus:border-sage-200 focus:bg-white/80 focus:px-3 focus:ring-2 focus:ring-sage-300 dark:text-bone-100 dark:focus:border-white/10 dark:focus:bg-void-800"
+                                            placeholder="Task name"
+                                        />
                                     </div>
                                     <button
                                         onClick={clearSelectedTask}
-                                        className="p-2 rounded-lg text-sage-400 hover:text-sage-700 hover:bg-sage-100 dark:hover:bg-void-800 dark:hover:text-bone-200 transition-colors"
+                                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sage-400 shadow-sm ring-1 ring-sage-100 transition-colors hover:text-sage-700 dark:bg-void-900 dark:ring-white/10 dark:hover:text-bone-200"
                                         title="Back to schedule"
                                     >
                                         <X size={18} />
                                     </button>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2 mt-4 text-xs font-bold">
-                                    {selectedTask.subject && (
-                                        <span
-                                            className="px-2.5 py-1 rounded-full"
-                                            style={{
-                                                backgroundColor: getColorForSubject(selectedTask.subject).bgColor,
-                                                color: getColorForSubject(selectedTask.subject).color
-                                            }}
+                                <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-sage-400 dark:text-bone-200/50">
+                                            Due date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={taskDraft.date}
+                                            onChange={(event) => updateTaskDraft({ date: event.target.value })}
+                                            className="w-full border-b border-sage-200 bg-transparent px-0 py-2 text-sm font-bold text-sage-900 outline-none transition focus:border-sage-500 dark:border-white/10 dark:text-bone-100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-sage-400 dark:text-bone-200/50">
+                                            Time
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={taskDraft.time}
+                                            onChange={(event) => updateTaskDraft({ time: event.target.value })}
+                                            disabled={!taskDraft.date}
+                                            className="w-full border-b border-sage-200 bg-transparent px-0 py-2 text-sm font-bold text-sage-900 outline-none transition focus:border-sage-500 disabled:opacity-50 dark:border-white/10 dark:text-bone-100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-sage-400 dark:text-bone-200/50">
+                                            Tag
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={taskDraft.subject}
+                                            onChange={(event) => updateTaskDraft({ subject: event.target.value })}
+                                            list="garden-task-tags"
+                                            className="w-full border-b border-sage-200 bg-transparent px-0 py-2 text-sm font-bold text-sage-900 outline-none transition placeholder:text-sage-400 focus:border-sage-500 dark:border-white/10 dark:text-bone-100"
+                                            placeholder="Tag"
+                                        />
+                                        <datalist id="garden-task-tags">
+                                            {existingSubjects.map(subject => (
+                                                <option key={subject} value={subject} />
+                                            ))}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-sage-400 dark:text-bone-200/50">
+                                            Difficulty
+                                        </label>
+                                        <select
+                                            value={taskDraft.difficulty}
+                                            onChange={(event) => updateTaskDraft({ difficulty: event.target.value })}
+                                            className="w-full border-b border-sage-200 bg-transparent px-0 py-2 text-sm font-bold capitalize text-sage-900 outline-none transition focus:border-sage-500 dark:border-white/10 dark:text-bone-100"
                                         >
-                                            {selectedTask.subject}
-                                        </span>
+                                            <option value="easy">Easy</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="hard">Hard</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold">
+                                    <button
+                                        type="button"
+                                        onClick={saveTaskDetails}
+                                        disabled={!isTaskDraftDirty || !taskDraft.title.trim() || isTaskSaving}
+                                        className="inline-flex items-center gap-1.5 rounded-xl bg-sage-600 px-3.5 py-2.5 text-white transition-colors hover:bg-sage-700 disabled:cursor-not-allowed disabled:opacity-45"
+                                    >
+                                        <Save size={14} />
+                                        {isTaskSaving ? 'Saving...' : 'Save details'}
+                                    </button>
+                                    {taskDraft.date && (
+                                        <button
+                                            type="button"
+                                            onClick={() => updateTaskDraft({ date: '', time: '09:00' })}
+                                            className="rounded-xl px-3 py-2.5 text-sage-500 transition-colors hover:bg-white hover:text-sage-700 dark:text-bone-300 dark:hover:bg-void-800"
+                                        >
+                                            Clear due date
+                                        </button>
                                     )}
-                                    <span className="px-2.5 py-1 rounded-full bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 capitalize">
-                                        {selectedTask.difficulty}
-                                    </span>
                                     {chunkTotalMinutes > 0 && (
                                         <span className="px-2.5 py-1 rounded-full bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 inline-flex items-center gap-1">
                                             <Clock size={12} />
@@ -880,7 +1150,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                             <div className="p-5">
                                 <div className="flex items-center justify-between gap-3 mb-4">
                                     <div>
-                                        <h4 className="text-lg font-bold text-sage-800 dark:text-bone-100">Task Chunks</h4>
+                                        <h4 className="text-lg font-black text-sage-900 dark:text-bone-100">Task Chunks</h4>
                                         <p className="text-sm text-sage-500 dark:text-bone-200/60">
                                             {selectedChunks.length > 0
                                                 ? `${completedChunks}/${selectedChunks.length} done${chunkTotalMinutes > 0 ? ` - ${formatEstimatedTime(chunkTotalMinutes)} total` : ''}`
@@ -889,7 +1159,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                     </div>
                                     <button
                                         onClick={() => onCompleteTask(selectedTask.id)}
-                                        className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sage-600 hover:bg-sage-700 text-white text-sm font-bold transition-colors"
+                                        className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-sage-600 hover:bg-sage-700 text-white text-sm font-bold transition-colors shadow-md shadow-sage-600/20"
                                     >
                                         <CheckCircle2 size={16} />
                                         Done
@@ -931,7 +1201,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                     })}
                                 </Reorder.Group>
 
-                                <div className={`relative mt-4 rounded-xl border p-3 ${getChunkDifficultyStyle(newChunkDifficulty).panel}`}>
+                                <div className={`relative mt-4 rounded-2xl border p-3 ${getChunkDifficultyStyle(newChunkDifficulty).panel}`}>
                                     <div className="grid grid-cols-[1fr_4.5rem_auto_auto] gap-2 items-center">
                                         <input
                                             type="text"
@@ -1003,19 +1273,27 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Motion.div>
                     ) : (
-                        <>
-                            <h3 className="text-lg sm:text-xl font-serif font-bold text-sage-600 dark:text-magma-500 mb-3 sm:mb-4 flex items-center gap-2">
-                                <span className="text-xl sm:text-2xl">📅</span> Today's Schedule
+                        <Motion.div
+                            key="today-panel"
+                            initial={{ opacity: 0, x: 24, scale: 0.98 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 16, scale: 0.98 }}
+                            transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+                            className="rounded-3xl border border-sage-100 bg-white/80 p-4 shadow-lg shadow-sage-900/5 backdrop-blur dark:border-white/10 dark:bg-void-900/80"
+                        >
+                            <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-sage-800 dark:text-bone-100">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-1 ring-amber-100 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900/30">
+                                    <CalendarDays size={18} />
+                                </span>
+                                Today's Schedule
                             </h3>
 
                             <div className="space-y-3">
                                 {todayTasks.length === 0 ? (
-                                    <div className="p-4 sm:p-6 text-center bg-gradient-to-br from-purple-500/20 to-indigo-600/20 backdrop-blur-sm border border-purple-400/30 rounded-xl text-purple-200/80 italic text-sm sm:text-base">
+                                    <div className="rounded-2xl border border-dashed border-sage-200 bg-sage-50/70 p-6 text-center text-sm font-medium text-sage-500 dark:border-white/10 dark:bg-void-800/60 dark:text-bone-200/60">
                                         No tasks scheduled for today.
-                                        <br />
-                                        <span className="text-sm">Enjoy your freedom!</span>
                                     </div>
                                 ) : (
                                     todayTasks.map(task => {
@@ -1024,30 +1302,32 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                         const taskChunkMinutes = getTaskChunkEstimate(task);
 
                                         return (
-                                            <div
+                                            <Motion.div
                                                 key={task.id}
-                                                className="p-3 rounded-xl border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+                                                whileHover={{ y: -2, scale: 1.01 }}
+                                                whileTap={{ scale: 0.99 }}
+                                                className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/70 p-3 shadow-sm transition-shadow hover:shadow-md dark:border-white/10"
                                                 style={{
                                                     backgroundColor: subjectColor.bgColor,
-                                                    borderLeftColor: subjectColor.color
+                                                    boxShadow: `inset 4px 0 0 ${subjectColor.color}`
                                                 }}
                                                 onClick={() => handleSelectTask(task.id)}
                                             >
-                                                <div className="flex justify-between items-start mb-1">
+                                                <div className="mb-2 flex justify-between items-start gap-3">
                                                     <span
-                                                        className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/20"
+                                                        className="rounded-full bg-white/70 px-2.5 py-1 text-xs font-black dark:bg-black/20"
                                                         style={{ color: subjectColor.color }}
                                                     >
-                                                        {task.subject}
+                                                        {task.subject || 'Task'}
                                                     </span>
-                                                    <span className="text-xs font-medium opacity-70" style={{ color: subjectColor.color }}>
+                                                    <span className="text-xs font-black opacity-70" style={{ color: subjectColor.color }}>
                                                         {time}
                                                     </span>
                                                 </div>
-                                                <h4 className="font-bold text-sm mb-1 text-ink-800 dark:text-ink-800 line-clamp-2">
+                                                <h4 className="mb-2 line-clamp-2 text-sm font-black text-ink-800 dark:text-ink-800">
                                                     {task.title}
                                                 </h4>
-                                                <div className="flex items-center gap-2 text-xs opacity-80 text-ink-500">
+                                                <div className="flex items-center gap-2 text-xs font-bold opacity-80 text-ink-500">
                                                     <span className="capitalize">{task.difficulty}</span>
                                                     {task.status === 'growing' && <span>In Progress</span>}
                                                     {taskChunkMinutes > 0 && (
@@ -1056,19 +1336,21 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                                         </span>
                                                     )}
                                                 </div>
-                                            </div>
+                                            </Motion.div>
                                         );
                                     })
                                 )}
                                 {activeTasks.length > 0 && (
-                                    <p className="text-xs text-sage-500 dark:text-bone-200/60 text-center px-2">
+                                    <p className="px-2 text-center text-xs font-medium text-sage-500 dark:text-bone-200/60">
                                         Click any task to open chunking here.
                                     </p>
                                 )}
                             </div>
-                        </>
+                        </Motion.div>
                     )}
+                    </AnimatePresence>
                 </div>
+            </div>
             </div>
         </div>
     );

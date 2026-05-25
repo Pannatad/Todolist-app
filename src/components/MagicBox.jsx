@@ -244,18 +244,18 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
     };
 
     return (
-        <div className="mx-auto w-full max-w-2xl">
+        <div className="mx-auto w-full max-w-2xl min-w-0">
             {/* Main Search Bar */}
             <form onSubmit={handleSubmit} className="relative">
-                <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+                <div className="relative min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                     {/* Gradient accent line at top */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${isListening
                         ? 'bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 animate-pulse'
                         : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'}`}></div>
 
-                    <div className="flex items-center p-3 pt-4">
+                    <div className="flex min-w-0 items-center p-2.5 pt-4 sm:p-3 sm:pt-4">
                         {/* Magic Icon */}
-                        <div className="flex-shrink-0 mr-3 sm:mr-4">
+                        <div className="mr-2 flex-shrink-0 sm:mr-4">
                             <Motion.div
                                 animate={{
                                     rotate: isLoading ? 360 : 0,
@@ -281,9 +281,9 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={isListening ? "Listening..." : "What would you like to do today?"}
+                            placeholder={isListening ? "Listening..." : "Ask your agent..."}
                             disabled={isLoading}
-                            className="min-w-0 flex-1 border-none bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400 focus:ring-0 disabled:opacity-50"
+                            className="min-w-0 flex-1 border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:ring-0 disabled:opacity-50 sm:text-base"
                         />
 
                         {/* Voice Input Button - Only show if supported */}
@@ -292,7 +292,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                                 type="button"
                                 onClick={toggleListening}
                                 disabled={isLoading}
-                                className={`ml-2 flex-shrink-0 touch-manipulation rounded-xl p-2.5 transition-colors active:scale-95 ${isListening
+                                className={`ml-1.5 flex-shrink-0 touch-manipulation rounded-xl p-2 transition-colors active:scale-95 sm:ml-2 sm:p-2.5 ${isListening
                                     ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
                                     : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                                     }`}
@@ -307,7 +307,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                         <button
                             type="submit"
                             disabled={!input.trim() || isLoading}
-                            className="ml-2 flex-shrink-0 touch-manipulation rounded-xl bg-indigo-600 p-2.5 text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            className="ml-1.5 flex-shrink-0 touch-manipulation rounded-xl bg-indigo-600 p-2 text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300 sm:ml-2 sm:p-2.5"
                             aria-label="Send"
                         >
                             <Send size={18} />
@@ -317,8 +317,8 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
             </form>
 
             {/* Animated Personalized Suggestions */}
-            <div className="mt-2 text-center">
-                <span className="text-gray-500 text-sm">Try: </span>
+            <div className="mt-2 min-w-0 text-center">
+                <span className="text-sm text-gray-500">Try: </span>
                 <AnimatePresence mode="wait">
                     <Motion.button
                         key={currentExampleIndex}
@@ -327,7 +327,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
                         onClick={handleExampleClick}
-                        className="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        className="max-w-full cursor-pointer break-words text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                     >
                         "{personalizedPrompts[currentExampleIndex] || FALLBACK_PROMPTS[0]}"
                     </Motion.button>

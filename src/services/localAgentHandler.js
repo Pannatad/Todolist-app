@@ -13,6 +13,9 @@ const AI_REQUIRED_PATTERNS = [
     /best way|better|improve/i
 ];
 
+const SCHEDULE_READ_PATTERN = /^(?!.*\b(?:add|create|book|block|put|set up|make|new)\b)(?=.*\b(?:schedule|calendar|agenda|events?|plans?)\b)(?=.*\b(?:show|list|view|tell|check|what(?:'s|s| is)?|when|anything|do i have|have i got|what do i have|can you show|could you show)\b).*/i;
+const TODAY_SCHEDULE_READ_PATTERN = /^(?!.*\b(?:add|create|book|block|put|set up|make|new)\b)(?=.*\b(?:today|tonight|this morning|this afternoon|this evening|right now)\b)(?=.*\b(?:schedule|calendar|agenda|events?|plans?|anything|do i have|what do i have|what(?:'s|s)? on)\b).*/i;
+
 // Simple data queries that can be handled locally
 // These must be EXACT data display requests, not analytical questions
 const LOCAL_PATTERNS = {
@@ -21,7 +24,8 @@ const LOCAL_PATTERNS = {
     // Count queries
     taskCount: /^how many (?:pending\s*)?tasks|^task count$|^(?:show\s*)?pending tasks$/i,
     // Explicit schedule display
-    scheduleQuery: /^(?:show|what(?:'s|s)?)\s*(?:my|the|on)?\s*schedule(?:\s*today)?$/i,
+    scheduleQuery: SCHEDULE_READ_PATTERN,
+    todayScheduleQuery: TODAY_SCHEDULE_READ_PATTERN,
     // Habit status
     habitQuery: /^(?:show\s*)?(?:my\s*)?(?:incomplete\s*)?habits?(?:\s*left|\s*today|\s*to complete)?$/i,
     // Project status
@@ -35,6 +39,12 @@ const LOCAL_PATTERNS = {
  */
 export const canHandleLocally = (input) => {
     const trimmed = input.trim();
+
+    // Read-only data questions should stay deterministic even when phrased politely
+    // ("can you show...") so the LLM does not mistake "schedule" as a create verb.
+    if (SCHEDULE_READ_PATTERN.test(trimmed) || TODAY_SCHEDULE_READ_PATTERN.test(trimmed)) {
+        return 'scheduleQuery';
+    }
 
     // FIRST: Check if this needs AI reasoning - if so, don't handle locally
     for (const exclusion of AI_REQUIRED_PATTERNS) {
@@ -61,7 +71,7 @@ export const canHandleLocally = (input) => {
  * @returns {object} - Response in the same format as routeAgentCommand
  */
 export const generateLocalResponse = (patternType, context) => {
-    const { recentTasks = [], tasksDueToday = [], recentSchedule = [], habits = [], dailyHighlights = [], projects = [] } = context;
+    const { recentTasks = [], tasksDueToday = [], recentSchedule = [], habits = [], projects = [] } = context;
 
     const today = new Date().toLocaleDateString('en-US', {
         weekday: 'long',
@@ -153,9 +163,18 @@ ${highlightItems || 'No daily highlights set for today'}`;
  * Generate schedule-only response
  */
 const generateScheduleResponse = (schedule, today) => {
-    const scheduleItems = schedule.slice(0, 8).map(s => {
-        const time = new Date(s.displayTime || s.startTime || s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        return `• "${s.title}" at ${time}${s.isRecurring ? ' (recurring)' : ''}`;
+    const now = new Date();
+    const todayKey = now.toDateString();
+    const todaysSchedule = schedule
+        .filter(s => new Date(s.displayTime || s.startTime || s.start_time).toDateString() === todayKey)
+        .sort((a, b) => new Date(a.displayTime || a.startTime || a.start_time) - new Date(b.displayTime || b.startTime || b.start_time));
+
+    const scheduleItems = todaysSchedule.slice(0, 8).map(s => {
+        const eventTime = new Date(s.displayTime || s.startTime || s.start_time);
+        const time = eventTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const duration = s.duration ? ` (${s.duration} min)` : '';
+        const passed = eventTime < now ? ' (passed)' : '';
+        return `• "${s.title}" at ${time}${duration}${passed}${s.isRecurring ? ' (recurring)' : ''}`;
     }).join('\n');
 
     return {

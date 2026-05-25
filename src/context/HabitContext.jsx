@@ -30,6 +30,26 @@ const normalizeHabit = (habit) => ({
     bestStreak: Number(habit?.bestStreak) || 0,
 });
 
+const toHabitDbPayload = (habit) => ({
+    user_id: habit.user_id,
+    name: habit.name,
+    icon: habit.icon,
+    type: habit.type,
+    target: habit.target,
+    frequency: habit.frequency,
+    schedule_days: habit.schedule_days,
+    time_of_day: habit.time_of_day,
+    color: habit.color,
+    reminder_time: habit.reminder_time,
+    archived: habit.archived,
+    created_at: habit.created_at,
+    is_seed: habit.is_seed,
+    seed_started_at: habit.seed_started_at,
+    seed_duration_days: habit.seed_duration_days,
+    seed_why: habit.seed_why,
+    seed_stage: habit.seed_stage,
+});
+
 const normalizeHabitLog = (log) => ({
     ...log,
     notes: log?.notes || '',
@@ -310,8 +330,7 @@ export const HabitProvider = ({ children }) => {
         if (!user) return normalizeHabit(newHabit);
 
         try {
-            const dbHabit = { ...newHabit };
-            delete dbHabit.id;
+            const dbHabit = toHabitDbPayload(newHabit);
 
             const { data, error } = await supabase
                 .from('habits')
@@ -344,7 +363,10 @@ export const HabitProvider = ({ children }) => {
         if (!user) return nextHabit;
 
         try {
-            const { error } = await supabase.from('habits').update(updates).eq('id', id);
+            const { error } = await supabase
+                .from('habits')
+                .update(toHabitDbPayload(nextHabit))
+                .eq('id', id);
             if (error) throw error;
             return nextHabit;
         } catch (error) {

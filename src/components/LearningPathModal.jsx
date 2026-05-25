@@ -5,14 +5,14 @@ import { X, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
 const EMOJI_OPTIONS = ['📚', '🧠', '💻', '🎨', '🎵', '🌍', '🔬', '📐', '✍️', '🏋️', '🗣️', '📊', '🎯', '🚀', '⚡', '💡', '🔮', '🌟'];
 
 const COLOR_OPTIONS = [
-    { name: 'purple', gradient: 'from-purple-500 to-indigo-600', bg: 'bg-purple-500' },
-    { name: 'blue', gradient: 'from-blue-500 to-cyan-600', bg: 'bg-blue-500' },
-    { name: 'teal', gradient: 'from-teal-500 to-emerald-600', bg: 'bg-teal-500' },
-    { name: 'emerald', gradient: 'from-emerald-500 to-green-600', bg: 'bg-emerald-500' },
-    { name: 'amber', gradient: 'from-amber-500 to-orange-600', bg: 'bg-amber-500' },
-    { name: 'pink', gradient: 'from-pink-500 to-rose-600', bg: 'bg-pink-500' },
-    { name: 'red', gradient: 'from-red-500 to-rose-600', bg: 'bg-red-500' },
-    { name: 'indigo', gradient: 'from-indigo-500 to-violet-600', bg: 'bg-indigo-500' },
+    { name: 'purple', gradient: 'from-violet-500 to-indigo-500', bg: 'bg-violet-500', soft: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
+    { name: 'blue', gradient: 'from-sky-500 to-blue-500', bg: 'bg-sky-500', soft: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
+    { name: 'teal', gradient: 'from-teal-500 to-cyan-500', bg: 'bg-teal-500', soft: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
+    { name: 'emerald', gradient: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-500', soft: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    { name: 'amber', gradient: 'from-amber-400 to-orange-500', bg: 'bg-amber-500', soft: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    { name: 'pink', gradient: 'from-pink-500 to-rose-500', bg: 'bg-pink-500', soft: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+    { name: 'red', gradient: 'from-rose-500 to-red-500', bg: 'bg-rose-500', soft: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+    { name: 'indigo', gradient: 'from-indigo-500 to-slate-600', bg: 'bg-indigo-500', soft: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
 ];
 
 const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCategories = [] }) => {
