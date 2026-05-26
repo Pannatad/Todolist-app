@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
 const FocusContext = createContext();
 
@@ -198,11 +199,14 @@ export const FocusProvider = ({ children }) => {
         const days = [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const monday = new Date(today);
+        const daysSinceMonday = (today.getDay() + 6) % 7;
+        monday.setDate(today.getDate() - daysSinceMonday);
 
-        for (let index = 6; index >= 0; index -= 1) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - index);
-            const key = date.toISOString().slice(0, 10);
+        for (let index = 0; index < 7; index += 1) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + index);
+            const key = toLocalDateKey(date);
             days.push({
                 key,
                 label: date.toLocaleDateString([], { weekday: 'short' }),
@@ -213,7 +217,7 @@ export const FocusProvider = ({ children }) => {
         const dayMap = Object.fromEntries(days.map((day) => [day.key, day]));
         transactions.forEach((transaction) => {
             if (transaction.points <= 0) return;
-            const key = new Date(transaction.created_at).toISOString().slice(0, 10);
+            const key = toLocalDateKey(transaction.created_at);
             if (dayMap[key]) dayMap[key].points += transaction.points;
         });
 

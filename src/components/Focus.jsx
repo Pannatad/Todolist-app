@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
     Archive,
-    BookOpen,
+    BadgeCheck,
+    BookMarked,
     Check,
-    Dumbbell,
+    Crosshair,
+    Footprints,
     Gift,
     History,
     PackageCheck,
@@ -25,10 +27,10 @@ const popMotion = 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64
 const inputClass = `w-full rounded-2xl border-2 border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:shadow-[4px_4px_0_#8B5CF6] dark:border-white/10 dark:bg-void-800 dark:text-bone-100`;
 
 const sessionTypes = [
-    { id: 'Focus', label: 'Focus', icon: Target, tint: 'bg-violet-100 text-violet-900', shape: 'rounded-full' },
-    { id: 'Reading', label: 'Read', icon: BookOpen, tint: 'bg-sky-100 text-sky-900', shape: 'rounded-t-full rounded-b-2xl' },
-    { id: 'Workout', label: 'Move', icon: Dumbbell, tint: 'bg-amber-100 text-amber-950', shape: 'rounded-[18px]' },
-    { id: 'Good habit', label: 'Habit', icon: Sparkles, tint: 'bg-rose-100 text-rose-900', shape: 'rounded-tl-3xl rounded-tr-xl rounded-br-3xl rounded-bl-xl' },
+    { id: 'Focus', label: 'Focus', icon: Crosshair, tint: 'bg-violet-100 text-violet-900', iconBg: 'bg-violet-500 text-white', shape: 'rounded-full' },
+    { id: 'Reading', label: 'Read', icon: BookMarked, tint: 'bg-sky-100 text-sky-900', iconBg: 'bg-sky-300 text-slate-950', shape: 'rounded-t-full rounded-b-2xl' },
+    { id: 'Workout', label: 'Move', icon: Footprints, tint: 'bg-amber-100 text-amber-950', iconBg: 'bg-amber-300 text-slate-950', shape: 'rounded-[18px]' },
+    { id: 'Good habit', label: 'Habit', icon: BadgeCheck, tint: 'bg-rose-100 text-rose-900', iconBg: 'bg-rose-400 text-white', shape: 'rounded-tl-3xl rounded-tr-xl rounded-br-3xl rounded-bl-xl' },
 ];
 
 const rewardColors = [
@@ -124,6 +126,12 @@ const Focus = () => {
 
     const recentTransactions = useMemo(() => transactions.slice(0, 8), [transactions]);
     const recentSessions = useMemo(() => sessions.slice(0, 5), [sessions]);
+    const sortedRewards = useMemo(() => (
+        [...activeRewards].sort((left, right) => {
+            if (right.cost_points !== left.cost_points) return right.cost_points - left.cost_points;
+            return new Date(left.created_at || 0) - new Date(right.created_at || 0);
+        })
+    ), [activeRewards]);
 
     const handleSessionSubmit = async (event) => {
         event.preventDefault();
@@ -190,27 +198,27 @@ const Focus = () => {
     };
 
     return (
-        <div className="relative isolate mx-auto w-full max-w-6xl text-left">
+        <div className="relative isolate mx-auto w-full max-w-6xl pb-24 text-left">
             <div className="pointer-events-none absolute -left-5 top-12 hidden h-16 w-16 rounded-full bg-rose-300 lg:block" />
             <div className="pointer-events-none absolute right-4 top-44 hidden h-20 w-20 rotate-12 bg-[linear-gradient(135deg,#FBBF24_25%,transparent_25%,transparent_50%,#FBBF24_50%,#FBBF24_75%,transparent_75%)] bg-[length:16px_16px] lg:block" />
             <div className="pointer-events-none absolute -right-8 top-8 hidden h-28 w-28 rounded-t-full rounded-b-none bg-emerald-300/70 lg:block" />
 
             <section className={`relative isolate overflow-hidden rounded-[30px] bg-[#fffdf5] p-4 ${inkBorder} ${popShadow} dark:bg-void-900 sm:p-5`}>
                 <div className="absolute inset-0 -z-10 opacity-60 [background-image:radial-gradient(#CBD5E1_1.2px,transparent_1.2px)] [background-size:18px_18px]" />
-                <div className="absolute left-5 top-5 h-9 w-9 rotate-45 bg-violet-300" />
-                <div className="absolute right-8 top-8 h-8 w-8 rounded-full bg-rose-300" />
-                <div className="absolute bottom-6 right-24 h-7 w-12 rounded-full bg-amber-300" />
+                <div className="pointer-events-none absolute left-5 top-5 z-0 h-9 w-9 rotate-45 bg-violet-300 opacity-70" />
+                <div className="pointer-events-none absolute right-8 top-8 z-0 h-8 w-8 rounded-full bg-rose-300 opacity-70" />
+                <div className="pointer-events-none absolute bottom-6 right-24 z-0 hidden h-7 w-12 rounded-full bg-amber-300 opacity-70 lg:block" />
 
-                <div className="grid gap-4 lg:grid-cols-[1.16fr_0.84fr] lg:items-stretch">
+                <div className="relative z-10 grid gap-4 xl:grid-cols-[1.16fr_0.84fr] xl:items-stretch">
                     <div className="relative min-w-0 rounded-t-[26px] rounded-br-[26px] rounded-bl-none border-2 border-slate-800 bg-white/90 p-4 dark:border-bone-200/70 dark:bg-void-800/90">
                         <div className="inline-flex rotate-[-1deg] items-center gap-2 rounded-full border-2 border-slate-800 bg-violet-500 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-white dark:border-bone-200/70">
                             <Sparkles size={14} strokeWidth={2.7} />
                             Focus Arcade
                         </div>
-                        <h1 className="mt-3 max-w-2xl text-2xl font-black leading-tight text-slate-950 dark:text-bone-100 sm:text-3xl">
+                        <h1 className="mt-3 max-w-2xl break-words text-2xl font-black leading-tight text-slate-950 dark:text-bone-100 sm:text-3xl">
                             Trade good sessions for tiny prizes.
                         </h1>
-                        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-bone-200/70">
+                        <p className="mt-2 max-w-2xl break-words text-sm font-medium leading-6 text-slate-600 dark:text-bone-200/70">
                             Stamp a 25-minute block for 1 point, or a 50-minute block for 2. Reading, workouts, walks, errands, deep work - all welcome.
                         </p>
 
@@ -224,28 +232,29 @@ const Focus = () => {
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className={`relative overflow-hidden rounded-[24px] bg-emerald-100 p-4 text-emerald-950 ${inkBorder} ${softPopShadow}`}>
-                            <div className="absolute -right-4 -top-4 h-14 w-14 rounded-full bg-emerald-300" />
-                            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em]">
+                            <div className="pointer-events-none absolute -right-4 -top-4 z-0 h-14 w-14 rounded-full bg-emerald-300/80" />
+                            <div className="relative z-10 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em]">
                                 <IconBadge className="h-8 w-8 rounded-full bg-emerald-400 text-slate-900">
                                     <WalletCards size={15} strokeWidth={2.7} />
                                 </IconBadge>
                                 Pocket
                             </div>
-                            <div className="mt-3 text-4xl font-black leading-none">{balance}</div>
-                            <div className="mt-1 text-xs font-black opacity-70">spendable</div>
+                            <div className="relative z-10 mt-3 text-4xl font-black leading-none">{balance}</div>
+                            <div className="relative z-10 mt-1 text-xs font-black opacity-70">spendable</div>
                         </div>
-                        <div className={`relative overflow-hidden rounded-t-full rounded-b-[24px] bg-amber-100 p-4 pt-7 text-amber-950 ${inkBorder} ${softPopShadow}`}>
-                            <div className="absolute left-3 top-3 h-4 w-4 rotate-45 bg-rose-300" />
-                            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em]">
+                        <div className={`relative min-h-36 overflow-hidden rounded-[24px] bg-amber-100 p-4 text-amber-950 ${inkBorder} ${softPopShadow}`}>
+                            <div className="pointer-events-none absolute -right-8 -top-10 z-0 h-24 w-24 rounded-full border-2 border-slate-800 bg-amber-200/70 dark:border-bone-200/70" />
+                            <div className="pointer-events-none absolute left-3 top-3 z-0 h-4 w-4 rotate-45 bg-rose-300" />
+                            <div className="relative z-10 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em]">
                                 <IconBadge className="h-8 w-8 rounded-full bg-amber-300 text-slate-900">
                                     <Trophy size={15} strokeWidth={2.7} />
                                 </IconBadge>
                                 Earned
                             </div>
-                            <div className="mt-3 text-4xl font-black leading-none">{lifetimeSessionPoints}</div>
-                            <div className="mt-1 text-xs font-black opacity-70">lifetime</div>
+                            <div className="relative z-10 mt-3 text-4xl font-black leading-none">{lifetimeSessionPoints}</div>
+                            <div className="relative z-10 mt-1 text-xs font-black opacity-70">lifetime</div>
                         </div>
-                        <div className={`col-span-2 rounded-[24px] bg-white p-3 text-slate-900 ${inkBorder} ${softPopShadow} dark:bg-void-800 dark:text-bone-100`}>
+                        <div className={`col-span-2 rounded-[24px] bg-white p-3 pr-16 text-slate-900 sm:pr-3 ${inkBorder} ${softPopShadow} dark:bg-void-800 dark:text-bone-100`}>
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex min-w-0 items-center gap-2 text-sm font-black">
                                     <IconBadge className="h-8 w-8 rounded-[14px] bg-rose-400 text-white">
@@ -255,11 +264,11 @@ const Focus = () => {
                                 </div>
                                 <span className="rounded-full border-2 border-slate-800 bg-amber-300 px-2 py-1 text-xs font-black text-slate-950">+{milestoneBonus}</span>
                             </div>
-                            <div className="mt-3 grid grid-cols-10 gap-1">
+                            <div className="mt-3 grid grid-cols-10 place-items-center gap-1 overflow-hidden py-1">
                                 {punchSlots.map((slot) => (
                                     <div
                                         key={slot}
-                                        className={`aspect-square rounded-full border-2 border-slate-800 ${
+                                        className={`aspect-square w-full max-w-9 rounded-full border-2 border-slate-800 sm:max-w-11 ${
                                             slot < filledPunchSlots ? 'bg-violet-500' : 'bg-slate-100 dark:bg-void-700'
                                         }`}
                                     />
@@ -299,8 +308,12 @@ const Focus = () => {
                                             : 'rounded-2xl bg-slate-50 text-slate-500 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:bg-amber-100 hover:text-slate-900 dark:bg-void-800 dark:text-bone-200/70'
                                     }`}
                                 >
-                                    <type.icon size={17} strokeWidth={2.7} />
-                                    {type.label}
+                                    <span className={`grid h-8 w-8 place-items-center border-2 border-slate-800 ${type.iconBg} ${
+                                        sessionForm.sessionType === type.id ? 'rounded-full' : 'rounded-xl'
+                                    }`}>
+                                        <type.icon size={16} strokeWidth={2.8} />
+                                    </span>
+                                    <span>{type.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -457,7 +470,7 @@ const Focus = () => {
                                 The shelf is empty. Add one tiny prize.
                             </div>
                         )}
-                        {activeRewards.map((reward, index) => {
+                        {sortedRewards.map((reward, index) => {
                             const color = getRewardColor(reward.color);
                             return (
                                 <div

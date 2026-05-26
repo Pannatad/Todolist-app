@@ -32,6 +32,11 @@ const REFLECTION_TAGS = {
     missed: ['forgot', 'busy', 'low energy', 'too hard'],
 };
 
+const inkBorder = 'border-2 border-slate-800 dark:border-bone-200/70';
+const popShadow = 'shadow-[4px_4px_0_#1E293B] dark:shadow-[4px_4px_0_rgba(255,255,255,0.24)]';
+const softPopShadow = 'shadow-[6px_6px_0_#E2E8F0] dark:shadow-[6px_6px_0_rgba(255,255,255,0.10)]';
+const popMotion = 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
+
 const TodayHabits = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingHabit, setEditingHabit] = useState(null);
@@ -204,18 +209,20 @@ const TodayHabits = () => {
 
     return (
         <div className="space-y-4">
-            <section className="rounded-[24px] border border-slate-200/80 bg-white/88 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm sm:p-5">
+            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
+                <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-200/80" />
+                <div className="pointer-events-none absolute bottom-4 right-16 hidden h-8 w-8 rotate-45 bg-amber-300/80 sm:block" />
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="max-w-xl">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    <div className="relative z-10 max-w-xl">
+                        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
                             {isToday ? 'Today' : 'Selected day'}
                         </div>
-                        <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                        <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-bone-100">
                             {isToday
                                 ? 'Daily habits'
                                 : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                         </h2>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-bone-200/70">
                             {isToday
                                 ? getMotivationalMessage(completionRate, bestCurrentStreak)
                                 : isYesterday
@@ -224,19 +231,19 @@ const TodayHabits = () => {
                         </p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                        <span className="font-semibold text-slate-900">{completedToday}/{totalToday}</span> done
+                    <div className={`relative z-10 rotate-1 rounded-[22px] bg-emerald-100 px-4 py-3 text-sm font-black text-emerald-950 ${inkBorder}`}>
+                        <span className="text-slate-950">{completedToday}/{totalToday}</span> done
                         {bestCurrentStreak > 0 && (
                             <span className="ml-3">
-                                streak <span className="font-semibold text-slate-900">{bestCurrentStreak}</span>
+                                streak <span className="text-slate-950">{bestCurrentStreak}</span>
                             </span>
                         )}
                     </div>
                 </div>
 
-                <div className="mt-4">
-                    <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        <CalendarDays size={13} />
+                <div className="relative z-10 mt-4">
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-bone-200/60">
+                        <CalendarDays size={13} strokeWidth={2.7} />
                         Week
                     </div>
                     <div className="grid grid-cols-7 gap-2">
@@ -249,16 +256,16 @@ const TodayHabits = () => {
                                     key={date.toISOString()}
                                     whileTap={{ scale: 0.96 }}
                                     onClick={() => setSelectedDate(new Date(date))}
-                                    className={`rounded-2xl border px-2 py-2.5 text-center transition-colors ${
+                                    className={`min-h-16 rounded-[18px] border-2 border-slate-800 px-2 py-2.5 text-center text-sm font-black ${popMotion} dark:border-bone-200/70 ${
                                         isSelected
-                                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                                            ? 'bg-violet-500 text-white shadow-[3px_3px_0_#1E293B]'
                                             : isTodayDate
-                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                                ? 'bg-emerald-100 text-emerald-950'
+                                                : 'bg-slate-50 text-slate-600 hover:-translate-y-0.5 hover:bg-amber-100'
                                     }`}
                                 >
                                     <div className="text-[10px] font-semibold uppercase tracking-wide">{DAY_LABELS[index]}</div>
-                                    <div className="mt-1 text-base font-semibold">{date.getDate()}</div>
+                                    <div className="mt-1 text-base font-black">{date.getDate()}</div>
                                 </motion.button>
                             );
                         })}
@@ -282,12 +289,12 @@ const TodayHabits = () => {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className="rounded-[20px] border border-amber-200 bg-amber-50/90 p-4 text-amber-950 shadow-[0_10px_28px_rgba(245,158,11,0.08)]"
+                        className={`rounded-[24px] bg-amber-100 p-4 text-amber-950 ${inkBorder} ${softPopShadow}`}
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <div className="flex items-center gap-2 text-sm font-semibold">
-                                    <Bell size={16} />
+                                <div className="flex items-center gap-2 text-sm font-black">
+                                    <Bell size={16} strokeWidth={2.7} />
                                     Did you miss these yesterday, or just forget to log?
                                 </div>
                                 <p className="mt-1 text-sm text-amber-800">
@@ -296,7 +303,7 @@ const TodayHabits = () => {
                             </div>
                             <button
                                 onClick={() => setSelectedDate(new Date(yesterday))}
-                                className="self-start rounded-xl border border-amber-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-white"
+                                className="self-start rounded-full border-2 border-slate-800 bg-white px-3 py-1.5 text-xs font-black text-slate-900 transition-colors hover:bg-amber-200"
                             >
                                 View yesterday
                             </button>
@@ -304,9 +311,9 @@ const TodayHabits = () => {
 
                         <div className="mt-3 space-y-2">
                             {yesterdayReviewHabits.slice(0, 4).map((habit) => (
-                                <div key={habit.id} className="flex flex-col gap-2 rounded-2xl border border-amber-100 bg-white/70 px-3 py-3 sm:flex-row sm:items-center">
+                                <div key={habit.id} className="flex flex-col gap-2 rounded-[20px] border-2 border-slate-800 bg-white px-3 py-3 sm:flex-row sm:items-center">
                                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg">{habit.icon}</span>
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-slate-800 bg-amber-200 text-lg">{habit.icon}</span>
                                         <div className="min-w-0">
                                             <div className="truncate text-sm font-semibold text-slate-900">{habit.name}</div>
                                             <div className="text-xs text-amber-700">Yesterday was scheduled for this habit.</div>
@@ -315,14 +322,14 @@ const TodayHabits = () => {
                                     <div className="flex shrink-0 gap-2">
                                         <button
                                             onClick={() => handleBackfillDone(habit)}
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+                                            className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-800 bg-emerald-300 px-3 py-1.5 text-xs font-black text-slate-950 transition-colors hover:bg-emerald-400"
                                         >
                                             <CheckCircle2 size={14} />
                                             I did it
                                         </button>
                                         <button
                                             onClick={() => dismissYesterdayReview(habit.id)}
-                                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                            className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-800 bg-white px-3 py-1.5 text-xs font-black text-slate-700 transition-colors hover:bg-rose-100"
                                         >
                                             <XCircle size={14} />
                                             I missed it
@@ -341,7 +348,7 @@ const TodayHabits = () => {
             </AnimatePresence>
 
             {!canEditSelectedDate && (
-                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-500">
+                <div className={`rounded-[18px] bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500 ${inkBorder}`}>
                     This day is read-only. You can only edit today and yesterday.
                 </div>
             )}
@@ -352,10 +359,10 @@ const TodayHabits = () => {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className="rounded-[16px] border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800"
+                        className={`rounded-[18px] bg-emerald-100 px-4 py-2.5 text-sm font-black text-emerald-950 ${inkBorder}`}
                     >
                         <div className="flex items-center gap-2">
-                            <Sprout size={15} />
+                            <Sprout size={15} strokeWidth={2.7} />
                             Everything scheduled for today is complete.
                         </div>
                     </motion.div>
@@ -368,11 +375,11 @@ const TodayHabits = () => {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className="rounded-[18px] border border-slate-200 bg-white/92 px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
+                        className={`rounded-[22px] bg-white px-4 py-3 ${inkBorder} ${softPopShadow} dark:bg-void-900/90`}
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <div className="text-sm font-semibold text-slate-900">How did {pendingReflection.habitName} feel?</div>
+                                <div className="text-sm font-black text-slate-950 dark:text-bone-100">How did {pendingReflection.habitName} feel?</div>
                                 <div className="mt-0.5 text-xs text-slate-500">One tap saves a small reflection to today&apos;s habit note.</div>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -381,7 +388,7 @@ const TodayHabits = () => {
                                         key={tag}
                                         type="button"
                                         onClick={() => handleReflection(tag)}
-                                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100"
+                                        className="rounded-full border-2 border-slate-800 bg-amber-100 px-3 py-1.5 text-xs font-black text-slate-800 transition-colors hover:bg-amber-200"
                                     >
                                         {tag}
                                     </button>
@@ -389,7 +396,7 @@ const TodayHabits = () => {
                                 <button
                                     type="button"
                                     onClick={() => setPendingReflection(null)}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:text-slate-700"
+                                    className="rounded-full border-2 border-slate-800 bg-white px-3 py-1.5 text-xs font-black text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
                                 >
                                     skip
                                 </button>
@@ -401,18 +408,18 @@ const TodayHabits = () => {
 
             {seedEntries.length > 0 && <SeedGarden seeds={seedEntries} />}
 
-            <section className="rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm sm:p-5">
+            <section className={`rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
                 {todayHabits.length === 0 ? (
-                    <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-5 py-12 text-center">
-                        <div className="text-4xl">🌱</div>
-                        <h3 className="mt-3 text-lg font-semibold text-slate-800">No habits yet</h3>
+                    <div className="rounded-[24px] border-2 border-dashed border-slate-800 bg-slate-50 px-5 py-12 text-center dark:border-bone-200/70 dark:bg-void-800">
+                        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full border-2 border-slate-800 bg-emerald-300 text-3xl">🌱</div>
+                        <h3 className="mt-3 text-lg font-black text-slate-900 dark:text-bone-100">No habits yet</h3>
                         <p className="mt-1 text-sm text-slate-500">Create your first habit to start tracking.</p>
                         <button
                             onClick={() => {
                                 setEditingHabit(null);
                                 setShowModal(true);
                             }}
-                            className="mt-5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                            className="mt-5 rounded-full border-2 border-slate-800 bg-violet-500 px-4 py-2.5 text-sm font-black text-white shadow-[4px_4px_0_#1E293B] transition hover:-translate-y-0.5"
                         >
                             Add habit
                         </button>
@@ -426,10 +433,10 @@ const TodayHabits = () => {
                             return (
                                 <div key={section.key}>
                                     <div className="mb-3 flex items-center gap-3">
-                                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-bone-200/60">
                                             {section.label}
                                         </div>
-                                        <div className="h-px flex-1 bg-slate-200" />
+                                        <div className="h-0.5 flex-1 bg-[repeating-linear-gradient(90deg,#1E293B_0_8px,transparent_8px_14px)] opacity-30" />
                                     </div>
                                     <div className="space-y-3">
                                         {sectionHabits.map((habit, index) => {
@@ -473,9 +480,9 @@ const TodayHabits = () => {
                     setEditingHabit(null);
                     setShowModal(true);
                 }}
-                className="fixed bottom-24 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-slate-900 px-4 text-sm font-medium text-white shadow-[0_14px_28px_rgba(15,23,42,0.2)] transition-transform"
+                className="fixed bottom-24 right-6 z-40 flex h-12 items-center gap-2 rounded-full border-2 border-slate-800 bg-violet-500 px-4 text-sm font-black text-white shadow-[4px_4px_0_#1E293B] transition-transform"
             >
-                <Plus size={16} />
+                <Plus size={16} strokeWidth={2.7} />
                 Add Habit
             </motion.button>
 

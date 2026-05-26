@@ -151,6 +151,9 @@ const COLOR_CONFIGS = {
 
 const INDEX_COLORS = ['slate', 'rose', 'purple', 'pink', 'indigo', 'blue', 'teal', 'cyan', 'lime', 'amber'];
 
+const inkBorder = 'border-2 border-slate-800 dark:border-bone-200/70';
+const popMotion = 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
+
 const formatTime12h = (timeStr) => {
     if (!timeStr) return null;
     const [hours, minutes] = timeStr.split(':');
@@ -252,9 +255,9 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                 whileTap={{ scale: 0.94 }}
                 onClick={handleIncrement}
                 disabled={disabled}
-                className={`h-10 w-10 rounded-2xl border shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isCompleted
-                    ? `${color.actionBg} border-transparent text-white`
-                    : `bg-white ${color.border} text-slate-400`
+                className={`h-10 w-10 rounded-2xl border-2 border-slate-800 shadow-[3px_3px_0_#1E293B] transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isCompleted
+                    ? `${color.actionBg} text-white`
+                    : 'bg-white text-slate-500'
                     }`}
             >
                 {isCompleted ? <Check size={16} className="mx-auto" strokeWidth={3} /> : <span className="text-xs">+</span>}
@@ -267,10 +270,11 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04 }}
-            className={`group relative overflow-hidden rounded-[22px] border ${color.border} bg-gradient-to-br ${color.surface} shadow-[0_10px_26px_rgba(15,23,42,0.05)]`}
+            className={`group relative overflow-hidden rounded-[24px] bg-gradient-to-br ${color.surface} shadow-[6px_6px_0_#E2E8F0] ${inkBorder}`}
         >
-            <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${habit.is_seed ? seedStageMeta?.accent || 'from-emerald-300 to-teal-300' : 'from-white via-white to-white'}`} />
-            <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-white/40 blur-3xl" />
+            <div className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${habit.is_seed ? seedStageMeta?.accent || 'from-emerald-300 to-teal-300' : 'from-violet-300 via-rose-300 to-amber-300'}`} />
+            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/55" />
+            <div className="pointer-events-none absolute bottom-5 right-10 hidden h-6 w-10 rounded-full bg-amber-300/70 sm:block" />
 
             <AnimatePresence>
                 {justCompleted && (
@@ -285,7 +289,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
 
             <div className="relative z-10 p-4">
                 <div className="flex items-start gap-3">
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] ${color.iconBg} ring-4 ${color.ring} text-xl shadow-sm`}>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border-2 border-slate-800 ${color.iconBg} text-xl shadow-[3px_3px_0_#1E293B]`}>
                         {habit.icon}
                     </div>
 
@@ -293,36 +297,36 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className={`truncate text-base font-semibold text-slate-800 ${isCompleted ? 'line-through opacity-60' : ''}`}>
+                                    <h3 className={`truncate text-base font-black text-slate-900 ${isCompleted ? 'line-through opacity-60' : ''}`}>
                                         {habit.name}
                                     </h3>
                                     {habit.is_seed && seedStageMeta && (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                        <span className="inline-flex items-center gap-1 rounded-full border-2 border-slate-800 bg-emerald-200 px-2.5 py-1 text-[11px] font-black text-emerald-950">
                                             <Sprout size={12} />
                                             {seedStageMeta.label}
                                         </span>
                                     )}
                                     {habit.is_seed && seedHealthMeta && (
-                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${seedHealthMeta.badge}`}>
+                                        <span className={`rounded-full border-2 px-2.5 py-1 text-[11px] font-black ${seedHealthMeta.badge}`}>
                                             {seedHealthMeta.label}
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-slate-500">
                                     <span>{getFrequencyLabel(habit)}</span>
                                     {habit.reminder_time && (
                                         <span className={color.softText}>{formatTime12h(habit.reminder_time)}</span>
                                     )}
                                     {currentStreak > 0 && (
                                         <span className="inline-flex items-center gap-1 font-medium text-orange-500">
-                                            <Flame size={14} />
+                                            <Flame size={14} strokeWidth={2.7} />
                                             {currentStreak} day streak
                                         </span>
                                     )}
                                     {disabled && (
                                         <span className="inline-flex items-center gap-1 font-medium text-slate-400" title={disabledReason}>
-                                            <Lock size={13} />
+                                            <Lock size={13} strokeWidth={2.7} />
                                             {seedEnded ? 'Seed ended' : 'Read-only'}
                                         </span>
                                     )}
@@ -342,8 +346,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         disabled={disabled}
                                         title={disabled ? disabledReason : undefined}
                                         className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all disabled:cursor-not-allowed disabled:opacity-55 ${isCompleted
-                                            ? 'border-transparent bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                                            : 'border-white/60 bg-white/75 text-slate-400 hover:border-emerald-300 hover:text-emerald-500'
+                                            ? 'border-slate-800 bg-emerald-300 text-slate-950 shadow-[3px_3px_0_#1E293B]'
+                                            : 'border-slate-800 bg-white text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'
                                             }`}
                                     >
                                         <Check size={18} strokeWidth={3} />
@@ -356,14 +360,14 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         onClick={handleIncrement}
                                         disabled={disabled}
                                         title={disabled ? disabledReason : undefined}
-                                        className={`rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/5 disabled:cursor-not-allowed disabled:opacity-55 ${color.actionBg}`}
+                                        className={`rounded-full border-2 border-slate-800 px-3.5 py-2.5 text-sm font-black text-white shadow-[3px_3px_0_#1E293B] disabled:cursor-not-allowed disabled:opacity-55 ${color.actionBg}`}
                                     >
                                         Log Progress
                                     </motion.button>
                                 )}
 
                                 {habit.type === 'duration' && (
-                                    <div className="w-32 rounded-xl border border-white/60 bg-white/70 p-2.5">
+                                    <div className="w-32 rounded-xl border-2 border-slate-800 bg-white p-2.5">
                                         <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
                                             <span>Minutes</span>
                                             <span>{currentValue}/{habit.target}</span>
@@ -388,16 +392,16 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                         </div>
 
                         {!habit.is_seed && (
-                            <div className="mt-3 rounded-[18px] border border-white/60 bg-white/70 p-3 shadow-sm">
+                            <div className="mt-3 rounded-[18px] border-2 border-slate-800 bg-white/80 p-3">
                                 {habit.type === 'check' && (
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="text-sm font-medium text-slate-700">Daily check-in</div>
+                                            <div className="text-sm font-black text-slate-800">Daily check-in</div>
                                             <div className="mt-1 text-xs text-slate-500">
                                                 {isCompleted ? 'Completed for this day.' : 'Tap the check button when done.'}
                                             </div>
                                         </div>
-                                        <div className={`rounded-full px-3 py-1 text-xs font-semibold ${isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                        <div className={`rounded-full border-2 border-slate-800 px-3 py-1 text-xs font-black ${isCompleted ? 'bg-emerald-200 text-emerald-950' : 'bg-slate-100 text-slate-600'}`}>
                                             {isCompleted ? 'Done' : 'Pending'}
                                         </div>
                                     </div>
@@ -406,7 +410,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 {habit.type === 'count' && (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <div className="text-sm font-medium text-slate-700">Count progress</div>
+                                            <div className="text-sm font-black text-slate-800">Count progress</div>
                                             <div className="inline-flex items-center gap-1 text-sm font-semibold text-slate-700">
                                                 <Hash size={14} />
                                                 {currentValue}/{habit.target}
@@ -416,7 +420,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                             {Array.from({ length: Math.min(habit.target, 12) }).map((_, dotIndex) => (
                                                 <div
                                                     key={dotIndex}
-                                                    className={`h-4 w-4 rounded-full transition-all ${dotIndex < currentValue ? color.dot : color.dotEmpty}`}
+                                                    className={`h-4 w-4 rounded-full border-2 border-slate-800 transition-all ${dotIndex < currentValue ? color.dot : color.dotEmpty}`}
                                                 />
                                             ))}
                                         </div>
@@ -426,13 +430,13 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 {habit.type === 'duration' && (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <div className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                                                <Clock size={15} />
+                                    <div className="inline-flex items-center gap-2 text-sm font-black text-slate-700">
+                                                <Clock size={15} strokeWidth={2.7} />
                                                 Focus duration
                                             </div>
                                             <div className="text-sm font-semibold text-slate-700">{currentValue}/{habit.target} min</div>
                                         </div>
-                                        <div className={`h-2.5 overflow-hidden rounded-full ${color.progressBg}`}>
+                                        <div className={`h-3 overflow-hidden rounded-full border-2 border-slate-800 ${color.progressBg}`}>
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${progress}%` }}
@@ -445,10 +449,10 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                             </div>
                         )}
 
-                        <div className="mt-3 rounded-[18px] border border-white/60 bg-white/70 p-3 shadow-sm">
+                        <div className="mt-3 rounded-[18px] border-2 border-slate-800 bg-white/80 p-3">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                                    <FileText size={14} />
+                                <div className="inline-flex items-center gap-2 text-sm font-black text-slate-700">
+                                    <FileText size={14} strokeWidth={2.7} />
                                     Notes
                                 </div>
                                 {!isEditingNote && (
@@ -460,7 +464,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         }}
                                         disabled={disabled}
                                         title={disabled ? disabledReason : undefined}
-                                        className="text-xs font-medium text-slate-500 transition-colors hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="rounded-full border-2 border-slate-800 bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-600 transition-colors hover:bg-amber-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {noteText ? 'Edit' : 'Add note'}
                                     </button>
@@ -478,7 +482,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         placeholder={habit.type === 'duration'
                                             ? 'e.g. Woke up at 6:20 AM'
                                             : 'e.g. Walking, running 2 km, weight training'}
-                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="w-full rounded-xl border-2 border-slate-800 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     <div className="flex items-center justify-end gap-2">
                                         <button
@@ -487,7 +491,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 setNoteDraft(noteText);
                                                 setIsEditingNote(false);
                                             }}
-                                            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                                            className="rounded-full border-2 border-slate-800 bg-white px-3 py-1.5 text-xs font-black text-slate-600 transition-colors hover:bg-slate-50"
                                         >
                                             Cancel
                                         </button>
@@ -497,7 +501,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 handleSaveNote();
                                             }}
                                             disabled={disabled}
-                                            className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-full border-2 border-slate-800 bg-violet-500 px-3 py-1.5 text-xs font-black text-white shadow-[2px_2px_0_#1E293B] transition-colors hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Save
                                         </button>
@@ -505,7 +509,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 </div>
                             ) : (
                                 <div className="mt-2 space-y-2">
-                                    <div className="text-sm text-slate-500">
+                                    <div className="text-sm font-medium text-slate-500">
                                         {noteText || 'No note for this day.'}
                                     </div>
                                     {onViewNotes && (
@@ -514,7 +518,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 event.stopPropagation();
                                                 onViewNotes();
                                             }}
-                                            className="text-xs font-medium text-slate-500 transition-colors hover:text-slate-800"
+                                            className="text-xs font-black text-slate-500 transition-colors hover:text-slate-800"
                                         >
                                             {noteCount > 0 ? `View note history (${noteCount})` : 'Open note history'}
                                         </button>
@@ -523,16 +527,16 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                             )}
                         </div>
 
-                        <div className="mt-3 flex items-center justify-end gap-2 border-t border-white/50 pt-3">
+                        <div className="mt-3 flex items-center justify-end gap-2 border-t-2 border-dashed border-slate-800/25 pt-3">
                             <button
                                 onClick={(event) => { event.stopPropagation(); onEdit?.(habit); }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-white/90 text-slate-500 shadow-sm transition-colors hover:text-slate-800"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-800 bg-white text-slate-500 shadow-[2px_2px_0_#1E293B] transition-colors hover:bg-amber-100 hover:text-slate-900"
                             >
                                 <Edit2 size={14} />
                             </button>
                             <button
                                 onClick={(event) => { event.stopPropagation(); onDelete?.(habit.id); }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-white/90 text-slate-500 shadow-sm transition-colors hover:text-red-500"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-800 bg-white text-slate-500 shadow-[2px_2px_0_#1E293B] transition-colors hover:bg-rose-100 hover:text-red-500"
                             >
                                 <Trash2 size={14} />
                             </button>
