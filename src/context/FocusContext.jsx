@@ -8,6 +8,8 @@ const FocusContext = createContext();
 const STORAGE_KEY = 'focus-game-guest';
 const MILESTONE_INTERVAL = 50;
 const MILESTONE_BONUS = 5;
+const DAILY_MILESTONE_INTERVAL = 10;
+const DAILY_MILESTONE_BONUS = 2;
 
 const normalizeSession = (session) => ({
     ...session,
@@ -41,6 +43,7 @@ const getNewMilestoneBonuses = (previousLifetimePoints, nextLifetimePoints, tran
     const claimedMilestones = new Set(
         transactions
             .filter((transaction) => transaction.kind === 'milestone_bonus')
+            .filter((transaction) => transaction.metadata?.scope !== 'daily')
             .map((transaction) => Number(transaction.metadata?.milestone))
             .filter(Boolean)
     );
@@ -48,6 +51,26 @@ const getNewMilestoneBonuses = (previousLifetimePoints, nextLifetimePoints, tran
     const bonuses = [];
     for (let milestone = MILESTONE_INTERVAL; milestone <= nextLifetimePoints; milestone += MILESTONE_INTERVAL) {
         if (milestone > previousLifetimePoints && !claimedMilestones.has(milestone)) {
+            bonuses.push(milestone);
+        }
+    }
+
+    return bonuses;
+};
+
+const getNewDailyMilestoneBonuses = (previousDailyPoints, nextDailyPoints, dateKey, transactions) => {
+    const claimedDailyMilestones = new Set(
+        transactions
+            .filter((transaction) => transaction.kind === 'milestone_bonus')
+            .filter((transaction) => transaction.metadata?.scope === 'daily')
+            .filter((transaction) => transaction.metadata?.date === dateKey)
+            .map((transaction) => Number(transaction.metadata?.milestone))
+            .filter(Boolean)
+    );
+
+    const bonuses = [];
+    for (let milestone = DAILY_MILESTONE_INTERVAL; milestone <= nextDailyPoints; milestone += DAILY_MILESTONE_INTERVAL) {
+        if (milestone > previousDailyPoints && !claimedDailyMilestones.has(milestone)) {
             bonuses.push(milestone);
         }
     }
@@ -185,6 +208,15 @@ export const FocusProvider = ({ children }) => {
         [sessions]
     );
 
+    const dailySessionPoints = useMemo(() => {
+        const todayKey = toLocalDateKey(new Date());
+        return sessions.reduce((total, session) => (
+            toLocalDateKey(session.started_at) === todayKey
+                ? total + session.points_earned
+                : total
+        ), 0);
+    }, [sessions]);
+
     const activeRewards = useMemo(
         () => rewards.filter((reward) => !reward.archived),
         [rewards]
@@ -256,16 +288,34 @@ export const FocusProvider = ({ children }) => {
 
         const previousLifetimePoints = lifetimeSessionPoints;
         const nextLifetimePoints = previousLifetimePoints + points;
-        const milestoneTransactions = getNewMilestoneBonuses(previousLifetimePoints, nextLifetimePoints, transactions)
+        const sessionDateKey = toLocalDateKey(startedAt);
+        const previousDailyPoints = sessions.reduce((total, item) => (
+            toLocalDateKey(item.started_at) === sessionDateKey
+                ? total + item.points_earned
+                : total
+        ), 0);
+        const nextDailyPoints = previousDailyPoints + points;
+        const lifetimeMilestoneTransactions = getNewMilestoneBonuses(previousLifetimePoints, nextLifetimePoints, transactions)
             .map((milestone, index) => normalizeTransaction({
                 id: `milestone_${Date.now()}_${index}`,
                 user_id: user?.id,
                 kind: 'milestone_bonus',
                 points: MILESTONE_BONUS,
                 title: `${milestone} point milestone`,
-                metadata: { milestone },
+                metadata: { milestone, scope: 'lifetime' },
                 created_at: now,
             }));
+        const dailyMilestoneTransactions = getNewDailyMilestoneBonuses(previousDailyPoints, nextDailyPoints, sessionDateKey, transactions)
+            .map((milestone, index) => normalizeTransaction({
+                id: `daily_milestone_${Date.now()}_${index}`,
+                user_id: user?.id,
+                kind: 'milestone_bonus',
+                points: DAILY_MILESTONE_BONUS,
+                title: `Daily ${milestone} point bonus`,
+                metadata: { milestone, scope: 'daily', date: sessionDateKey },
+                created_at: now,
+            }));
+        const milestoneTransactions = [...lifetimeMilestoneTransactions, ...dailyMilestoneTransactions];
 
         setSessions((prev) => sortNewestFirst([session, ...prev]));
         setTransactions((prev) => sortNewestFirst([sessionTransaction, ...milestoneTransactions, ...prev]));
@@ -543,8 +593,11 @@ export const FocusProvider = ({ children }) => {
         weeklyPoints,
         balance,
         lifetimeSessionPoints,
+        dailySessionPoints,
         milestoneInterval: MILESTONE_INTERVAL,
         milestoneBonus: MILESTONE_BONUS,
+        dailyMilestoneInterval: DAILY_MILESTONE_INTERVAL,
+        dailyMilestoneBonus: DAILY_MILESTONE_BONUS,
         isLoaded,
         getSessionPoints,
         addSession,

@@ -92,8 +92,11 @@ const Focus = () => {
         weeklyPoints,
         balance,
         lifetimeSessionPoints,
+        dailySessionPoints,
         milestoneInterval,
         milestoneBonus,
+        dailyMilestoneInterval,
+        dailyMilestoneBonus,
         getSessionPoints,
         addSession,
         addReward,
@@ -121,8 +124,14 @@ const Focus = () => {
     const maxWeeklyPoints = Math.max(1, ...weeklyPoints.map((day) => day.points));
     const nextMilestone = Math.max(milestoneInterval, Math.ceil((lifetimeSessionPoints + 1) / milestoneInterval) * milestoneInterval);
     const milestoneProgress = Math.min(100, Math.round((lifetimeSessionPoints / nextMilestone) * 100));
+    const nextDailyMilestone = Math.max(
+        dailyMilestoneInterval,
+        (Math.floor(dailySessionPoints / dailyMilestoneInterval) + 1) * dailyMilestoneInterval
+    );
+    const dailyMilestoneProgress = Math.round(((dailySessionPoints % dailyMilestoneInterval) / dailyMilestoneInterval) * 100);
     const punchSlots = Array.from({ length: 10 }, (_, index) => index);
     const filledPunchSlots = Math.min(10, Math.floor((milestoneProgress / 100) * 10));
+    const filledDailyPunchSlots = Math.min(10, Math.floor((dailyMilestoneProgress / 100) * 10));
 
     const recentTransactions = useMemo(() => transactions.slice(0, 8), [transactions]);
     const recentSessions = useMemo(() => sessions.slice(0, 5), [sessions]);
@@ -273,6 +282,24 @@ const Focus = () => {
                                         }`}
                                     />
                                 ))}
+                            </div>
+                            <div className="mt-4 border-t-2 border-dashed border-slate-800/30 pt-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0 text-sm font-black">
+                                        <span className="truncate">Daily bonus at {nextDailyMilestone}</span>
+                                    </div>
+                                    <span className="rounded-full border-2 border-slate-800 bg-emerald-300 px-2 py-1 text-xs font-black text-slate-950">+{dailyMilestoneBonus}</span>
+                                </div>
+                                <div className="mt-3 grid grid-cols-10 place-items-center gap-1 overflow-hidden py-1">
+                                    {punchSlots.map((slot) => (
+                                        <div
+                                            key={`daily-${slot}`}
+                                            className={`aspect-square w-full max-w-9 rounded-full border-2 border-slate-800 sm:max-w-11 ${
+                                                slot < filledDailyPunchSlots ? 'bg-emerald-300' : 'bg-slate-100 dark:bg-void-700'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
