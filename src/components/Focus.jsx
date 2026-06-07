@@ -1,13 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import {
-    Archive,
     BadgeCheck,
     BookMarked,
+    CalendarDays,
+    ChevronLeft,
+    ChevronRight,
     Check,
+    CircleAlert,
     Crosshair,
     Footprints,
     Gift,
     History,
+    Flag,
+    LockKeyhole,
+    Map as MapIcon,
     PackageCheck,
     Plus,
     Sparkles,
@@ -55,6 +61,28 @@ const rewardColors = [
         sticker: 'bg-sky-300',
         shadow: 'shadow-[5px_5px_0_#7DD3FC]',
     },
+    {
+        id: 'violet',
+        label: 'Violet',
+        className: 'bg-violet-100 text-violet-950',
+        sticker: 'bg-violet-300',
+        shadow: 'shadow-[5px_5px_0_#C4B5FD]',
+    },
+    {
+        id: 'sun',
+        label: 'Sun',
+        className: 'bg-amber-100 text-amber-950',
+        sticker: 'bg-amber-300',
+        shadow: 'shadow-[5px_5px_0_#FCD34D]',
+    },
+];
+
+const baseRoadmapNodes = [
+    { points: 0, label: 'Gate', unlock: 'Arcade open', color: 'bg-emerald-300', shape: 'rounded-full' },
+    { points: 25, label: 'Trail', unlock: 'Steady rhythm', color: 'bg-sky-300', shape: 'rounded-t-full rounded-b-2xl' },
+    { points: 50, label: 'Chest', unlock: '+5 milestone', color: 'bg-amber-300', shape: 'rounded-[18px]' },
+    { points: 100, label: 'Tower', unlock: '+5 tier II', color: 'bg-rose-300', shape: 'rounded-tl-3xl rounded-tr-xl rounded-br-3xl rounded-bl-xl' },
+    { points: 150, label: 'Vault', unlock: 'Legend shelf', color: 'bg-violet-300', shape: 'rounded-full' },
 ];
 
 const formatLocalInputValue = (date = new Date()) => {
@@ -73,6 +101,76 @@ const formatDateTime = (value) => {
     });
 };
 
+const getHistoryDayKey = (value) => {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return 'unknown';
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const getDayStart = (date) => {
+    const nextDate = new Date(date);
+    nextDate.setHours(0, 0, 0, 0);
+    return nextDate;
+};
+
+const parseHistoryDayKey = (key) => {
+    const [year, month, day] = String(key).split('-').map(Number);
+    if (!year || !month || !day) return new Date();
+    return new Date(year, month - 1, day);
+};
+
+const shiftHistoryDayKey = (key, amount) => {
+    const date = parseHistoryDayKey(key);
+    date.setDate(date.getDate() + amount);
+    return getHistoryDayKey(date);
+};
+
+const formatHistoryDayLabel = (value) => {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return 'Unknown day';
+
+    const today = getDayStart(new Date());
+    const target = getDayStart(date);
+    const dayDelta = Math.round((today - target) / 86400000);
+    if (dayDelta === 0) return 'Today';
+    if (dayDelta === 1) return 'Yesterday';
+
+    return date.toLocaleDateString([], {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+const formatHistoryDate = (value) => (
+    value
+        ? new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+        : ''
+);
+
+const formatTimeOnly = (value) => (
+    value
+        ? new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : ''
+);
+
+const createEmptyHistoryDay = (key) => {
+    const date = parseHistoryDayKey(key);
+    return {
+        key,
+        dateValue: date.toISOString(),
+        label: formatHistoryDayLabel(date),
+        dateLabel: formatHistoryDate(date),
+        stamps: [],
+        transactions: [],
+        earned: 0,
+        spent: 0,
+        net: 0,
+    };
+};
+
 const getRewardColor = (color) => (
     rewardColors.find((item) => item.id === color) || rewardColors[0]
 );
@@ -86,6 +184,7 @@ const IconBadge = ({ children, className = 'bg-violet-500 text-white' }) => (
 const Focus = () => {
     const {
         sessions,
+        activeActions,
         activeRewards,
         availableInventory,
         transactions,
@@ -99,11 +198,17 @@ const Focus = () => {
         dailyMilestoneBonus,
         getSessionPoints,
         addSession,
+        addAction,
+        logAction,
+        archiveAction,
         addReward,
         purchaseReward,
         useInventoryItem: markInventoryItemUsed,
         archiveReward,
         isLoaded,
+        actionStorageReady,
+        isCheckingActionStorage,
+        checkActionStorage,
     } = useFocus();
 
     const [sessionForm, setSessionForm] = useState({
@@ -117,8 +222,15 @@ const Focus = () => {
         costPoints: 3,
         color: 'mint',
     });
+    const [actionForm, setActionForm] = useState({
+        name: '',
+        points: 1,
+        color: 'mint',
+    });
     const [message, setMessage] = useState('');
+    const [messageTone, setMessageTone] = useState('success');
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedHistoryKey, setSelectedHistoryKey] = useState(getHistoryDayKey(new Date()));
 
     const previewPoints = getSessionPoints(sessionForm.durationMinutes);
     const maxWeeklyPoints = Math.max(1, ...weeklyPoints.map((day) => day.points));
@@ -133,18 +245,91 @@ const Focus = () => {
     const filledPunchSlots = Math.min(10, Math.floor((milestoneProgress / 100) * 10));
     const filledDailyPunchSlots = Math.min(10, Math.floor((dailyMilestoneProgress / 100) * 10));
 
-    const recentTransactions = useMemo(() => transactions.slice(0, 8), [transactions]);
-    const recentSessions = useMemo(() => sessions.slice(0, 5), [sessions]);
     const sortedRewards = useMemo(() => (
         [...activeRewards].sort((left, right) => {
             if (right.cost_points !== left.cost_points) return right.cost_points - left.cost_points;
             return new Date(left.created_at || 0) - new Date(right.created_at || 0);
         })
     ), [activeRewards]);
+    const dailyHistory = useMemo(() => {
+        const groups = new Map();
+
+        const ensureGroup = (value) => {
+            const key = getHistoryDayKey(value);
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    dateValue: value,
+                    label: formatHistoryDayLabel(value),
+                    dateLabel: formatHistoryDate(value),
+                    stamps: [],
+                    transactions: [],
+                    earned: 0,
+                    spent: 0,
+                    net: 0,
+                });
+            }
+            return groups.get(key);
+        };
+
+        sessions.forEach((session) => {
+            const group = ensureGroup(session.started_at || session.created_at);
+            group.stamps.push(session);
+        });
+
+        transactions.forEach((transaction) => {
+            const group = ensureGroup(transaction.created_at);
+            group.transactions.push(transaction);
+            if (transaction.points > 0) group.earned += transaction.points;
+            if (transaction.points < 0) group.spent += Math.abs(transaction.points);
+            group.net += transaction.points;
+        });
+
+        return [...groups.values()]
+            .map((group) => ({
+                ...group,
+                stamps: [...group.stamps].sort((left, right) => new Date(right.started_at || 0) - new Date(left.started_at || 0)),
+                transactions: [...group.transactions].sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0)),
+            }))
+            .sort((left, right) => new Date(right.dateValue || 0) - new Date(left.dateValue || 0));
+    }, [sessions, transactions]);
+    const dailyHistoryByKey = useMemo(() => (
+        new Map(dailyHistory.map((day) => [day.key, day]))
+    ), [dailyHistory]);
+    const selectedHistoryDay = dailyHistoryByKey.get(selectedHistoryKey) || createEmptyHistoryDay(selectedHistoryKey);
+    const selectedHistoryDate = parseHistoryDayKey(selectedHistoryKey);
+    const isSelectedHistoryTodayOrLater = getDayStart(selectedHistoryDate) >= getDayStart(new Date());
+    const selectedAddedEntries = selectedHistoryDay.transactions.filter((transaction) => transaction.points > 0);
+    const selectedUsedEntries = selectedHistoryDay.transactions.filter((transaction) => transaction.points <= 0);
+    const roadmapNodes = useMemo(() => {
+        const nextTier = Math.max(
+            200,
+            Math.ceil((lifetimeSessionPoints + 1) / milestoneInterval) * milestoneInterval
+        );
+        return lifetimeSessionPoints >= 150
+            ? [
+                ...baseRoadmapNodes,
+                {
+                    points: nextTier,
+                    label: 'Next',
+                    unlock: `+${milestoneBonus} bonus`,
+                    color: 'bg-emerald-300',
+                    shape: 'rounded-[18px]',
+                },
+            ]
+            : baseRoadmapNodes;
+    }, [lifetimeSessionPoints, milestoneBonus, milestoneInterval]);
+    const unlockedRoadmapCount = roadmapNodes.filter((node) => lifetimeSessionPoints >= node.points).length;
+    const isActionFormDisabled = isSaving || isCheckingActionStorage || !actionStorageReady;
+    const showMessage = (text, tone = 'success') => {
+        setMessage(text);
+        setMessageTone(tone);
+    };
+    const clearMessage = () => setMessage('');
 
     const handleSessionSubmit = async (event) => {
         event.preventDefault();
-        setMessage('');
+        clearMessage();
         setIsSaving(true);
         try {
             await addSession({
@@ -158,9 +343,9 @@ const Focus = () => {
                 startedAt: formatLocalInputValue(),
                 note: '',
             }));
-            setMessage('Stamped. Points are in your pocket.');
+            showMessage('Stamped. Points are in your pocket.');
         } catch (error) {
-            setMessage(error.message || 'Could not log that session.');
+            showMessage(error.message || 'Could not log that session.', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -169,7 +354,7 @@ const Focus = () => {
     const handleRewardSubmit = async (event) => {
         event.preventDefault();
         if (!rewardForm.name.trim()) return;
-        setMessage('');
+        clearMessage();
         setIsSaving(true);
         try {
             await addReward({
@@ -178,31 +363,71 @@ const Focus = () => {
                 color: rewardForm.color,
             });
             setRewardForm({ name: '', costPoints: 3, color: 'mint' });
-            setMessage('Prize added to the shelf.');
+            showMessage('Prize added to the shelf.');
         } catch (error) {
-            setMessage(error.message || 'Could not add that reward.');
+            showMessage(error.message || 'Could not add that reward.', 'error');
         } finally {
             setIsSaving(false);
         }
     };
 
+    const handleActionSubmit = async (event) => {
+        event.preventDefault();
+        if (!actionForm.name.trim()) return;
+        clearMessage();
+        setIsSaving(true);
+        try {
+            await addAction({
+                name: actionForm.name.trim(),
+                points: Number(actionForm.points),
+                color: actionForm.color,
+            });
+            setActionForm({ name: '', points: 1, color: 'mint' });
+            showMessage('Action stamp added.');
+        } catch (error) {
+            showMessage(error.message || 'Could not add that action.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleLogAction = async (actionId) => {
+        clearMessage();
+        try {
+            await logAction(actionId);
+            showMessage('Action stamped. Points added.');
+        } catch (error) {
+            showMessage(error.message || 'Could not log that action.', 'error');
+        }
+    };
+
+    const handleCheckActionStorage = async () => {
+        clearMessage();
+        try {
+            await checkActionStorage();
+            showMessage('Custom action stamps are connected.');
+        } catch (error) {
+            showMessage(error.message || 'Could not connect custom action stamps yet.', 'error');
+        }
+    };
+
     const handlePurchaseReward = async (rewardId) => {
-        setMessage('');
+        clearMessage();
         try {
             await purchaseReward(rewardId);
-            setMessage('Ticket printed. Check your inventory.');
+            showMessage('Ticket printed. Check your inventory.');
         } catch (error) {
-            setMessage(error.message || 'Could not purchase that reward.');
+            showMessage(error.message || 'Could not purchase that reward.', 'error');
         }
     };
 
     const handleUseInventoryItem = async (inventoryId) => {
-        setMessage('');
+        clearMessage();
         try {
             await markInventoryItemUsed(inventoryId);
-            setMessage('Ticket used. Enjoy it guilt-free.');
+            showMessage('Ticket used. Enjoy it guilt-free.');
         } catch (error) {
-            setMessage(error.message || 'Could not use that reward.');
+            showMessage(error.message || 'Could not use that reward.', 'error');
         }
     };
 
@@ -232,8 +457,14 @@ const Focus = () => {
                         </p>
 
                         {message && (
-                            <div className={`mt-4 inline-flex max-w-full items-center gap-2 rounded-full bg-emerald-100 px-3 py-2 text-sm font-black text-emerald-950 ${inkBorder}`}>
-                                <Check size={15} strokeWidth={2.7} />
+                            <div className={`mt-4 inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-sm font-black ${inkBorder} ${
+                                messageTone === 'error'
+                                    ? 'bg-rose-100 text-rose-950'
+                                    : 'bg-emerald-100 text-emerald-950'
+                            }`}>
+                                {messageTone === 'error'
+                                    ? <CircleAlert size={15} strokeWidth={2.7} />
+                                    : <Check size={15} strokeWidth={2.7} />}
                                 <span className="truncate">{message}</span>
                             </div>
                         )}
@@ -262,6 +493,48 @@ const Focus = () => {
                             </div>
                             <div className="relative z-10 mt-3 text-4xl font-black leading-none">{lifetimeSessionPoints}</div>
                             <div className="relative z-10 mt-1 text-xs font-black opacity-70">lifetime</div>
+                        </div>
+                        <div className={`col-span-2 overflow-hidden rounded-[24px] bg-[#FFFDF8] p-3 text-slate-900 ${inkBorder} ${softPopShadow} dark:bg-void-800 dark:text-bone-100`}>
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2 text-sm font-black">
+                                    <IconBadge className="h-8 w-8 rounded-[14px] bg-sky-300 text-slate-950">
+                                        <MapIcon size={15} strokeWidth={2.7} />
+                                    </IconBadge>
+                                    <span className="truncate">Roadmap</span>
+                                </div>
+                                <span className="rounded-full border-2 border-slate-800 bg-white px-2 py-1 text-xs font-black text-slate-900">
+                                    {unlockedRoadmapCount}/{roadmapNodes.length}
+                                </span>
+                            </div>
+                            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                                {roadmapNodes.map((node, index) => {
+                                    const isUnlocked = lifetimeSessionPoints >= node.points;
+                                    const isNext = !isUnlocked && roadmapNodes.find((item) => lifetimeSessionPoints < item.points)?.points === node.points;
+                                    return (
+                                        <div key={`${node.label}-${node.points}`} className="relative min-w-0">
+                                            {index > 0 && (
+                                                <div className={`absolute -left-2 top-6 hidden h-1 w-4 border-y-2 border-slate-800 sm:block ${
+                                                    isUnlocked ? 'bg-violet-400' : 'bg-slate-100 dark:bg-void-700'
+                                                }`} />
+                                            )}
+                                            <div className={`relative mx-auto grid h-12 w-12 place-items-center border-2 border-slate-800 text-slate-950 ${node.shape} ${
+                                                isUnlocked ? `${node.color} shadow-[3px_3px_0_#1E293B]` : 'bg-slate-100 text-slate-400 dark:bg-void-700 dark:text-bone-200/45'
+                                            } ${isNext ? 'ring-4 ring-amber-200' : ''}`}>
+                                                {isUnlocked
+                                                    ? <Flag size={17} strokeWidth={2.8} />
+                                                    : <LockKeyhole size={16} strokeWidth={2.8} />}
+                                            </div>
+                                            <div className="mt-2 text-center">
+                                                <div className={`truncate text-[11px] font-black ${isUnlocked ? 'text-slate-900 dark:text-bone-100' : 'text-slate-400'}`}>
+                                                    {node.label}
+                                                </div>
+                                                <div className="text-[10px] font-black text-slate-400">{node.points} pts</div>
+                                                <div className="mt-1 hidden truncate text-[10px] font-bold text-slate-500 sm:block">{node.unlock}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <div className={`col-span-2 rounded-[24px] bg-white p-3 pr-16 text-slate-900 sm:pr-3 ${inkBorder} ${softPopShadow} dark:bg-void-800 dark:text-bone-100`}>
                             <div className="flex items-center justify-between gap-2">
@@ -405,6 +678,127 @@ const Focus = () => {
                             Stamp it
                         </button>
                     </form>
+
+                    <div className="mt-5 border-t-4 border-dashed border-slate-800 pt-4 dark:border-bone-200/70">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">Action stamps</div>
+                                <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-bone-100">Custom ways to earn</h3>
+                            </div>
+                            <IconBadge className="h-9 w-9 rounded-[16px] bg-violet-500 text-white">
+                                <BadgeCheck size={18} strokeWidth={2.7} />
+                            </IconBadge>
+                        </div>
+
+                        {isCheckingActionStorage && !actionStorageReady && (
+                            <div className={`relative mt-4 rounded-[20px] bg-violet-100 px-4 py-3 text-sm font-black text-violet-950 ${inkBorder}`}>
+                                Checking custom action stamps...
+                            </div>
+                        )}
+
+                        {!isCheckingActionStorage && !actionStorageReady && (
+                            <div className={`relative mt-4 flex flex-col gap-3 rounded-[20px] bg-amber-100 px-4 py-3 text-sm font-black text-amber-950 ${inkBorder} sm:flex-row sm:items-center sm:justify-between`}>
+                                <span>Run the focus_actions SQL snippet to unlock custom action stamps.</span>
+                                <button
+                                    type="button"
+                                    onClick={handleCheckActionStorage}
+                                    className={`inline-flex min-h-9 items-center justify-center rounded-full border-2 border-slate-800 bg-white px-3 py-1 text-xs font-black text-slate-900 ${popMotion} hover:bg-amber-200`}
+                                >
+                                    Check again
+                                </button>
+                            </div>
+                        )}
+
+                        <form className="relative mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_86px_auto]" onSubmit={handleActionSubmit}>
+                            <input
+                                type="text"
+                                value={actionForm.name}
+                                onChange={(event) => setActionForm((prev) => ({ ...prev, name: event.target.value }))}
+                                placeholder="Complete night routine, wake before 8, exercise"
+                                disabled={!actionStorageReady}
+                                className={inputClass}
+                            />
+                            <input
+                                type="number"
+                                min="1"
+                                value={actionForm.points}
+                                onChange={(event) => setActionForm((prev) => ({ ...prev, points: event.target.value }))}
+                                disabled={!actionStorageReady}
+                                className={inputClass}
+                                aria-label="Action points"
+                            />
+                            <button
+                                type="submit"
+                                disabled={isActionFormDisabled || !actionForm.name.trim()}
+                                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-slate-800 bg-violet-500 px-4 py-2 text-sm font-black text-white shadow-[4px_4px_0_#1E293B] ${popMotion} hover:-translate-x-0.5 hover:-translate-y-0.5 hover:bg-violet-600 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none`}
+                            >
+                                <Plus size={15} strokeWidth={2.7} />
+                                Add
+                            </button>
+                        </form>
+
+                        <div className="relative mt-3 flex gap-2">
+                            {rewardColors.map((color) => (
+                                <button
+                                    key={color.id}
+                                    type="button"
+                                    onClick={() => setActionForm((prev) => ({ ...prev, color: color.id }))}
+                                    disabled={!actionStorageReady}
+                                    className={`h-9 w-9 rounded-full border-2 border-slate-800 ${color.className} ${popMotion} ${
+                                        actionForm.color === color.id ? 'shadow-[3px_3px_0_#1E293B]' : ''
+                                    } disabled:cursor-not-allowed disabled:opacity-45`}
+                                    title={color.label}
+                                    aria-label={color.label}
+                                />
+                            ))}
+                        </div>
+
+                        <div className="relative mt-4 grid gap-3">
+                            {activeActions.length === 0 && (
+                                <div className="rounded-[20px] border-2 border-dashed border-slate-800 bg-white/80 p-4 text-sm font-semibold text-slate-500 dark:border-white/20 dark:bg-void-800 dark:text-bone-200/60">
+                                    {actionStorageReady ? 'Add your first custom action stamp.' : 'Custom action stamps are waiting for the Supabase table.'}
+                                </div>
+                            )}
+                            {activeActions.map((action, index) => {
+                                const color = getRewardColor(action.color);
+                                return (
+                                    <div
+                                        key={action.id}
+                                        className={`relative overflow-hidden rounded-[22px] border-2 border-slate-800 p-3 ${color.className} ${color.shadow} ${popMotion} hover:-rotate-1 hover:scale-[1.01] dark:border-bone-200/70 ${
+                                            index % 2 === 0 ? 'rotate-[-0.4deg]' : 'rotate-[0.4deg]'
+                                        }`}
+                                    >
+                                        <div className={`absolute bottom-0 left-0 top-0 w-3 ${color.sticker}`} />
+                                        <div className="ml-3 flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="truncate text-base font-black">{action.name}</div>
+                                                <div className="text-xs font-black opacity-70">+{action.points} points</div>
+                                            </div>
+                                            <div className="flex shrink-0 items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleLogAction(action.id)}
+                                                    disabled={isSaving}
+                                                    className="inline-flex min-h-10 items-center gap-1 rounded-full border-2 border-slate-800 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-45"
+                                                >
+                                                    <BadgeCheck size={14} strokeWidth={2.7} />
+                                                    Log
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => archiveAction(action.id)}
+                                                    className="grid h-10 w-10 place-items-center rounded-full border-2 border-slate-800 bg-white text-slate-600 transition hover:bg-rose-100 hover:text-slate-900"
+                                                    title="Archive action"
+                                                >
+                                                    <Trash2 size={14} strokeWidth={2.7} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </section>
 
                 <section className={`relative overflow-hidden rounded-[28px] bg-[#F8FBFF] p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
@@ -517,10 +911,11 @@ const Focus = () => {
                                                 type="button"
                                                 onClick={() => handlePurchaseReward(reward.id)}
                                                 disabled={isSaving || balance < reward.cost_points}
+                                                aria-label={`Buy ${reward.name} for ${reward.cost_points} points`}
                                                 className="inline-flex min-h-10 items-center gap-1 rounded-full border-2 border-slate-800 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-45"
                                             >
                                                 <WalletCards size={14} strokeWidth={2.7} />
-                                                Buy
+                                                {reward.cost_points} pts
                                             </button>
                                             <button
                                                 type="button"
@@ -556,91 +951,176 @@ const Focus = () => {
                                 Bought rewards become little tickets here.
                             </div>
                         )}
-                        {availableInventory.map((item) => (
-                            <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-[22px] border-2 border-slate-800 bg-white text-teal-950 shadow-[5px_5px_0_#99F6E4] dark:border-bone-200/70 dark:bg-void-800 dark:text-teal-100">
-                                <div className="min-w-0 border-r-2 border-dashed border-slate-800 p-3 dark:border-bone-200/70">
-                                    <div className="truncate text-base font-black">{item.reward_name}</div>
-                                    <div className="text-xs font-bold opacity-65">Printed {formatDateTime(item.purchased_at)}</div>
+                        {availableInventory.map((item) => {
+                            const color = getRewardColor(item.reward_color);
+                            return (
+                                <div key={item.id} className={`grid grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-[22px] border-2 border-slate-800 ${color.className} ${color.shadow} dark:border-bone-200/70`}>
+                                    <div className="grid min-w-0 grid-cols-[12px_minmax(0,1fr)]">
+                                        <div className={color.sticker} />
+                                        <div className="min-w-0 border-r-2 border-dashed border-slate-800 p-3 dark:border-bone-200/70">
+                                            <div className="truncate text-base font-black">{item.reward_name}</div>
+                                            <div className="text-xs font-bold opacity-65">Printed {formatDateTime(item.purchased_at)}</div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleUseInventoryItem(item.id)}
+                                        className={`flex min-h-16 min-w-20 flex-col items-center justify-center gap-1 bg-white/80 px-3 text-xs font-black text-slate-950 ${popMotion} hover:bg-amber-300`}
+                                    >
+                                        <Check size={15} strokeWidth={2.7} />
+                                        Use
+                                    </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleUseInventoryItem(item.id)}
-                                    className={`flex min-h-16 min-w-20 flex-col items-center justify-center gap-1 bg-emerald-300 px-3 text-xs font-black text-slate-950 ${popMotion} hover:bg-amber-300`}
-                                >
-                                    <Check size={15} strokeWidth={2.7} />
-                                    Use
-                                </button>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </section>
             </div>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-                <section className={`rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
-                    <div className="flex items-center gap-3">
-                        <IconBadge className="bg-amber-300 text-slate-950">
-                            <Archive size={18} strokeWidth={2.7} />
-                        </IconBadge>
-                        <h2 className="text-xl font-black text-slate-950 dark:text-bone-100">Recent stamps</h2>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                        {!isLoaded && <div className="text-sm font-semibold text-slate-500">Loading sessions...</div>}
-                        {isLoaded && recentSessions.length === 0 && (
-                            <div className="rounded-[20px] border-2 border-dashed border-slate-800 p-4 text-sm font-semibold text-slate-500 dark:border-white/20 dark:text-bone-200/60">
-                                No stamps yet.
-                            </div>
-                        )}
-                        {recentSessions.map((session) => (
-                            <div key={session.id} className="rounded-[22px] border-2 border-slate-800 bg-[#fffdf8] p-3 dark:border-bone-200/70 dark:bg-void-800">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <div className="font-black text-slate-900 dark:text-bone-100">{session.session_type}</div>
-                                        <div className="text-xs font-bold text-slate-500 dark:text-bone-200/60">
-                                            {formatDateTime(session.started_at)} - {session.duration_minutes} min
-                                        </div>
-                                        {session.note && <div className="mt-1 truncate text-sm font-semibold text-slate-600 dark:text-bone-200/70">{session.note}</div>}
-                                    </div>
-                                    <div className="rounded-full border-2 border-slate-800 bg-emerald-200 px-3 py-1 text-sm font-black text-emerald-950">
-                                        +{session.points_earned}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                <section className={`rounded-[28px] bg-[#fffdf8] p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
-                    <div className="flex items-center gap-3">
+            <section className={`mt-6 rounded-[28px] bg-[#fffdf8] p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
                         <IconBadge className="bg-violet-500 text-white">
                             <History size={18} strokeWidth={2.7} />
                         </IconBadge>
-                        <h2 className="text-xl font-black text-slate-950 dark:text-bone-100">Point receipt</h2>
+                        <div className="min-w-0">
+                            <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">Ledger</div>
+                            <h2 className="text-xl font-black text-slate-950 dark:text-bone-100">Daily history</h2>
+                        </div>
                     </div>
-                    <div className="mt-4 overflow-hidden rounded-[22px] border-2 border-dashed border-slate-800 bg-white dark:border-bone-200/70 dark:bg-void-800">
-                        {recentTransactions.length === 0 && (
-                            <div className="p-4 text-sm font-semibold text-slate-500 dark:text-bone-200/60">The receipt is blank.</div>
-                        )}
-                        {recentTransactions.map((transaction) => (
-                            <div key={transaction.id} className="flex items-center justify-between gap-3 border-b-2 border-dashed border-slate-200 px-3 py-3 last:border-b-0 dark:border-white/10">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border-2 border-slate-800 bg-amber-300 px-3 py-1 text-xs font-black text-slate-950">
+                            {dailyHistory.length} days
+                        </span>
+                        <div className="flex items-center gap-2 rounded-full border-2 border-slate-800 bg-white p-1 dark:border-bone-200/70 dark:bg-void-800">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedHistoryKey((prev) => shiftHistoryDayKey(prev, -1))}
+                                className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-800 bg-sky-100 text-slate-900 ${popMotion} hover:bg-sky-300`}
+                                aria-label="Previous day"
+                            >
+                                <ChevronLeft size={17} strokeWidth={2.8} />
+                            </button>
+                            <label className="relative flex min-h-9 items-center gap-2 rounded-full border-2 border-slate-800 bg-[#fffdf8] px-3 text-xs font-black text-slate-800">
+                                <CalendarDays size={15} strokeWidth={2.7} />
+                                <input
+                                    type="date"
+                                    value={selectedHistoryKey}
+                                    onChange={(event) => setSelectedHistoryKey(event.target.value || getHistoryDayKey(new Date()))}
+                                    className="w-[8.25rem] bg-transparent text-xs font-black uppercase text-slate-800 outline-none"
+                                    aria-label="Select history date"
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedHistoryKey((prev) => shiftHistoryDayKey(prev, 1))}
+                                disabled={isSelectedHistoryTodayOrLater}
+                                className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-800 bg-sky-100 text-slate-900 ${popMotion} hover:bg-sky-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`}
+                                aria-label="Next day"
+                            >
+                                <ChevronRight size={17} strokeWidth={2.8} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-4">
+                    {!isLoaded && <div className="text-sm font-semibold text-slate-500">Loading history...</div>}
+                    {isLoaded && (
+                        <div
+                            key={selectedHistoryDay.key}
+                            className="relative overflow-hidden rounded-[24px] border-2 border-slate-800 bg-white p-3 shadow-[5px_5px_0_#C4B5FD] dark:border-bone-200/70 dark:bg-void-800 sm:p-4"
+                        >
+                            <div className="absolute -right-8 -top-10 h-20 w-20 rounded-full bg-emerald-200/70" />
+                            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0">
-                                    <div className="truncate text-sm font-black text-slate-800 dark:text-bone-100">{transaction.title}</div>
-                                    <div className="text-xs font-semibold text-slate-500 dark:text-bone-200/60">{formatDateTime(transaction.created_at)}</div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <div className="rounded-full border-2 border-slate-800 bg-violet-500 px-3 py-1 text-sm font-black text-white">
+                                            {selectedHistoryDay.label}
+                                        </div>
+                                        <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{selectedHistoryDay.dateLabel}</div>
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <span className="rounded-full border-2 border-slate-800 bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-950">
+                                            +{selectedHistoryDay.earned} earned
+                                        </span>
+                                        <span className="rounded-full border-2 border-slate-800 bg-rose-100 px-3 py-1 text-xs font-black text-rose-950">
+                                            -{selectedHistoryDay.spent} spent
+                                        </span>
+                                        <span className={`rounded-full border-2 border-slate-800 px-3 py-1 text-xs font-black ${
+                                            selectedHistoryDay.net >= 0 ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-700'
+                                        }`}>
+                                            {selectedHistoryDay.net >= 0 ? `+${selectedHistoryDay.net}` : selectedHistoryDay.net} net
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className={`rounded-full border-2 border-slate-800 px-2 py-1 text-sm font-black ${
-                                    transaction.points > 0
-                                        ? 'bg-emerald-200 text-emerald-950'
-                                        : transaction.points < 0
-                                            ? 'bg-rose-200 text-rose-950'
-                                            : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                    {transaction.points > 0 ? `+${transaction.points}` : transaction.points}
+                                <div className="grid grid-cols-2 gap-2 text-center sm:min-w-36">
+                                    <div className="rounded-[18px] border-2 border-slate-800 bg-[#fffdf8] px-3 py-2">
+                                        <div className="text-lg font-black text-slate-950 dark:text-bone-100">{selectedAddedEntries.length}</div>
+                                        <div className="text-[10px] font-black uppercase text-slate-400">added</div>
+                                    </div>
+                                    <div className="rounded-[18px] border-2 border-slate-800 bg-[#fffdf8] px-3 py-2">
+                                        <div className="text-lg font-black text-slate-950 dark:text-bone-100">{selectedUsedEntries.length}</div>
+                                        <div className="text-[10px] font-black uppercase text-slate-400">used</div>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </section>
-            </div>
+
+                            <div className="relative mt-4 grid gap-3 lg:grid-cols-2">
+                                <div className="max-h-80 overflow-y-auto rounded-[20px] border-2 border-dashed border-slate-800 bg-[#F7FFF9] p-3 dark:border-white/20 dark:bg-void-900/60">
+                                    <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                                        <Plus size={14} strokeWidth={2.7} />
+                                        Points added
+                                    </div>
+                                    <div className="space-y-2">
+                                        {selectedAddedEntries.length === 0 && (
+                                            <div className="text-sm font-semibold text-slate-400">No added points.</div>
+                                        )}
+                                        {selectedAddedEntries.map((transaction) => (
+                                            <div key={transaction.id} className="flex items-center justify-between gap-3 rounded-[16px] border-2 border-slate-800 bg-white px-3 py-2 dark:border-white/15 dark:bg-void-800">
+                                                <div className="min-w-0">
+                                                    <div className="truncate text-sm font-black text-slate-900 dark:text-bone-100">{transaction.title}</div>
+                                                    <div className="text-xs font-semibold text-slate-500 dark:text-bone-200/60">{formatTimeOnly(transaction.created_at)}</div>
+                                                </div>
+                                                <div className="rounded-full border-2 border-slate-800 bg-emerald-200 px-2 py-1 text-xs font-black text-emerald-950">
+                                                    +{transaction.points}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="max-h-80 overflow-y-auto rounded-[20px] border-2 border-dashed border-slate-800 bg-[#FFF7F9] p-3 dark:border-white/20 dark:bg-void-900/60">
+                                    <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                                        <Gift size={14} strokeWidth={2.7} />
+                                        Points used
+                                    </div>
+                                    <div className="space-y-2">
+                                        {selectedUsedEntries.length === 0 && (
+                                            <div className="text-sm font-semibold text-slate-400">No used points.</div>
+                                        )}
+                                        {selectedUsedEntries.map((transaction) => (
+                                            <div key={transaction.id} className="flex items-center justify-between gap-3 rounded-[16px] border-2 border-slate-800 bg-white px-3 py-2 dark:border-white/15 dark:bg-void-800">
+                                                <div className="min-w-0">
+                                                    <div className="truncate text-sm font-black text-slate-800 dark:text-bone-100">{transaction.title}</div>
+                                                    <div className="text-xs font-semibold text-slate-500 dark:text-bone-200/60">{formatTimeOnly(transaction.created_at)}</div>
+                                                </div>
+                                                <div className={`rounded-full border-2 border-slate-800 px-2 py-1 text-xs font-black ${
+                                                    transaction.points < 0
+                                                        ? 'bg-rose-200 text-rose-950'
+                                                        : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                    {transaction.points}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </section>
         </div>
     );
 };

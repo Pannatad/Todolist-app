@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { Plus, BookOpen, Clock, Flame, TrendingUp, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus, Target, BarChart3, Award, CheckCircle2, SlidersHorizontal, Tags } from 'lucide-react';
+import { Plus, BookOpen, GraduationCap, Search, Archive, Zap, ChevronRight, FolderOpen, Settings, Minus, Target, BarChart3, Award, CheckCircle2, SlidersHorizontal, Tags } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
@@ -299,7 +299,6 @@ const LearningTracker = () => {
         getPathTotalTime,
         getCategories,
         getInProgressTopicsWithPaths,
-        getCurrentFocusTopics,
         canStartNewPath,
         getActiveInProgressPathCount,
         maxConcurrentPaths,
@@ -374,7 +373,6 @@ const LearningTracker = () => {
 
     // In-progress topics
     const inProgressTopics = useMemo(() => getInProgressTopicsWithPaths(), [getInProgressTopicsWithPaths]);
-    const focusTopics = useMemo(() => getCurrentFocusTopics(), [getCurrentFocusTopics]);
     const canStart = canStartNewPath();
     const activeCount = getActiveInProgressPathCount();
 
@@ -521,28 +519,39 @@ const LearningTracker = () => {
             <Motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="overflow-hidden rounded-[1.75rem] border border-sage-100 bg-white/80 shadow-sm backdrop-blur dark:border-white/10 dark:bg-void-900/70"
+                className="border-b border-slate-200 pb-4 dark:border-white/10"
             >
-                <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sage-500">
-                            <GraduationCap size={16} />
-                            Learning paths
+                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-sage-600 dark:text-sage-300">
+                            <GraduationCap size={14} />
+                            Learning
                         </div>
                         <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
-                            <span className="text-4xl font-black leading-none text-sage-950 dark:text-bone-100">{stats.totalPaths}</span>
-                            <span className="pb-1 text-sm font-bold text-sage-500 dark:text-bone-200/60">active paths</span>
+                            <h2 className="text-2xl font-black leading-none text-slate-950 dark:text-bone-100">Learning paths</h2>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-0.5 text-sm font-semibold text-slate-500 dark:text-bone-200/60">
+                                <span>{stats.totalPaths} paths</span>
+                                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                <span>{stats.inProgress} in progress</span>
+                                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                <span>{stats.completed} completed</span>
+                                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                <span>
+                                    {formatTime(stats.studiedTime)} studied
+                                    {stats.plannedTime > 0 ? ` / ${formatTime(stats.plannedTime)} planned` : ''}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <div className="flex items-center gap-1 rounded-2xl border border-sage-100 bg-white p-1 shadow-sm dark:border-white/10 dark:bg-void-800">
+                    <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm dark:border-white/10 dark:bg-void-800">
                         <button
                             onClick={() => setLearningView('paths')}
-                            className={`px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-1.5 transition-all ${
                                 learningView === 'paths'
-                                    ? 'bg-sage-600 text-white shadow-sm'
-                                    : 'text-slate-500 hover:bg-sage-50 hover:text-sage-700 dark:text-bone-200/70 dark:hover:bg-void-700'
+                                    ? 'bg-slate-900 text-white dark:bg-bone-100 dark:text-void-950'
+                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-bone-200/70 dark:hover:bg-void-700'
                             }`}
                         >
                             <BookOpen size={15} />
@@ -550,10 +559,10 @@ const LearningTracker = () => {
                         </button>
                         <button
                             onClick={() => setLearningView('dashboard')}
-                            className={`px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-1.5 transition-all ${
                                 learningView === 'dashboard'
-                                    ? 'bg-sage-600 text-white shadow-sm'
-                                    : 'text-slate-500 hover:bg-sage-50 hover:text-sage-700 dark:text-bone-200/70 dark:hover:bg-void-700'
+                                    ? 'bg-slate-900 text-white dark:bg-bone-100 dark:text-void-950'
+                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-bone-200/70 dark:hover:bg-void-700'
                             }`}
                         >
                             <BarChart3 size={15} />
@@ -562,10 +571,10 @@ const LearningTracker = () => {
                     </div>
                     <button
                         onClick={() => setShowSettings(!showSettings)}
-                        className={`p-2.5 rounded-2xl transition-all ${
+                        className={`p-2.5 rounded-lg border transition-all ${
                             showSettings
-                                ? 'bg-sage-100 text-sage-800'
-                                : 'bg-white text-slate-500 ring-1 ring-sage-100 hover:bg-sage-50 hover:text-sage-700 dark:bg-void-800 dark:ring-white/10'
+                                ? 'border-slate-300 bg-slate-100 text-slate-900'
+                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-white/10 dark:bg-void-800'
                         }`}
                         title="Learning Tracker Settings"
                     >
@@ -579,9 +588,9 @@ const LearningTracker = () => {
                             }
                         }}
                         disabled={!canStart}
-                        className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all
+                        className={`px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all
                             ${canStart
-                                ? 'bg-sage-600 text-white shadow-lg shadow-sage-600/20 hover:bg-sage-700 active:scale-95'
+                                ? 'bg-sage-700 text-white shadow-sm hover:bg-sage-800 active:scale-95 dark:bg-bone-100 dark:text-void-950'
                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
                             }`}
                     >
@@ -590,7 +599,6 @@ const LearningTracker = () => {
                     </button>
                 </div>
                 </div>
-                <div className="h-1 bg-gradient-to-r from-sage-500 via-amber-400 to-sky-500" />
             </Motion.div>
 
             {/* Settings Panel */}
@@ -664,107 +672,6 @@ const LearningTracker = () => {
                 />
             ) : (
                 <>
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0 }}
-                    className="rounded-[1.35rem] border border-sage-100 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-void-900/75"
-                >
-                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-sage-500 mb-1">
-                        <BookOpen size={14} />
-                        <span>Paths</span>
-                    </div>
-                    <div className="text-3xl font-black text-sage-950 dark:text-bone-100">{stats.totalPaths}</div>
-                </Motion.div>
-                <Motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    className="rounded-[1.35rem] border border-amber-100 bg-amber-50/80 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20"
-                >
-                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-amber-600 dark:text-amber-200 mb-1">
-                        <Flame size={14} />
-                        <span>In Progress</span>
-                    </div>
-                    <div className="text-3xl font-black text-amber-900 dark:text-amber-100">{stats.inProgress}</div>
-                </Motion.div>
-                <Motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/20"
-                >
-                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-200 mb-1">
-                        <TrendingUp size={14} />
-                        <span>Completed</span>
-                    </div>
-                    <div className="text-3xl font-black text-emerald-900 dark:text-emerald-100">{stats.completed}</div>
-                </Motion.div>
-                <Motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="rounded-[1.35rem] border border-sky-100 bg-sky-50/80 p-4 shadow-sm dark:border-sky-900/30 dark:bg-sky-950/20"
-                >
-                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-200 mb-1">
-                        <Clock size={14} />
-                        <span>Studied</span>
-                    </div>
-                    <div className="text-3xl font-black text-sky-900 dark:text-sky-100">{formatTime(stats.studiedTime)}</div>
-                    {stats.plannedTime > 0 && (
-                        <div className="text-xs text-sky-500 font-bold mt-0.5">planned {formatTime(stats.plannedTime)}</div>
-                    )}
-                </Motion.div>
-            </div>
-
-            {focusTopics.length > 0 && (
-                <Motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.18 }}
-                >
-                    <div className="flex items-center gap-2 mb-3">
-                        <Target size={18} className="text-rose-500" />
-                        <h3 className="text-base font-bold text-gray-800">Current Focus</h3>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold">
-                            {focusTopics.length} focus topic{focusTopics.length !== 1 ? 's' : ''}
-                        </span>
-                    </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sage-200">
-                        {focusTopics.map((topic, idx) => {
-                            const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
-                            return (
-                                <Motion.button
-                                    key={topic.id}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ type: 'spring', stiffness: 320, damping: 30, delay: 0.18 + idx * 0.04 }}
-                                    whileHover={{ y: -2 }}
-                                    onClick={() => setCurrentPathId(topic.learning_path_id)}
-                                    className="group flex-shrink-0 min-w-[240px] max-w-[300px] rounded-[1.35rem] border border-rose-100 bg-white/85 p-4 text-left shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50/40 dark:border-white/10 dark:bg-void-900/80"
-                                >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${pathColor.gradient} flex items-center justify-center text-sm shadow-sm`}>
-                                            {topic.path?.icon || '📚'}
-                                        </div>
-                                        <span className="text-xs text-gray-400 font-medium truncate">{topic.path?.name}</span>
-                                    </div>
-                                    <h4 className="font-semibold text-sm text-gray-800 truncate mb-2">{topic.title}</h4>
-                                    <div className="flex items-center gap-2 text-xs">
-                                        <span className="rounded-full bg-rose-100 text-rose-600 px-2 py-0.5 font-semibold">Focus</span>
-                                        {topic.estimated_time > 0 && (
-                                            <span className="text-gray-500">{formatTime(topic.estimated_time)}</span>
-                                        )}
-                                    </div>
-                                </Motion.button>
-                            );
-                        })}
-                    </div>
-                </Motion.div>
-            )}
-
             {/* ── Continue Learning Block ─────────────────────── */}
             {inProgressTopics.length > 0 && (
                 <Motion.div
@@ -887,19 +794,13 @@ const LearningTracker = () => {
                             {/* Category Header */}
                             {groupedPaths.length > 1 || category !== 'Uncategorized' ? (
                                 <div className="mb-4 flex items-center gap-2.5">
-                                    <div className={`w-1 h-6 rounded-full ${
-                                        category === 'Pinned'
-                                            ? 'bg-gradient-to-b from-amber-300 to-orange-500'
-                                            : 'bg-gradient-to-b from-sage-400 to-sky-500'
-                                    }`} />
+                                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-sage-400 to-sky-500" />
                                     {category === 'Pinned' ? (
-                                        <Target size={16} className="text-amber-500" />
+                                        <Target size={16} className="text-gray-400" />
                                     ) : (
                                         <FolderOpen size={16} className="text-gray-400" />
                                     )}
-                                    <h3 className={`text-sm font-bold uppercase tracking-wider ${
-                                        category === 'Pinned' ? 'text-amber-600' : 'text-slate-600'
-                                    }`}>{category}</h3>
+                                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600">{category}</h3>
                                     <span className="text-xs text-gray-400 font-medium">{catPaths.length}</span>
                                 </div>
                             ) : null}

@@ -122,9 +122,7 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
             whileTap={{ scale: 0.985, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 420, damping: 28 }}
             onClick={onClick}
-            className={`group relative cursor-pointer overflow-hidden rounded-[1.55rem] border shadow-sm transition-colors hover:shadow-lg dark:bg-void-900/85 ${
-                isPinned ? 'border-amber-300 bg-amber-50/95 shadow-amber-200/55 ring-2 ring-amber-100' : palette.shell
-            }`}
+            className={`group relative cursor-pointer overflow-hidden rounded-[1.55rem] border shadow-sm transition-colors hover:shadow-lg dark:bg-void-900/85 ${palette.shell}`}
         >
             <div className="p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -135,7 +133,7 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <h3 className={`truncate text-lg font-black leading-tight dark:text-bone-100 ${palette.title}`}>{path.name}</h3>
-                                {isPinned && <Pin size={13} className="shrink-0 text-amber-500" fill="currentColor" />}
+                                {isPinned && <Pin size={13} className="shrink-0 opacity-70" fill="currentColor" />}
                             </div>
                             {path.category && (
                                 <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ring-1 ${palette.chip}`}>
@@ -153,7 +151,7 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
                             onClick={(e) => { e.stopPropagation(); onTogglePin?.(path.id); }}
                             className={`p-1.5 rounded-xl transition-colors ${
                                 isPinned
-                                    ? 'bg-amber-100 text-amber-700'
+                                    ? 'bg-white/80 dark:bg-void-700'
                                     : 'hover:bg-white/80 hover:text-amber-600 dark:hover:bg-void-700'
                             }`}
                             title={isPinned ? 'Unpin course' : 'Pin course'}

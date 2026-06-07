@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
@@ -6,10 +6,16 @@ import { toLocalDateKey } from '../utils/scheduleOccurrences';
 const FocusContext = createContext();
 
 const STORAGE_KEY = 'focus-game-guest';
+const STORAGE_BACKUP_KEY = `${STORAGE_KEY}:backup`;
+const ACTION_STORAGE_READY_KEY = 'focus-actions-table-ready';
+const FOCUS_DATA_KEYS = ['sessions', 'actions', 'rewards', 'inventory', 'transactions'];
+const FOCUS_ACTIONS_MISSING_MESSAGE = 'Run the focus_actions SQL snippet to enable custom action stamps.';
+const FOCUS_TRANSACTION_KIND_MESSAGE = 'Run the focus_point_transactions kind SQL snippet to save custom action points.';
 const MILESTONE_INTERVAL = 50;
 const MILESTONE_BONUS = 5;
 const DAILY_MILESTONE_INTERVAL = 10;
 const DAILY_MILESTONE_BONUS = 2;
+const BASE_EARNING_KINDS = new Set(['session', 'custom_action']);
 
 const normalizeSession = (session) => ({
     ...session,
@@ -25,9 +31,17 @@ const normalizeReward = (reward) => ({
     archived: reward?.archived === true,
 });
 
+const normalizeAction = (action) => ({
+    ...action,
+    points: Number(action?.points) || 1,
+    color: action?.color || 'mint',
+    archived: action?.archived === true,
+});
+
 const normalizeInventoryItem = (item) => ({
     ...item,
     cost_points: Number(item?.cost_points) || 0,
+    reward_color: item?.reward_color || item?.rewardColor || 'mint',
     used_at: item?.used_at || null,
 });
 
@@ -38,6 +52,14 @@ const normalizeTransaction = (transaction) => ({
 });
 
 const getSessionPoints = (durationMinutes) => Math.max(0, Math.floor((Number(durationMinutes) || 0) / 25));
+
+const sumBaseEarnedPoints = (transactions, dateKey = null) => (
+    transactions.reduce((total, transaction) => {
+        if (!BASE_EARNING_KINDS.has(transaction.kind) || transaction.points <= 0) return total;
+        if (dateKey && toLocalDateKey(transaction.created_at) !== dateKey) return total;
+        return total + transaction.points;
+    }, 0)
+);
 
 const getNewMilestoneBonuses = (previousLifetimePoints, nextLifetimePoints, transactions) => {
     const claimedMilestones = new Set(
@@ -86,6 +108,51 @@ const sortNewestFirst = (items) => (
     })
 );
 
+const parseStoredFocusData = (raw) => {
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+};
+
+const hasFocusData = (payload) => (
+    payload && FOCUS_DATA_KEYS.some((key) => Array.isArray(payload[key]) && payload[key].length > 0)
+);
+
+const getStoredFocusData = () => {
+    const current = parseStoredFocusData(localStorage.getItem(STORAGE_KEY));
+    if (hasFocusData(current)) return current;
+
+    const backup = parseStoredFocusData(localStorage.getItem(STORAGE_BACKUP_KEY));
+    if (hasFocusData(backup)) return backup;
+
+    return current;
+};
+
+const isMissingFocusActionsTable = (error) => (
+    error?.code === 'PGRST205' || error?.message?.includes('focus_actions')
+);
+
+const isTransactionKindConstraintError = (error) => (
+    error?.code === '23514'
+    && (
+        error?.message?.includes('focus_point_transactions')
+        || error?.message?.includes('focus_point_transactions_kind')
+        || error?.message?.includes('check constraint')
+    )
+);
+
+const isActionStorageMarkedReady = () => localStorage.getItem(ACTION_STORAGE_READY_KEY) === 'true';
+const markActionStorageReady = (isReady) => {
+    if (isReady) {
+        localStorage.setItem(ACTION_STORAGE_READY_KEY, 'true');
+    } else {
+        localStorage.removeItem(ACTION_STORAGE_READY_KEY);
+    }
+};
+
 // Matches the existing context pattern used throughout this app.
 // eslint-disable-next-line react-refresh/only-export-components
 export const useFocus = () => {
@@ -98,11 +165,15 @@ export const useFocus = () => {
 
 export const FocusProvider = ({ children }) => {
     const { user } = useAuth();
+    const hasHydratedGuestData = useRef(false);
     const [sessions, setSessions] = useState([]);
+    const [actions, setActions] = useState([]);
     const [rewards, setRewards] = useState([]);
     const [inventory, setInventory] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [actionStorageReady, setActionStorageReady] = useState(false);
+    const [isCheckingActionStorage, setIsCheckingActionStorage] = useState(false);
 
     const refreshFocusData = useCallback(async () => {
         if (!user || !supabase) return;
@@ -126,28 +197,99 @@ export const FocusProvider = ({ children }) => {
         setRewards((rewardsResult.data || []).map(normalizeReward));
         setInventory((inventoryResult.data || []).map(normalizeInventoryItem));
         setTransactions((transactionsResult.data || []).map(normalizeTransaction));
+
+        if (!isActionStorageMarkedReady()) {
+            setActions([]);
+            setActionStorageReady(false);
+            return;
+        }
+
+        const actionsResult = await supabase
+            .from('focus_actions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+        if (actionsResult.error) {
+            setActions([]);
+            setActionStorageReady(false);
+            markActionStorageReady(false);
+            if (!isMissingFocusActionsTable(actionsResult.error)) {
+                console.warn('Focus actions could not be loaded.', actionsResult.error);
+            }
+            return;
+        }
+
+        setActionStorageReady(true);
+        setActions((actionsResult.data || []).map(normalizeAction));
+    }, [user]);
+
+    const checkActionStorage = useCallback(async ({ silent = false } = {}) => {
+        if (!user || !supabase) {
+            setActionStorageReady(true);
+            return true;
+        }
+
+        setIsCheckingActionStorage(true);
+        const { data, error } = await supabase
+            .from('focus_actions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            setActions([]);
+            setActionStorageReady(false);
+            markActionStorageReady(false);
+            setIsCheckingActionStorage(false);
+            if (isMissingFocusActionsTable(error)) {
+                if (silent) return false;
+                throw new Error(FOCUS_ACTIONS_MISSING_MESSAGE);
+            }
+            if (silent) {
+                console.warn('Focus actions could not be checked.', error);
+                return false;
+            }
+            throw error;
+        }
+
+        setActionStorageReady(true);
+        markActionStorageReady(true);
+        setActions((data || []).map(normalizeAction));
+        setIsCheckingActionStorage(false);
+        return true;
     }, [user]);
 
     useEffect(() => {
         setIsLoaded(false);
+        hasHydratedGuestData.current = false;
 
         if (user && supabase) {
+            setActions([]);
+            setActionStorageReady(isActionStorageMarkedReady());
+            setIsCheckingActionStorage(true);
             refreshFocusData()
+                .then(() => checkActionStorage({ silent: true }))
                 .catch((error) => console.error('Error loading focus data:', error))
+                .finally(() => setIsCheckingActionStorage(false))
                 .finally(() => setIsLoaded(true));
             return;
         }
 
+        setActionStorageReady(true);
+        setIsCheckingActionStorage(false);
         try {
-            const saved = localStorage.getItem(STORAGE_KEY);
+            const parsed = getStoredFocusData();
+            const saved = Boolean(parsed);
             if (saved) {
-                const parsed = JSON.parse(saved);
                 setSessions((parsed.sessions || []).map(normalizeSession));
+                setActions((parsed.actions || []).map(normalizeAction));
                 setRewards((parsed.rewards || []).map(normalizeReward));
                 setInventory((parsed.inventory || []).map(normalizeInventoryItem));
                 setTransactions((parsed.transactions || []).map(normalizeTransaction));
             } else {
                 setSessions([]);
+                setActions([]);
                 setRewards([]);
                 setInventory([]);
                 setTransactions([]);
@@ -155,24 +297,36 @@ export const FocusProvider = ({ children }) => {
         } catch (error) {
             console.error('Failed to load focus data from localStorage:', error);
             setSessions([]);
+            setActions([]);
             setRewards([]);
             setInventory([]);
             setTransactions([]);
         } finally {
+            hasHydratedGuestData.current = true;
             setIsLoaded(true);
         }
-    }, [refreshFocusData, user]);
+    }, [checkActionStorage, refreshFocusData, user]);
 
     useEffect(() => {
-        if (user || !isLoaded) return;
+        if (user || !isLoaded || !hasHydratedGuestData.current) return;
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        const nextData = {
             sessions,
+            actions,
             rewards,
             inventory,
             transactions,
-        }));
-    }, [inventory, isLoaded, rewards, sessions, transactions, user]);
+        };
+        const existingRaw = localStorage.getItem(STORAGE_KEY);
+        const existing = parseStoredFocusData(existingRaw);
+
+        if (!hasFocusData(nextData) && hasFocusData(existing)) return;
+        if (existingRaw && hasFocusData(existing)) {
+            localStorage.setItem(STORAGE_BACKUP_KEY, existingRaw);
+        }
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+    }, [actions, inventory, isLoaded, rewards, sessions, transactions, user]);
 
     useEffect(() => {
         if (!user || !supabase) return undefined;
@@ -204,22 +358,23 @@ export const FocusProvider = ({ children }) => {
     );
 
     const lifetimeSessionPoints = useMemo(
-        () => sessions.reduce((total, session) => total + session.points_earned, 0),
-        [sessions]
+        () => sumBaseEarnedPoints(transactions),
+        [transactions]
     );
 
     const dailySessionPoints = useMemo(() => {
         const todayKey = toLocalDateKey(new Date());
-        return sessions.reduce((total, session) => (
-            toLocalDateKey(session.started_at) === todayKey
-                ? total + session.points_earned
-                : total
-        ), 0);
-    }, [sessions]);
+        return sumBaseEarnedPoints(transactions, todayKey);
+    }, [transactions]);
 
     const activeRewards = useMemo(
         () => rewards.filter((reward) => !reward.archived),
         [rewards]
+    );
+
+    const activeActions = useMemo(
+        () => actions.filter((action) => !action.archived),
+        [actions]
     );
 
     const availableInventory = useMemo(
@@ -289,11 +444,7 @@ export const FocusProvider = ({ children }) => {
         const previousLifetimePoints = lifetimeSessionPoints;
         const nextLifetimePoints = previousLifetimePoints + points;
         const sessionDateKey = toLocalDateKey(startedAt);
-        const previousDailyPoints = sessions.reduce((total, item) => (
-            toLocalDateKey(item.started_at) === sessionDateKey
-                ? total + item.points_earned
-                : total
-        ), 0);
+        const previousDailyPoints = sumBaseEarnedPoints(transactions, sessionDateKey);
         const nextDailyPoints = previousDailyPoints + points;
         const lifetimeMilestoneTransactions = getNewMilestoneBonuses(previousLifetimePoints, nextLifetimePoints, transactions)
             .map((milestone, index) => normalizeTransaction({
@@ -379,6 +530,166 @@ export const FocusProvider = ({ children }) => {
         }
     };
 
+    const addAction = async ({ name, points, color = 'mint' }) => {
+        if (user && supabase && !actionStorageReady) {
+            throw new Error(FOCUS_ACTIONS_MISSING_MESSAGE);
+        }
+
+        const now = new Date().toISOString();
+        const actionId = `action_${Date.now()}`;
+        const action = normalizeAction({
+            id: actionId,
+            user_id: user?.id,
+            name,
+            points: Number(points),
+            color,
+            archived: false,
+            created_at: now,
+        });
+
+        setActions((prev) => [...prev, action]);
+
+        if (!user || !supabase) return action;
+
+        try {
+            const { data, error } = await supabase
+                .from('focus_actions')
+                .insert([{
+                    user_id: user.id,
+                    name: action.name,
+                    points: action.points,
+                    color: action.color,
+                    archived: false,
+                    created_at: action.created_at,
+                }])
+                .select()
+                .single();
+            if (error) throw error;
+            setActionStorageReady(true);
+            markActionStorageReady(true);
+            setActions((prev) => prev.map((item) => (item.id === actionId ? normalizeAction(data) : item)));
+            return normalizeAction(data);
+        } catch (error) {
+            console.error('Error saving focus action:', error);
+            setActions((prev) => prev.filter((item) => item.id !== actionId));
+            if (isMissingFocusActionsTable(error)) {
+                setActionStorageReady(false);
+                markActionStorageReady(false);
+                throw new Error(FOCUS_ACTIONS_MISSING_MESSAGE);
+            }
+            throw error;
+        }
+    };
+
+    const logAction = async (actionId) => {
+        const action = activeActions.find((item) => item.id === actionId);
+        if (!action) throw new Error('Action not found.');
+
+        const now = new Date().toISOString();
+        const dateKey = toLocalDateKey(now);
+        const transactionId = `transaction_${Date.now()}`;
+        const points = Math.max(1, Number(action.points) || 1);
+        const transaction = normalizeTransaction({
+            id: transactionId,
+            user_id: user?.id,
+            kind: 'custom_action',
+            points,
+            title: action.name,
+            metadata: { action_id: action.id, action_name: action.name },
+            created_at: now,
+        });
+
+        const previousLifetimePoints = lifetimeSessionPoints;
+        const nextLifetimePoints = previousLifetimePoints + points;
+        const previousDailyPoints = sumBaseEarnedPoints(transactions, dateKey);
+        const nextDailyPoints = previousDailyPoints + points;
+        const lifetimeMilestoneTransactions = getNewMilestoneBonuses(previousLifetimePoints, nextLifetimePoints, transactions)
+            .map((milestone, index) => normalizeTransaction({
+                id: `action_milestone_${Date.now()}_${index}`,
+                user_id: user?.id,
+                kind: 'milestone_bonus',
+                points: MILESTONE_BONUS,
+                title: `${milestone} point milestone`,
+                metadata: { milestone, scope: 'lifetime' },
+                created_at: now,
+            }));
+        const dailyMilestoneTransactions = getNewDailyMilestoneBonuses(previousDailyPoints, nextDailyPoints, dateKey, transactions)
+            .map((milestone, index) => normalizeTransaction({
+                id: `action_daily_milestone_${Date.now()}_${index}`,
+                user_id: user?.id,
+                kind: 'milestone_bonus',
+                points: DAILY_MILESTONE_BONUS,
+                title: `Daily ${milestone} point bonus`,
+                metadata: { milestone, scope: 'daily', date: dateKey },
+                created_at: now,
+            }));
+        const milestoneTransactions = [...lifetimeMilestoneTransactions, ...dailyMilestoneTransactions];
+
+        setTransactions((prev) => sortNewestFirst([transaction, ...milestoneTransactions, ...prev]));
+
+        if (!user || !supabase) return transaction;
+
+        try {
+            const { data, error } = await supabase
+                .from('focus_point_transactions')
+                .insert([transaction, ...milestoneTransactions].map((item) => ({
+                    user_id: user.id,
+                    kind: item.kind,
+                    points: item.points,
+                    title: item.title,
+                    metadata: item.metadata,
+                    created_at: item.created_at,
+                })))
+                .select();
+            if (error) throw error;
+
+            const temporaryIds = new Set([transaction.id, ...milestoneTransactions.map((item) => item.id)]);
+            setTransactions((prev) => sortNewestFirst([
+                ...(data || []).map(normalizeTransaction),
+                ...prev.filter((item) => !temporaryIds.has(item.id)),
+            ]));
+            return normalizeTransaction(data?.[0] || transaction);
+        } catch (error) {
+            console.error('Error logging focus action:', error);
+            const temporaryIds = new Set([transaction.id, ...milestoneTransactions.map((item) => item.id)]);
+            setTransactions((prev) => prev.filter((item) => !temporaryIds.has(item.id)));
+            if (isTransactionKindConstraintError(error)) {
+                throw new Error(FOCUS_TRANSACTION_KIND_MESSAGE);
+            }
+            throw error;
+        }
+    };
+
+    const archiveAction = async (actionId) => {
+        const action = actions.find((item) => item.id === actionId);
+        if (!action) return;
+        if (user && supabase && !actionStorageReady) {
+            throw new Error(FOCUS_ACTIONS_MISSING_MESSAGE);
+        }
+        setActions((prev) => prev.map((item) => (
+            item.id === actionId ? normalizeAction({ ...item, archived: true }) : item
+        )));
+
+        if (!user || !supabase) return;
+
+        try {
+            const { error } = await supabase
+                .from('focus_actions')
+                .update({ archived: true })
+                .eq('id', actionId);
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error archiving focus action:', error);
+            setActions((prev) => prev.map((item) => (item.id === actionId ? action : item)));
+            if (isMissingFocusActionsTable(error)) {
+                setActionStorageReady(false);
+                markActionStorageReady(false);
+                throw new Error(FOCUS_ACTIONS_MISSING_MESSAGE);
+            }
+            throw error;
+        }
+    };
+
     const addReward = async ({ name, costPoints, color = 'mint' }) => {
         const now = new Date().toISOString();
         const rewardId = `reward_${Date.now()}`;
@@ -433,6 +744,7 @@ export const FocusProvider = ({ children }) => {
             reward_id: reward.id,
             reward_name: reward.name,
             cost_points: reward.cost_points,
+            reward_color: reward.color,
             purchased_at: now,
             used_at: null,
         });
@@ -459,6 +771,7 @@ export const FocusProvider = ({ children }) => {
                     reward_id: reward.id,
                     reward_name: reward.name,
                     cost_points: reward.cost_points,
+                    reward_color: reward.color,
                     purchased_at: now,
                     used_at: null,
                 }])
@@ -585,6 +898,8 @@ export const FocusProvider = ({ children }) => {
 
     const value = {
         sessions,
+        actions,
+        activeActions,
         rewards,
         activeRewards,
         inventory,
@@ -599,8 +914,14 @@ export const FocusProvider = ({ children }) => {
         dailyMilestoneInterval: DAILY_MILESTONE_INTERVAL,
         dailyMilestoneBonus: DAILY_MILESTONE_BONUS,
         isLoaded,
+        actionStorageReady,
+        isCheckingActionStorage,
+        checkActionStorage,
         getSessionPoints,
         addSession,
+        addAction,
+        logAction,
+        archiveAction,
         addReward,
         purchaseReward,
         useInventoryItem,
