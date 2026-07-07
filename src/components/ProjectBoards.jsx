@@ -1,684 +1,987 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, MoreHorizontal, Sparkles, Loader2, Check, Trash2, X, Pin, PinOff, ChevronDown, ChevronRight, Calendar, ListTodo, Dumbbell, Brain, Briefcase, Rocket, Folder, Trophy, GraduationCap } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+    ArrowUpRight,
+    BarChart3,
+    Briefcase,
+    Calendar,
+    Check,
+    ChevronDown,
+    ChevronRight,
+    Clock3,
+    Edit3,
+    Flag,
+    Folder,
+    GraduationCap,
+    LayoutDashboard,
+    ListChecks,
+    Loader2,
+    Map,
+    MoreHorizontal,
+    NotebookText,
+    Pin,
+    PinOff,
+    Plus,
+    Rocket,
+    Sparkles,
+    Target,
+    Trash2,
+    Trophy,
+    X
+} from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { useAIProjectArchitect } from '../hooks/useAIProjectArchitect';
 import ProjectMindMap from './ProjectMindMap';
+import ProjectDetailView from './ProjectDetailView';
 import { ProjectCalendar } from './ProjectCalendar';
 
+const CATEGORIES = ['Work Projects', 'Personal Growth', 'Side Hustles', 'Learning', 'General'];
+
+const CATEGORY_ICONS = {
+    'Work Projects': Briefcase,
+    'Personal Growth': Trophy,
+    'Side Hustles': Rocket,
+    Learning: GraduationCap,
+    General: Folder
+};
+
+const EMPTY_MANUAL_PROJECT = {
+    title: '',
+    category: 'General',
+    vision: '',
+    notes: '',
+    deadline: ''
+};
+
+const DEFAULT_COLUMNS = [
+    { id: 'c-1', title: 'To Do' },
+    { id: 'c-2', title: 'In Progress' },
+    { id: 'c-3', title: 'Review' },
+    { id: 'c-4', title: 'Done' }
+];
+
+const DEFAULT_PHASES = [
+    { id: 'phase-1', name: 'Discovery', color: 'indigo', order: 0, deadline: null },
+    { id: 'phase-2', name: 'Build', color: 'emerald', order: 1, deadline: null },
+    { id: 'phase-3', name: 'Review', color: 'amber', order: 2, deadline: null },
+    { id: 'phase-4', name: 'Launch', color: 'rose', order: 3, deadline: null }
+];
+
+const priorityWeight = { High: 3, Medium: 2, Low: 1 };
+
+const getDoneColumnId = (project) => (
+    project.columns?.find((column) => column.title.toLowerCase() === 'done')?.id
+);
+
+const isTaskDone = (task, project) => {
+    const doneColumnId = getDoneColumnId(project);
+    return task.completed === true || (doneColumnId && task.columnId === doneColumnId);
+};
+
+const getSortedPhases = (project) => (
+    [...(project.phases || [])].sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+);
+
+const getProjectStats = (project) => {
+    const tasks = project.tasks || [];
+    const completed = tasks.filter((task) => isTaskDone(task, project)).length;
+    const total = tasks.length;
+    const remaining = Math.max(total - completed, 0);
+    const progress = total > 0 ? Math.round((completed / total) * 100) : project.progress || 0;
+
+    return { total, completed, remaining, progress };
+};
+
+const getProjectDeadline = (project) => {
+    if (project.deadline) return project.deadline;
+
+    const phaseDeadlines = getSortedPhases(project)
+        .map((phase) => phase.deadline)
+        .filter(Boolean);
+
+    return phaseDeadlines.at(-1) || null;
+};
+
+const getNextMilestone = (project) => {
+    const now = new Date();
+    const upcoming = getSortedPhases(project)
+        .filter((phase) => phase.deadline)
+        .map((phase) => ({ ...phase, date: new Date(phase.deadline) }))
+        .filter((phase) => !Number.isNaN(phase.date.getTime()))
+        .sort((left, right) => left.date - right.date);
+
+    return upcoming.find((phase) => phase.date >= now) || upcoming.at(-1) || null;
+};
+
+const getDaysUntil = (dateString) => {
+    if (!dateString) return null;
+    const target = new Date(dateString);
+    if (Number.isNaN(target.getTime())) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+
+    return Math.ceil((target - today) / 86400000);
+};
+
+const formatDate = (dateString) => {
+    if (!dateString) return 'No date';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'No date';
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const formatDeadlineStatus = (dateString) => {
+    const days = getDaysUntil(dateString);
+    if (days === null) return 'No deadline';
+    if (days < 0) return `${Math.abs(days)}d overdue`;
+    if (days === 0) return 'Due today';
+    if (days === 1) return 'Due tomorrow';
+    return `${days}d left`;
+};
+
+const getCategoryIcon = (category) => {
+    return CATEGORY_ICONS[category] || Folder;
+};
+
+const getDeadlineTone = (dateString) => {
+    const days = getDaysUntil(dateString);
+    if (days === null) return 'border-slate-200 bg-slate-50 text-slate-600';
+    if (days < 0) return 'border-rose-200 bg-rose-50 text-rose-700';
+    if (days <= 7) return 'border-amber-200 bg-amber-50 text-amber-700';
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+};
+
+const buildProjectPayload = (formData) => {
+    const phases = DEFAULT_PHASES.map((phase, index, allPhases) => ({
+        ...phase,
+        deadline: formData.deadline && index === allPhases.length - 1 ? formData.deadline : phase.deadline
+    }));
+
+    return {
+        title: formData.title.trim(),
+        description: formData.vision.trim(),
+        vision: formData.vision.trim(),
+        notes: formData.notes.trim(),
+        deadline: formData.deadline || null,
+        category: formData.category,
+        status: 'active',
+        progress: 0,
+        isAIGenerated: false,
+        phases,
+        columns: DEFAULT_COLUMNS,
+        tasks: []
+    };
+};
 
 const ProjectBoards = () => {
     const { projects, addProject, updateProject, deleteProject } = useProject();
     const { generateProjectPlan, isGenerating } = useAIProjectArchitect();
 
-    // Navigation state: 'list' -> 'mindmap' or 'calendar'
     const [view, setView] = useState('list');
     const [selectedProjectId, setSelectedProjectId] = useState(null);
-
-    // Modal states
+    const [selectedPhaseId, setSelectedPhaseId] = useState(null);
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
     const [showManualProjectModal, setShowManualProjectModal] = useState(false);
+    const [editingProject, setEditingProject] = useState(null);
     const [prompt, setPrompt] = useState('');
-    const [manualProjectData, setManualProjectData] = useState({ title: '', description: '', category: 'General' });
+    const [aiProjectCategory, setAiProjectCategory] = useState('General');
+    const [manualProjectData, setManualProjectData] = useState(EMPTY_MANUAL_PROJECT);
+    const [editProjectData, setEditProjectData] = useState(EMPTY_MANUAL_PROJECT);
     const [projectMenuOpen, setProjectMenuOpen] = useState(null);
     const [expandedProjects, setExpandedProjects] = useState({});
-    const [aiProjectCategory, setAiProjectCategory] = useState('General');
 
-    const selectedProject = projects.find(p => p.id === selectedProjectId);
-    const categories = ['Work Projects', 'Personal Growth', 'Side Hustles', 'Learning', 'General'];
+    const selectedProject = projects.find((project) => project.id === selectedProjectId);
 
-    // Navigation handlers
-    const handleSelectProject = (projectId) => {
-        setSelectedProjectId(projectId);
-        setView('mindmap');
-    };
+    const orderedProjects = useMemo(() => (
+        [...projects].sort((left, right) => {
+            if (left.isPinned !== right.isPinned) return left.isPinned ? -1 : 1;
+            return new Date(right.updated_at || right.created_at || 0) - new Date(left.updated_at || left.created_at || 0);
+        })
+    ), [projects]);
+
+    const portfolioStats = useMemo(() => {
+        const activeProjects = projects.filter((project) => project.status !== 'completed');
+        const allProjectStats = projects.map(getProjectStats);
+        const totalTasks = allProjectStats.reduce((sum, stats) => sum + stats.total, 0);
+        const remainingTasks = allProjectStats.reduce((sum, stats) => sum + stats.remaining, 0);
+        const completedTasks = allProjectStats.reduce((sum, stats) => sum + stats.completed, 0);
+        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        const nextDeadline = projects
+            .map((project) => ({ project, deadline: getProjectDeadline(project) }))
+            .filter((item) => item.deadline)
+            .sort((left, right) => new Date(left.deadline) - new Date(right.deadline))[0];
+
+        return {
+            activeCount: activeProjects.length,
+            progress,
+            remainingTasks,
+            nextDeadline
+        };
+    }, [projects]);
+
+    const upcomingTasks = useMemo(() => (
+        projects
+            .flatMap((project) => {
+                const phases = getSortedPhases(project);
+                return (project.tasks || [])
+                    .filter((task) => !isTaskDone(task, project))
+                    .map((task) => {
+                        const phase = phases.find((item) => item.id === task.phaseId);
+                        return {
+                            ...task,
+                            projectId: project.id,
+                            projectTitle: project.title,
+                            projectCategory: project.category,
+                            phaseName: phase?.name || 'General',
+                            phaseDeadline: phase?.deadline || getProjectDeadline(project)
+                        };
+                    });
+            })
+            .sort((left, right) => {
+                const leftDate = left.phaseDeadline ? new Date(left.phaseDeadline).getTime() : Number.POSITIVE_INFINITY;
+                const rightDate = right.phaseDeadline ? new Date(right.phaseDeadline).getTime() : Number.POSITIVE_INFINITY;
+                if (leftDate !== rightDate) return leftDate - rightDate;
+                return (priorityWeight[right.priority] || 0) - (priorityWeight[left.priority] || 0);
+            })
+            .slice(0, 6)
+    ), [projects]);
 
     const handleBackToList = () => {
         setView('list');
         setSelectedProjectId(null);
+        setSelectedPhaseId(null);
     };
 
-    // Toggle project expansion in table
-    const toggleProjectExpand = (e, projectId) => {
-        e.stopPropagation();
-        setExpandedProjects(prev => ({
+    const openProjectBoard = (projectId, phaseId = null) => {
+        setSelectedProjectId(projectId);
+        setSelectedPhaseId(phaseId);
+        setView('board');
+    };
+
+    const openProjectMindMap = (projectId) => {
+        setSelectedProjectId(projectId);
+        setSelectedPhaseId(null);
+        setView('mindmap');
+    };
+
+    const toggleProjectExpand = (event, projectId) => {
+        event.stopPropagation();
+        setExpandedProjects((prev) => ({
             ...prev,
             [projectId]: !prev[projectId]
         }));
     };
 
-    // Project handlers
-    const handleCreateProject = async (e) => {
-        e.preventDefault();
+    const handleCreateProject = async (event) => {
+        event.preventDefault();
         if (!prompt.trim()) return;
 
         const newProject = await generateProjectPlan(prompt);
-        const projectWithCategory = {
+        const projectWithPlanning = {
             ...newProject,
-            category: aiProjectCategory
+            category: aiProjectCategory,
+            vision: prompt.trim(),
+            notes: newProject.notes || '',
+            deadline: newProject.deadline || null
         };
 
-        addProject(projectWithCategory);
+        await addProject(projectWithPlanning);
         setShowNewProjectModal(false);
         setPrompt('');
         setAiProjectCategory('General');
     };
 
-    const handleCreateManualProject = (e) => {
-        e.preventDefault();
+    const handleCreateManualProject = async (event) => {
+        event.preventDefault();
         if (!manualProjectData.title.trim()) return;
 
-        const newProject = {
-            id: Date.now().toString(),
-            title: manualProjectData.title,
-            description: manualProjectData.description,
-            category: manualProjectData.category,
-            status: 'active',
-            progress: 0,
-            isAIGenerated: false,
-            columns: [
-                { id: 'col-1', title: 'To Do' },
-                { id: 'col-2', title: 'In Progress' },
-                { id: 'col-3', title: 'Review' },
-                { id: 'col-4', title: 'Done' }
-            ],
-            tasks: []
-        };
-
-        addProject(newProject);
+        await addProject(buildProjectPayload(manualProjectData));
         setShowManualProjectModal(false);
-        setManualProjectData({ title: '', description: '', category: 'General' });
+        setManualProjectData(EMPTY_MANUAL_PROJECT);
     };
 
-    const handleCompleteProject = (e, projectId) => {
-        e.stopPropagation();
-        const project = projects.find(p => p.id === projectId);
-        const newStatus = project.status === 'completed' ? 'active' : 'completed';
-        updateProject(projectId, { status: newStatus });
+    const startEditingProject = (event, project) => {
+        event.stopPropagation();
+        setEditingProject(project);
+        setEditProjectData({
+            title: project.title || '',
+            category: project.category || 'General',
+            vision: project.vision || project.description || '',
+            notes: project.notes || '',
+            deadline: project.deadline || ''
+        });
         setProjectMenuOpen(null);
     };
 
-    const handleDeleteProject = (e, projectId) => {
-        e.stopPropagation();
-        if (window.confirm('Are you sure you want to delete this project? This cannot be undone.')) {
+    const handleUpdateProjectPlan = async (event) => {
+        event.preventDefault();
+        if (!editingProject || !editProjectData.title.trim()) return;
+
+        await updateProject(editingProject.id, {
+            title: editProjectData.title.trim(),
+            category: editProjectData.category,
+            description: editProjectData.vision.trim(),
+            vision: editProjectData.vision.trim(),
+            notes: editProjectData.notes.trim(),
+            deadline: editProjectData.deadline || null
+        });
+
+        setEditingProject(null);
+        setEditProjectData(EMPTY_MANUAL_PROJECT);
+    };
+
+    const handleCompleteProject = (event, projectId) => {
+        event.stopPropagation();
+        const project = projects.find((item) => item.id === projectId);
+        updateProject(projectId, { status: project?.status === 'completed' ? 'active' : 'completed' });
+        setProjectMenuOpen(null);
+    };
+
+    const handleDeleteProject = (event, projectId) => {
+        event.stopPropagation();
+        if (window.confirm('Delete this project and its tasks?')) {
             deleteProject(projectId);
         }
         setProjectMenuOpen(null);
     };
 
-    const handlePinProject = (e, projectId) => {
-        e.stopPropagation();
-        const project = projects.find(p => p.id === projectId);
-        updateProject(projectId, { isPinned: !project.isPinned });
+    const handlePinProject = (event, projectId) => {
+        event.stopPropagation();
+        const project = projects.find((item) => item.id === projectId);
+        updateProject(projectId, { isPinned: !project?.isPinned });
         setProjectMenuOpen(null);
     };
 
-    const toggleProjectMenu = (e, projectId) => {
-        e.stopPropagation();
+    const toggleProjectMenu = (event, projectId) => {
+        event.stopPropagation();
         setProjectMenuOpen(projectMenuOpen === projectId ? null : projectId);
     };
 
-    // Close menu when clicking outside
     useEffect(() => {
-        const handleClickOutside = () => {
-            if (projectMenuOpen) {
-                setProjectMenuOpen(null);
-            }
-        };
+        const handleClickOutside = () => setProjectMenuOpen(null);
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
-    }, [projectMenuOpen]);
+    }, []);
 
-    // Helper functions
-    const getPhaseTaskCount = (project, phaseId) => {
-        return project.tasks.filter(t => t.phaseId === phaseId).length;
-    };
-
-    const formatTimeAgo = (dateString) => {
-        if (!dateString) return null;
-        const now = new Date();
-        const past = new Date(dateString);
-        const diffMs = now - past;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        return `${diffDays}d ago`;
-    };
-
-    const formatDeadline = (deadline) => {
-        if (!deadline) return '-';
-        const date = new Date(deadline);
-        return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-    };
-
-    const getTotalTasks = (project) => {
-        return project.tasks.length;
-    };
-
-    // Get icon for project category
-    const getCategoryIcon = (category) => {
-        const iconMap = {
-            'Work Projects': Briefcase,
-            'Personal Growth': Trophy,
-            'Side Hustles': Rocket,
-            'Learning': GraduationCap,
-            'General': Folder
-        };
-        return iconMap[category] || Folder;
-    };
-
-    // Check if we should show status badges (only if there's diversity)
-    const shouldShowStatus = () => {
-        const statuses = new Set(projects.map(p => p.status));
-        return statuses.size > 1;
-    };
-
-    // Get priority color for border (placeholder - you can add priority field later)
-    const getPriorityColor = (project) => {
-        // For now, use category-based colors as placeholder
-        const colorMap = {
-            'Work Projects': 'border-l-blue-500',
-            'Personal Growth': 'border-l-emerald-500',
-            'Side Hustles': 'border-l-amber-500',
-            'Learning': 'border-l-purple-500',
-            'General': 'border-l-slate-500'
-        };
-        return colorMap[project.category] || 'border-l-slate-500';
-    };
-
-    // Render based on current view
     if (view === 'mindmap' && selectedProject) {
+        return <ProjectMindMap project={selectedProject} onBack={handleBackToList} />;
+    }
+
+    if (view === 'board' && selectedProject) {
         return (
-            <ProjectMindMap
+            <ProjectDetailView
                 project={selectedProject}
                 onBack={handleBackToList}
+                selectedPhaseId={selectedPhaseId}
             />
         );
     }
 
-    // Calendar View
     if (view === 'calendar') {
         return <ProjectCalendar onBack={handleBackToList} />;
     }
 
-    // Project List View
     return (
-        <div className="h-full flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl relative">
-
-            {/* Header - Responsive */}
-            <div className="relative z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
+        <div className="h-full min-h-[720px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm dark:border-white/10 dark:bg-void-950 dark:text-bone-100 md:p-6">
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                        Project Boards
+                    <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-bone-200/60">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Project boards
+                    </div>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-950 dark:text-bone-100 md:text-3xl">
+                        Progress, next steps, notes, and deadlines
                     </h2>
-                    <p className="text-white/80 mt-1 text-sm sm:text-base">Manage your ideas and execution plans</p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-bone-200/70">
+                        A working view for project direction, execution state, upcoming tasks, and timeline risk.
+                    </p>
                 </div>
-                {/* Action buttons - horizontal scroll on mobile */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setView('calendar')}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all text-sm"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-void-900 dark:text-bone-100 dark:hover:bg-void-800"
                     >
-                        <Calendar className="w-4 h-4" />
-                        <span className="hidden sm:inline">Calendar</span>
+                        <Calendar className="h-4 w-4" />
+                        Calendar
                     </button>
                     <button
                         onClick={() => setShowManualProjectModal(true)}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 sm:px-5 sm:py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all text-sm whitespace-nowrap"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-void-900 dark:text-bone-100 dark:hover:bg-void-800"
                     >
-                        <Plus className="w-4 h-4" />
-                        <span className="sm:inline">Manual</span>
+                        <Plus className="h-4 w-4" />
+                        Manual
                     </button>
                     <button
                         onClick={() => setShowNewProjectModal(true)}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-3 bg-white/30 backdrop-blur-md border border-white/40 text-white rounded-xl font-semibold transition-all hover:bg-white/40 hover:shadow-lg hover:shadow-white/20 text-sm whitespace-nowrap"
+                        className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 dark:bg-sage-500 dark:text-void-950 dark:hover:bg-sage-400"
                     >
-                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <Sparkles className="h-4 w-4" />
                         AI Project
                     </button>
                 </div>
             </div>
 
-            {/* Project Cards Grid */}
-            <div className="relative z-10">
-                {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {projects
-                        .sort((a, b) => (b.isPinned === true) - (a.isPinned === true))
-                        .map(project => {
-                            const isExpanded = expandedProjects[project.id];
-                            const sortedPhases = [...(project.phases || [])].sort((a, b) => a.order - b.order);
-                            const CategoryIcon = getCategoryIcon(project.category);
-                            const showStatusBadge = shouldShowStatus();
-                            const progress = project.progress || 0;
-
-                            // Progress color based on percentage
-                            const getProgressColor = (pct) => {
-                                if (pct < 30) return '#6366f1'; // Indigo
-                                if (pct < 70) return '#3b82f6'; // Blue
-                                return '#22c55e'; // Green
-                            };
-
-                            return (
-                                <div key={project.id} className="group">
-                                    {/* Project Card */}
-                                    <div
-                                        className={`relative bg-white/25 backdrop-blur-2xl p-6 rounded-[2rem] cursor-pointer transition-all duration-300 hover:bg-white/30 hover:shadow-2xl hover:shadow-white/20 border border-white/30 overflow-hidden`}
-                                        onClick={() => handleSelectProject(project.id)}
-                                    >
-
-
-                                        {/* Pin Icon */}
-                                        {project.isPinned && (
-                                            <div className="absolute top-5 right-5">
-                                                <Pin className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                                            </div>
-                                        )}
-
-                                        {/* Header: Icon & Meta */}
-                                        <div className="flex items-start justify-between mb-4 relative z-10">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/30">
-                                                    <CategoryIcon className="w-5 h-5 text-white" />
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs uppercase tracking-wider text-white/80 font-bold">{project.category}</span>
-                                                        {project.isAIGenerated !== false && (
-                                                            <Sparkles className="w-3 h-3 text-yellow-300" />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Title & Description */}
-                                        <div className="mb-6 relative z-10">
-                                            <h3 className="text-xl font-bold text-white mb-2 line-clamp-2 leading-tight group-hover:text-white/90 transition-colors">
-                                                {project.title}
-                                            </h3>
-                                            <div className="flex items-center gap-2 text-white/80 text-sm font-medium">
-                                                <ListTodo className="w-4 h-4" />
-                                                <span>{getTotalTasks(project)} Tasks</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Progress Section */}
-                                        <div className="flex items-end justify-between relative z-10">
-                                            <div className="relative flex flex-col items-center">
-                                                <div className="relative w-20 h-20">
-                                                    <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
-                                                        <circle
-                                                            cx="40" cy="40" r="32"
-                                                            stroke="currentColor" strokeWidth="6" fill="none"
-                                                            className="text-white/20"
-                                                        />
-                                                        <circle
-                                                            cx="40" cy="40" r="32"
-                                                            stroke="white"
-                                                            strokeWidth="6" fill="none" strokeLinecap="round"
-                                                            strokeDasharray={`${2 * Math.PI * 32}`}
-                                                            strokeDashoffset={`${2 * Math.PI * 32 * (1 - progress / 100)}`}
-                                                            className="transition-all duration-500"
-                                                        />
-                                                    </svg>
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                        <span className="text-lg font-bold text-white">{progress}%</span>
-                                                        <span className="text-[10px] font-bold text-white/70 uppercase tracking-tight">Done</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col items-end gap-2">
-                                                {showStatusBadge && (
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${project.status === 'active'
-                                                        ? 'bg-emerald-400/30 text-white border border-emerald-300/50'
-                                                        : 'bg-blue-400/30 text-white border border-blue-300/50'
-                                                        }`}>
-                                                        {project.status}
-                                                    </span>
-                                                )}
-
-                                                <div className="flex items-center gap-2">
-                                                    {sortedPhases.length > 0 && (
-                                                        <button
-                                                            onClick={(e) => toggleProjectExpand(e, project.id)}
-                                                            className="p-2 bg-gray-50 rounded-xl hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all text-gray-500 hover:text-gray-700"
-                                                        >
-                                                            {isExpanded ? (
-                                                                <ChevronDown className="w-4 h-4" />
-                                                            ) : (
-                                                                <ChevronRight className="w-4 h-4" />
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={(e) => toggleProjectMenu(e, project.id)}
-                                                        className="p-2 bg-gray-50 rounded-xl hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all text-gray-500 hover:text-gray-700"
-                                                    >
-                                                        <MoreHorizontal className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Tags Section */}
-                                        {project.tags && project.tags.length > 0 && (
-                                            <div className="mt-4 flex flex-wrap gap-2 relative z-10">
-                                                {project.tags.map(tag => (
-                                                    <span key={tag} className="px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-medium text-white border border-white/30">#{tag}</span>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Phases Preview Section */}
-                                        {sortedPhases.length > 0 && (
-                                            <div className="mt-4 relative z-10">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className="text-xs font-bold text-white uppercase tracking-wider">Phases ({sortedPhases.length})</span>
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    {sortedPhases.slice(0, 3).map((phase, idx) => {
-                                                        const phaseDeadline = phase.deadline ? new Date(phase.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No deadline';
-                                                        return (
-                                                            <div key={phase.id} className="flex items-center justify-between text-xs bg-white/10 backdrop-blur-md rounded-lg px-3 py-2 border border-white/20">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-white/80 font-bold">{idx + 1}.</span>
-                                                                    <span className="text-white font-medium">{phase.name}</span>
-                                                                </div>
-                                                                <span className="text-white font-medium text-xs">{phaseDeadline}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {sortedPhases.length > 3 && (
-                                                        <div className="text-xs text-white/80 text-center py-1">
-                                                            +{sortedPhases.length - 3} more phases
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Actions Menu (Show on click) - FIXED POSITIONING */}
-                                        {projectMenuOpen === project.id && (
-                                            <div className="absolute top-16 right-6 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-2xl z-50 min-w-[180px] overflow-hidden">
-                                                <button
-                                                    onClick={(e) => handleCompleteProject(e, project.id)}
-                                                    className="w-full px-4 py-3 text-left text-sm hover:bg-white/20 flex items-center gap-3 text-white font-medium transition-colors"
-                                                >
-                                                    {project.status === 'completed' ? (
-                                                        <><X className="w-4 h-4" /> Mark Active</>
-                                                    ) : (
-                                                        <><Check className="w-4 h-4 text-emerald-300" /> Mark Complete</>
-                                                    )}
-                                                </button>
-                                                <button
-                                                    onClick={(e) => handlePinProject(e, project.id)}
-                                                    className="w-full px-4 py-3 text-left text-sm hover:bg-white/20 flex items-center gap-3 text-white font-medium transition-colors"
-                                                >
-                                                    {project.isPinned ? (
-                                                        <><PinOff className="w-4 h-4" /> Unpin</>
-                                                    ) : (
-                                                        <><Pin className="w-4 h-4" /> Pin</>
-                                                    )}
-                                                </button>
-                                                <div className="h-px bg-white/20" />
-                                                <button
-                                                    onClick={(e) => handleDeleteProject(e, project.id)}
-                                                    className="w-full px-4 py-3 text-left text-sm hover:bg-red-500/20 flex items-center gap-3 text-red-300 font-medium transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" /> Delete Project
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Expanded Phase List (Below Card) */}
-                                    {isExpanded && sortedPhases.length > 0 && (
-                                        <div className="mt-3 ml-4 space-y-2">
-                                            {sortedPhases.map((phase, idx) => (
-                                                <div
-                                                    key={phase.id}
-                                                    className="bg-white/15 backdrop-blur-xl p-3.5 rounded-xl hover:bg-white/25 cursor-pointer transition-all border border-white/30 border-l-4 border-l-white shadow-lg hover:shadow-xl"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedProjectId(project.id);
-                                                        handleSelectPhase(phase.id);
-                                                    }}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-6 h-6 flex items-center justify-center bg-white/20 backdrop-blur-md rounded-lg">
-                                                                <span className="text-xs font-bold text-white">{idx + 1}</span>
-                                                            </div>
-                                                            <span className="text-white font-semibold text-sm">{phase.name}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 text-xs text-white/80 font-medium">
-                                                            <div className="flex items-center gap-1">
-                                                                <ListTodo className="w-3.5 h-3.5" />
-                                                                {getPhaseTaskCount(project, phase.id)}
-                                                            </div>
-                                                            <div className="flex items-center gap-1 px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg">
-                                                                <Calendar className="w-3.5 h-3.5" />
-                                                                {formatDeadline(phase.deadline)}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                </div>
-
-                {/* Empty State */}
-                {projects.length === 0 && (
-                    <div className="flex flex-col items-center justify-center min-h-[400px]">
-                        <div className="text-center max-w-md">
-                            {/* Illustration */}
-                            <div className="relative mx-auto mb-8">
-                                <div className="w-32 h-32 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center mx-auto relative border border-white/30">
-                                    <Sparkles className="w-16 h-16 text-white" />
-                                </div>
-                            </div>
-
-
-                            {/* Text */}
-                            <h3 className="text-2xl font-bold text-white mb-3">No projects yet</h3>
-                            <p className="text-white/80 mb-8 text-base font-medium">
-                                Start organizing your ideas and bring them to life.<br />
-                                Create your first project with AI assistance!
-                            </p>
-
-                            {/* CTA Buttons */}
-                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                <button
-                                    onClick={() => setShowNewProjectModal(true)}
-                                    className="flex items-center justify-center gap-2 px-6 py-3 bg-white/30 backdrop-blur-md border border-white/40 text-white rounded-xl font-semibold transition-all hover:bg-white/40 hover:shadow-lg hover:shadow-white/20 hover:scale-105"
-                                >
-                                    <Sparkles className="w-5 h-5" />
-                                    Start with AI
-                                </button>
-                                <button
-                                    onClick={() => setShowManualProjectModal(true)}
-                                    className="flex items-center justify-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl font-medium hover:bg-white/30 transition-all"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    Create Manually
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+            <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <PortfolioMetric icon={Folder} label="Active projects" value={portfolioStats.activeCount} detail={`${projects.length} total`} tone="slate" />
+                <PortfolioMetric icon={BarChart3} label="Portfolio progress" value={`${portfolioStats.progress}%`} detail="task completion" tone="emerald" />
+                <PortfolioMetric icon={ListChecks} label="Still left" value={portfolioStats.remainingTasks} detail="open project tasks" tone="amber" />
+                <PortfolioMetric
+                    icon={Flag}
+                    label="Next deadline"
+                    value={portfolioStats.nextDeadline ? formatDate(portfolioStats.nextDeadline.deadline) : '-'}
+                    detail={portfolioStats.nextDeadline ? portfolioStats.nextDeadline.project.title : 'No dated milestones'}
+                    tone="rose"
+                />
             </div>
 
-            {/* AI Command Palette Modal */}
-            {showNewProjectModal && (
-                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[100] p-6">
-                    <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="p-6">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 bg-indigo-100 rounded-xl">
-                                    <Sparkles className="w-6 h-6 text-indigo-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-900">AI Project Architect</h3>
-                                    <p className="text-gray-500 text-sm">Describe your project and let AI create the plan</p>
-                                </div>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <section className="space-y-3">
+                    {orderedProjects.map((project) => (
+                        <ProjectSummaryCard
+                            key={project.id}
+                            project={project}
+                            isExpanded={expandedProjects[project.id]}
+                            isMenuOpen={projectMenuOpen === project.id}
+                            onOpenBoard={openProjectBoard}
+                            onOpenMindMap={openProjectMindMap}
+                            onToggleExpand={toggleProjectExpand}
+                            onToggleMenu={toggleProjectMenu}
+                            onEditProject={startEditingProject}
+                            onCompleteProject={handleCompleteProject}
+                            onPinProject={handlePinProject}
+                            onDeleteProject={handleDeleteProject}
+                        />
+                    ))}
+
+                    {projects.length === 0 && (
+                        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-6 text-center dark:border-white/10 dark:bg-void-900">
+                            <Sparkles className="h-10 w-10 text-slate-400" />
+                            <h3 className="mt-4 text-xl font-bold text-slate-900 dark:text-bone-100">No projects yet</h3>
+                            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-bone-200/60">
+                                Create a project with a vision, notes, next steps, and a timeline.
+                            </p>
+                            <div className="mt-5 flex flex-wrap justify-center gap-2">
                                 <button
-                                    onClick={() => setShowNewProjectModal(false)}
-                                    className="ml-auto p-2 bg-gray-100 rounded-xl hover:bg-gray-200 text-gray-400 transition-all"
+                                    onClick={() => setShowManualProjectModal(true)}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <Plus className="h-4 w-4" />
+                                    Manual
+                                </button>
+                                <button
+                                    onClick={() => setShowNewProjectModal(true)}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    AI Project
                                 </button>
                             </div>
-
-                            <form onSubmit={handleCreateProject} className="space-y-6">
-                                <div>
-                                    <textarea
-                                        value={prompt}
-                                        onChange={(e) => setPrompt(e.target.value)}
-                                        placeholder="What is your project vision? (e.g., 'I want to build a stock market simulator in Python')"
-                                        className="w-full px-4 py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 resize-none h-28 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-                                        autoFocus
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {categories.map(cat => (
-                                            <button
-                                                key={cat}
-                                                type="button"
-                                                onClick={() => setAiProjectCategory(cat)}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${aiProjectCategory === cat
-                                                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
-                                                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                                                    }`}
-                                            >
-                                                {cat}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewProjectModal(false)}
-                                        className="flex-1 px-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={!prompt.trim() || isGenerating}
-                                        className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30"
-                                    >
-                                        {isGenerating ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                <span>Creating...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles className="w-5 h-5" />
-                                                <span>Create Project</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </form>
                         </div>
-                    </div>
-                </div>
+                    )}
+                </section>
+
+                <aside className="space-y-5">
+                    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-void-900">
+                        <div className="mb-3 flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-bone-100">Upcoming next steps</h3>
+                            <Clock3 className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <div className="space-y-2">
+                            {upcomingTasks.map((task) => (
+                                <button
+                                    key={`${task.projectId}-${task.id}`}
+                                    onClick={() => openProjectBoard(task.projectId, task.phaseId)}
+                                    className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition-colors hover:border-slate-300 hover:bg-white dark:border-white/10 dark:bg-void-800 dark:hover:bg-void-700"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <div className="truncate text-sm font-semibold text-slate-900 dark:text-bone-100">{task.title}</div>
+                                            <div className="mt-1 truncate text-xs text-slate-500 dark:text-bone-200/60">
+                                                {task.projectTitle} / {task.phaseName}
+                                            </div>
+                                        </div>
+                                        <span className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-bold ${getDeadlineTone(task.phaseDeadline)}`}>
+                                            {formatDeadlineStatus(task.phaseDeadline)}
+                                        </span>
+                                    </div>
+                                </button>
+                            ))}
+
+                            {upcomingTasks.length === 0 && (
+                                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-white/10 dark:bg-void-800 dark:text-bone-200/60">
+                                    No open project tasks yet.
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-void-900">
+                        <div className="mb-3 flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-bone-100">Timeline radar</h3>
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <div className="space-y-3">
+                            {orderedProjects.slice(0, 5).map((project) => {
+                                const deadline = getProjectDeadline(project);
+                                const stats = getProjectStats(project);
+
+                                return (
+                                    <div key={project.id} className="flex items-center gap-3">
+                                        <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                                            <div className="h-full bg-emerald-500" style={{ width: `${stats.progress}%` }} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-semibold text-slate-800 dark:text-bone-100">{project.title}</div>
+                                            <div className="text-xs text-slate-500 dark:text-bone-200/60">{formatDeadlineStatus(deadline)}</div>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-500 dark:text-bone-200/60">{stats.progress}%</span>
+                                    </div>
+                                );
+                            })}
+
+                            {orderedProjects.length === 0 && (
+                                <p className="text-sm text-slate-500 dark:text-bone-200/60">No timeline to show.</p>
+                            )}
+                        </div>
+                    </section>
+                </aside>
+            </div>
+
+            {showNewProjectModal && (
+                <AIProjectModal
+                    prompt={prompt}
+                    setPrompt={setPrompt}
+                    category={aiProjectCategory}
+                    setCategory={setAiProjectCategory}
+                    onClose={() => setShowNewProjectModal(false)}
+                    onSubmit={handleCreateProject}
+                    isGenerating={isGenerating}
+                />
             )}
 
-            {/* Manual Project Modal */}
             {showManualProjectModal && (
-                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200">
-                        <div className="p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-indigo-100 rounded-lg">
-                                    <Plus className="w-5 h-5 text-indigo-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900">Create Project</h3>
-                            </div>
+                <ProjectPlanModal
+                    title="Create Project"
+                    submitLabel="Create Project"
+                    data={manualProjectData}
+                    setData={setManualProjectData}
+                    onSubmit={handleCreateManualProject}
+                    onClose={() => setShowManualProjectModal(false)}
+                />
+            )}
 
-                            <p className="text-gray-500 mb-6 text-sm">
-                                Create your own project board with custom phases.
-                            </p>
-
-                            <form onSubmit={handleCreateManualProject}>
-                                <div className="space-y-4 mb-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Project Title
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={manualProjectData.title}
-                                            onChange={(e) => setManualProjectData({ ...manualProjectData, title: e.target.value })}
-                                            placeholder="e.g., My Personal Website"
-                                            className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-gray-900 placeholder-gray-400 outline-none"
-                                            autoFocus
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                                        <select
-                                            value={manualProjectData.category}
-                                            onChange={(e) => setManualProjectData({ ...manualProjectData, category: e.target.value })}
-                                            className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-gray-900 outline-none"
-                                        >
-                                            {categories.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Description (Optional)
-                                        </label>
-                                        <textarea
-                                            value={manualProjectData.description}
-                                            onChange={(e) => setManualProjectData({ ...manualProjectData, description: e.target.value })}
-                                            placeholder="Brief description of your project..."
-                                            className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-gray-900 placeholder-gray-400 resize-none h-24 outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowManualProjectModal(false)}
-                                        className="flex-1 px-4 py-3 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:shadow-lg hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Create Project
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+            {editingProject && (
+                <ProjectPlanModal
+                    title="Edit Project Plan"
+                    submitLabel="Save Changes"
+                    data={editProjectData}
+                    setData={setEditProjectData}
+                    onSubmit={handleUpdateProjectPlan}
+                    onClose={() => setEditingProject(null)}
+                />
             )}
         </div>
     );
 };
+
+const PortfolioMetric = ({ icon: Icon, label, value, detail, tone }) => {
+    const toneClasses = {
+        slate: 'bg-slate-100 text-slate-700',
+        emerald: 'bg-emerald-100 text-emerald-700',
+        amber: 'bg-amber-100 text-amber-700',
+        rose: 'bg-rose-100 text-rose-700'
+    };
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-void-900">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-bone-200/50">{label}</p>
+                    <div className="mt-2 text-2xl font-bold text-slate-950 dark:text-bone-100">{value}</div>
+                    <p className="mt-1 truncate text-sm text-slate-500 dark:text-bone-200/60">{detail}</p>
+                </div>
+                <div className={`rounded-lg p-2 ${toneClasses[tone] || toneClasses.slate}`}>
+                    {React.createElement(Icon, { className: 'h-5 w-5' })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ProjectSummaryCard = ({
+    project,
+    isExpanded,
+    isMenuOpen,
+    onOpenBoard,
+    onOpenMindMap,
+    onToggleExpand,
+    onToggleMenu,
+    onEditProject,
+    onCompleteProject,
+    onPinProject,
+    onDeleteProject
+}) => {
+    const stats = getProjectStats(project);
+    const phases = getSortedPhases(project);
+    const CategoryIcon = getCategoryIcon(project.category);
+    const nextMilestone = getNextMilestone(project);
+    const deadline = getProjectDeadline(project);
+    const vision = project.vision || project.description || 'No vision captured yet.';
+    const notes = project.notes || 'No notes yet.';
+    const nextTask = (project.tasks || [])
+        .filter((task) => !isTaskDone(task, project))
+        .sort((left, right) => (priorityWeight[right.priority] || 0) - (priorityWeight[left.priority] || 0))[0];
+
+    return (
+        <article className="relative rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-slate-300 dark:border-white/10 dark:bg-void-900">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-start gap-3">
+                            <div className="rounded-lg bg-slate-100 p-2 text-slate-700 dark:bg-white/10 dark:text-bone-100">
+                                {React.createElement(CategoryIcon, { className: 'h-5 w-5' })}
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="truncate text-xl font-bold text-slate-950 dark:text-bone-100">{project.title}</h3>
+                                    {project.isPinned && <Pin className="h-4 w-4 fill-amber-400 text-amber-500" />}
+                                    {project.isAIGenerated !== false && <Sparkles className="h-4 w-4 text-indigo-500" />}
+                                </div>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-bone-200/60">
+                                    <span>{project.category || 'General'}</span>
+                                    <span>/</span>
+                                    <span className="capitalize">{project.status || 'active'}</span>
+                                    <span>/</span>
+                                    <span>{stats.remaining} left</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={(event) => onEditProject(event, project)}
+                                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-bone-200/60 dark:hover:bg-white/10 dark:hover:text-bone-100"
+                                title="Edit project plan"
+                            >
+                                <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={(event) => onToggleMenu(event, project.id)}
+                                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-bone-200/60 dark:hover:bg-white/10 dark:hover:text-bone-100"
+                                title="Project actions"
+                            >
+                                <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoBlock icon={Target} label="Vision" text={vision} />
+                        <InfoBlock icon={NotebookText} label="Notes" text={notes} />
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <StatusPill icon={BarChart3} label="Progress" value={`${stats.progress}%`} />
+                        <StatusPill icon={Flag} label="Deadline" value={formatDeadlineStatus(deadline)} tone={getDeadlineTone(deadline)} />
+                        <StatusPill icon={Clock3} label="Next milestone" value={nextMilestone ? nextMilestone.name : 'No milestone'} />
+                    </div>
+                </div>
+
+                <div className="flex flex-col justify-between gap-4 border-t border-slate-200 pt-4 dark:border-white/10 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
+                    <div>
+                        <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-bone-200/50">
+                            <span>Progress</span>
+                            <span>{stats.completed}/{stats.total}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${stats.progress}%` }} />
+                        </div>
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-void-800">
+                            <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-bone-200/50">Next step</div>
+                            <div className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900 dark:text-bone-100">
+                                {nextTask?.title || 'No open tasks'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => onOpenBoard(project.id)}
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-sage-500 dark:text-void-950 dark:hover:bg-sage-400"
+                        >
+                            <ArrowUpRight className="h-4 w-4" />
+                            Board
+                        </button>
+                        <button
+                            onClick={() => onOpenMindMap(project.id)}
+                            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-void-800 dark:text-bone-100 dark:hover:bg-void-700"
+                            title="Open mind map"
+                        >
+                            <Map className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={(event) => onToggleExpand(event, project.id)}
+                            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-void-800 dark:text-bone-100 dark:hover:bg-void-700"
+                            title="Show timeline"
+                        >
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {isExpanded && (
+                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-white/10">
+                    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                        {phases.map((phase, index) => {
+                            const phaseTasks = (project.tasks || []).filter((task) => task.phaseId === phase.id);
+                            const done = phaseTasks.filter((task) => isTaskDone(task, project)).length;
+                            const pct = phaseTasks.length > 0 ? Math.round((done / phaseTasks.length) * 100) : 0;
+
+                            return (
+                                <button
+                                    key={phase.id}
+                                    onClick={() => onOpenBoard(project.id, phase.id)}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition-colors hover:border-slate-300 hover:bg-white dark:border-white/10 dark:bg-void-800 dark:hover:bg-void-700"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-xs font-bold text-slate-600 shadow-sm dark:bg-white/10 dark:text-bone-100">
+                                                {index + 1}
+                                            </span>
+                                            <span className="truncate text-sm font-bold text-slate-900 dark:text-bone-100">{phase.name}</span>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-500 dark:text-bone-200/60">{pct}%</span>
+                                    </div>
+                                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                                        <div className="h-full bg-indigo-500" style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-bone-200/60">
+                                        <span>{phaseTasks.length} tasks</span>
+                                        <span>{formatDeadlineStatus(phase.deadline)}</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {isMenuOpen && (
+                <div className="absolute right-4 top-14 z-20 min-w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-void-900">
+                    <button
+                        onClick={(event) => onCompleteProject(event, project.id)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-bone-100 dark:hover:bg-white/10"
+                    >
+                        <Check className="h-4 w-4 text-emerald-500" />
+                        {project.status === 'completed' ? 'Mark Active' : 'Mark Complete'}
+                    </button>
+                    <button
+                        onClick={(event) => onPinProject(event, project.id)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-bone-100 dark:hover:bg-white/10"
+                    >
+                        {project.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                        {project.isPinned ? 'Unpin' : 'Pin'}
+                    </button>
+                    <button
+                        onClick={(event) => onDeleteProject(event, project.id)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                    </button>
+                </div>
+            )}
+        </article>
+    );
+};
+
+const InfoBlock = ({ icon: Icon, label, text }) => (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-void-800">
+        <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-bone-200/50">
+            {React.createElement(Icon, { className: 'h-3.5 w-3.5' })}
+            {label}
+        </div>
+        <p className="line-clamp-3 min-h-12 text-sm leading-6 text-slate-700 dark:text-bone-200/80">{text}</p>
+    </div>
+);
+
+const StatusPill = ({ icon: Icon, label, value, tone = 'border-slate-200 bg-slate-50 text-slate-700' }) => (
+    <div className={`rounded-lg border px-3 py-2 ${tone}`}>
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] opacity-80">
+            {React.createElement(Icon, { className: 'h-3.5 w-3.5' })}
+            {label}
+        </div>
+        <div className="mt-1 truncate text-sm font-bold">{value}</div>
+    </div>
+);
+
+const ProjectPlanModal = ({ title, submitLabel, data, setData, onSubmit, onClose }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-void-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/10">
+                <div>
+                    <h3 className="text-xl font-bold text-slate-950 dark:text-bone-100">{title}</h3>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-bone-200/60">Vision, notes, and timeline live with the project.</p>
+                </div>
+                <button onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10">
+                    <X className="h-5 w-5" />
+                </button>
+            </div>
+
+            <form onSubmit={onSubmit} className="max-h-[calc(92vh-80px)] overflow-y-auto p-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField label="Project title">
+                        <input
+                            type="text"
+                            value={data.title}
+                            onChange={(event) => setData({ ...data, title: event.target.value })}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 dark:border-white/10 dark:bg-void-800 dark:text-bone-100"
+                            placeholder="Project name"
+                            autoFocus
+                            required
+                        />
+                    </FormField>
+                    <FormField label="Category">
+                        <select
+                            value={data.category}
+                            onChange={(event) => setData({ ...data, category: event.target.value })}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 dark:border-white/10 dark:bg-void-800 dark:text-bone-100"
+                        >
+                            {CATEGORIES.map((category) => (
+                                <option key={category} value={category}>{category}</option>
+                            ))}
+                        </select>
+                    </FormField>
+                </div>
+
+                <div className="mt-4">
+                    <FormField label="Vision">
+                        <textarea
+                            value={data.vision}
+                            onChange={(event) => setData({ ...data, vision: event.target.value })}
+                            className="h-28 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 dark:border-white/10 dark:bg-void-800 dark:text-bone-100"
+                            placeholder="What does done look like, and why does this matter?"
+                        />
+                    </FormField>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_180px]">
+                    <FormField label="Notes">
+                        <textarea
+                            value={data.notes}
+                            onChange={(event) => setData({ ...data, notes: event.target.value })}
+                            className="h-28 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 dark:border-white/10 dark:bg-void-800 dark:text-bone-100"
+                            placeholder="Constraints, decisions, links, assumptions..."
+                        />
+                    </FormField>
+                    <FormField label="Deadline">
+                        <input
+                            type="date"
+                            value={data.deadline || ''}
+                            onChange={(event) => setData({ ...data, deadline: event.target.value })}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 dark:border-white/10 dark:bg-void-800 dark:text-bone-100"
+                        />
+                    </FormField>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-void-800 dark:text-bone-100 dark:hover:bg-void-700"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-sage-500 dark:text-void-950 dark:hover:bg-sage-400"
+                    >
+                        {submitLabel}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+);
+
+const AIProjectModal = ({ prompt, setPrompt, category, setCategory, onClose, onSubmit, isGenerating }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-2xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-void-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/10">
+                <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-indigo-100 p-2 text-indigo-700">
+                        <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-950 dark:text-bone-100">AI Project Architect</h3>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-bone-200/60">Turn a project vision into phases and tasks.</p>
+                    </div>
+                </div>
+                <button onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10">
+                    <X className="h-5 w-5" />
+                </button>
+            </div>
+
+            <form onSubmit={onSubmit} className="p-5">
+                <FormField label="Project vision">
+                    <textarea
+                        value={prompt}
+                        onChange={(event) => setPrompt(event.target.value)}
+                        className="h-32 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-void-800 dark:text-bone-100"
+                        placeholder="Example: build a stock market simulator in Python with portfolio tracking and replay mode"
+                        autoFocus
+                    />
+                </FormField>
+
+                <div className="mt-4">
+                    <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-bone-200">Category</div>
+                    <div className="flex flex-wrap gap-2">
+                        {CATEGORIES.map((item) => (
+                            <button
+                                key={item}
+                                type="button"
+                                onClick={() => setCategory(item)}
+                                className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${category === item
+                                    ? 'border-slate-900 bg-slate-950 text-white dark:border-sage-400 dark:bg-sage-500 dark:text-void-950'
+                                    : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100 dark:border-white/10 dark:bg-void-800 dark:text-bone-100 dark:hover:bg-void-700'
+                                    }`}
+                            >
+                                {item}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-void-800 dark:text-bone-100 dark:hover:bg-void-700"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={!prompt.trim() || isGenerating}
+                        className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-sage-500 dark:text-void-950 dark:hover:bg-sage-400"
+                    >
+                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+);
+
+const FormField = ({ label, children }) => (
+    <label className="block">
+        <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-bone-200">{label}</span>
+        {children}
+    </label>
+);
 
 export default ProjectBoards;

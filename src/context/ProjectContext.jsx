@@ -27,6 +27,9 @@ const getDefaultLocalProjects = () => ([
         id: 'sample-1',
         title: 'Website Redesign',
         description: 'Overhaul the company website with new branding.',
+        vision: 'Launch a clearer, faster company website that makes the new brand feel trustworthy and easy to understand.',
+        notes: 'Keep homepage copy focused on the main offer. Confirm brand assets before final implementation.',
+        deadline: null,
         status: 'active',
         progress: 35,
         isPinned: false,
@@ -45,6 +48,9 @@ const normalizeProjectRecord = (project) => ({
     isPinned: project?.isPinned === true || project?.is_pinned === true,
     isAIGenerated: project?.isAIGenerated === true || project?.is_ai_generated === true,
     category: project?.category || 'General',
+    vision: project?.vision || project?.description || '',
+    notes: project?.notes || '',
+    deadline: project?.deadline || null,
     phases: project?.phases || DEFAULT_PHASES,
     columns: project?.columns || DEFAULT_COLUMNS,
     tasks: Array.isArray(project?.tasks)
@@ -140,6 +146,9 @@ export const ProjectProvider = ({ children }) => {
             updated_at: new Date().toISOString(),
             progress: 0,
             category: project.category || 'General',
+            vision: project.vision || project.description || '',
+            notes: project.notes || '',
+            deadline: project.deadline || null,
             tags: project.tags || [],
             phases: project.phases || DEFAULT_PHASES,
             columns: project.columns || DEFAULT_COLUMNS,
@@ -157,6 +166,9 @@ export const ProjectProvider = ({ children }) => {
                     user_id: newProject.user_id,
                     title: newProject.title,
                     description: newProject.description,
+                    vision: newProject.vision || newProject.description || '',
+                    notes: newProject.notes || '',
+                    deadline: newProject.deadline || null,
                     status: newProject.status || 'active',
                     progress: newProject.progress || 0,
                     is_ai_generated: newProject.isAIGenerated || false,
@@ -176,6 +188,9 @@ export const ProjectProvider = ({ children }) => {
                         isAIGenerated: data.is_ai_generated || false,
                         isPinned: data.is_pinned === true,
                         category: data.category || 'General',
+                        vision: data.vision || data.description || '',
+                        notes: data.notes || '',
+                        deadline: data.deadline || null,
                         phases: data.phases || DEFAULT_PHASES,
                         tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
                     };
@@ -213,6 +228,9 @@ export const ProjectProvider = ({ children }) => {
             const dbUpdates = {};
             if (updates.title !== undefined) dbUpdates.title = updates.title;
             if (updates.description !== undefined) dbUpdates.description = updates.description;
+            if (updates.vision !== undefined) dbUpdates.vision = updates.vision;
+            if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+            if (updates.deadline !== undefined) dbUpdates.deadline = updates.deadline;
             if (updates.status !== undefined) dbUpdates.status = updates.status;
             if (updates.progress !== undefined) dbUpdates.progress = updates.progress;
             if (updates.category !== undefined) dbUpdates.category = updates.category;

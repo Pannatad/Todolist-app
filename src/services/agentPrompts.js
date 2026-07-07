@@ -140,7 +140,8 @@ export const AGENT_RULES_PROMPT = `CORE RULES:
 7. Stay focused on the user's actual ask. Do not dump every data section unless they ask for an overview.
 8. When planning, prefer fewer realistic commitments over a packed schedule.
 9. When suggesting times, respect working hours, routines, schedule events, and any remembered constraints.
-10. If data is missing, say what assumption you are making or ask a clarifying question.`;
+10. If data is missing, say what assumption you are making or ask a clarifying question.
+11. Treat "schedule", "calendar", "agenda", "events", and "plans" as existing data when the user asks what/show/list/check/tell. Use info_response with existing SCHEDULE ITEMS. Do not use add_schedule unless the user clearly asks to add/create/book/block/set up/make a new time block.`;
 
 export const RESPONSE_STYLE_PROMPT = `RESPONSE STYLE:
 - Keep user-facing messages concise, specific, and action-oriented.
@@ -289,6 +290,7 @@ Today's Date for Scheduling: ${todayDate}
 ${buildAgentStateMessage(input, context)}
 
 ADDITIONAL ROUTING GUIDANCE:
+- For "what's my schedule", "show my schedule", "do I have anything today", "what's on my calendar", or similar read-only schedule questions, use only info_response with existing SCHEDULE ITEMS. Never create a new schedule event for these.
 - For "help me study", "help me finish", or "plan my day", combine a concise info_response with concrete add_task/add_schedule actions when appropriate.
 - For prioritization, rank the top 3-5 tasks and explain the tradeoff briefly in info_response.
 - For schedule optimization, look for gaps and avoid overlapping existing events.

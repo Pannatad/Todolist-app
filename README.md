@@ -104,6 +104,10 @@ AI_PROVIDER=lmstudio
 LM_STUDIO_BASE_URL=http://localhost:1234/v1
 # Optional. Leave unset to use the model currently loaded in LM Studio.
 LM_STUDIO_MODEL=your_loaded_lm_studio_model_id
+
+# Optional Ollama fallback for local Gemma if LM Studio's server is off.
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=gemma4:e2b
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.1-flash-lite-preview
 \`\`\`

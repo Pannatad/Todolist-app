@@ -1800,81 +1800,261 @@ const Overview = ({ onNavigate }) => {
         }
     };
 
+    const displayName = profile?.nickname || user?.email?.split('@')[0] || 'Traveler';
+    const todayLabel = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    const commandCenterScheduleItems = [...todaySchedule]
+        .sort((left, right) => {
+            const leftTime = left.displayTime || new Date(left.startTime || left.start_time);
+            const rightTime = right.displayTime || new Date(right.startTime || right.start_time);
+            return leftTime - rightTime;
+        });
+
+    const scheduleSpotlight = (() => {
+        const timedItems = commandCenterScheduleItems
+            .map((item) => {
+                const start = item.displayTime || new Date(item.startTime || item.start_time);
+                const duration = item.duration || 60;
+                const end = new Date(start.getTime() + duration * 60000);
+
+                return {
+                    item,
+                    start,
+                    end,
+                    duration,
+                    isNow: now >= start && now < end,
+                    isPast: end < now,
+                };
+            })
+            .filter((entry) => !Number.isNaN(entry.start.getTime()));
+
+        const activeEntry = timedItems.find((entry) => entry.isNow);
+        const nextEntry = timedItems.find((entry) => entry.start > now);
+        const featuredEntry = activeEntry || nextEntry;
+        const remainingCount = timedItems.filter((entry) => entry.end > now).length;
+
+        if (!featuredEntry) {
+            return {
+                eyebrow: 'Current Schedule',
+                title: 'Nothing scheduled right now',
+                description: commandCenterScheduleItems.length
+                    ? 'Everything scheduled for today has passed.'
+                    : 'Your schedule is clear today.',
+                meta: commandCenterScheduleItems.length ? 'Day complete' : 'Free day',
+                event: null,
+                rangeLabel: null,
+            };
+        }
+
+        const startLabel = featuredEntry.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const endLabel = featuredEntry.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const minutesUntilStart = Math.max(0, getMinutesBetween(now, featuredEntry.start));
+        const minutesLeft = Math.max(0, getMinutesBetween(now, featuredEntry.end));
+
+        return {
+            eyebrow: 'Current Schedule',
+            title: featuredEntry.item.title,
+            description: featuredEntry.isNow
+                ? `Happening now until ${endLabel}. ${formatMinutesLabel(minutesLeft)} left.`
+                : `Next at ${startLabel}. Starts in ${formatMinutesLabel(minutesUntilStart)}.`,
+            meta: featuredEntry.isNow ? 'Now happening' : 'Up next',
+            event: featuredEntry.item,
+            rangeLabel: `${startLabel}-${endLabel}`,
+            remainingCount,
+        };
+    })();
+
+    const renderScheduleAction = () => {
+        return (
+            <button
+                type="button"
+                onClick={() => {
+                    if (scheduleSpotlight.event) {
+                        setSelectedScheduleItem(scheduleSpotlight.event);
+                        setShowScheduleModal(true);
+                        return;
+                    }
+                    onNavigate('schedule');
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+            >
+                {scheduleSpotlight.event ? 'Open event' : 'Open schedule'}
+                <ChevronRight size={16} />
+            </button>
+        );
+    };
+
     return (
         <div className="h-full flex flex-col p-2 md:p-4 overflow-y-auto space-y-5 custom-scrollbar bg-transparent">
-            {/* Header Section */}
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        {greeting}, {profile?.nickname || user?.email?.split('@')[0] || 'Traveler'}
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        A quick read on your day and the next useful move.
-                    </p>
-                </div>
+            <section className="overflow-hidden rounded-2xl border border-sage-200/70 bg-white/85 shadow-sm dark:border-white/10 dark:bg-void-900">
+                <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="min-w-0 border-b border-sage-100 p-5 sm:p-6 lg:border-b-0 lg:border-r">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-sage-700">
+                                    <span>{todayLabel}</span>
+                                    <span className="h-1 w-1 rounded-full bg-sage-300" aria-hidden="true"></span>
+                                    <span>{greeting}</span>
+                                </div>
+                                <h1 className="mt-2 text-2xl font-black leading-tight text-gray-950 sm:text-3xl">
+                                    {displayName}'s overview
+                                </h1>
+                            </div>
 
-                <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
-                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                        <button
-                            type="button"
-                            onClick={() => setShowDailyRitual(true)}
-                            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors ${ritualCompletedAt
-                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                : 'bg-gray-900 text-white hover:bg-gray-800'
-                                }`}
-                        >
-                            {ritualCompletedAt ? <CheckCircle2 size={18} /> : <Sunrise size={18} />}
-                            {ritualCompletedAt ? 'Daily Ritual Done' : 'Start Daily Ritual'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowWidgetPicker(true)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-                        >
-                            <Settings size={18} />
-                            Customize Widgets
-                        </button>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDailyRitual(true)}
+                                    className={`inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${ritualCompletedAt
+                                        ? 'text-emerald-700 hover:bg-emerald-50'
+                                        : 'bg-slate-950 text-white hover:bg-slate-800'
+                                        }`}
+                                >
+                                    {ritualCompletedAt ? <CheckCircle2 size={17} /> : <Sunrise size={17} />}
+                                    {ritualCompletedAt ? 'Ritual done' : 'Start ritual'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowWidgetPicker(true)}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                                    aria-label="Customize Overview widgets"
+                                    title="Customize widgets"
+                                >
+                                    <Settings size={17} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-7 border-l-2 border-indigo-400 pl-4">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="min-w-0">
+                                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-indigo-600">
+                                        <span className="inline-flex items-center gap-1">
+                                            <Calendar size={13} />
+                                            Current Schedule
+                                        </span>
+                                        {scheduleSpotlight.meta && (
+                                            <span className="font-semibold tracking-normal text-gray-400">
+                                                {scheduleSpotlight.meta}
+                                            </span>
+                                        )}
+                                        {scheduleSpotlight.rangeLabel && (
+                                            <span className="font-semibold tracking-normal text-gray-400">
+                                                {scheduleSpotlight.rangeLabel}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h2 className="text-xl font-black leading-snug text-gray-950">
+                                        {scheduleSpotlight.title}
+                                    </h2>
+                                    <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                                        {scheduleSpotlight.description}
+                                    </p>
+                                </div>
+                                <div className="shrink-0">
+                                    {renderScheduleAction()}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 min-w-0 overflow-hidden">
+                            <MagicBox />
+                        </div>
                     </div>
 
-                    {/* Quick Stats Row */}
-                    <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-4 lg:w-auto">
-                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-                            <span className="text-xl font-bold text-purple-600">{todaySummary.eventsToday}</span>
-                            <span className="text-[11px] font-bold uppercase text-gray-500">Events</span>
+                    <aside className="min-w-0 bg-sage-50/35 p-5 sm:p-6">
+                        <div className="flex h-full min-h-[300px] flex-col">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <h2 className="text-lg font-black text-gray-950">Today</h2>
+                                    <p className="mt-1 text-xs font-medium text-gray-500">
+                                        {todaySummary.eventsToday ? `${todaySummary.eventsToday} scheduled` : 'No scheduled events'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => onNavigate('schedule')}
+                                    className="text-xs font-bold text-sage-700 transition-colors hover:text-sage-900"
+                                >
+                                    View all
+                                </button>
+                            </div>
+
+                            <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                                {commandCenterScheduleItems.length === 0 ? (
+                                    <div className="pt-8 text-sm leading-6 text-gray-500">
+                                        Nothing scheduled here yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {commandCenterScheduleItems.map((item, index) => {
+                                            const start = item.displayTime || new Date(item.startTime || item.start_time);
+                                            const duration = item.duration || 60;
+                                            const end = new Date(start.getTime() + duration * 60000);
+                                            const isNow = now >= start && now < end;
+                                            const isPast = end < now;
+                                            const startLabel = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            const endLabel = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                                            return (
+                                                <button
+                                                    key={item.id || `${item.title}_${index}`}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedScheduleItem(item);
+                                                        setShowScheduleModal(true);
+                                                    }}
+                                                    className={`group grid w-full grid-cols-[4.25rem_1rem_minmax(0,1fr)] items-start gap-3 rounded-md px-1 py-2.5 text-left transition-colors hover:bg-white/65 ${
+                                                        isNow
+                                                            ? 'text-gray-950'
+                                                            : isPast
+                                                                ? 'text-gray-400'
+                                                                : 'text-gray-700'
+                                                    }`}
+                                                >
+                                                    <div className="pt-0.5 text-xs font-semibold text-gray-500">
+                                                        <div>{startLabel}</div>
+                                                        <div className="mt-1 text-gray-400">{endLabel}</div>
+                                                    </div>
+                                                    <div className="flex shrink-0 flex-col items-center pt-0.5">
+                                                        <div
+                                                            className={`h-2.5 w-2.5 rounded-full ${isPast ? 'opacity-40' : ''}`}
+                                                            style={{ backgroundColor: item.color || '#6366f1' }}
+                                                        ></div>
+                                                        {index < commandCenterScheduleItems.length - 1 && (
+                                                            <div className="mt-2 h-9 w-px bg-gray-200"></div>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-baseline justify-between gap-3">
+                                                            <div className="truncate text-sm font-bold">{item.title}</div>
+                                                            {isNow && <span className="font-bold text-indigo-600">Now</span>}
+                                                        </div>
+                                                        {item.category && (
+                                                            <div className="mt-1 truncate text-xs text-gray-500">{item.category}</div>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-                            <span className="text-xl font-bold text-teal-600">{todaySummary.habitsLeft}</span>
-                            <span className="text-[11px] font-bold uppercase text-gray-500">Habits</span>
-                        </div>
-                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-                            <span className="flex items-center gap-1 text-xl font-bold text-orange-600">
-                                {todaySummary.streakDays} <Flame size={14} />
-                            </span>
-                            <span className="text-[11px] font-bold uppercase text-gray-500">Streak</span>
-                        </div>
-                        <div className="flex min-w-[92px] flex-col items-center rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-                            <span className="text-xl font-bold text-red-600">{todaySummary.overdueTasks}</span>
-                            <span className="text-[11px] font-bold uppercase text-gray-500">Overdue</span>
-                        </div>
-                    </div>
+                    </aside>
                 </div>
-            </div>
 
-            {/* Magic Box - AI Agent Command Bar */}
-            <div>
-                <MagicBox />
-
-                {/* Proactive Suggestions */}
                 <AnimatePresence>
                     {proactiveSuggestions.length > 0 && (
-                        <ProactiveSuggestionCard
-                            suggestions={proactiveSuggestions}
-                            onAction={handleChatAction}
-                            onDismiss={handleDismissSuggestion}
-                        />
+                        <div className="border-t border-sage-100 px-5 pb-5 sm:px-6">
+                            <ProactiveSuggestionCard
+                                suggestions={proactiveSuggestions}
+                                onAction={handleChatAction}
+                                onDismiss={handleDismissSuggestion}
+                            />
+                        </div>
                     )}
                 </AnimatePresence>
-            </div>
+            </section>
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

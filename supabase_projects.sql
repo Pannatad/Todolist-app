@@ -4,9 +4,15 @@ CREATE TABLE IF NOT EXISTS projects (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
+    vision TEXT,
+    notes TEXT,
+    deadline DATE,
+    category TEXT DEFAULT 'General',
     status TEXT DEFAULT 'active',
     progress INTEGER DEFAULT 0,
     is_ai_generated BOOLEAN DEFAULT true,
+    is_pinned BOOLEAN DEFAULT false,
+    phases JSONB NOT NULL DEFAULT '[]',
     columns JSONB NOT NULL DEFAULT '[]',
     tasks JSONB NOT NULL DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -17,6 +23,15 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_projects_deadline ON projects(deadline);
+
+ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS vision TEXT,
+    ADD COLUMN IF NOT EXISTS notes TEXT,
+    ADD COLUMN IF NOT EXISTS deadline DATE,
+    ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General',
+    ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS phases JSONB NOT NULL DEFAULT '[]';
 
 -- Enable Row Level Security
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;

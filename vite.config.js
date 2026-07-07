@@ -4,9 +4,14 @@ import process from 'node:process'
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 const DEFAULT_LM_STUDIO_BASE_URL = 'http://localhost:1234/v1';
+const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434';
+const DEFAULT_OLLAMA_MODEL = 'gemma4:e2b';
 
 const getLmStudioHelpMessage = (baseUrl) =>
   `LM Studio is not reachable at ${baseUrl}. Start LM Studio's local server, load your Gemma model, and confirm the server URL matches LM_STUDIO_BASE_URL.`;
+
+const getOllamaHelpMessage = (baseUrl) =>
+  `Ollama is not reachable at ${baseUrl}. Start Ollama or set OLLAMA_BASE_URL to the running local model server.`;
 
 const readJsonBody = async (req) => new Promise((resolve, reject) => {
   let raw = '';
@@ -87,6 +92,25 @@ const toOpenAIMessages = ({ systemInstruction, history = [], message, contents }
   return messages;
 };
 
+const textFromLocalContent = (content) => {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return String(content || '');
+
+  const text = content
+    .filter(part => part?.type === 'text')
+    .map(part => part.text)
+    .filter(Boolean)
+    .join('\n');
+
+  if (text) return text;
+  throw new Error('Ollama fallback currently supports text-only prompts.');
+};
+
+const toOllamaMessages = (body) => toOpenAIMessages(body).map(item => ({
+  role: item.role,
+  content: textFromLocalContent(item.content)
+}));
+
 const resolveLmStudioModel = async (env, requestedModel) => {
   if (requestedModel) return requestedModel;
   if (env.LM_STUDIO_MODEL) return env.LM_STUDIO_MODEL;
@@ -152,6 +176,74 @@ const callLmStudio = async (env, body) => {
   return data?.choices?.[0]?.message?.content || '';
 };
 
+const resolveOllamaModel = async (env, requestedModel) => {
+  if (requestedModel) return requestedModel;
+  if (env.OLLAMA_MODEL) return env.OLLAMA_MODEL;
+  if (env.LOCAL_LLM_MODEL) return env.LOCAL_LLM_MODEL;
+
+  const baseUrl = (env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, '');
+  let response;
+
+  try {
+    response = await fetch(`${baseUrl}/api/tags`);
+  } catch {
+    throw new Error(getOllamaHelpMessage(baseUrl));
+  }
+
+  if (!response.ok) {
+    throw new Error(`Could not list Ollama models (${response.status}).`);
+  }
+
+  const data = await response.json();
+  const models = Array.isArray(data?.models) ? data.models : [];
+  const modelNames = models
+    .map(model => model.name || model.model)
+    .filter(Boolean);
+
+  return modelNames.find(name => name.toLowerCase().startsWith('gemma4'))
+    || modelNames.find(name => name.toLowerCase().startsWith('gemma'))
+    || modelNames[0]
+    || DEFAULT_OLLAMA_MODEL;
+};
+
+const callOllama = async (env, body) => {
+  const baseUrl = (env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, '');
+  const model = await resolveOllamaModel(env, body.model);
+  const generationConfig = body.generationConfig || {};
+
+  let response;
+
+  try {
+    response = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages: toOllamaMessages(body),
+        stream: false,
+        think: false,
+        options: {
+          temperature: generationConfig.temperature ?? 0.4,
+          top_p: generationConfig.topP ?? generationConfig.top_p,
+          num_predict: generationConfig.maxOutputTokens ?? generationConfig.max_tokens ?? 2048
+        }
+      })
+    });
+  } catch {
+    throw new Error(getOllamaHelpMessage(baseUrl));
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Ollama request failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data?.message?.content || data?.response || '';
+};
+
 const callGeminiGenerate = async (env, body) => {
   if (!env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set on the server.');
@@ -200,12 +292,21 @@ const callAI = async (env, body, mode) => {
   try {
     if (!canUseLocal) throw new Error('Non-text input requested.');
     return await callLmStudio(env, body);
-  } catch (localError) {
-    if (body.fallbackToGemini !== false && env.GEMINI_API_KEY) {
-      console.warn('[ai-proxy] LM Studio failed; falling back to Gemini:', localError.message);
-      return mode === 'chat' ? callGeminiChat(env, body) : callGeminiGenerate(env, body);
+  } catch (lmStudioError) {
+    try {
+      console.warn('[ai-proxy] LM Studio failed; trying Ollama:', lmStudioError.message);
+      return await callOllama(env, body);
+    } catch (ollamaError) {
+      if (body.fallbackToGemini !== false && env.GEMINI_API_KEY) {
+        console.warn('[ai-proxy] Local providers failed; falling back to Gemini:', {
+          lmStudio: lmStudioError.message,
+          ollama: ollamaError.message
+        });
+        return mode === 'chat' ? callGeminiChat(env, body) : callGeminiGenerate(env, body);
+      }
+
+      throw new Error(`Local model failed. LM Studio: ${lmStudioError.message} Ollama: ${ollamaError.message}`);
     }
-    throw localError;
   }
 };
 
