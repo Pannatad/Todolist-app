@@ -1,0 +1,108 @@
+/* Hallmark · tokens: calm secretary · theme: custom indigo · modes: light + dark */
+:root {
+  color-scheme: light;
+
+  --color-paper: oklch(97.5% 0.003 265);
+  --color-paper-2: oklch(95% 0.004 265);
+  --color-paper-3: oklch(91.5% 0.005 265);
+  --color-card: oklch(99.5% 0.001 265);
+  --color-card-raised: oklch(100% 0 0);
+  --color-rule: oklch(88% 0.005 265);
+  --color-rule-2: oklch(78% 0.008 265);
+  --color-muted: oklch(49% 0.012 265);
+  --color-neutral: oklch(37% 0.012 265);
+  --color-ink-2: oklch(28% 0.01 265);
+  --color-ink: oklch(17% 0.008 265);
+  --color-accent: oklch(52% 0.18 285);
+  --color-accent-hover: oklch(47% 0.18 285);
+  --color-accent-soft: oklch(93% 0.035 285);
+  --color-accent-ink: oklch(98% 0.008 285);
+  --color-focus: oklch(60% 0.2 280);
+  --color-success: oklch(55% 0.14 155);
+  --color-success-soft: oklch(94% 0.035 155);
+  --color-warning: oklch(64% 0.14 75);
+  --color-warning-soft: oklch(95% 0.04 75);
+  --color-error: oklch(56% 0.2 25);
+  --color-error-soft: oklch(95% 0.035 25);
+  --color-overlay: oklch(14% 0.012 285 / 0.42);
+
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: var(--font-body);
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-md: 1.25rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2rem;
+  --text-display: 2rem;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+
+  --rule-hair: 1px;
+  --rule-fine: 2px;
+  --radius-control: 0.75rem;
+  --radius-input: 0.75rem;
+  --radius-card: 1rem;
+  --radius-sheet: 1.25rem;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --shadow-card: 0 1px 2px oklch(20% 0.015 285 / 0.05);
+  --shadow-floating: 0 16px 40px oklch(20% 0.015 285 / 0.12);
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-paper: oklch(14% 0.012 285);
+  --color-paper-2: oklch(18% 0.014 285);
+  --color-paper-3: oklch(22% 0.016 285);
+  --color-card: oklch(18% 0.014 285);
+  --color-card-raised: oklch(21% 0.016 285);
+  --color-rule: oklch(28% 0.016 285);
+  --color-rule-2: oklch(38% 0.018 285);
+  --color-muted: oklch(70% 0.016 285);
+  --color-neutral: oklch(78% 0.014 285);
+  --color-ink-2: oklch(86% 0.012 285);
+  --color-ink: oklch(95% 0.008 285);
+  --color-accent: oklch(70% 0.16 285);
+  --color-accent-hover: oklch(75% 0.15 285);
+  --color-accent-soft: oklch(27% 0.055 285);
+  --color-accent-ink: oklch(16% 0.014 285);
+  --color-focus: oklch(78% 0.18 280);
+  --color-success: oklch(72% 0.12 155);
+  --color-success-soft: oklch(24% 0.04 155);
+  --color-warning: oklch(78% 0.12 75);
+  --color-warning-soft: oklch(25% 0.04 75);
+  --color-error: oklch(72% 0.16 25);
+  --color-error-soft: oklch(25% 0.045 25);
+  --color-overlay: oklch(8% 0.012 285 / 0.68);
+  --shadow-card: 0 0 0 1px oklch(95% 0.008 285 / 0.035);
+  --shadow-floating: 0 18px 48px oklch(5% 0.012 285 / 0.38);
+}
