@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus, GraduationCap } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { parseScheduleCommand } from '../services/aiClient';
@@ -323,7 +323,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
             // Use gradient like TimetableSummary
             const colorConfig = COLOR_OPTIONS.find(c => c.name === item._pathColor) || COLOR_OPTIONS[0];
             return (
-                <motion.div
+                <Motion.div
                     key={item.id}
                     initial={{ opacity: 0, scale: 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -353,7 +353,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                             </div>
                         )}
                     </div>
-                </motion.div>
+                </Motion.div>
             );
         }
 
@@ -368,7 +368,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
         const showCategoryTag = style.height >= 68 && (item.subject || item.category || isTask);
 
         return (
-            <motion.div
+            <Motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -428,7 +428,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                         className="absolute top-1.5 right-1.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                     />
                 )}
-            </motion.div>
+            </Motion.div>
         );
     };
 
@@ -566,7 +566,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                                                         ? { color: item.color, bgColor: `${item.color}18` }
                                                         : getColorForSubject(item.subject || item.category);
                                                     return (
-                                                        <motion.div
+                                                        <Motion.div
                                                             key={item.id}
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
@@ -581,7 +581,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                                                             title={isTask ? "Click to Complete Task" : "Edit Event"}
                                                         >
                                                             {item.title}
-                                                        </motion.div>
+                                                        </Motion.div>
                                                     );
                                                 })}
                                             </div>

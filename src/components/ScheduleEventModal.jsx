@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { X, Clock, Calendar, Repeat, Palette, Check } from 'lucide-react';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
+import { X, Clock, Calendar, Repeat, Palette, Check, Tag } from 'lucide-react';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import { toast } from '../ui/Toast';
 import { confirmAction } from '../utils/confirm';
@@ -34,6 +34,7 @@ const RECURRENCE_OPTIONS = [
 ];
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CATEGORY_OPTIONS = ['Work', 'Study', 'Personal', 'Health', 'Errands', 'Social', 'Other'];
 
 const formatOccurrenceLabel = (dateString) => {
     if (!dateString) return '';
@@ -148,14 +149,14 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
 
     return (
         <AnimatePresence>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
                 onClick={onClose}
             >
-                <motion.div
+                <Motion.div
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.9, y: 20 }}
@@ -246,6 +247,28 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     max="480"
                                 />
                                 <span className="text-sm text-sage-500 self-center">min</span>
+                            </div>
+                        </div>
+
+                        {/* Category */}
+                        <div>
+                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
+                                <Tag size={14} className="inline mr-1" /> Category
+                            </label>
+                            <div className="flex gap-2 flex-wrap">
+                                {CATEGORY_OPTIONS.map((cat) => (
+                                    <button
+                                        key={cat}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, category: cat })}
+                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.category === cat
+                                            ? 'bg-indigo-500 text-white'
+                                            : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
+                                            }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -409,8 +432,8 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                             {isSubmitting ? 'Saving...' : event ? 'Save Changes' : 'Create Event'}
                         </button>
                     </div>
-                </motion.div>
-            </motion.div>
+                </Motion.div>
+            </Motion.div>
         </AnimatePresence>
     );
 };

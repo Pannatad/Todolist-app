@@ -78,6 +78,7 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef, popu
     const [title, setTitle] = useState('');
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('60');
+    const [category, setCategory] = useState('Other');
     const popupRef = useRef(null);
 
     // Handle click outside to close
@@ -106,12 +107,13 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef, popu
             title: title.trim(),
             startTime: startTime.toISOString(),
             duration: parseInt(duration),
-            category: 'Other'
+            category
         });
 
         setTitle('');
         setTime('');
         setDuration('60');
+        setCategory('Other');
         onClose();
     };
 
@@ -172,6 +174,17 @@ const QuickScheduleWidget = ({ addScheduleItem, isOpen, onClose, buttonRef, popu
                             <option value="120">2h</option>
                         </select>
                     </div>
+
+                    <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        aria-label="Event category"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
+                    >
+                        {['Work', 'Study', 'Personal', 'Health', 'Errands', 'Social', 'Other'].map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                        ))}
+                    </select>
 
                     <button
                         type="submit"
