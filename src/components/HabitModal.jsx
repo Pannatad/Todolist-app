@@ -1,30 +1,31 @@
 import React, { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { Check, Clock, Hash, Moon, Plus, Sprout, Sun, Sunrise, Sunset, X } from 'lucide-react';
 import { DEFAULT_SEED_DURATION_DAYS } from '../constants/habitSeeds';
 import { toast } from '../ui/Toast';
+import { Sheet } from '../ui';
 
 const EMOJI_OPTIONS = ['💧', '🧘', '🏃', '📚', '📝', '💪', '🎯', '⏰', '🌟', '❤️', '🧠', '🎨', '🎵', '💤', '🥗', '🚶', '✨'];
 
 const COLOR_OPTIONS = [
     { name: 'slate', swatch: 'bg-slate-500' },
-    { name: 'rose', swatch: 'bg-rose-500' },
+    { name: 'rose', swatch: 'bg-[var(--color-error)]0' },
     { name: 'purple', swatch: 'bg-purple-500' },
     { name: 'pink', swatch: 'bg-pink-500' },
-    { name: 'indigo', swatch: 'bg-indigo-500' },
+    { name: 'indigo', swatch: 'bg-[var(--color-accent)]0' },
     { name: 'blue', swatch: 'bg-blue-500' },
-    { name: 'teal', swatch: 'bg-teal-500' },
+    { name: 'teal', swatch: 'bg-[var(--color-success)]0' },
     { name: 'cyan', swatch: 'bg-cyan-500' },
     { name: 'lime', swatch: 'bg-lime-500' },
-    { name: 'amber', swatch: 'bg-amber-500' },
-    { name: 'emerald', swatch: 'bg-emerald-500' },
+    { name: 'amber', swatch: 'bg-[var(--color-warning)]0' },
+    { name: 'emerald', swatch: 'bg-[var(--color-success)]0' },
 ];
 
 const TIME_OF_DAY_OPTIONS = [
-    { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-amber-500', defaultTime: '07:00' },
+    { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-[var(--color-warning)]0', defaultTime: '07:00' },
     { value: 'afternoon', label: 'Afternoon', icon: Sun, color: 'text-yellow-500', defaultTime: '12:00' },
     { value: 'evening', label: 'Evening', icon: Sunset, color: 'text-orange-500', defaultTime: '18:00' },
-    { value: 'night', label: 'Night', icon: Moon, color: 'text-indigo-500', defaultTime: '21:00' },
+    { value: 'night', label: 'Night', icon: Moon, color: 'text-[var(--color-accent)]0', defaultTime: '21:00' },
     { value: 'anytime', label: 'Anytime', icon: Clock, color: 'text-slate-400', defaultTime: '' },
 ];
 
@@ -172,21 +173,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
     if (!isOpen) return null;
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
-                onClick={onClose}
-            >
-                <motion.div
-                    initial={{ scale: 0.96, opacity: 0, y: 12 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    exit={{ scale: 0.96, opacity: 0, y: 12 }}
-                    className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
-                    onClick={(e) => e.stopPropagation()}
-                >
+        <Sheet open={isOpen} onClose={onClose} title={habit ? 'Edit habit' : 'New habit'}>
                     <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
                         <div>
                             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -228,7 +215,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
 
                             <AnimatePresence>
                                 {showEmojiPicker && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
@@ -251,7 +238,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                                 {emoji}
                                             </button>
                                         ))}
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
@@ -326,7 +313,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                         </div>
 
                         {type !== 'check' && (
-                            <motion.div
+                            <Motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className={`space-y-2 ${surfaceClass} p-4`}
@@ -346,7 +333,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                     <span>1</span>
                                     <span>{type === 'duration' ? '120 min' : '20 times'}</span>
                                 </div>
-                            </motion.div>
+                            </Motion.div>
                         )}
 
                         <div className={`space-y-3 ${surfaceClass} p-4`}>
@@ -355,13 +342,13 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                 onClick={() => setIsSeed((prev) => !prev)}
                                 className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
                                     isSeed
-                                        ? 'border-emerald-200 bg-emerald-50'
+                                        ? 'border-[var(--color-success)] bg-[var(--color-success)]'
                                         : 'border-slate-200 bg-white hover:bg-slate-50'
                                 }`}
                             >
                                 <div className="flex items-start gap-3">
                                     <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-                                        isSeed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                                        isSeed ? 'bg-[var(--color-success)] text-[var(--color-success)]' : 'bg-slate-100 text-slate-500'
                                     }`}>
                                         <Sprout size={16} />
                                     </div>
@@ -373,7 +360,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                                     Let this habit grow slowly with a patience window you choose.
                                                 </p>
                                             </div>
-                                            <div className={`h-6 w-11 rounded-full p-1 transition-all ${isSeed ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                                            <div className={`h-6 w-11 rounded-full p-1 transition-all ${isSeed ? 'bg-[var(--color-success)]0' : 'bg-slate-200'}`}>
                                                 <div className={`h-4 w-4 rounded-full bg-white transition-transform ${isSeed ? 'translate-x-5' : 'translate-x-0'}`} />
                                             </div>
                                         </div>
@@ -383,7 +370,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
 
                             <AnimatePresence>
                                 {isSeed && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
@@ -434,7 +421,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                                 className={inputClass}
                                             />
                                         </div>
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
@@ -463,7 +450,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                         </div>
 
                         {frequency !== 'daily' && (
-                            <motion.div
+                            <Motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className={`space-y-2 ${surfaceClass} p-4`}
@@ -489,7 +476,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                                 <div className="text-xs text-slate-400">
                                     Only scheduled days count. Free days stay neutral.
                                 </div>
-                            </motion.div>
+                            </Motion.div>
                         )}
 
                         <div className="space-y-2">
@@ -526,9 +513,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
                             {habit ? 'Update Habit' : 'Create Habit'}
                         </button>
                     </div>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+        </Sheet>
     );
 };
 

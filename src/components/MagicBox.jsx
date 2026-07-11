@@ -253,7 +253,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                     {/* Gradient accent line at top */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${isListening
                         ? 'bg-red-500 animate-pulse'
-                        : 'bg-indigo-500'}`}></div>
+                        : 'bg-[var(--color-accent)]0'}`}></div>
 
                     <div className="flex min-w-0 items-center p-2.5 pt-4 sm:p-3 sm:pt-4">
                         {/* Magic Icon */}
@@ -267,7 +267,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                                     rotate: { duration: 2, repeat: isLoading ? Infinity : 0, ease: "linear" },
                                     scale: { duration: 1, repeat: isLoading ? Infinity : 0 }
                                 }}
-                                className="rounded-xl bg-indigo-600 p-2 shadow-sm"
+                                className="rounded-xl bg-[var(--color-accent)] p-2 shadow-sm"
                             >
                                 {isLoading ? (
                                     <Loader2 size={20} className="animate-spin text-white" />
@@ -309,7 +309,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                         <button
                             type="submit"
                             disabled={!input.trim() || isLoading}
-                            className="ml-1.5 flex-shrink-0 touch-manipulation rounded-xl bg-indigo-600 p-2 text-white shadow-sm transition-colors hover:bg-indigo-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300 sm:ml-2 sm:p-2.5"
+                            className="ml-1.5 flex-shrink-0 touch-manipulation rounded-xl bg-[var(--color-accent)] p-2 text-white shadow-sm transition-colors hover:bg-[var(--color-accent)] active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-300 sm:ml-2 sm:p-2.5"
                             aria-label="Send"
                         >
                             <Send size={18} />
@@ -329,7 +329,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
                         onClick={handleExampleClick}
-                        className="max-w-full cursor-pointer break-words text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        className="max-w-full cursor-pointer break-words text-sm font-medium text-[var(--color-accent)] hover:text-[var(--color-accent)] hover:underline"
                     >
                         "{personalizedPrompts[currentExampleIndex] || FALLBACK_PROMPTS[0]}"
                     </Motion.button>

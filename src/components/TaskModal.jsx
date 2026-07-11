@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sun, Pencil, Check } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { toast } from '../ui/Toast';
+import { Sheet } from '../ui';
 
 const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) => {
     const [formData, setFormData] = useState({
@@ -124,23 +125,14 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-            <div className="bg-white dark:bg-void-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-sage-200 dark:border-white/10 max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center px-8 py-6 border-b border-sage-100 dark:border-white/5 shrink-0">
-                    <h3 className="text-2xl font-bold text-sage-800 dark:text-bone-100">
-                        {mode === 'create' ? 'Add New Task' : 'Edit Task'}
-                    </h3>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-sage-100 dark:hover:bg-void-800 text-sage-400 hover:text-sage-600 dark:text-bone-400 dark:hover:text-bone-200 transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
+        <Sheet open={isOpen} onClose={onClose} title={mode === 'create' ? 'New task' : 'Edit task'}>
 
                 {/* Add to Today Banner (Only in Edit Mode) */}
                 {mode === 'edit' && (
                     <div className="px-8 pt-6">
                         <button
                             onClick={handleAddToToday}
-                            className="w-full flex items-center justify-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-2xl text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-semibold text-base"
+                            className="w-full flex items-center justify-center gap-3 p-4 bg-[var(--color-warning)] dark:bg-[var(--color-warning)]/20 border border-[var(--color-warning)] dark:border-[var(--color-warning)]/30 rounded-2xl text-[var(--color-warning)] dark:text-[var(--color-warning)] hover:bg-[var(--color-warning)] dark:hover:bg-[var(--color-warning)]/40 transition-colors font-semibold text-base"
                         >
                             <Sun className="w-5 h-5" />
                             Add to Today's Focus
@@ -246,7 +238,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                                             <button
                                                 type="button"
                                                 onClick={saveSubtaskEdit}
-                                                className="text-emerald-500 hover:text-emerald-600"
+                                                className="text-[var(--color-success)]0 hover:text-[var(--color-success)]"
                                             >
                                                 <Check className="w-4 h-4" />
                                             </button>
@@ -311,8 +303,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                         {mode === 'create' ? 'Create Task' : 'Save Changes'}
                     </button>
                 </div>
-            </div>
-        </div >
+        </Sheet>
     );
 };
 

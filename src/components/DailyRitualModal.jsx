@@ -199,12 +199,12 @@ const RitualChoice = ({ item, selected, onToggle }) => {
             type="button"
             {...buttonPressProps(() => onToggle(item.key))}
             className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${selected
-                ? 'border-indigo-300 bg-indigo-50 shadow-sm'
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent)] shadow-sm'
                 : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
                 }`}
         >
             <div className="flex items-start gap-3">
-                <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-transparent'}`}>
+                <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-[var(--color-accent)]0 bg-[var(--color-accent)] text-white' : 'border-gray-300 bg-white text-transparent'}`}>
                     <Check size={12} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -418,11 +418,11 @@ const DailyRitualModal = ({
                     >
                         <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-warning)] text-[var(--color-warning)]">
                                     <Sunrise size={22} />
                                 </div>
                                 <div>
-                                    <div className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600">Daily Ritual</div>
+                                    <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-warning)]">Daily Ritual</div>
                                     <h2 className="text-2xl font-bold text-gray-900">Start with intention, {displayName}</h2>
                                 </div>
                             </div>
@@ -450,11 +450,11 @@ const DailyRitualModal = ({
                                                 type="button"
                                                 {...buttonPressProps(() => goToStep(index))}
                                                 className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition-all ${isActive
-                                                    ? 'bg-white text-indigo-700 shadow-sm'
+                                                    ? 'bg-white text-[var(--color-accent)] shadow-sm'
                                                     : 'text-gray-500 hover:bg-white/70 hover:text-gray-900'
                                                     }`}
                                             >
-                                                <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${isDone ? 'bg-emerald-50 text-emerald-600' : isActive ? 'bg-indigo-50 text-indigo-600' : 'bg-white text-gray-400'}`}>
+                                                <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${isDone ? 'bg-[var(--color-success)] text-[var(--color-success)]' : isActive ? 'bg-[var(--color-accent)] text-[var(--color-accent)]' : 'bg-white text-gray-400'}`}>
                                                     {isDone ? <CheckCircle2 size={16} /> : <StepIcon size={16} />}
                                                 </span>
                                                 {step.label}
@@ -467,7 +467,7 @@ const DailyRitualModal = ({
                             <main className="min-h-0 overflow-y-auto p-5 sm:p-7">
                                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                                     <div>
-                                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-500">{activeStep.label}</div>
+                                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]0">{activeStep.label}</div>
                                         <h3 className="mt-1 text-2xl font-bold text-gray-900">
                                             {stepIndex === 0 && 'See the day clearly'}
                                             {stepIndex === 1 && 'Choose the work that matters'}
@@ -480,11 +480,11 @@ const DailyRitualModal = ({
                                     </div>
                                 </div>
 
-                                <div className="mb-5 rounded-3xl border border-indigo-100 bg-indigo-50/70 px-5 py-4">
-                                    <div className="text-sm font-bold text-indigo-900">
+                                <div className="mb-5 rounded-3xl border border-[var(--color-accent)] bg-[var(--color-accent)]/70 px-5 py-4">
+                                    <div className="text-sm font-bold text-[var(--color-accent)]">
                                         Step {stepIndex + 1} of {STEP_META.length}: {activeStep.label}
                                     </div>
-                                    <p className="mt-1 text-sm text-indigo-700">
+                                    <p className="mt-1 text-sm text-[var(--color-accent)]">
                                         {stepIndex === 0 && 'I am collecting today’s tasks, habits, and schedule so you can see what needs attention.'}
                                         {stepIndex === 1 && `Choose what should become today's plan. ${selectedItems.length} item${selectedItems.length === 1 ? '' : 's'} selected.`}
                                         {stepIndex === 2 && `I found ${freeWindows.length} free window${freeWindows.length === 1 ? '' : 's'} and prepared ${planBlocks.length} new ritual block${planBlocks.length === 1 ? '' : 's'}.`}
@@ -494,34 +494,34 @@ const DailyRitualModal = ({
 
                                 {stepIndex === 0 && (
                                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                                        <div className="rounded-3xl border border-rose-100 bg-rose-50/70 p-5">
-                                            <div className="text-sm font-bold text-rose-700">Overdue</div>
+                                        <div className="rounded-3xl border border-[var(--color-error)] bg-[var(--color-error)]/70 p-5">
+                                            <div className="text-sm font-bold text-[var(--color-error)]">Overdue</div>
                                             <div className="mt-2 text-3xl font-bold text-gray-900">{overdueTasks.length}</div>
                                             <div className="mt-4 space-y-2">
                                                 {overdueTasks.slice(0, 3).map((task) => (
-                                                    <button key={task.id} type="button" {...buttonPressProps(() => onOpenTask?.(task))} className="block w-full truncate rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-rose-50">
+                                                    <button key={task.id} type="button" {...buttonPressProps(() => onOpenTask?.(task))} className="block w-full truncate rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-[var(--color-error)]">
                                                         {task.title}
                                                     </button>
                                                 ))}
-                                                {overdueTasks.length === 0 && <p className="text-sm text-rose-700/70">Nothing overdue.</p>}
+                                                {overdueTasks.length === 0 && <p className="text-sm text-[var(--color-error)]/70">Nothing overdue.</p>}
                                             </div>
                                         </div>
 
-                                        <div className="rounded-3xl border border-amber-100 bg-amber-50/70 p-5">
-                                            <div className="text-sm font-bold text-amber-700">Due Today</div>
+                                        <div className="rounded-3xl border border-[var(--color-warning)] bg-[var(--color-warning)]/70 p-5">
+                                            <div className="text-sm font-bold text-[var(--color-warning)]">Due Today</div>
                                             <div className="mt-2 text-3xl font-bold text-gray-900">{dueTodayTasks.length}</div>
                                             <div className="mt-4 space-y-2">
                                                 {dueTodayTasks.slice(0, 3).map((task) => (
-                                                    <button key={task.id} type="button" {...buttonPressProps(() => onOpenTask?.(task))} className="block w-full truncate rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-amber-50">
+                                                    <button key={task.id} type="button" {...buttonPressProps(() => onOpenTask?.(task))} className="block w-full truncate rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-[var(--color-warning)]">
                                                         {task.title}
                                                     </button>
                                                 ))}
-                                                {dueTodayTasks.length === 0 && <p className="text-sm text-amber-700/70">No deadlines landing today.</p>}
+                                                {dueTodayTasks.length === 0 && <p className="text-sm text-[var(--color-warning)]/70">No deadlines landing today.</p>}
                                             </div>
                                         </div>
 
-                                        <div className="rounded-3xl border border-teal-100 bg-teal-50/70 p-5">
-                                            <div className="text-sm font-bold text-teal-700">Habits Left</div>
+                                        <div className="rounded-3xl border border-[var(--color-success)] bg-[var(--color-success)]/70 p-5">
+                                            <div className="text-sm font-bold text-[var(--color-success)]">Habits Left</div>
                                             <div className="mt-2 text-3xl font-bold text-gray-900">{pendingHabits.length}</div>
                                             <div className="mt-4 space-y-2">
                                                 {pendingHabits.slice(0, 3).map((habit) => (
@@ -529,19 +529,19 @@ const DailyRitualModal = ({
                                                         key={habit.id}
                                                         type="button"
                                                         {...buttonPressProps(() => logHabit?.(habit.id, todayKey, habit.type === 'count' || habit.type === 'duration' ? (habit.target || 1) : 1, true))}
-                                                        className="flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-teal-50"
+                                                        className="flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-[var(--color-success)]"
                                                     >
                                                         <span className="truncate">{habit.name}</span>
-                                                        <Check size={14} className="text-teal-600" />
+                                                        <Check size={14} className="text-[var(--color-success)]" />
                                                     </button>
                                                 ))}
-                                                {pendingHabits.length === 0 && <p className="text-sm text-teal-700/70">All scheduled habits are done.</p>}
+                                                {pendingHabits.length === 0 && <p className="text-sm text-[var(--color-success)]/70">All scheduled habits are done.</p>}
                                             </div>
                                         </div>
 
                                         <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5 lg:col-span-3">
                                             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-900">
-                                                <Clock size={16} className="text-indigo-500" />
+                                                <Clock size={16} className="text-[var(--color-accent)]0" />
                                                 Today's shape
                                             </div>
                                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -561,7 +561,7 @@ const DailyRitualModal = ({
 
                                 {stepIndex === 1 && (
                                     <div className="space-y-4">
-                                        <div className="rounded-3xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm text-indigo-700">
+                                        <div className="rounded-3xl border border-[var(--color-accent)] bg-[var(--color-accent)] px-5 py-4 text-sm text-[var(--color-accent)]">
                                             Pick tasks or habits. The ritual will schedule the selected work into real free windows.
                                         </div>
                                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -587,9 +587,9 @@ const DailyRitualModal = ({
                                         {freeWindows.length > 0 && (
                                             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                                                 {freeWindows.slice(0, 3).map((window) => (
-                                                    <div key={window.start.toISOString()} className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+                                                    <div key={window.start.toISOString()} className="rounded-2xl border border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3">
                                                         <div className="text-sm font-bold text-gray-900">{formatTime(window.start)} - {formatTime(window.end)}</div>
-                                                        <div className="mt-1 text-xs font-semibold text-sky-700">{formatMinutes(window.minutes)} free</div>
+                                                        <div className="mt-1 text-xs font-semibold text-[var(--color-accent)]">{formatMinutes(window.minutes)} free</div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -605,7 +605,7 @@ const DailyRitualModal = ({
                                                     type="button"
                                                     {...buttonPressProps(handleApplyPlan)}
                                                     disabled={isApplying || (planBlocks.length === 0 && alreadyScheduledItems.length === 0) || applied}
-                                                    className="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="rounded-2xl bg-[var(--color-accent)] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {isApplying ? 'Applying...' : applied ? 'Applied' : planBlocks.length === 0 && alreadyScheduledItems.length > 0 ? 'Continue' : 'Apply plan'}
                                                 </button>
@@ -613,7 +613,7 @@ const DailyRitualModal = ({
 
                                             <div className="space-y-3">
                                                 {alreadyScheduledItems.length > 0 && (
-                                                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                                    <div className="rounded-2xl border border-[var(--color-success)] bg-[var(--color-success)] px-4 py-3 text-sm text-[var(--color-success)]">
                                                         {alreadyScheduledItems.length} selected priorit{alreadyScheduledItems.length === 1 ? 'y is' : 'ies are'} already scheduled from today&apos;s ritual, so duplicate blocks will not be created.
                                                     </div>
                                                 )}
@@ -639,7 +639,7 @@ const DailyRitualModal = ({
                                                     </div>
                                                 )}
                                                 {applyError && (
-                                                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                                                    <div className="rounded-2xl border border-[var(--color-error)] bg-[var(--color-error)] px-4 py-3 text-sm font-semibold text-[var(--color-error)]">
                                                         {applyError}
                                                     </div>
                                                 )}
@@ -649,26 +649,26 @@ const DailyRitualModal = ({
                                 )}
 
                                 {stepIndex === 3 && (
-                                    <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-6">
+                                    <div className="rounded-3xl border border-[var(--color-success)] bg-[var(--color-success)] p-6">
                                         <div className="flex items-start gap-4">
-                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
+                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[var(--color-success)]">
                                                 <CheckCircle2 size={24} />
                                             </div>
                                             <div>
                                                 <h4 className="text-xl font-bold text-gray-900">Your day has a launch path.</h4>
-                                                <p className="mt-2 text-sm text-emerald-800">
+                                                <p className="mt-2 text-sm text-[var(--color-success)]">
                                                     {applied
                                                         ? `${planBlocks.length} new ritual block${planBlocks.length === 1 ? '' : 's'} ${planBlocks.length === 1 ? 'was' : 'were'} added. ${alreadyScheduledItems.length > 0 ? `${alreadyScheduledItems.length} selected priorit${alreadyScheduledItems.length === 1 ? 'y was' : 'ies were'} already scheduled.` : ''}`
                                                         : 'Review your plan, then start with the first small move.'}
                                                 </p>
                                                 <div className="mt-5 flex flex-wrap gap-3">
-                                                    <button type="button" {...buttonPressProps(() => { onNavigate?.('schedule'); handleFinish(); })} className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700">
+                                                    <button type="button" {...buttonPressProps(() => { onNavigate?.('schedule'); handleFinish(); })} className="rounded-2xl bg-[var(--color-success)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--color-success)]">
                                                         View schedule
                                                     </button>
-                                                    <button type="button" {...buttonPressProps(() => { onAskAgent?.("Help me execute today's plan step by step"); handleFinish(); })} className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
+                                                    <button type="button" {...buttonPressProps(() => { onAskAgent?.("Help me execute today's plan step by step"); handleFinish(); })} className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-[var(--color-success)] hover:bg-[var(--color-success)]">
                                                         Ask agent to guide me
                                                     </button>
-                                                    <button type="button" {...buttonPressProps(handleFinish)} className="rounded-2xl bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-200">
+                                                    <button type="button" {...buttonPressProps(handleFinish)} className="rounded-2xl bg-[var(--color-success)] px-4 py-2 text-sm font-bold text-[var(--color-success)] hover:bg-[var(--color-success)]">
                                                         Finish ritual
                                                     </button>
                                                 </div>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { X, Clock, Calendar, Repeat, Palette, Check, Tag } from 'lucide-react';
+import { Clock, Calendar, Repeat, Palette, Check, Tag } from 'lucide-react';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import { toast } from '../ui/Toast';
+import { Sheet } from '../ui';
 import { confirmAction } from '../utils/confirm';
 
 const PRESET_COLORS = [
@@ -148,36 +148,8 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
     if (!isOpen) return null;
 
     return (
-        <AnimatePresence>
-            <Motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                onClick={onClose}
-            >
-                <Motion.div
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.9, y: 20 }}
-                    className="bg-white dark:bg-void-900 rounded-2xl w-full max-w-lg shadow-2xl border border-sage-200 dark:border-white/10 overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-sage-100 dark:border-white/10">
-                        <h2 className="text-xl font-bold text-sage-800 dark:text-bone-100">
-                            {event ? 'Edit Event' : 'New Event'}
-                        </h2>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-sage-100 dark:hover:bg-white/10 rounded-full transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <Sheet open={isOpen} onClose={onClose} title={event ? 'Edit event' : 'New event'}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Title */}
                         <div>
                             <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
@@ -188,7 +160,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 placeholder="Add title"
-                                className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-lg"
+                                className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0 font-medium text-lg"
                                 autoFocus
                             />
                         </div>
@@ -203,7 +175,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     type="date"
                                     value={formData.date}
                                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
                                 />
                             </div>
                             <div>
@@ -214,7 +186,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     type="time"
                                     value={formData.startTime}
                                     onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
                                 />
                             </div>
                         </div>
@@ -231,7 +203,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         type="button"
                                         onClick={() => setFormData({ ...formData, duration: mins })}
                                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.duration === mins
-                                                ? 'bg-indigo-500 text-white'
+                                                ? 'bg-[var(--color-accent)]0 text-white'
                                                 : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
                                             }`}
                                     >
@@ -262,7 +234,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         type="button"
                                         onClick={() => setFormData({ ...formData, category: cat })}
                                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.category === cat
-                                            ? 'bg-indigo-500 text-white'
+                                            ? 'bg-[var(--color-accent)]0 text-white'
                                             : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
                                             }`}
                                     >
@@ -307,7 +279,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     const value = e.target.value;
                                     setFormData({ ...formData, recurrenceType: value });
                                 }}
-                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
                             >
                                 {RECURRENCE_OPTIONS.map((opt) => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -341,7 +313,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                                     type="button"
                                                     onClick={() => toggleDayOfWeek(index)}
                                                     className={`w-9 h-9 rounded-full text-xs font-bold transition-colors ${formData.recurrenceDaysOfWeek.includes(index)
-                                                            ? 'bg-indigo-500 text-white'
+                                                            ? 'bg-[var(--color-accent)]0 text-white'
                                                             : 'bg-white dark:bg-void-900 text-sage-600 dark:text-bone-300 border border-sage-200 dark:border-white/10'
                                                         }`}
                                                 >
@@ -363,7 +335,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         type="date"
                                         value={formData.recurrenceEndDate}
                                         onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
                                     />
                                 </div>
                             )}
@@ -379,7 +351,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                 placeholder="Add notes..."
                                 rows={2}
-                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0 resize-none"
                             />
                         </div>
                     </form>
@@ -425,16 +397,14 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                             onClick={handleSubmit}
                             disabled={!formData.title.trim() || isSubmitting}
                             className={`px-6 py-2 rounded-lg font-bold transition-colors ${formData.title.trim()
-                                    ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                                    ? 'bg-[var(--color-accent)]0 text-white hover:bg-[var(--color-accent)]'
                                     : 'bg-sage-300 text-sage-500 cursor-not-allowed'
                                 }`}
                         >
                             {isSubmitting ? 'Saving...' : event ? 'Save Changes' : 'Create Event'}
                         </button>
                     </div>
-                </Motion.div>
-            </Motion.div>
-        </AnimatePresence>
+        </Sheet>
     );
 };
 
