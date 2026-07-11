@@ -594,6 +594,8 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
 
     useEffect(() => {
         setOrderedChunks(selectedChunks);
+    // selectedChunks is derived anew each render; selectedChunkKey tracks its meaningful changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedTask?.id, selectedChunkKey]);
 
     useEffect(() => {
@@ -619,6 +621,8 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
         });
         setIsTaskDraftDirty(false);
         setIsTaskSaving(false);
+    // selectedTask fields below are the values that should refresh this draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedTask?.id, selectedTaskDeadline, selectedTaskDifficulty, selectedTaskSubject, selectedTaskTitle]);
 
     const updateTaskDraft = (updates) => {
@@ -860,26 +864,26 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                     <div className="min-w-0">
                         <div className="app-eyebrow flex items-center gap-2">
                             <Target size={15} />
-                            Today’s task lane
+                            Tasks
                         </div>
                         <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
                             <span className="text-3xl font-bold leading-none text-sage-950 dark:text-bone-100">{allCount}</span>
-                            <span className="pb-1 text-sm font-bold text-sage-500 dark:text-bone-200/60">active tasks moving</span>
+                            <span className="pb-1 text-sm font-bold text-sage-500 dark:text-bone-200/60">active</span>
                         </div>
                     </div>
 
                     <div className="grid min-w-0 grid-cols-3 gap-2 sm:w-[23rem]">
-                        <div className="rounded-2xl bg-amber-50 px-3 py-2 text-amber-800 ring-1 ring-amber-100 dark:bg-amber-950/25 dark:text-amber-100 dark:ring-amber-900/30">
-                            <div className="app-eyebrow">Today</div>
-                            <div className="text-xl font-bold">{todayTasks.length}</div>
+                        <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] px-3 py-2">
+                            <div className="app-eyebrow text-[var(--color-muted)]">Today</div>
+                            <div className="text-xl font-bold text-[var(--color-ink)]">{todayTasks.length}</div>
                         </div>
-                        <div className="rounded-2xl bg-sky-50 px-3 py-2 text-sky-800 ring-1 ring-sky-100 dark:bg-sky-950/25 dark:text-sky-100 dark:ring-sky-900/30">
-                            <div className="app-eyebrow">Chunked</div>
-                            <div className="text-xl font-bold">{chunkedCount}</div>
+                        <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] px-3 py-2">
+                            <div className="app-eyebrow text-[var(--color-muted)]">Chunked</div>
+                            <div className="text-xl font-bold text-[var(--color-ink)]">{chunkedCount}</div>
                         </div>
-                        <div className="rounded-2xl bg-rose-50 px-3 py-2 text-rose-800 ring-1 ring-rose-100 dark:bg-rose-950/25 dark:text-rose-100 dark:ring-rose-900/30">
-                            <div className="app-eyebrow">Late</div>
-                            <div className="text-xl font-bold">{overdueCount}</div>
+                        <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] px-3 py-2">
+                            <div className="app-eyebrow text-[var(--color-muted)]">Late</div>
+                            <div className="text-xl font-bold text-[var(--color-error)]">{overdueCount}</div>
                         </div>
                     </div>
                 </div>
@@ -893,10 +897,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                     <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
                         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                             <div>
-                                <h2 className="app-section-title">Task flow</h2>
-                                <p className="mt-0.5 text-xs font-medium text-sage-500 dark:text-bone-200/60">
-                                    Pick a task, shape the next steps, keep it moving.
-                                </p>
+                                <h2 className="app-section-title">All tasks</h2>
                             </div>
 
                             <div className="relative z-20" ref={sortRef}>
@@ -990,7 +991,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
 
                         {sortedTasks.length === 0 && (
                             <div className="rounded-2xl border border-dashed border-sage-200 bg-white/70 p-8 text-center text-sm font-medium text-sage-500 dark:border-white/10 dark:bg-void-900/60 dark:text-bone-200/60">
-                                No active tasks here.
+                                No tasks.
                             </div>
                         )}
                     </Motion.div>
@@ -1293,7 +1294,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                             <div className="space-y-3">
                                 {todayTasks.length === 0 ? (
                                     <div className="rounded-2xl border border-dashed border-sage-200 bg-sage-50/70 p-6 text-center text-sm font-medium text-sage-500 dark:border-white/10 dark:bg-void-800/60 dark:text-bone-200/60">
-                                        No tasks scheduled for today.
+                                        Nothing scheduled today.
                                     </div>
                                 ) : (
                                     todayTasks.map(task => {
