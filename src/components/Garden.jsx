@@ -4,6 +4,8 @@ import { ArrowUpDown, CalendarDays, CheckCircle2, ChevronDown, Circle, Clock, Gr
 import { getColorForSubject } from '../constants/subjects';
 import { getTaskChunkEstimate, isTaskActive, isTaskCompleted, normalizeTaskSubtasks } from '../utils/taskState';
 import { toast } from '../ui/Toast';
+import { Sheet } from '../ui';
+import FocusTimer from './FocusTimer';
 
 const ChunkReorderItem = ({
     chunk,
@@ -378,7 +380,7 @@ const TaskListRow = ({
                                             event.stopPropagation();
                                             onStartFocus(task);
                                         }}
-                                        className="hidden h-9 w-9 items-center justify-center rounded-xl text-sage-400 transition-colors hover:bg-amber-50 hover:text-amber-600 sm:inline-flex dark:hover:bg-amber-900/20"
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-sage-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20"
                                         title="Start focus"
                                     >
                                         <Play size={16} fill="currentColor" />
@@ -464,7 +466,7 @@ const toTimeInputValue = (value) => {
     return date.toTimeString().slice(0, 5);
 };
 
-const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [], onStartFocus }) => {
+const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [] }) => {
     const [sortBy, setSortBy] = useState('deadline');
     const [showSort, setShowSort] = useState(false);
     const [selectedSubject, setSelectedSubject] = useState('all');
@@ -492,6 +494,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
     });
     const [isTaskDraftDirty, setIsTaskDraftDirty] = useState(false);
     const [isTaskSaving, setIsTaskSaving] = useState(false);
+    const [focusTask, setFocusTask] = useState(null);
     const sortRef = useRef(null);
 
     const chunkDifficultyOptions = [
@@ -985,7 +988,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                     onRequestAIHelp={onRequestAIHelp}
                                     onRestore={onRestoreTask}
                                     onSelect={handleSelectTask}
-                                    onStartFocus={onStartFocus}
+                                    onStartFocus={setFocusTask}
                                 />
                             ))}
                         </AnimatePresence>
@@ -1012,7 +1015,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                                     onRequestAIHelp={onRequestAIHelp}
                                     onRestore={onRestoreTask}
                                     onSelect={handleSelectTask}
-                                    onStartFocus={onStartFocus}
+                                    onStartFocus={setFocusTask}
                                 />
                             ))}
                         </div>
@@ -1354,6 +1357,25 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                 </div>
             </div>
             </div>
+            <Sheet
+                open={Boolean(focusTask)}
+                onClose={() => setFocusTask(null)}
+                title="Focus"
+                description="Stay with one task."
+            >
+                {focusTask && (
+                    <FocusTimer
+                        task={focusTask}
+                        onComplete={(minutes) => {
+                            const focusSessions = Array.isArray(focusTask.focus_sessions) ? focusTask.focus_sessions : [];
+                            onUpdateTask(focusTask.id, {
+                                focus_sessions: [...focusSessions, { minutes, endedAt: new Date().toISOString() }],
+                            });
+                            setFocusTask(null);
+                        }}
+                    />
+                )}
+            </Sheet>
         </div>
     );
 };

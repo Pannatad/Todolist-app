@@ -424,6 +424,7 @@ export const TaskProvider = ({ children }) => {
                 dbUpdates.estimated_time = mergedTaskForSave.estimated_time;
             }
             if (processedUpdates.subtasks !== undefined) dbUpdates.subtasks = mergedTaskForSave.subtasks;
+            if (processedUpdates.focus_sessions !== undefined) dbUpdates.focus_sessions = processedUpdates.focus_sessions;
             if (
                 processedUpdates.status !== undefined ||
                 processedUpdates.completed !== undefined ||
@@ -436,10 +437,11 @@ export const TaskProvider = ({ children }) => {
             if (Object.keys(dbUpdates).length > 0) {
                 const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', id);
 
-                if (error && dbUpdates.subtasks !== undefined) {
-                    console.warn('Task update with subtasks failed, retrying without subtasks...', error);
+                if (error && (dbUpdates.subtasks !== undefined || dbUpdates.focus_sessions !== undefined)) {
+                    console.warn('Task update with newer fields failed, retrying without them...', error);
                     const fallbackUpdates = { ...dbUpdates };
                     delete fallbackUpdates.subtasks;
+                    delete fallbackUpdates.focus_sessions;
                     if (Object.keys(fallbackUpdates).length > 0) {
                         await supabase.from('tasks').update(fallbackUpdates).eq('id', id);
                     }

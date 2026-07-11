@@ -6,4 +6,3 @@ export { GoalProvider, useGoal } from './GoalContext';
 export { AuthProvider, useAuth } from './AuthContext';
 export { UserIntelligenceProvider, useUserIntelligence } from './UserIntelligenceContext';
 export { IdeaBoardProvider, useIdeaBoard } from './IdeaBoardContext';
-export { FocusProvider, useFocus } from './FocusContext';
