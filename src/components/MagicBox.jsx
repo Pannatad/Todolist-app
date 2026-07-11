@@ -9,6 +9,7 @@ import { useGoal } from '../context/GoalContext';
 import { isTaskActive } from '../utils/taskState';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import { toast } from '../ui/Toast';
+import { log } from '../utils/log.js';
 
 // Fallback prompts if no personalized data
 const FALLBACK_PROMPTS = [
@@ -130,7 +131,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                 recognitionRef.current.maxAlternatives = 1;
 
                 recognitionRef.current.onstart = () => {
-                    console.log('🎤 Speech recognition started');
+                    log('🎤 Speech recognition started');
                     setIsListening(true);
                 };
 
@@ -142,7 +143,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                 };
 
                 recognitionRef.current.onend = () => {
-                    console.log('🎤 Speech recognition ended');
+                    log('🎤 Speech recognition ended');
                     setIsListening(false);
                 };
 
@@ -164,7 +165,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                 setTimeout(() => setSpeechSupported(false), 0);
             }
         } else {
-            console.log('Speech recognition not supported in this browser');
+            log('Speech recognition not supported in this browser');
         }
 
         return () => {

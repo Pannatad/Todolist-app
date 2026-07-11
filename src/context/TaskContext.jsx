@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { normalizeTaskRecord } from '../utils/taskState';
 import { toast } from '../ui/Toast';
+import { log } from '../utils/log.js';
 
 const TaskContext = createContext();
 
@@ -117,7 +118,7 @@ export const TaskProvider = ({ children }) => {
             .eq('user_id', user.id)
             .order('created_at', { ascending: true });
 
-        console.log('📋 Tasks loaded:', data?.length || 0, 'Error:', error);
+        log('📋 Tasks loaded:', data?.length || 0, 'Error:', error);
 
         if (error) throw error;
 
@@ -133,7 +134,7 @@ export const TaskProvider = ({ children }) => {
             .eq('user_id', user.id)
             .order('start_time', { ascending: true });
 
-        console.log('📅 Schedule loaded:', data?.length || 0, 'Error:', error);
+        log('📅 Schedule loaded:', data?.length || 0, 'Error:', error);
 
         if (error) throw error;
 
@@ -143,11 +144,11 @@ export const TaskProvider = ({ children }) => {
     // Load from Supabase
     const loadTasksFromSupabase = useCallback(async () => {
         if (!user) {
-            console.log('🔍 No user, skipping load');
+            log('🔍 No user, skipping load');
             return;
         }
 
-        console.log('🔍 Loading data for user:', user.id, user.email);
+        log('🔍 Loading data for user:', user.id, user.email);
 
         try {
             await Promise.all([
@@ -250,7 +251,7 @@ export const TaskProvider = ({ children }) => {
     const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description, subtasks = [] }) => {
         // Convert local deadline string to UTC ISO string for storage
         const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
-        console.log("🕒 Timezone Debug:", {
+        log("🕒 Timezone Debug:", {
             inputDeadline: deadline,
             isoDeadline,
             userTimezoneOffset: new Date().getTimezoneOffset()

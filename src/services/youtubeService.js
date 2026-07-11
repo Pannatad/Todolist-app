@@ -3,6 +3,7 @@
  * Parses YouTube playlist URLs and extracts video titles.
  * Uses RSS feeds (no API key) + optional YouTube Data API for durations.
  */
+import { log } from '../utils/log.js';
 
 const YT_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
@@ -21,7 +22,7 @@ const extractPlaylistId = (url) => {
         // Handle youtu.be or other formats with list param
         const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
         return match ? match[1] : null;
-    } catch (e) {
+    } catch {
         // Try regex fallback for malformed URLs
         const match = url.match(/list=([a-zA-Z0-9_-]+)/);
         return match ? match[1] : null;
@@ -137,7 +138,7 @@ const fetchFromRSS = async (playlistId) => {
  * @param {string} videoUrl - YouTube video URL
  * @returns {Promise<Object|null>} - { title, videoUrl }
  */
-const fetchVideoInfo = async (videoUrl) => {
+const _fetchVideoInfo = async (videoUrl) => {
     try {
         const response = await fetch(
             `https://noembed.com/embed?url=${encodeURIComponent(videoUrl)}`,
@@ -185,7 +186,7 @@ const cleanVideoTitles = (videos) => {
 
     // If we found a shared prefix, strip it
     if (bestPrefix.length > 0) {
-        console.log(`🧹 Stripping common prefix: "${bestPrefix}"`);
+        log(`Stripping common prefix: "${bestPrefix}"`);
         return videos.map(v => ({
             ...v,
             title: v.title.startsWith(bestPrefix)
@@ -270,24 +271,24 @@ export const parseYouTubePlaylist = async (url) => {
         };
     }
 
-    console.log(`📺 Parsing YouTube playlist: ${playlistId}`);
+    log(`Parsing YouTube playlist: ${playlistId}`);
 
     let videos = [];
 
     // 1. Try API first (can fetch >15 videos)
     if (YT_API_KEY) {
-        console.log('🔑 Using YouTube API...');
+        log('Using YouTube API');
         videos = await fetchFromAPI(playlistId);
     }
 
     // 2. Try RSS feed fallback (fastest, no API key needed, but max 15)
     if (videos.length === 0) {
-        console.log('📡 Using RSS fallback...');
+        log('Using RSS fallback');
         videos = await fetchFromRSS(playlistId);
     }
 
     if (videos.length > 0) {
-        console.log(`✅ Found ${videos.length} videos`);
+        log(`Found ${videos.length} videos`);
         const cleaned = cleanVideoTitles(videos);
         // Fetch durations
         const withDurations = await fetchVideoDurations(cleaned);

@@ -9,6 +9,7 @@ import {
     buildAgentStateMessage,
     buildAgentSystemPrompt as buildConfiguredAgentSystemPrompt
 } from './agentPrompts';
+import { log } from '../utils/log.js';
 
 const API_BACKEND_AVAILABLE = true;
 const genAI = {
@@ -110,7 +111,7 @@ Summary (be concise, focus on context the agent needs to remember):`;
         const response = await result.response;
         const summary = response.text().trim();
 
-        console.log('📝 Generated conversation summary:', summary.substring(0, 100) + '...');
+        log('Generated conversation summary:', summary.substring(0, 100) + '...');
         return summary;
 
     } catch (error) {
@@ -195,7 +196,7 @@ export const createChatSession = async (messages, context, aiProvider = undefine
             }
         });
 
-        console.log('🔄 Created new chat session with', historyForGemini.length, 'history messages');
+        log('Created new chat session with', historyForGemini.length, 'history messages');
 
         activeChatSession = chat;
 
@@ -237,12 +238,12 @@ export const sendChatMessage = async (userMessage, allMessages, context, aiProvi
         // Build the message with current context
         const messageWithContext = buildMessageWithContext(userMessage, context);
 
-        console.log('💬 Sending chat message...');
+        log('Sending chat message');
         const result = await chat.sendMessage(messageWithContext);
         const response = await result.response;
         let text = response.text().trim();
 
-        console.log('📄 Chat response:', text.substring(0, 200) + '...');
+        log('Chat response:', text.substring(0, 200) + '...');
 
         // Clean up markdown if present
         if (text.startsWith('```')) {
@@ -260,7 +261,7 @@ export const sendChatMessage = async (userMessage, allMessages, context, aiProvi
         console.error('❌ Error in chat message:', error);
 
         // Fallback: try single-shot if chat fails
-        console.log('🔄 Falling back to single-shot mode...');
+        log('Falling back to single-shot mode');
         return fallbackSingleShot(userMessage, allMessages, context, aiProvider);
     }
 };
@@ -307,7 +308,7 @@ const fallbackSingleShot = async (userMessage, allMessages, context, aiProvider 
  */
 export const clearChatSession = () => {
     activeChatSession = null;
-    console.log('🗑️ Chat session cleared');
+    log('Chat session cleared');
 };
 
 /**

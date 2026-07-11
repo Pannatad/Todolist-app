@@ -2,6 +2,7 @@
  * Local Agent Handler - Handles common queries without calling Gemini API
  * Saves tokens by generating responses locally for predictable patterns
  */
+import { log } from '../utils/log.js';
 
 // Patterns that REQUIRE AI reasoning - don't handle locally
 const AI_REQUIRED_PATTERNS = [
@@ -49,7 +50,7 @@ export const canHandleLocally = (input) => {
     // FIRST: Check if this needs AI reasoning - if so, don't handle locally
     for (const exclusion of AI_REQUIRED_PATTERNS) {
         if (exclusion.test(trimmed)) {
-            console.log('🧠 AI reasoning required for:', trimmed);
+            log('AI reasoning required for:', trimmed);
             return null;
         }
     }
@@ -272,7 +273,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 export const getCachedResponse = (cacheKey) => {
     const cached = responseCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        console.log('📦 Using cached response for:', cacheKey);
+        log('Using cached response for:', cacheKey);
         return cached.response;
     }
     return null;
@@ -288,7 +289,7 @@ export const cacheResponse = (cacheKey, response) => {
         response,
         timestamp: Date.now()
     });
-    console.log('💾 Cached response for:', cacheKey);
+    log('Cached response for:', cacheKey);
 };
 
 /**
@@ -296,7 +297,7 @@ export const cacheResponse = (cacheKey, response) => {
  */
 export const clearCache = () => {
     responseCache.clear();
-    console.log('🗑️ Cache cleared');
+    log('Cache cleared');
 };
 
 /**

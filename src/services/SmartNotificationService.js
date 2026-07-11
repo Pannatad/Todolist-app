@@ -21,7 +21,6 @@ class SmartNotificationService {
      */
     async requestPermission() {
         if (!('Notification' in window)) {
-            console.log('Browser does not support notifications');
             return false;
         }
 
@@ -56,14 +55,12 @@ class SmartNotificationService {
             this.checkNotifications();
         }, this.checkInterval);
 
-        console.log('🔔 Smart Notification Service started');
     }
 
     /**
      * Send a test notification to verify the system works
      */
     testNotification() {
-        console.log('🔔 Sending test notification...');
         this.emit({
             id: `test-${Date.now()}`,
             type: 'event-reminder',
@@ -82,7 +79,6 @@ class SmartNotificationService {
      */
     demoNotification() {
         if (!this.getData) {
-            console.log('🔔 No data available for demo');
             return;
         }
 
@@ -148,7 +144,6 @@ class SmartNotificationService {
             }, 1000);
         }
 
-        console.log('🔔 Demo notifications sent!', { habits: incompleteHabits.length, tasks: tasksDueToday.length, events: upcomingEvents.length });
     }
 
     /**
@@ -158,7 +153,6 @@ class SmartNotificationService {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-            console.log('🔔 Smart Notification Service stopped');
         }
     }
 
@@ -257,7 +251,6 @@ class SmartNotificationService {
                 eventStart <= fifteenMinutesFromNow &&
                 !this.notifiedEvents.has(eventId)
             ) {
-                console.log(`🔔 Event "${event.title}" starts in ${minutesUntil} minutes - sending notification`);
                 this.notifiedEvents.add(eventId);
 
                 this.emit({

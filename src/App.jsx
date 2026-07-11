@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import {
   CalendarDays,
   ClipboardList,
@@ -62,18 +62,20 @@ const DigitalClock = () => {
   return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const SmartNotificationBridge = ({ scheduleItems, tasks }) => {
+const SmartNotificationBridge = () => {
   const { habits } = useHabit();
+  const { scheduleItems, tasks } = useTask();
+  const latestData = useRef({ scheduleItems, tasks, habits });
 
   useEffect(() => {
-    smartNotificationService.start(() => ({
-      scheduleItems,
-      tasks,
-      habits,
-    }));
+    latestData.current = { scheduleItems, tasks, habits };
+  }, [scheduleItems, tasks, habits]);
+
+  useEffect(() => {
+    smartNotificationService.start(() => latestData.current);
 
     return () => smartNotificationService.stop();
-  }, [habits, scheduleItems, tasks]);
+  }, []);
 
   return null;
 };
@@ -177,7 +179,7 @@ function App() {
         <IdeaBoardProvider>
           <ProjectProvider>
             <ChatProvider>
-              <SmartNotificationBridge scheduleItems={scheduleItems} tasks={tasks} />
+              <SmartNotificationBridge />
               <UnifiedChatBridge />
 
               <div className="app-shell">

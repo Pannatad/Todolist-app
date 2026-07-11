@@ -2,6 +2,7 @@ import { createGenerativeModel } from './generativeClient';
 import { getAIProviderRequestOptions, DEFAULT_GEMINI_MODEL } from './aiProvider';
 import { buildRouteAgentPrompt } from './agentPrompts';
 import { isTaskActive } from '../utils/taskState';
+import { log } from '../utils/log.js';
 
 const MODEL_NAME = import.meta.env.VITE_AI_MODEL || DEFAULT_GEMINI_MODEL;
 const AI_BACKEND_AVAILABLE = true; // AI credentials now live behind the dev-server API proxy.
@@ -17,18 +18,18 @@ const model = genAI.getGenerativeModel({ model: MODEL_NAME });
  * @returns {Promise<string>} - 'easy', 'medium', or 'hard'.
  */
 export const suggestDifficulty = async (taskTitle) => {
-    console.log("Suggesting difficulty for:", taskTitle);
+    log('Suggesting difficulty for:', taskTitle);
 
     try {
         const prompt = `Analyze the difficulty of this task: "${taskTitle}". 
         Reply with ONLY one word: "easy", "medium", or "hard". 
         Consider time, effort, and complexity.`;
 
-        console.log("Sending prompt to Gemini...");
+        log('Sending prompt to Gemini');
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text().trim().toLowerCase();
-        console.log("Gemini response:", text);
+        log('Gemini response:', text);
 
         if (['easy', 'medium', 'hard'].includes(text)) {
             return text;
@@ -156,13 +157,13 @@ export const analyzeFile = async (file, instructions) => {
         const imagePart = await fileToGenerativePart(file);
         const prompt = instructions || "Analyze this file.";
 
-        console.log(`Sending file analysis request to Gemini (${file.type})...`);
+        log(`Sending file analysis request to Gemini (${file.type})`);
 
         const result = await visionModel.generateContent([prompt, imagePart]);
         const response = await result.response;
         const text = response.text();
 
-        console.log("Gemini analysis response:", text);
+        log('Gemini analysis response:', text);
         return text;
 
     } catch (error) {
@@ -170,7 +171,7 @@ export const analyzeFile = async (file, instructions) => {
 
         // If the specific model failed, try the standard 1.5 pro as a fallback
         if (error.message.includes('model') || error.message.includes('not found') || error.status === 404) {
-            console.log("Attempting fallback to gemini-1.5-pro...");
+            log('Attempting Gemini fallback');
             try {
                 const fallbackModel = genAI.getGenerativeModel({ model: MODEL_NAME });
                 const imagePart = await fileToGenerativePart(file);
@@ -230,7 +231,7 @@ export const getPersonalizedAdvice = async (taskTitle, subject, instructions, fi
             parts.push(imagePart);
         }
 
-        console.log("Sending personalized advice request...");
+        log('Sending personalized advice request');
         const result = await modelToUse.generateContent(parts);
         const response = await result.response;
         let text = response.text().trim();
@@ -370,7 +371,7 @@ export const parseScheduleImage = async (file) => {
  * @returns {Promise<Object>} - { title, difficulty, deadline, subject, estimatedTime }
  */
 export const parseTaskInput = async (input) => {
-    console.log("🚀 parseTaskInput called with input:", input);
+    log('parseTaskInput called with input:', input);
     if (!AI_BACKEND_AVAILABLE) {
         console.warn("⚠️ Gemini API Key is missing.");
         return {
@@ -395,7 +396,7 @@ export const parseTaskInput = async (input) => {
             hour12: true
         });
 
-        console.log("📅 Current DateTime for context:", currentDateTime);
+        log('Current datetime for context:', currentDateTime);
 
         const prompt = `
             You are an expert task parser. Analyze the following user input and extract task metadata.
@@ -428,22 +429,22 @@ export const parseTaskInput = async (input) => {
             }
         `;
 
-        console.log("📤 Sending request to Gemini API...");
+        log('Sending request to Gemini API');
         const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
-        console.log("📥 Received response from Gemini");
+        log('Received response from Gemini');
         const response = await result.response;
         let text = response.text().trim();
-        console.log("📄 Raw response text:", text);
+        log('Raw response text:', text);
 
         // Clean up markdown if present
         if (text.startsWith('```')) {
             text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            console.log("🧹 Cleaned response text:", text);
+            log('Cleaned response text:', text);
         }
 
         const parsed = JSON.parse(text);
-        console.log("✅ Parsed JSON:", parsed);
+        log('Parsed JSON:', parsed);
 
         // Validate and sanitize the response
         const result_object = {
@@ -454,7 +455,7 @@ export const parseTaskInput = async (input) => {
             estimatedTime: parsed.estimatedTime ? parseInt(parsed.estimatedTime) : null
         };
 
-        console.log("🎁 Returning result:", result_object);
+        log('Returning result:', result_object);
         return result_object;
 
     } catch (error) {
@@ -479,7 +480,7 @@ export const parseTaskInput = async (input) => {
  * @returns {Promise<Object>} - { activity, duration, category }
  */
 export const parseLogInput = async (input, categories) => {
-    console.log("🚀 parseLogInput called with input:", input);
+    log('parseLogInput called with input:', input);
 
     if (!AI_BACKEND_AVAILABLE) {
         console.warn("⚠️ Gemini API Key is missing.");
@@ -515,21 +516,21 @@ export const parseLogInput = async (input, categories) => {
             }
         `;
 
-        console.log("📤 Sending request to Gemini API...");
+        log('Sending request to Gemini API');
         const modelToUse = genAI.getGenerativeModel({ model: MODEL_NAME });
         const result = await modelToUse.generateContent(prompt);
-        console.log("📥 Received response from Gemini");
+        log('Received response from Gemini');
 
         const response = await result.response;
         let text = response.text().trim();
-        console.log("📄 Raw response text:", text);
+        log('Raw response text:', text);
 
         if (text.startsWith('```')) {
             text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         }
 
         const parsed = JSON.parse(text);
-        console.log("✅ Parsed JSON:", parsed);
+        log('Parsed JSON:', parsed);
 
         return {
             activity: parsed.activity || input,
@@ -748,7 +749,7 @@ export const parseScheduleCommand = async (transcript) => {
  * @returns {Promise<Object>} - { actions: [...], summary: "..." }
  */
 export const routeAgentCommand = async (input, context = {}, aiProvider = undefined) => {
-    console.log("🤖 routeAgentCommand called with input:", input);
+    log('routeAgentCommand called with input:', input);
 
     if (!AI_BACKEND_AVAILABLE) {
         console.warn("⚠️ Gemini API Key is missing.");
@@ -762,11 +763,11 @@ export const routeAgentCommand = async (input, context = {}, aiProvider = undefi
         const prompt = buildRouteAgentPrompt(input, context);
         const routingModel = genAI.getGenerativeModel(getAIProviderRequestOptions(aiProvider));
 
-        console.log("📤 Sending agent routing request...");
+        log('Sending agent routing request');
         const result = await routingModel.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
-        console.log("📄 Raw agent response:", text);
+        log('Raw agent response:', text);
 
         // Clean up markdown if present
         if (text.startsWith('```')) {
@@ -774,7 +775,7 @@ export const routeAgentCommand = async (input, context = {}, aiProvider = undefi
         }
 
         const parsed = JSON.parse(text);
-        console.log("✅ Parsed agent plan:", parsed);
+        log('Parsed agent plan:', parsed);
 
         // Validate the response structure
         return {

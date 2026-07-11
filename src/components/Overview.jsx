@@ -15,6 +15,7 @@ import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheRespon
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { getTaskCompletionTimestamp, isTaskActive } from '../utils/taskState';
 import { getColorForSubject } from '../constants/subjects';
+import { log } from '../utils/log.js';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
 import MagicBox from './MagicBox';
@@ -631,7 +632,7 @@ const Overview = ({ onNavigate }) => {
 
             if (patternType) {
                 // Try local handling (0 tokens!)
-                console.log('🚀 Handling locally:', patternType);
+                log('🚀 Handling locally:', patternType);
                 plan = generateLocalResponse(patternType, context);
             } else {
                 // Check cache for similar recent queries
@@ -639,11 +640,11 @@ const Overview = ({ onNavigate }) => {
                 const cachedPlan = getCachedResponse(cacheKey);
 
                 if (cachedPlan) {
-                    console.log('📦 Using cached response');
+                    log('📦 Using cached response');
                     plan = cachedPlan;
                 } else {
                     // Fallback to Gemini API
-                    console.log('🤖 Calling Gemini API...');
+                    log('🤖 Calling Gemini API...');
                     plan = await routeAgentCommand(input, context);
                     // Cache the response
                     cacheResponse(cacheKey, plan);
@@ -736,13 +737,13 @@ const Overview = ({ onNavigate }) => {
                         }
                         break;
                     case 'set_goal':
-                        console.log('Set goal:', action.params);
+                        log('Set goal:', action.params);
                         break;
                     case 'analyze':
-                        console.log('Analysis:', action.params.message);
+                        log('Analysis:', action.params.message);
                         break;
                     default:
-                        console.log('Unknown action type:', action.type);
+                        log('Unknown action type:', action.type);
                 }
             }
             // Log successful interaction to memory

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { toast } from '../ui/Toast';
+import { log } from '../utils/log.js';
 
 const ProjectContext = createContext();
 
@@ -512,7 +513,7 @@ export const ProjectProvider = ({ children }) => {
                     progress,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
-                console.log('✅ Task synced to cloud');
+                log('✅ Task synced to cloud');
             } catch (error) {
                 console.error('❌ Failed to sync task to cloud:', error);
             }
@@ -545,7 +546,7 @@ export const ProjectProvider = ({ children }) => {
                     progress,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
-                console.log('✅ Task update synced to cloud');
+                log('✅ Task update synced to cloud');
             } catch (error) {
                 console.error('❌ Failed to sync task update to cloud:', error);
             }
@@ -572,7 +573,7 @@ export const ProjectProvider = ({ children }) => {
                     progress,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
-                console.log('✅ Task deletion synced to cloud');
+                log('✅ Task deletion synced to cloud');
             } catch (error) {
                 console.error('❌ Failed to sync task deletion to cloud:', error);
             }
@@ -613,7 +614,7 @@ export const ProjectProvider = ({ children }) => {
                     progress,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
-                console.log('✅ Task move synced to cloud');
+                log('✅ Task move synced to cloud');
             } catch (error) {
                 console.error('❌ Failed to sync task move to cloud:', error);
             }
@@ -776,7 +777,7 @@ export const ProjectProvider = ({ children }) => {
                     tasks: updatedTasks,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
-                console.log('✅ Subtask update synced to cloud');
+                log('✅ Subtask update synced to cloud');
             } catch (error) {
                 console.error('❌ Failed to sync subtask update:', error);
             }
@@ -834,7 +835,7 @@ export const ProjectProvider = ({ children }) => {
                 }
             });
 
-            console.log('✅ Loaded highlights:', { tasks: taskHighlights.size, subtasks: subtaskHighlights.size });
+            log('✅ Loaded highlights:', { tasks: taskHighlights.size, subtasks: subtaskHighlights.size });
             return { tasks: taskHighlights, subtasks: subtaskHighlights };
         } catch (error) {
             console.error('❌ Failed to load highlights:', error);
@@ -859,7 +860,7 @@ export const ProjectProvider = ({ children }) => {
             if (error && error.code !== '23505') { // Ignore duplicate key errors
                 throw error;
             }
-            console.log('✅ Highlight added');
+            log('✅ Highlight added');
         } catch (error) {
             console.error('❌ Failed to add highlight:', error);
         }
@@ -885,7 +886,7 @@ export const ProjectProvider = ({ children }) => {
 
             const { error } = await query;
             if (error) throw error;
-            console.log('✅ Highlight removed');
+            log('✅ Highlight removed');
         } catch (error) {
             console.error('❌ Failed to remove highlight:', error);
         }

@@ -1,6 +1,8 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/exhaustive-deps */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { log } from '../utils/log.js';
 
 const UserIntelligenceContext = createContext();
 
@@ -75,7 +77,7 @@ export const UserIntelligenceProvider = ({ children }) => {
             i.content.toLowerCase().trim() === content.toLowerCase().trim()
         );
         if (existing) {
-            console.log('Already know this:', content);
+            log('Already know this:', content);
             return existing;
         }
 

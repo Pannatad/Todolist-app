@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/exhaustive-deps */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
@@ -14,6 +15,7 @@ import { AI_PROVIDER_OPTIONS, DEFAULT_AI_PROVIDER, normalizeAIProvider } from '.
 import { extractInsightsFromExchange } from '../services/InsightExtractionService';
 import { isTaskActive } from '../utils/taskState';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { log } from '../utils/log.js';
 
 const ChatContext = createContext();
 
@@ -82,7 +84,7 @@ export const ChatProvider = ({ children }) => {
         try {
             if (user) {
                 // Load from Supabase for logged-in users
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from('agent_conversations')
                     .select('messages')
                     .eq('user_id', user.id)
@@ -98,8 +100,8 @@ export const ChatProvider = ({ children }) => {
                     setMessages(JSON.parse(stored));
                 }
             }
-        } catch (error) {
-            console.log('No previous conversation found');
+        } catch {
+            log('No previous conversation found');
         }
     };
 
@@ -226,7 +228,7 @@ export const ChatProvider = ({ children }) => {
             let plan;
 
             if (patternType) {
-                console.log('🚀 Handling locally:', patternType);
+                log('🚀 Handling locally:', patternType);
                 plan = generateLocalResponse(patternType, context);
             } else {
                 // Check cache for simple repeated queries
@@ -234,11 +236,11 @@ export const ChatProvider = ({ children }) => {
                 const cachedPlan = getCachedResponse(cacheKey);
 
                 if (cachedPlan) {
-                    console.log('📦 Using cached response');
+                    log('📦 Using cached response');
                     plan = cachedPlan;
                 } else {
                     // Use multi-turn chat API for better context retention
-                    console.log('🤖 Using multi-turn chat API with provider:', selectedAIProvider);
+                    log('🤖 Using multi-turn chat API with provider:', selectedAIProvider);
                     plan = await sendChatMessage(text, newMessages, context, selectedAIProvider);
 
                     // Only cache non-conversational responses
@@ -309,25 +311,25 @@ export const ChatProvider = ({ children }) => {
             }
 
             // Debug logging
-            console.log('🔍 Actions received:', plan.actions?.map(a => ({ type: a.type, params: a.params })));
-            console.log('🔍 Actions requiring confirmation:', ACTIONS_REQUIRING_CONFIRMATION);
-            console.log('🔍 needsConfirmation:', needsConfirmation);
+            log('🔍 Actions received:', plan.actions?.map(a => ({ type: a.type, params: a.params })));
+            log('🔍 Actions requiring confirmation:', ACTIONS_REQUIRING_CONFIRMATION);
+            log('🔍 needsConfirmation:', needsConfirmation);
 
             if (needsConfirmation) {
                 // Store pending actions for confirmation
-                console.log('⏳ Storing pending actions for confirmation');
+                log('⏳ Storing pending actions for confirmation');
                 setPendingActions({ messageId: aiMessage.id, actions: plan.actions });
                 aiMessage.pendingConfirmation = true;
 
                 // Save add_schedule proposal for later recovery (survives pendingActions overwrite)
                 const addScheduleAction = plan.actions.find(a => a.type === 'add_schedule');
                 if (addScheduleAction) {
-                    console.log('💾 Saving lastProposedSchedule:', addScheduleAction.params);
+                    log('💾 Saving lastProposedSchedule:', addScheduleAction.params);
                     setLastProposedSchedule(addScheduleAction.params);
                 }
             } else {
                 // Auto-execute non-destructive actions
-                console.log('⚡ Auto-executing actions (no confirmation needed)');
+                log('⚡ Auto-executing actions (no confirmation needed)');
                 await executeActionsInternal(plan.actions);
                 aiMessage.actionsExecuted = true;
             }
@@ -347,11 +349,11 @@ export const ChatProvider = ({ children }) => {
             extractInsightsFromExchange(text, messageContent, intelligence || [])
                 .then(insights => {
                     if (insights.length > 0) {
-                        console.log('🧠 Learned new insights:', insights);
+                        log('🧠 Learned new insights:', insights);
                         learnMultipleFacts?.(insights);
                     }
                 })
-                .catch(err => console.log('Insight extraction skipped:', err.message));
+                .catch(err => log('Insight extraction skipped:', err.message));
 
         } catch (error) {
             console.error('Error sending message:', error);
@@ -423,7 +425,7 @@ export const ChatProvider = ({ children }) => {
                                         parseInt(minute)
                                     );
                                     fixedStartTime = localDate.toISOString();
-                                    console.log('🕐 Fixed schedule time:', action.params.startTime, '->', fixedStartTime);
+                                    log('🕐 Fixed schedule time:', action.params.startTime, '->', fixedStartTime);
                                 }
                             }
                         }
@@ -440,11 +442,11 @@ export const ChatProvider = ({ children }) => {
                             await updateScheduleItem(action.params.eventId, action.params.updates);
                         } else if (!action.params.eventId) {
                             // Fallback: If no eventId, try to create the schedule using saved proposal data
-                            console.log('🔄 edit_schedule without eventId, falling back to add_schedule');
-                            console.log('📋 Action params:', JSON.stringify(action.params, null, 2));
-                            console.log('📋 Active subject:', JSON.stringify(activeSubject, null, 2));
-                            console.log('📋 Last proposed schedule:', JSON.stringify(lastProposedSchedule, null, 2));
-                            console.log('📋 Pending actions:', JSON.stringify(pendingActions?.actions, null, 2));
+                            log('🔄 edit_schedule without eventId, falling back to add_schedule');
+                            log('📋 Action params:', JSON.stringify(action.params, null, 2));
+                            log('📋 Active subject:', JSON.stringify(activeSubject, null, 2));
+                            log('📋 Last proposed schedule:', JSON.stringify(lastProposedSchedule, null, 2));
+                            log('📋 Pending actions:', JSON.stringify(pendingActions?.actions, null, 2));
 
                             // Get the pending add_schedule action if it exists
                             const pendingScheduleAction = pendingActions?.actions?.find(a => a.type === 'add_schedule');
@@ -469,7 +471,7 @@ export const ChatProvider = ({ children }) => {
                                 pendingScheduleAction?.params?.duration ||
                                 60;
 
-                            console.log('📋 Merged params:', { title, startTime, duration });
+                            log('📋 Merged params:', { title, startTime, duration });
 
                             // If we have a title to work with
                             if (title) {
@@ -479,7 +481,7 @@ export const ChatProvider = ({ children }) => {
                                     defaultTime.setHours(defaultTime.getHours() + 1);
                                     defaultTime.setMinutes(0, 0, 0);
                                     startTime = defaultTime.toISOString();
-                                    console.log('⏰ No startTime provided, defaulting to:', startTime);
+                                    log('⏰ No startTime provided, defaulting to:', startTime);
                                 }
 
                                 // Apply timezone fix
@@ -499,7 +501,7 @@ export const ChatProvider = ({ children }) => {
                                     }
                                 }
 
-                                console.log('✅ Creating schedule with:', { title, startTime: fixedStartTime, duration });
+                                log('✅ Creating schedule with:', { title, startTime: fixedStartTime, duration });
                                 await addScheduleItem({
                                     title,
                                     startTime: fixedStartTime,
@@ -535,7 +537,7 @@ export const ChatProvider = ({ children }) => {
                         }
                         break;
                     default:
-                        console.log('Unknown action type:', action.type);
+                        log('Unknown action type:', action.type);
                 }
             } catch (error) {
                 console.error('Error executing action:', action.type, error);
@@ -618,7 +620,7 @@ export const ChatProvider = ({ children }) => {
                 .from('agent_conversations')
                 .delete()
                 .eq('user_id', user.id)
-                .then(() => console.log('Conversation cleared'));
+                .then(() => log('Conversation cleared'));
         } else {
             localStorage.removeItem('chat_messages');
         }

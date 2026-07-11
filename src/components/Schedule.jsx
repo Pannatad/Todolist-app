@@ -10,6 +10,7 @@ import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurr
 import { isTaskActive, isTaskCompleted } from '../utils/taskState';
 import { toast } from '../ui/Toast';
 import { confirmAction } from '../utils/confirm';
+import { log } from '../utils/log.js';
 
 const CELL_HEIGHT = 56; // px per hour row
 
@@ -262,7 +263,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
 
         recognition.onresult = async (event) => {
             const transcript = event.results[0][0].transcript;
-            console.log("Voice command:", transcript);
+            log("Voice command:", transcript);
 
             setIsProcessing(true);
             try {
