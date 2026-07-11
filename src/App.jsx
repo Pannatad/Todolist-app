@@ -28,7 +28,7 @@ import { IdeaBoardProvider } from './context/IdeaBoardContext';
 import { SegmentedControl, ToastProvider } from './ui';
 const TaskInput = lazy(() => import('./components/TaskInput'));
 const Garden = lazy(() => import('./components/Garden'));
-const Calendar = lazy(() => import('./components/Calendar'));
+const Schedule = lazy(() => import('./components/Schedule'));
 const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
 const LearningTracker = lazy(() => import('./components/LearningTracker'));
 const Overview = lazy(() => import('./components/Overview'));
@@ -259,14 +259,14 @@ function App() {
                         {activeTab === 'today' && <Overview onNavigate={navigateTo} />}
 
                         {activeTab === 'plan' && (
-                          <Calendar
-                            onAddScheduleItem={addScheduleItem}
-                            onUpdateScheduleItem={updateScheduleItem}
-                            onDeleteScheduleItem={deleteScheduleItem}
+                          <Schedule
+                            onAddEvent={addScheduleItem}
+                            onUpdateEvent={updateScheduleItem}
+                            onDeleteEvent={deleteScheduleItem}
                             onDeleteTask={deleteTask}
                             onUpdateTask={updateTask}
                             tasks={tasks}
-                            scheduleItems={scheduleItems}
+                            events={scheduleItems}
                             onCompleteTask={handleCompleteTask}
                           />
                         )}
