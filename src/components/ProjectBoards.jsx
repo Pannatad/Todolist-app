@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useMemo, useState, useEffect } from 'react';
 import {
     ArrowUpRight,
     Briefcase,
@@ -27,6 +27,9 @@ import { useAIProjectArchitect } from '../hooks/useAIProjectArchitect';
 import ProjectMindMap from './ProjectMindMap';
 import ProjectDetailView from './ProjectDetailView';
 import { ProjectCalendar } from './ProjectCalendar';
+import { SegmentedControl } from '../ui';
+
+const IdeasBoard = lazy(() => import('./IdeasBoard'));
 
 const CATEGORIES = ['Work Projects', 'Personal Growth', 'Side Hustles', 'Learning', 'General'];
 
@@ -156,6 +159,7 @@ const ProjectBoards = () => {
     const { generateProjectPlan, isGenerating } = useAIProjectArchitect();
 
     const [view, setView] = useState('list');
+    const [workspace, setWorkspace] = useState('projects');
     const [selectedProjectId, setSelectedProjectId] = useState(null);
     const [selectedPhaseId, setSelectedPhaseId] = useState(null);
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -167,6 +171,18 @@ const ProjectBoards = () => {
     const [editProjectData, setEditProjectData] = useState(EMPTY_MANUAL_PROJECT);
     const [projectMenuOpen, setProjectMenuOpen] = useState(null);
     const [activePhaseByProject, setActivePhaseByProject] = useState({});
+
+    const workspaceControl = (
+        <SegmentedControl
+            items={[
+                { id: 'projects', label: 'Projects' },
+                { id: 'ideas', label: 'Ideas' },
+            ]}
+            value={workspace}
+            onChange={setWorkspace}
+            ariaLabel="Projects workspace"
+        />
+    );
 
     const selectedProject = projects.find((project) => project.id === selectedProjectId);
 
@@ -298,6 +314,17 @@ const ProjectBoards = () => {
         return <ProjectMindMap project={selectedProject} onBack={handleBackToList} />;
     }
 
+    if (workspace === 'ideas') {
+        return (
+            <div className="h-full min-h-[720px] overflow-y-auto p-4 md:p-6">
+                <div className="mb-5">{workspaceControl}</div>
+                <Suspense fallback={<div className="py-16 text-center text-sm text-slate-500">Loading...</div>}>
+                    <IdeasBoard />
+                </Suspense>
+            </div>
+        );
+    }
+
     if (view === 'board' && selectedProject) {
         return (
             <ProjectDetailView
@@ -314,6 +341,7 @@ const ProjectBoards = () => {
 
     return (
         <div className="ios-codex-projects h-full min-h-[720px] overflow-y-auto rounded-lg border border-slate-200 p-4 text-slate-900 shadow-sm dark:border-white/10 dark:text-bone-100 md:p-6">
+            <div className="mb-5">{workspaceControl}</div>
             <header className="ios-codex-header mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                     <div className="app-eyebrow flex items-center gap-2">

@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ClipboardList,
   FolderKanban,
+  GraduationCap,
   ListTodo,
   LogIn,
   LogOut,
@@ -29,6 +30,7 @@ const TaskInput = lazy(() => import('./components/TaskInput'));
 const Garden = lazy(() => import('./components/Garden'));
 const Calendar = lazy(() => import('./components/Calendar'));
 const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
+const LearningTracker = lazy(() => import('./components/LearningTracker'));
 const Overview = lazy(() => import('./components/Overview'));
 const HabitTracker = lazy(() => import('./components/HabitTracker'));
 const NotificationToast = lazy(() => import('./components/NotificationToast'));
@@ -41,7 +43,6 @@ const TAB_ALIASES = {
   garden: 'tasks',
   focus: 'tasks',
   ideas: 'projects',
-  learning: 'projects',
   vision: 'today',
   sleep: 'habits',
 };
@@ -131,6 +132,7 @@ function App() {
     { id: 'plan', label: 'Plan', icon: CalendarDays, controls: 'app-active-workspace' },
     { id: 'tasks', label: 'Tasks', icon: ListTodo, controls: 'app-active-workspace' },
     { id: 'habits', label: 'Habits', icon: Repeat2, controls: 'app-active-workspace' },
+    { id: 'learning', label: 'Learning', icon: GraduationCap, controls: 'app-active-workspace' },
     { id: 'projects', label: 'Projects', icon: FolderKanban, controls: 'app-active-workspace' },
   ];
 
@@ -280,6 +282,7 @@ function App() {
                         )}
 
                         {activeTab === 'habits' && <HabitTracker />}
+                        {activeTab === 'learning' && <LearningTracker />}
                         {activeTab === 'projects' && <ProjectBoards />}
                       </Suspense>
                     </div>
