@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import TaskModal from './TaskModal';
 import { useProject } from '../context/ProjectContext';
+import { confirmAction } from '../utils/confirm';
 
 const priorityOrder = { High: 3, Medium: 2, Low: 1 };
 const difficultyOrder = { Hard: 3, Medium: 2, Easy: 1 };
@@ -119,7 +120,7 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
     };
 
     const handleDeleteTask = (taskId) => {
-        if (window.confirm('Delete this task?')) {
+        if (confirmAction('Delete this task?')) {
             deleteTask(project.id, taskId);
         }
     };
@@ -162,7 +163,7 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
 
     const handleDeleteStage = async (phase) => {
         if (sortedPhases.length <= 1) return;
-        if (!window.confirm(`Delete "${phase.name}"? Tasks in this stage will move to the first remaining stage.`)) return;
+        if (!confirmAction(`Delete "${phase.name}"? Tasks in this stage will move to the first remaining stage.`)) return;
 
         const remainingPhases = sortedPhases.filter((item) => item.id !== phase.id);
         await deletePhase(project.id, phase.id);
@@ -187,7 +188,7 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
 
     const handleDeleteWorkTree = async (column) => {
         if (activeColumns.length <= 1) return;
-        if (!window.confirm(`Delete "${column.title}"? Tasks in this work tree will move to the first remaining work tree.`)) return;
+        if (!confirmAction(`Delete "${column.title}"? Tasks in this work tree will move to the first remaining work tree.`)) return;
 
         await deleteColumn(project.id, column.id, safeActivePhaseId);
         if (taskTargetColumnId === column.id) {

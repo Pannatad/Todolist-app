@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+/* eslint-disable react-hooks/exhaustive-deps */
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ArrowLeft, Plus, Check, ChevronDown, ChevronRight, Trash2, GripVertical, Sparkles, ZoomIn, ZoomOut, RotateCcw, Eye, EyeOff, Star } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
+import { confirmAction } from '../utils/confirm';
 
 const ProjectMindMap = ({ project, onBack }) => {
     const {
@@ -646,7 +648,7 @@ const ProjectMindMap = ({ project, onBack }) => {
                                             {/* Delete Task (on hover) */}
                                             <button
                                                 onClick={() => {
-                                                    if (window.confirm(`Delete "${task.title}"?`)) {
+                                                    if (confirmAction(`Delete "${task.title}"?`)) {
                                                         deleteTask(project.id, task.id);
                                                     }
                                                 }}

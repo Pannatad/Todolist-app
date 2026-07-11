@@ -26,6 +26,7 @@ import { useProject } from '../context/ProjectContext';
 import { useAIProjectArchitect } from '../hooks/useAIProjectArchitect';
 import ProjectMindMap from './ProjectMindMap';
 import ProjectDetailView from './ProjectDetailView';
+import { confirmAction } from '../utils/confirm';
 import { ProjectCalendar } from './ProjectCalendar';
 import { SegmentedControl } from '../ui';
 
@@ -286,7 +287,7 @@ const ProjectBoards = () => {
 
     const handleDeleteProject = (event, projectId) => {
         event.stopPropagation();
-        if (window.confirm('Delete this project and its tasks?')) {
+        if (confirmAction('Delete this project and its tasks?')) {
             deleteProject(projectId);
         }
         setProjectMenuOpen(null);

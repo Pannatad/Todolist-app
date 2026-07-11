@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { Check, Clock, Hash, Moon, Plus, Sprout, Sun, Sunrise, Sunset, X } from 'lucide-react';
 import { DEFAULT_SEED_DURATION_DAYS } from '../constants/habitSeeds';
+import { toast } from '../ui/Toast';
 
 const EMOJI_OPTIONS = ['💧', '🧘', '🏃', '📚', '📝', '💪', '🎯', '⏰', '🌟', '❤️', '🧠', '🎨', '🎵', '💤', '🥗', '🚶', '✨'];
 
@@ -129,7 +130,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
         e.preventDefault();
         if (!name.trim()) return;
         if (frequency !== 'daily' && scheduleDays.length === 0) {
-            alert('Select at least one day for a specific-days habit.');
+            toast('Select at least one day for a specific-days habit.', { tone: 'error' });
             return;
         }
 

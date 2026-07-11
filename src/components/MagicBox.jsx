@@ -8,6 +8,7 @@ import { useUserIntelligence } from '../context/UserIntelligenceContext';
 import { useGoal } from '../context/GoalContext';
 import { isTaskActive } from '../utils/taskState';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { toast } from '../ui/Toast';
 
 // Fallback prompts if no personalized data
 const FALLBACK_PROMPTS = [
@@ -151,11 +152,11 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
 
                     // Handle specific errors
                     if (event.error === 'not-allowed') {
-                        alert('Microphone access denied. Please allow microphone access in your browser settings.');
+                        toast('Microphone access denied. Allow microphone access in your browser settings.', { tone: 'error' });
                     } else if (event.error === 'no-speech') {
                         // Silent fail for no speech detected
                     } else if (event.error === 'network') {
-                        alert('Network error. Speech recognition requires an internet connection.');
+                        toast('Speech recognition requires an internet connection.', { tone: 'error' });
                     }
                 };
             } catch (error) {
@@ -210,7 +211,7 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
 
     const toggleListening = async () => {
         if (!speechSupported || !recognitionRef.current) {
-            alert('Speech recognition is not supported in your browser. Try using Chrome, Edge, or Safari 14.1+.');
+            toast('Speech recognition is not supported in your browser.', { tone: 'error' });
             return;
         }
 
@@ -234,9 +235,9 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
             } catch (error) {
                 console.error('Error starting recognition:', error);
                 if (error.name === 'NotAllowedError') {
-                    alert('Microphone access was denied. Please allow microphone access and try again.');
+                    toast('Microphone access was denied. Allow microphone access and try again.', { tone: 'error' });
                 } else {
-                    alert('Could not start voice input. Please check your microphone settings.');
+                    toast('Could not start voice input. Check your microphone settings.', { tone: 'error' });
                 }
                 setIsListening(false);
             }

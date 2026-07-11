@@ -9,6 +9,7 @@ import SeedGarden from './SeedGarden';
 import SeedProgressList from './SeedProgressList';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { confirmAction } from '../utils/confirm';
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const TIME_SECTIONS = [
     { key: 'morning', label: 'Morning' },
@@ -157,7 +158,7 @@ const TodayHabits = () => {
         setEditingHabit(null);
     };
     const handleDelete = (habitId) => {
-        if (confirm('Are you sure you want to delete this habit?')) {
+        if (confirmAction('Are you sure you want to delete this habit?')) {
             deleteHabit(habitId);
         }
     };

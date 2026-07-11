@@ -3,6 +3,7 @@ import { motion as Motion, AnimatePresence, Reorder, useDragControls } from 'fra
 import { ArrowUpDown, CalendarDays, CheckCircle2, ChevronDown, Circle, Clock, GripVertical, Palette, Play, Plus, Save, Sparkles, Target, Trash2, X } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { getTaskChunkEstimate, isTaskActive, isTaskCompleted, normalizeTaskSubtasks } from '../utils/taskState';
+import { toast } from '../ui/Toast';
 
 const ChunkReorderItem = ({
     chunk,
@@ -795,7 +796,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
             setIsTaskDraftDirty(false);
         } catch (error) {
             console.error('Failed to save task details:', error);
-            alert(error?.message || 'Could not save this task.');
+            toast(error?.message || 'Could not save this task.', { tone: 'error' });
         } finally {
             setIsTaskSaving(false);
         }

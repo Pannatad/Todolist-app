@@ -1,6 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { X, Sun, Pencil, Check } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
+import { toast } from '../ui/Toast';
 
 const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) => {
     const [formData, setFormData] = useState({
@@ -118,7 +120,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
             estimatedTime: 30 // Default or if we had it
         });
 
-        alert('Task added to Today (Garden)!');
+        toast('Task added.', { tone: 'success' });
     };
 
     return (

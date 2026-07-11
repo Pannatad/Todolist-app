@@ -2,6 +2,7 @@ import React from 'react';
 import { motion as Motion } from 'framer-motion';
 import { Clock, BookOpen, Trash2, Edit2, ArchiveRestore, Archive, Pin, ChevronRight } from 'lucide-react';
 import { COLOR_OPTIONS } from './LearningPathModal';
+import { confirmAction } from '../utils/confirm';
 
 const CARD_PALETTES = {
     purple: {
@@ -182,7 +183,7 @@ const LearningPathCard = ({ path, progress, topicCount, completedCount, plannedT
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm('Delete this learning path and all its topics?')) {
+                                if (confirmAction('Delete this learning path and all its topics?')) {
                                     onDelete(path.id);
                                 }
                             }}

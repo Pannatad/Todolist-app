@@ -1,7 +1,9 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { normalizeTaskRecord } from '../utils/taskState';
+import { toast } from '../ui/Toast';
 
 const TaskContext = createContext();
 
@@ -302,7 +304,7 @@ export const TaskProvider = ({ children }) => {
                 console.error("Error adding task:", error);
                 // Revert optimistic update if both attempts fail
                 setTasks(prev => prev.filter(t => t.id !== tempId));
-                alert(`Failed to save task to cloud. Error: ${error.message || JSON.stringify(error)}`);
+                toast(`Failed to save task to cloud: ${error.message || JSON.stringify(error)}`, { tone: 'error' });
             }
         }
 

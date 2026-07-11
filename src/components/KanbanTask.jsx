@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2, Check } from 'lucide-react';
+import { confirmAction } from '../utils/confirm';
 
 export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
     const {
@@ -50,7 +51,7 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
 
     const handleDelete = (e) => {
         e.stopPropagation();
-        if (window.confirm('Are you sure you want to delete this task?')) {
+        if (confirmAction('Are you sure you want to delete this task?')) {
             onDelete && onDelete(task.id);
         }
     };

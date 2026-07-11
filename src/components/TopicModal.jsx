@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Clock, BookOpen, Link as LinkIcon, Plus, Trash2, ExternalLink, FileText, Video, BookMarked, GraduationCap, StickyNote, Upload, Download, File, Dumbbell, BookCheck, Check } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
+import { confirmAction } from '../utils/confirm';
 
 const RESOURCE_TYPE_OPTIONS = [
     { value: 'link', label: 'Link', icon: LinkIcon },
@@ -588,7 +589,7 @@ const TopicModal = ({
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        if (window.confirm('Delete this topic?')) {
+                                        if (confirmAction('Delete this topic?')) {
                                             onDelete(topic.id);
                                             onClose();
                                         }

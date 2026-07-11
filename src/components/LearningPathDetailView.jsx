@@ -6,6 +6,7 @@ import TopicModal from './TopicModal';
 import AITopicGenerator from './AITopicGenerator';
 import TimetableEditor from './TimetableEditor';
 import { COLOR_OPTIONS } from './LearningPathModal';
+import { confirmAction } from '../utils/confirm';
 
 const STATUS_CONFIG = {
     not_started: {
@@ -272,7 +273,7 @@ const LearningPathDetailView = ({ path, onBack }) => {
     };
 
     const handleDeleteTopic = async (topic) => {
-        const confirmed = window.confirm(`Delete "${topic.title}" and its resources/logs?`);
+        const confirmed = confirmAction(`Delete "${topic.title}" and its resources/logs?`);
         if (!confirmed) return;
 
         await deleteTopic(topic.id);

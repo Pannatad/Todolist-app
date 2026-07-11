@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { X, Clock, Calendar, Repeat, Palette, Check } from 'lucide-react';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { toast } from '../ui/Toast';
+import { confirmAction } from '../utils/confirm';
 
 const PRESET_COLORS = [
     { name: 'Red', value: '#ef4444' },
@@ -54,8 +56,6 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
         notes: ''
     });
 
-    const [showColorPicker, setShowColorPicker] = useState(false);
-    const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const occurrenceDate = event?._occurrenceDate;
     const isRecurringSeries = !!event && (event.recurrence_type || event.recurrenceType || 'none') !== 'none';
@@ -111,7 +111,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
             onClose();
         } catch (error) {
             console.error('Failed to save schedule event:', error);
-            alert(error?.message || 'Could not save this schedule event.');
+            toast(error?.message || 'Could not save this schedule event.', { tone: 'error' });
         } finally {
             setIsSubmitting(false);
         }
@@ -127,7 +127,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
             onClose();
         } catch (error) {
             console.error('Failed to delete schedule event:', error);
-            alert(error?.message || 'Could not delete this schedule event.');
+            toast(error?.message || 'Could not delete this schedule event.', { tone: 'error' });
         } finally {
             setIsSubmitting(false);
         }
@@ -283,7 +283,6 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 onChange={(e) => {
                                     const value = e.target.value;
                                     setFormData({ ...formData, recurrenceType: value });
-                                    setShowCustomRecurrence(value === 'custom');
                                 }}
                                 className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
@@ -369,7 +368,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 type="button"
                                 onClick={() => {
                                     if (canDeleteSingleOccurrence) {
-                                        const deleteSingle = window.confirm(
+                                        const deleteSingle = confirmAction(
                                             `Delete only ${formatOccurrenceLabel(occurrenceDate)}?\n\nClick OK to remove just this occurrence.\nClick Cancel to choose whether to delete the entire recurring event.`
                                         );
 
@@ -379,7 +378,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         }
                                     }
 
-                                    if (window.confirm(isRecurringSeries ? 'Delete the entire recurring event?' : 'Delete this event?')) {
+                                    if (confirmAction(isRecurringSeries ? 'Delete the entire recurring event?' : 'Delete this event?')) {
                                         handleDelete();
                                     }
                                 }}

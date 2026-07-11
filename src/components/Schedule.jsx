@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus, GraduationCap } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { parseScheduleCommand } from '../services/aiClient';
@@ -8,6 +8,8 @@ import { useLearning } from '../context/LearningContext';
 import { COLOR_OPTIONS } from './LearningPathModal';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive, isTaskCompleted } from '../utils/taskState';
+import { toast } from '../ui/Toast';
+import { confirmAction } from '../utils/confirm';
 
 const CELL_HEIGHT = 56; // px per hour row
 
@@ -205,7 +207,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
             return; // Timetable items are read-only
         }
         if (item._type === 'task') {
-            if (window.confirm(`Complete task "${item.title}"?`)) {
+            if (confirmAction(`Complete task "${item.title}"?`)) {
                 if (onCompleteTask) onCompleteTask(item.id);
             }
         } else {
@@ -236,7 +238,7 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
     const handleVoiceCommand = () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert("Voice recognition is not supported in this browser. Please use Chrome or Edge.");
+            toast('Voice recognition is not supported in this browser.', { tone: 'error' });
             return;
         }
 
@@ -272,13 +274,13 @@ const Schedule = ({ events, tasks = [], onAddEvent, onUpdateEvent, onDeleteEvent
                         category: parsedEvent.category || 'Other',
                         duration: parsedEvent.duration || 60
                     });
-                    alert(`Scheduled: ${parsedEvent.title} at ${new Date(parsedEvent.startTime).toLocaleTimeString()}`);
+                    toast(`Scheduled ${parsedEvent.title} at ${new Date(parsedEvent.startTime).toLocaleTimeString()}.`, { tone: 'success' });
                 } else {
-                    alert("Could not understand the command. Please try again.");
+                    toast('Could not understand the command. Try again.', { tone: 'error' });
                 }
             } catch (error) {
                 console.error("Error processing voice command:", error);
-                alert("Something went wrong. Please try again.");
+                toast('Something went wrong. Try again.', { tone: 'error' });
             } finally {
                 setIsProcessing(false);
             }

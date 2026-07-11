@@ -21,6 +21,7 @@ import MagicBox from './MagicBox';
 import AgentConfirmationModal from './AgentConfirmationModal';
 import DailyRitualModal from './DailyRitualModal';
 import { Card, Chip, ListRow } from '../ui';
+import { toast } from '../ui/Toast';
 
 const getTaskUrgencyMeta = (task, now, todayStart, todayEnd) => {
     const deadline = task?.deadline ? new Date(task.deadline) : null;
@@ -241,7 +242,7 @@ const QuickAddTaskWidget = ({ addTask, isOpen, onClose, buttonRef, popupStyle })
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert('Speech recognition is not supported in your browser.');
+            toast('Speech recognition is not supported in your browser.', { tone: 'error' });
             return;
         }
 

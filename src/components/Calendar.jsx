@@ -6,6 +6,7 @@ import { parseScheduleImage } from '../services/aiClient';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
 import WeeklyPlan from './WeeklyPlan';
+import { toast } from '../ui/Toast';
 
 const Calendar = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, scheduleItems, onAddScheduleItem, onUpdateScheduleItem, onDeleteScheduleItem }) => {
     const [viewMode, setViewMode] = useState('week'); // 'week' or 'schedule'
@@ -28,7 +29,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, scheduleI
             }, 100);
         } catch (err) {
             console.error("Error accessing camera:", err);
-            alert("Could not access camera. Please check permissions.");
+            toast('Could not access camera. Check permissions.', { tone: 'error' });
         }
     };
 
@@ -107,6 +108,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, scheduleI
                 // 3. Resolve Conflicts
                 let tasksToAdd = newTasks;
                 if (hasConflict && existingTasks.length > 0) {
+                    // eslint-disable-next-line no-alert
                     const userChoice = window.confirm(
                         "Conflict detected with existing tasks!\n\n" +
                         "Click OK to REPLACE existing tasks for today.\n" +
@@ -145,14 +147,14 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, scheduleI
                     addedCount++;
                 });
 
-                alert(`Successfully added ${addedCount} items to schedule!`);
+                toast(`Added ${addedCount} items to the schedule.`, { tone: 'success' });
 
             } else {
-                alert("Could not find any schedule items in the image.");
+                toast('Could not find schedule items in the image.', { tone: 'error' });
             }
         } catch (error) {
             console.error("Scan failed:", error);
-            alert("Failed to scan schedule.");
+            toast('Failed to scan schedule.', { tone: 'error' });
         } finally {
             setIsScanning(false);
             if (fileInputRef.current) fileInputRef.current.value = '';

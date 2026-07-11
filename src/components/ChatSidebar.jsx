@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
 import ChatMessage, { TypingIndicator } from './ChatMessage';
+import { confirmAction } from '../utils/confirm';
 
 const GUIDE_MODES = [
     {
@@ -392,7 +393,7 @@ const ChatSidebar = () => {
     };
 
     const handleClearChat = () => {
-        if (window.confirm('Clear all conversation history?')) {
+        if (confirmAction('Clear all conversation history?')) {
             clearConversation();
         }
     };

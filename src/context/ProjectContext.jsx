@@ -1,6 +1,8 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { toast } from '../ui/Toast';
 
 const ProjectContext = createContext();
 
@@ -288,9 +290,9 @@ export const ProjectProvider = ({ children }) => {
                     setProjects(prev => prev.map(p => p.id === tempId ? { ...p, id: tempId } : p));
 
                     if (error.code === '42P01') {
-                        alert('⚠️ Cloud sync not set up yet. Project saved locally.\n\nTo enable cloud sync, run the SQL script in SUPABASE_SETUP.md');
+                        toast('Cloud sync is not set up. Project saved locally.', { tone: 'error' });
                     } else {
-                        alert(`⚠️ Project saved locally but cloud sync failed.\n\nError: ${error.message}`);
+                        toast(`Project saved locally, but cloud sync failed: ${error.message}`, { tone: 'error' });
                     }
 
                     return { ...newProject, id: tempId };
@@ -298,7 +300,7 @@ export const ProjectProvider = ({ children }) => {
             } catch (err) {
                 console.error("Unexpected error adding project:", err);
                 setProjects(prev => prev.map(p => p.id === tempId ? { ...p, id: tempId } : p));
-                alert('⚠️ Project saved locally but cloud sync failed.');
+                toast('Project saved locally, but cloud sync failed.', { tone: 'error' });
                 return { ...newProject, id: tempId };
             }
         }

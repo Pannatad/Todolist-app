@@ -1,6 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { ToastContext } from './toast-context';
+
+const toastListeners = new Set();
+
+export const toast = (message, options = {}) => {
+  toastListeners.forEach((listener) => listener(message, options));
+};
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
@@ -9,14 +16,20 @@ export const ToastProvider = ({ children }) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
-  const toast = useCallback(({ message, tone = 'neutral', action = null, duration = 5000 }) => {
+  const addToast = useCallback(({ message, tone = 'neutral', action = null, duration = 4000 }) => {
     const id = crypto.randomUUID();
     setToasts((current) => [...current, { id, message, tone, action }]);
     if (duration) window.setTimeout(() => dismiss(id), duration);
     return id;
   }, [dismiss]);
 
-  const value = useMemo(() => ({ toast, dismiss }), [dismiss, toast]);
+  useEffect(() => {
+    const listener = (message, options) => addToast({ message, ...options });
+    toastListeners.add(listener);
+    return () => toastListeners.delete(listener);
+  }, [addToast]);
+
+  const value = useMemo(() => ({ toast: addToast, dismiss }), [addToast, dismiss]);
 
   return (
     <ToastContext.Provider value={value}>

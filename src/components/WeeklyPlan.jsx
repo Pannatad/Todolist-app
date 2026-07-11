@@ -7,6 +7,8 @@ import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurr
 import { isTaskActive } from '../utils/taskState';
 import { COLOR_OPTIONS } from './LearningPathModal';
 import ScheduleEventModal from './ScheduleEventModal';
+import { toast } from '../ui/Toast';
+import { confirmAction } from '../utils/confirm';
 
 const getMonday = (date) => {
     const copy = new Date(date);
@@ -116,7 +118,7 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
             onClose();
         } catch (error) {
             console.error('Failed to save task:', error);
-            alert(error?.message || 'Could not save this task.');
+            toast(error?.message || 'Could not save this task.', { tone: 'error' });
         } finally {
             setIsSubmitting(false);
         }
@@ -232,7 +234,7 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (window.confirm('Delete this task?')) {
+                                    if (confirmAction('Delete this task?')) {
                                         onDelete(task.id);
                                         onClose();
                                     }
