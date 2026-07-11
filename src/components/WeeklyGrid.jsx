@@ -19,9 +19,6 @@ const COLOR_CONFIGS = {
 };
 
 const INDEX_COLORS = ['slate', 'rose', 'purple', 'pink', 'indigo', 'blue', 'teal', 'cyan', 'lime', 'amber'];
-const inkBorder = 'border-2 border-slate-800 dark:border-bone-200/70';
-const softPopShadow = 'shadow-[6px_6px_0_#E2E8F0] dark:shadow-[6px_6px_0_rgba(255,255,255,0.10)]';
-const popMotion = 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
 
 const WeeklyGrid = () => {
     const [weekOffset, setWeekOffset] = useState(0);
@@ -58,7 +55,7 @@ const WeeklyGrid = () => {
 
     return (
         <div className="space-y-4">
-            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
+            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 dark:bg-void-900/90 sm:p-5`}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="relative z-10">
                         <div className="flex items-center gap-2 text-slate-500">
@@ -73,14 +70,14 @@ const WeeklyGrid = () => {
                     <div className="relative z-10 flex items-center gap-2">
                         <button
                             onClick={() => setWeekOffset((prev) => prev - 1)}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-800 bg-white text-slate-700 shadow-[3px_3px_0_#1E293B] ${popMotion} hover:-translate-y-0.5 hover:bg-amber-100`}
+                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-white text-slate-700  hover:bg-amber-100`}
                         >
                             <ChevronLeft size={16} strokeWidth={2.7} />
                         </button>
                         {weekOffset !== 0 && (
                             <button
                                 onClick={() => setWeekOffset(0)}
-                                className={`rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 ${popMotion} hover:bg-slate-50`}
+                                className={`rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50`}
                             >
                                 This week
                             </button>
@@ -88,7 +85,7 @@ const WeeklyGrid = () => {
                         <button
                             onClick={() => setWeekOffset((prev) => prev + 1)}
                             disabled={weekOffset >= 0}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-800 bg-white text-slate-700 shadow-[3px_3px_0_#1E293B] ${popMotion} hover:-translate-y-0.5 hover:bg-amber-100 disabled:opacity-40`}
+                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-white text-slate-700  hover:bg-amber-100 disabled:opacity-40`}
                         >
                             <ChevronRight size={16} strokeWidth={2.7} />
                         </button>
@@ -96,11 +93,11 @@ const WeeklyGrid = () => {
                 </div>
             </section>
 
-            <section className={`overflow-hidden rounded-[28px] bg-white ${inkBorder} ${softPopShadow} dark:bg-void-900/90`}>
-                <div className="grid grid-cols-8 border-b-2 border-slate-800 bg-slate-100 dark:border-bone-200/70 dark:bg-void-800">
+            <section className={`overflow-hidden rounded-[28px] bg-white dark:bg-void-900/90`}>
+                <div className="grid grid-cols-8 border-b border-[var(--color-rule)] bg-slate-100 dark:bg-void-800">
                     <div className="app-eyebrow p-3">Habit</div>
                     {weekDates.map((date) => (
-                        <div key={date.toISOString()} className={`border-l-2 border-slate-800 p-3 text-center dark:border-bone-200/70 ${isToday(date) ? 'bg-emerald-100' : ''}`}>
+                        <div key={date.toISOString()} className={`border-l border-[var(--color-rule)] p-3 text-center ${isToday(date) ? 'bg-emerald-100' : ''}`}>
                             <div className="text-xs font-medium text-slate-500">
                                 {date.toLocaleDateString('en-US', { weekday: 'short' })}
                             </div>
@@ -121,7 +118,7 @@ const WeeklyGrid = () => {
                         return (
                             <div key={habit.id} className="grid grid-cols-8 border-b-2 border-slate-100 last:border-b-0 dark:border-white/10">
                                 <div className="flex items-center gap-3 p-3">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl border-2 border-slate-800 ${color.idle}`}>
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] ${color.idle}`}>
                                         <span className="text-base">{habit.icon}</span>
                                     </div>
                                     <div className="min-w-0">
@@ -154,9 +151,9 @@ const WeeklyGrid = () => {
                                                     }}
                                                     disabled={!isEditable}
                                                     title={isEditable ? undefined : 'Only today and yesterday can be edited.'}
-                                                    className={`flex h-9 w-9 items-center justify-center rounded-xl border-2 border-slate-800 transition-all disabled:cursor-not-allowed ${
+                                                    className={`flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-rule)] transition-all disabled:cursor-not-allowed ${
                                                         isCompleted
-                                                            ? `${color.active} text-white shadow-[3px_3px_0_#1E293B]`
+                                                            ? `${color.active} text-white `
                                                             : isEditable
                                                                 ? 'bg-white text-slate-500 hover:bg-amber-100'
                                                                 : 'bg-slate-50 text-slate-300'

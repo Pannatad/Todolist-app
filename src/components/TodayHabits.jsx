@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { Bell, CalendarDays, CheckCircle2, Plus, Sprout, XCircle } from 'lucide-react';
@@ -8,9 +9,7 @@ import SeedGarden from './SeedGarden';
 import SeedProgressList from './SeedProgressList';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
-
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
 const TIME_SECTIONS = [
     { key: 'morning', label: 'Morning' },
     { key: 'afternoon', label: 'Afternoon' },
@@ -18,7 +17,6 @@ const TIME_SECTIONS = [
     { key: 'night', label: 'Night' },
     { key: 'anytime', label: 'Anytime' },
 ];
-
 const getMotivationalMessage = (completionRate, bestStreak) => {
     if (completionRate === 100) return 'Everything scheduled today is done.';
     if (bestStreak >= 7) return `You already have a ${bestStreak}-day streak going.`;
@@ -26,23 +24,16 @@ const getMotivationalMessage = (completionRate, bestStreak) => {
     if (completionRate > 0) return 'A small win is already on the board.';
     return 'Start with one easy habit.';
 };
-
 const REFLECTION_TAGS = {
     completed: ['easy', 'proud', 'focused', 'tired'],
     missed: ['forgot', 'busy', 'low energy', 'too hard'],
 };
-
-const inkBorder = 'border-2 border-slate-800 dark:border-bone-200/70';
-const softPopShadow = 'shadow-[6px_6px_0_#E2E8F0] dark:shadow-[6px_6px_0_rgba(255,255,255,0.10)]';
-const popMotion = 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
-
 const TodayHabits = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingHabit, setEditingHabit] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [historyHabit, setHistoryHabit] = useState(null);
     const [pendingReflection, setPendingReflection] = useState(null);
-
     const {
         habits,
         addHabit,
@@ -56,7 +47,6 @@ const TodayHabits = () => {
         getHabitNoteHistory,
         getSeedInsight,
     } = useHabit();
-
     const selectedDateStr = toLocalDateKey(selectedDate);
     const today = new Date();
     const todayStr = toLocalDateKey(today);
@@ -70,7 +60,6 @@ const TodayHabits = () => {
     const todayHabits = getHabitsForDate(selectedDate);
     const [dismissedBackfillIds, setDismissedBackfillIds] = useState([]);
     const reviewStorageKey = `habit-yesterday-review-dismissed-${todayStr}`;
-
     useEffect(() => {
         try {
             setDismissedBackfillIds(JSON.parse(localStorage.getItem(reviewStorageKey) || '[]'));
@@ -78,7 +67,6 @@ const TodayHabits = () => {
             setDismissedBackfillIds([]);
         }
     }, [reviewStorageKey]);
-
     const weekDates = useMemo(() => {
         const start = new Date(today);
         start.setDate(today.getDate() - today.getDay());
@@ -88,20 +76,17 @@ const TodayHabits = () => {
             return date;
         });
     }, []);
-
     const completedToday = todayHabits.filter((habit) => getHabitLog(habit.id, selectedDateStr)?.completed).length;
     const totalToday = todayHabits.length;
     const completionRate = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
     const allCompleted = totalToday > 0 && completedToday === totalToday;
     const bestCurrentStreak = habits.reduce((max, habit) => Math.max(max, getHabitStreak(habit.id).current), 0);
-
     const seedEntries = useMemo(() => (
         habits
             .filter((habit) => habit.is_seed)
             .map((habit) => ({ habit, insight: getSeedInsight(habit.id) }))
             .filter((entry) => entry.insight)
     ), [habits, getSeedInsight]);
-
     const seedInsightByHabitId = useMemo(() => {
         const map = {};
         seedEntries.forEach(({ habit, insight }) => {
@@ -109,13 +94,11 @@ const TodayHabits = () => {
         });
         return map;
     }, [seedEntries]);
-
     const yesterdayReviewHabits = useMemo(() => (
         getHabitsForDate(yesterday)
             .filter((habit) => !getHabitLog(habit.id, yesterdayStr)?.completed)
             .filter((habit) => !dismissedBackfillIds.includes(habit.id))
     ), [dismissedBackfillIds, getHabitLog, getHabitsForDate, yesterday, yesterdayStr]);
-
     const groupedHabits = useMemo(() => {
         const groups = {};
         todayHabits.forEach((habit) => {
@@ -125,7 +108,6 @@ const TodayHabits = () => {
         });
         return groups;
     }, [todayHabits]);
-
     const dismissYesterdayReview = (habitId) => {
         setDismissedBackfillIds((prev) => {
             const next = Array.from(new Set([...prev, habitId]));
@@ -133,23 +115,19 @@ const TodayHabits = () => {
             return next;
         });
     };
-
     const getCompletionValue = (habit) => (
         habit.type === 'count' || habit.type === 'duration'
             ? (habit.target || 1)
             : 1
     );
-
     const handleBackfillDone = async (habit) => {
         await logHabit(habit.id, yesterdayStr, getCompletionValue(habit), true);
         dismissYesterdayReview(habit.id);
     };
-
     const handleLog = async (habitId, value, completed) => {
         if (!canEditSelectedDate) return;
         const savedLog = await logHabit(habitId, selectedDateStr, value, completed);
         const habit = habits.find((item) => item.id === habitId);
-
         if (habit && (completed || Number(value || 0) <= 0)) {
             setPendingReflection({
                 habitId,
@@ -161,10 +139,8 @@ const TodayHabits = () => {
             });
         }
     };
-
     const handleSaveNote = (habitId, notes) => {
         if (!canEditSelectedDate) return;
-
         const existingLog = getHabitLog(habitId, selectedDateStr);
         logHabit(
             habitId,
@@ -174,28 +150,23 @@ const TodayHabits = () => {
             { notes }
         );
     };
-
     const handleSave = (habitData) => {
         if (habitData.id) updateHabit(habitData.id, habitData);
         else addHabit(habitData);
         setShowModal(false);
         setEditingHabit(null);
     };
-
     const handleDelete = (habitId) => {
         if (confirm('Are you sure you want to delete this habit?')) {
             deleteHabit(habitId);
         }
     };
-
     const handleReflection = async (tag) => {
         if (!pendingReflection) return;
-
         const existingLog = getHabitLog(pendingReflection.habitId, pendingReflection.date);
         const currentNotes = existingLog?.notes || pendingReflection.notes || '';
         const reflectionLine = `Reflection: ${tag}`;
         const nextNotes = currentNotes ? `${currentNotes}\n${reflectionLine}` : reflectionLine;
-
         await logHabit(
             pendingReflection.habitId,
             pendingReflection.date,
@@ -205,10 +176,9 @@ const TodayHabits = () => {
         );
         setPendingReflection(null);
     };
-
     return (
         <div className="space-y-4">
-            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
+            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 dark:bg-void-900/90 sm:p-5`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="relative z-10 max-w-xl">
                         <div className="app-eyebrow">
@@ -227,17 +197,18 @@ const TodayHabits = () => {
                                     : 'Review only. Older days are locked to keep the history honest.'}
                         </p>
                     </div>
-
-                    <div className={`relative z-10 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 ${inkBorder}`}>
+                    <div className="ui-card relative z-10 min-w-44 px-4 py-3 text-sm font-semibold">
                         <span className="text-slate-950">{completedToday}/{totalToday}</span> done
                         {bestCurrentStreak > 0 && (
                             <span className="ml-3">
                                 streak <span className="text-slate-950">{bestCurrentStreak}</span>
                             </span>
                         )}
+                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--color-rule)]">
+                            <div className="h-full bg-[var(--color-accent)]" style={{ width: `${completionRate}%` }} />
+                        </div>
                     </div>
                 </div>
-
                 <div className="relative z-10 mt-4">
                     <div className="app-eyebrow mb-2 flex items-center gap-2">
                         <CalendarDays size={13} strokeWidth={2.7} />
@@ -247,18 +218,17 @@ const TodayHabits = () => {
                         {weekDates.map((date, index) => {
                             const isSelected = date.toDateString() === selectedDate.toDateString();
                             const isTodayDate = date.toDateString() === today.toDateString();
-
                             return (
                                 <Motion.button
                                     key={date.toISOString()}
                                     whileTap={{ scale: 0.96 }}
                                     onClick={() => setSelectedDate(new Date(date))}
-                                    className={`min-h-16 rounded-xl border border-slate-200 px-2 py-2.5 text-center text-sm font-semibold ${popMotion} dark:border-white/10 ${
+                                    className={`min-h-16 rounded-xl border border-slate-200 px-2 py-2.5 text-center text-sm font-semibold dark:border-white/10 ${
                                         isSelected
-                                            ? 'bg-violet-500 text-white shadow-[3px_3px_0_#1E293B]'
+                                            ? 'bg-violet-500 text-white '
                                             : isTodayDate
                                                 ? 'bg-emerald-100 text-emerald-950'
-                                                : 'bg-slate-50 text-slate-600 hover:-translate-y-0.5 hover:bg-amber-100'
+                                                : 'bg-slate-50 text-slate-600 hover:bg-amber-100'
                                     }`}
                                 >
                                     <div className="text-xs font-medium">{DAY_LABELS[index]}</div>
@@ -269,7 +239,6 @@ const TodayHabits = () => {
                     </div>
                 </div>
             </section>
-
             {seedEntries.length > 0 && (
                 <SeedProgressList
                     seeds={seedEntries}
@@ -279,14 +248,13 @@ const TodayHabits = () => {
                     onQuickMiss={(habit) => handleLog(habit.id, 0, false)}
                 />
             )}
-
             <AnimatePresence>
                 {yesterdayReviewHabits.length > 0 && (
                     <Motion.section
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className={`rounded-[24px] bg-amber-100 p-4 text-amber-950 ${inkBorder} ${softPopShadow}`}
+                        className={`rounded-[24px] bg-amber-100 p-4 text-amber-950 `}
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
@@ -305,12 +273,11 @@ const TodayHabits = () => {
                                 View yesterday
                             </button>
                         </div>
-
                         <div className="mt-3 space-y-2">
                             {yesterdayReviewHabits.slice(0, 4).map((habit) => (
-                                <div key={habit.id} className="flex flex-col gap-2 rounded-[20px] border-2 border-slate-800 bg-white px-3 py-3 sm:flex-row sm:items-center">
+                                <div key={habit.id} className="flex flex-col gap-2 rounded-[20px] border border-[var(--color-rule)] bg-white px-3 py-3 sm:flex-row sm:items-center">
                                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-slate-800 bg-amber-200 text-lg">{habit.icon}</span>
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-amber-200 text-lg">{habit.icon}</span>
                                         <div className="min-w-0">
                                             <div className="truncate text-sm font-semibold text-slate-900">{habit.name}</div>
                                             <div className="text-xs text-amber-700">Yesterday was scheduled for this habit.</div>
@@ -343,20 +310,18 @@ const TodayHabits = () => {
                     </Motion.section>
                 )}
             </AnimatePresence>
-
             {!canEditSelectedDate && (
-                <div className={`rounded-[18px] bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500 ${inkBorder}`}>
+                <div className={`rounded-[18px] bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500 `}>
                     This day is read-only. You can only edit today and yesterday.
                 </div>
             )}
-
             <AnimatePresence>
                 {allCompleted && isToday && (
                     <Motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className={`rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 ${inkBorder}`}
+                        className={`rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 `}
                     >
                         <div className="flex items-center gap-2">
                             <Sprout size={15} strokeWidth={2.7} />
@@ -365,14 +330,13 @@ const TodayHabits = () => {
                     </Motion.div>
                 )}
             </AnimatePresence>
-
             <AnimatePresence>
                 {pendingReflection && (
                     <Motion.section
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className={`rounded-[22px] bg-white px-4 py-3 ${inkBorder} ${softPopShadow} dark:bg-void-900/90`}
+                        className={`rounded-[22px] bg-white px-4 py-3 dark:bg-void-900/90`}
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -402,15 +366,11 @@ const TodayHabits = () => {
                     </Motion.section>
                 )}
             </AnimatePresence>
-
             {seedEntries.length > 0 && <SeedGarden seeds={seedEntries} />}
-
-            <section className={`rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
+            <section className={`rounded-[28px] bg-white p-4 dark:bg-void-900/90 sm:p-5`}>
                 {todayHabits.length === 0 ? (
-                    <div className="rounded-[24px] border-2 border-dashed border-slate-800 bg-slate-50 px-5 py-12 text-center dark:border-bone-200/70 dark:bg-void-800">
-                        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full border-2 border-slate-800 bg-emerald-300 text-3xl">🌱</div>
-                        <h3 className="app-section-title mt-3">No habits yet</h3>
-                        <p className="mt-1 text-sm text-slate-500">Create your first habit to start tracking.</p>
+                    <section className="ui-card px-5 py-12 text-center">
+                        <h3 className="app-section-title">No habits yet.</h3>
                         <button
                             onClick={() => {
                                 setEditingHabit(null);
@@ -418,28 +378,26 @@ const TodayHabits = () => {
                             }}
                             className="mt-5 rounded-xl border border-violet-600 bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
                         >
-                            Add habit
+                            Add Habit
                         </button>
-                    </div>
+                    </section>
                 ) : (
                     <div className="space-y-5">
                         {TIME_SECTIONS.map((section) => {
                             const sectionHabits = groupedHabits[section.key];
                             if (!sectionHabits?.length) return null;
-
                             return (
                                 <div key={section.key}>
                                     <div className="mb-3 flex items-center gap-3">
                                         <div className="app-eyebrow">
                                             {section.label}
                                         </div>
-                                        <div className="h-0.5 flex-1 bg-[repeating-linear-gradient(90deg,#1E293B_0_8px,transparent_8px_14px)] opacity-30" />
+                                        <div className="h-px flex-1 bg-[var(--color-rule)]" />
                                     </div>
                                     <div className="space-y-3">
                                         {sectionHabits.map((habit, index) => {
                                             const seedInsight = seedInsightByHabitId[habit.id] || null;
                                             const seedEnded = Boolean(seedInsight?.ended);
-
                                             return (
                                                 <HabitCard
                                                     key={habit.id}
@@ -469,7 +427,6 @@ const TodayHabits = () => {
                     </div>
                 )}
             </section>
-
             <Motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
@@ -482,7 +439,6 @@ const TodayHabits = () => {
                 <Plus size={16} strokeWidth={2.7} />
                 Add Habit
             </Motion.button>
-
             <HabitModal
                 isOpen={showModal}
                 onClose={() => {
@@ -492,7 +448,6 @@ const TodayHabits = () => {
                 onSave={handleSave}
                 habit={editingHabit}
             />
-
             <HabitNotesModal
                 isOpen={Boolean(historyHabit)}
                 onClose={() => setHistoryHabit(null)}
@@ -502,5 +457,4 @@ const TodayHabits = () => {
         </div>
     );
 };
-
 export default TodayHabits;
