@@ -17,6 +17,7 @@ import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheRespon
 import { generateProactiveSuggestions } from '../services/proactiveEngine';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { getTaskCompletionTimestamp, isTaskActive } from '../utils/taskState';
+import { getColorForSubject } from '../constants/subjects';
 import Penguin from './Penguin';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
@@ -1809,6 +1810,46 @@ const Overview = ({ onNavigate }) => {
             return leftTime - rightTime;
         });
 
+    const scheduleBriefing = useMemo(() => {
+        const entries = commandCenterScheduleItems
+            .map((item) => {
+                const start = item.displayTime || new Date(item.startTime || item.start_time);
+                const duration = item.duration || 60;
+                const end = new Date(start.getTime() + duration * 60000);
+                const category = (item.category || item.subject || 'Other').toString().trim() || 'Other';
+                return { item, start, end, duration, category };
+            })
+            .filter((entry) => !Number.isNaN(entry.start.getTime()));
+
+        const totalBlocks = entries.length;
+        const totalMinutes = entries.reduce((sum, entry) => sum + entry.duration, 0);
+        const remainingBlocks = entries.filter((entry) => entry.end > now).length;
+        const remainingMinutes = entries.reduce((sum, entry) => (
+            entry.end > now ? sum + Math.max(0, getMinutesBetween(entry.start < now ? now : entry.start, entry.end)) : sum
+        ), 0);
+
+        const byCategory = new Map();
+        entries.forEach((entry) => {
+            const existing = byCategory.get(entry.category) || {
+                category: entry.category,
+                count: 0,
+                minutes: 0,
+                remaining: 0,
+                color: getColorForSubject(entry.category),
+            };
+            existing.count += 1;
+            existing.minutes += entry.duration;
+            if (entry.end > now) existing.remaining += 1;
+            byCategory.set(entry.category, existing);
+        });
+
+        const categories = [...byCategory.values()].sort((left, right) => (
+            right.remaining - left.remaining || right.minutes - left.minutes
+        ));
+
+        return { totalBlocks, totalMinutes, remainingBlocks, remainingMinutes, categories };
+    }, [commandCenterScheduleItems, now]);
+
     const scheduleSpotlight = (() => {
         const timedItems = commandCenterScheduleItems
             .map((item) => {
@@ -1978,6 +2019,47 @@ const Overview = ({ onNavigate }) => {
                                     View all
                                 </button>
                             </div>
+
+                            {scheduleBriefing.totalBlocks > 0 && (
+                                <div className="mt-4 rounded-xl border border-sage-200/70 bg-white/70 p-3.5">
+                                    <p className="text-sm font-semibold leading-6 text-gray-700">
+                                        {scheduleBriefing.remainingBlocks > 0 ? (
+                                            <>
+                                                You have{' '}
+                                                <span className="font-black text-gray-950">{scheduleBriefing.remainingBlocks}</span>
+                                                {' '}of {scheduleBriefing.totalBlocks}{' '}
+                                                {scheduleBriefing.totalBlocks === 1 ? 'block' : 'blocks'} still ahead
+                                                {' '}· {formatMinutesLabel(scheduleBriefing.remainingMinutes)} of scheduled time left
+                                            </>
+                                        ) : (
+                                            <>
+                                                All{' '}
+                                                <span className="font-black text-gray-950">{scheduleBriefing.totalBlocks}</span>
+                                                {' '}
+                                                {scheduleBriefing.totalBlocks === 1 ? 'block is' : 'blocks are'} behind you
+                                                {' '}· {formatMinutesLabel(scheduleBriefing.totalMinutes)} scheduled today
+                                            </>
+                                        )}
+                                        {' '}across {scheduleBriefing.categories.length}{' '}
+                                        {scheduleBriefing.categories.length === 1 ? 'area' : 'areas'}.
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-1.5">
+                                        {scheduleBriefing.categories.map((cat) => (
+                                            <span
+                                                key={cat.category}
+                                                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                style={{ backgroundColor: cat.color.bgColor, color: cat.color.color }}
+                                            >
+                                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color.color }}></span>
+                                                {cat.category}
+                                                <span className="opacity-70">
+                                                    {cat.count} · {formatMinutesLabel(cat.minutes)}
+                                                </span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
                                 {commandCenterScheduleItems.length === 0 ? (
