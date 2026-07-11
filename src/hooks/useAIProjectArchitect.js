@@ -48,10 +48,7 @@ export const useAIProjectArchitect = () => {
             description: `AI Generated plan for: ${prompt}`,
             status: 'active',
             columns: [
-                { id: 'c-1', title: 'To Do' },
-                { id: 'c-2', title: 'In Progress' },
-                { id: 'c-3', title: 'Review' },
-                { id: 'c-4', title: 'Done' }
+                { id: 'c-1', title: 'Work tree 1' }
             ],
             tasks: tasks
         };

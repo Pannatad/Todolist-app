@@ -1,37 +1,50 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { LogIn, LogOut, Palette, LayoutDashboard, Sprout, Calendar as CalendarIcon, ScrollText, KanbanSquare, ListChecks, GraduationCap, ClipboardList, Coins, TimerReset } from 'lucide-react';
+import {
+  CalendarDays,
+  ClipboardList,
+  FolderKanban,
+  ListTodo,
+  LogIn,
+  LogOut,
+  Moon,
+  Repeat2,
+  Sun,
+  SunMedium,
+} from 'lucide-react';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
-import { getPersonalizedAdvice } from './services/aiClient';
 
 // Import all context hooks
 import { useAuth } from './context/AuthContext';
 import { useTask } from './context/TaskContext';
-import { useGame } from './context/GameContext';
-
-import { useGoal } from './context/GoalContext';
 import { ProjectProvider } from './context/ProjectContext';
 import { HabitProvider } from './context/HabitContext';
-import { ChatProvider } from './context/ChatContext';
+import { ChatProvider, useChatContext } from './context/ChatContext';
 import { useHabit } from './context/HabitContext';
 import { useUserProfile } from './context/UserProfileContext';
 import smartNotificationService from './services/SmartNotificationService';
 import { IdeaBoardProvider } from './context/IdeaBoardContext';
+import { SegmentedControl, ToastProvider } from './ui';
 const TaskInput = lazy(() => import('./components/TaskInput'));
 const Garden = lazy(() => import('./components/Garden'));
 const Calendar = lazy(() => import('./components/Calendar'));
-const AIHelpSidebar = lazy(() => import('./components/AIHelpSidebar'));
-const VisionBoard = lazy(() => import('./components/VisionBoard'));
 const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
 const Overview = lazy(() => import('./components/Overview'));
 const HabitTracker = lazy(() => import('./components/HabitTracker'));
-const LearningTracker = lazy(() => import('./components/LearningTracker'));
-const Focus = lazy(() => import('./components/Focus'));
-const SleepTrendsDashboard = lazy(() => import('./components/SleepTrendsDashboard'));
 const NotificationToast = lazy(() => import('./components/NotificationToast'));
-const IdeasBoard = lazy(() => import('./components/IdeasBoard'));
 const ChatSidebar = lazy(() => import('./components/ChatSidebar'));
 const FloatingChatButton = lazy(() => import('./components/ChatSidebar').then((module) => ({ default: module.FloatingChatButton })));
+
+const TAB_ALIASES = {
+  overview: 'today',
+  schedule: 'plan',
+  garden: 'tasks',
+  focus: 'tasks',
+  ideas: 'projects',
+  learning: 'projects',
+  vision: 'today',
+  sleep: 'habits',
+};
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-16 text-sage-500 dark:text-bone-200/70">
@@ -64,6 +77,24 @@ const SmartNotificationBridge = ({ scheduleItems, tasks }) => {
   return null;
 };
 
+const UnifiedChatBridge = () => {
+  const { openSidebar, sendMessage } = useChatContext();
+
+  useEffect(() => {
+    const handleTaskHelp = (event) => {
+      const task = event.detail;
+      if (!task) return;
+      openSidebar();
+      sendMessage(`Help me break down the task “${task.title}”. Give me a short next-step plan based on its current details.`);
+    };
+
+    window.addEventListener('personal-agent:task-help', handleTaskHelp);
+    return () => window.removeEventListener('personal-agent:task-help', handleTaskHelp);
+  }, [openSidebar, sendMessage]);
+
+  return null;
+};
+
 function App() {
   // Context hooks
   const { user, signOut } = useAuth();
@@ -80,331 +111,200 @@ function App() {
     deleteScheduleItem
   } = useTask();
 
-  const {
-    coins,
-    unlockedPlots,
-    displayMode,
-    earnCoins,
-    buyPlot,
-    triggerPersonaReaction
-  } = useGame();
-
   const { profile } = useUserProfile();
-  const { goals, dailyHighlights, addGoal, updateGoal, deleteGoal, updateHighlight, deleteHighlight } = useGoal();
 
   // Local UI State (not in contexts)
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [theme, setTheme] = useState(() => {
     try {
-      return localStorage.getItem('app-theme') || 'cozy'; // 'cozy', 'professional', 'pink', 'blue'
+      const saved = localStorage.getItem('app-color-mode');
+      if (saved === 'light' || saved === 'dark') return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } catch {
-      return 'cozy';
+      return 'light';
     }
   });
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('today');
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
-    { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={20} /> },
-    { id: 'garden', label: 'Tasks', icon: <Sprout size={20} /> },
-    { id: 'habits', label: 'Habits', icon: <ListChecks size={20} /> },
-    { id: 'focus', label: 'Focus', icon: <TimerReset size={20} /> },
-    { id: 'ideas', label: 'Ideas', icon: <ScrollText size={20} /> },
-    { id: 'learning', label: 'Learning', icon: <GraduationCap size={20} /> },
-    { id: 'projects', label: 'Projects', icon: <KanbanSquare size={20} /> },
+    { id: 'today', label: 'Today', icon: SunMedium, controls: 'app-active-workspace' },
+    { id: 'plan', label: 'Plan', icon: CalendarDays, controls: 'app-active-workspace' },
+    { id: 'tasks', label: 'Tasks', icon: ListTodo, controls: 'app-active-workspace' },
+    { id: 'habits', label: 'Habits', icon: Repeat2, controls: 'app-active-workspace' },
+    { id: 'projects', label: 'Projects', icon: FolderKanban, controls: 'app-active-workspace' },
   ];
-
-  // AI Help State
-  const [showAISidebar, setShowAISidebar] = useState(false);
-  const [currentAITask, setCurrentAITask] = useState(null);
-  const [aiTips, setAiTips] = useState('');
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   // Theme effect
   useEffect(() => {
     const root = document.documentElement;
-    // Reset classes
     root.classList.remove('dark', 'theme-professional', 'theme-pink', 'theme-blue');
-
-    if (theme === 'professional') {
-      root.classList.add('theme-professional');
-    } else if (theme === 'pink') {
-      root.classList.add('theme-pink');
-    } else if (theme === 'blue') {
-      root.classList.add('theme-blue');
-    } else {
-      // Cozy is default
-    }
-
-    localStorage.setItem('app-theme', theme);
+    root.classList.toggle('dark', theme === 'dark');
+    root.dataset.colorMode = theme;
+    localStorage.setItem('app-color-mode', theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => {
-      if (prev === 'cozy') return 'professional';
-      if (prev === 'professional') return 'pink';
-      if (prev === 'pink') return 'blue';
-      return 'cozy';
-    });
+    setTheme((current) => current === 'dark' ? 'light' : 'dark');
   };
 
   // Get unique subjects from tasks
   const existingSubjects = [...new Set(tasks.map(t => t.subject).filter(Boolean))];
 
-  // Task handlers with coin rewards
   const handleCompleteTask = async (id) => {
-    const result = await completeTask(id);
-    if (result && result.reward > 0) {
-      await earnCoins(result.reward);
-      triggerPersonaReaction('complete', result.task.title);
-    }
+    await completeTask(id);
   };
 
-  // AI Help handlers
   const handleRequestAIHelp = (task) => {
-    setCurrentAITask(task);
-    setShowAISidebar(true);
-    setAiTips('');
+    window.dispatchEvent(new CustomEvent('personal-agent:task-help', { detail: task }));
   };
 
-  const handleGenerateAdvice = async () => {
-    if (!currentAITask) return;
-    setIsLoadingAI(true);
-    try {
-      const advice = await getPersonalizedAdvice(currentAITask);
-      setAiTips(advice);
-    } catch (error) {
-      console.error('Error generating advice:', error);
-      setAiTips('Unable to generate advice at this time.');
-    } finally {
-      setIsLoadingAI(false);
-    }
+  const navigateTo = (tabId) => {
+    const nextTab = TAB_ALIASES[tabId] || tabId;
+    if (tabs.some((tab) => tab.id === nextTab)) setActiveTab(nextTab);
   };
+
+  const todayLabel = new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
 
   return (
-    <HabitProvider>
-      <IdeaBoardProvider>
-        <ProjectProvider>
-          <ChatProvider>
-            <SmartNotificationBridge scheduleItems={scheduleItems} tasks={tasks} />
-            <div className="min-h-screen bg-cream-50 text-ink-900 transition-colors duration-300 dark:bg-void-950 dark:text-bone-200">
-            {/* Persona Avatar */}
+    <ToastProvider>
+      <HabitProvider>
+        <IdeaBoardProvider>
+          <ProjectProvider>
+            <ChatProvider>
+              <SmartNotificationBridge scheduleItems={scheduleItems} tasks={tasks} />
+              <UnifiedChatBridge />
 
-
-            <div className="mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5">
-              <header className="mb-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-sage-200 bg-white text-sage-700 shadow-sm dark:border-white/10 dark:bg-void-800 dark:text-bone-200">
-                      <ClipboardList size={21} />
-                    </div>
-                    <div className="min-w-0">
-                      <h1 className="text-xl font-bold leading-tight text-sage-700 dark:text-bone-100 sm:text-2xl">
-                        Personal Agent
-                      </h1>
-                      <p className="mt-0.5 truncate text-xs text-sage-600/75 dark:text-bone-200/60 sm:text-sm">
-                        {user ? `Welcome back, ${profile?.nickname || user.email?.split('@')[0] || 'User'}` : 'Guest Mode'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-
-                    {/* Digital Clock */}
-                    <div className="hidden items-center gap-2 rounded-xl border border-sage-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-sage-700 shadow-sm dark:border-white/10 dark:bg-void-800 dark:text-bone-200 md:flex">
-                      <DigitalClock />
+              <div className="app-shell">
+                <div className="app-shell__frame">
+                  <header className="app-header">
+                    <div className="app-brand">
+                      <span className="app-brand__mark" aria-hidden="true">
+                        <ClipboardList size={21} />
+                      </span>
+                      <div className="app-brand__copy">
+                        <h1>Personal Agent</h1>
+                        <p>
+                          <span>{todayLabel}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{user ? profile?.nickname || user.email?.split('@')[0] || 'Your day' : 'Guest mode'}</span>
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Coins Display */}
-                    <div className="flex items-center gap-1.5 rounded-xl border border-sage-200 bg-white px-2.5 py-2 text-sage-700 shadow-sm dark:border-white/10 dark:bg-void-800 dark:text-bone-200 sm:px-3">
-                      <Coins className="h-4 w-4" />
-                      <span className="text-sm font-bold">{coins}</span>
-                    </div>
+                    <div className="app-header__actions">
+                      <div className="app-clock" aria-label="Current time">
+                        <DigitalClock />
+                      </div>
 
-                    {/* User Profile Icon */}
-                    {user ? (
+                      {user ? (
+                        <button type="button" onClick={signOut} className="ui-icon-button" title="Sign out" aria-label="Sign out">
+                          <LogOut size={19} aria-hidden="true" />
+                        </button>
+                      ) : (
+                        <button type="button" onClick={() => setShowAuthModal(true)} className="ui-icon-button" title="Sign in" aria-label="Sign in">
+                          <LogIn size={19} aria-hidden="true" />
+                        </button>
+                      )}
+
+                      <div className="app-profile-control">
+                        <UserProfile />
+                      </div>
+
                       <button
-                        onClick={signOut}
-                        className="rounded-xl border border-sage-200 bg-white p-2 text-sage-700 shadow-sm transition-colors hover:bg-sage-50 active:scale-95 dark:border-white/10 dark:bg-void-800 dark:text-bone-200 dark:hover:bg-void-700"
-                        title="Sign Out"
+                        type="button"
+                        onClick={toggleTheme}
+                        className="ui-icon-button"
+                        title={`Use ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                        aria-label={`Use ${theme === 'dark' ? 'light' : 'dark'} mode`}
                       >
-                        <LogOut className="h-5 w-5 text-red-500" />
+                        {theme === 'dark' ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}
                       </button>
-                    ) : (
-                      <button
-                        onClick={() => setShowAuthModal(true)}
-                        className="rounded-xl border border-sage-200 bg-white p-2 text-sage-700 shadow-sm transition-colors hover:bg-sage-50 active:scale-95 dark:border-white/10 dark:bg-void-800 dark:text-bone-200 dark:hover:bg-void-700"
-                        title="Sign In"
-                      >
-                        <LogIn className="h-5 w-5" />
-                      </button>
-                    )}
+                    </div>
+                  </header>
 
-                    <UserProfile />
+                  <nav className="app-primary-nav" aria-label="Primary navigation">
+                    <SegmentedControl
+                      items={tabs}
+                      value={activeTab}
+                      onChange={navigateTo}
+                      ariaLabel="Primary navigation"
+                      className="app-primary-nav__control"
+                    />
+                  </nav>
 
-                    <button
-                      onClick={toggleTheme}
-                      className="rounded-xl border border-sage-200 bg-white p-2 shadow-sm transition-colors hover:bg-sage-50 active:scale-95 dark:border-white/10 dark:bg-void-800 dark:hover:bg-void-700 group"
-                      title={`Current Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)} (Click to cycle)`}
-                    >
-                      {theme === 'cozy' && <Palette className="h-5 w-5 text-sage-600 transition-colors group-hover:text-sage-800" />}
-                      {theme === 'professional' && <Palette className="h-5 w-5 text-indigo-500 transition-colors group-hover:text-indigo-400" />}
-                      {theme === 'pink' && <Palette className="h-5 w-5 text-pink-500 transition-colors group-hover:text-pink-400" />}
-                      {theme === 'blue' && <Palette className="h-5 w-5 text-sky-500 transition-colors group-hover:text-sky-400" />}
-                    </button>
-                  </div>
-                </div>
-              </header>
+                  {activeTab === 'tasks' && (
+                    <div className="app-task-composer">
+                      <Suspense fallback={<TabFallback />}>
+                        <TaskInput onAdd={addTask} existingSubjects={existingSubjects} />
+                      </Suspense>
+                    </div>
+                  )}
 
-              <nav className="mb-5 flex gap-1.5 overflow-x-auto border-b border-sage-200/80 pb-2 dark:border-white/10">
-                {tabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold capitalize transition-colors sm:px-3.5 ${(theme === 'professional' || theme === 'pink' || theme === 'blue')
-                      ? activeTab === tab.id
-                        ? 'pro-gradient-btn-active'
-                        : 'pro-gradient-btn-inactive'
-                      : activeTab === tab.id
-                        ? 'border-sage-500 bg-sage-100 text-sage-800 shadow-sm dark:border-white/20 dark:bg-void-800 dark:text-bone-100'
-                        : 'border-transparent bg-white/60 text-sage-700 hover:border-sage-200 hover:bg-white dark:bg-void-800/40 dark:text-bone-200 dark:hover:bg-void-800'
-                      }`}
+                  <main
+                    id="app-active-workspace"
+                    className={`app-workspace app-workspace--${activeTab}`}
+                    role="tabpanel"
+                    aria-label={`${tabs.find((tab) => tab.id === activeTab)?.label || 'Active'} workspace`}
                   >
-                    <div className="flex items-center gap-1.5">
-                      {tab.icon}
-                      <span>{tab.label}</span>
+                    <div key={activeTab} className={`workspace-view workspace-view--${activeTab}`}>
+                      <Suspense fallback={<TabFallback />}>
+                        {activeTab === 'today' && <Overview onNavigate={navigateTo} />}
+
+                        {activeTab === 'plan' && (
+                          <Calendar
+                            onAddScheduleItem={addScheduleItem}
+                            onUpdateScheduleItem={updateScheduleItem}
+                            onDeleteScheduleItem={deleteScheduleItem}
+                            onDeleteTask={deleteTask}
+                            onUpdateTask={updateTask}
+                            tasks={tasks}
+                            scheduleItems={scheduleItems}
+                            onCompleteTask={handleCompleteTask}
+                          />
+                        )}
+
+                        {activeTab === 'tasks' && (
+                          <Garden
+                            tasks={tasks}
+                            onCompleteTask={handleCompleteTask}
+                            onDeleteTask={deleteTask}
+                            onUpdateTask={updateTask}
+                            onRestoreTask={restoreTask}
+                            onRequestAIHelp={handleRequestAIHelp}
+                            existingSubjects={existingSubjects}
+                          />
+                        )}
+
+                        {activeTab === 'habits' && <HabitTracker />}
+                        {activeTab === 'projects' && <ProjectBoards />}
+                      </Suspense>
                     </div>
-                  </button>
-                ))}
-              </nav>
+                  </main>
+                </div>
 
-              {/* Only show TaskInput on My Tasks tab */}
-              {activeTab === 'garden' && (
-                <Suspense fallback={<TabFallback />}>
-                  <TaskInput onAdd={addTask} existingSubjects={existingSubjects} />
+                <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+                <Suspense fallback={null}>
+                  <NotificationToast
+                    onAction={(action) => {
+                      if (action === 'View Schedule' || action === 'Go to Schedule') navigateTo('plan');
+                      if (action === 'Go to Habits') navigateTo('habits');
+                      if (action === 'View tasks') navigateTo('tasks');
+                    }}
+                  />
+                  <ChatSidebar />
+                  <FloatingChatButton />
                 </Suspense>
-              )}
-
-              <main className="relative">
-                <Suspense fallback={<TabFallback />}>
-                  {activeTab === 'garden' && (
-                    <>
-                      <Garden
-                        tasks={tasks}
-                        onCompleteTask={handleCompleteTask}
-                        onDeleteTask={deleteTask}
-                        onUpdateTask={updateTask}
-                        onRestoreTask={restoreTask}
-                        onRequestAIHelp={handleRequestAIHelp}
-                        existingSubjects={existingSubjects}
-                        unlockedPlots={unlockedPlots}
-                        onBuyPlot={buyPlot}
-                        displayMode={displayMode}
-                      />
-                    </>
-                  )}
-                  {activeTab === 'overview' && (
-                    <Overview
-                      onNavigate={setActiveTab}
-                    />
-                  )}
-
-                  {activeTab === 'schedule' && (
-                    <Calendar
-                      onAddScheduleItem={addScheduleItem}
-                      onUpdateScheduleItem={updateScheduleItem}
-                      onDeleteScheduleItem={deleteScheduleItem}
-                      onDeleteTask={deleteTask}
-                      onUpdateTask={updateTask}
-                      tasks={tasks}
-                      scheduleItems={scheduleItems}
-                      onCompleteTask={handleCompleteTask}
-                    />
-                  )}
-
-                  {activeTab === 'vision' && (
-                    <VisionBoard
-                      goals={goals}
-                      onAddGoal={addGoal}
-                      onUpdateGoal={updateGoal}
-                      onDeleteGoal={deleteGoal}
-                      dailyHighlights={dailyHighlights}
-                      onUpdateHighlight={updateHighlight}
-                      onDeleteHighlight={deleteHighlight}
-                    />
-                  )}
-
-                  {activeTab === 'habits' && (
-                    <HabitTracker />
-                  )}
-
-                  {activeTab === 'focus' && (
-                    <Focus />
-                  )}
-
-                  {activeTab === 'ideas' && (
-                    <IdeasBoard />
-                  )}
-
-                  {activeTab === 'learning' && (
-                    <LearningTracker />
-                  )}
-
-                  {activeTab === 'sleep' && (
-                    <SleepTrendsDashboard />
-                  )}
-
-                  {activeTab === 'projects' && (
-                    <ProjectBoards />
-                  )}
-                </Suspense>
-
-              </main>
-            </div>
-
-            {/* AI Help Sidebar */}
-            <Suspense fallback={null}>
-              <AIHelpSidebar
-                isOpen={showAISidebar}
-                onClose={() => setShowAISidebar(false)}
-                task={currentAITask}
-                aiTips={aiTips}
-                isLoading={isLoadingAI}
-                onGenerateAdvice={handleGenerateAdvice}
-              />
-            </Suspense>
-
-            <AuthModal
-              isOpen={showAuthModal}
-              onClose={() => setShowAuthModal(false)}
-            />
-
-            {/* Smart Notifications Toast */}
-            <Suspense fallback={null}>
-              <NotificationToast
-                onAction={(action) => {
-                  // Handle notification actions
-                  if (action === 'View Schedule' || action === 'Go to Schedule') {
-                    setActiveTab('schedule');
-                  } else if (action === 'Go to Habits') {
-                    setActiveTab('habits');
-                  } else if (action === 'View tasks') {
-                    setActiveTab('garden');
-                  }
-                }}
-              />
-            </Suspense>
-
-            {/* Chat Sidebar */}
-            <Suspense fallback={null}>
-              <ChatSidebar />
-              <FloatingChatButton />
-            </Suspense>
-            </div>
-          </ChatProvider>
-        </ProjectProvider>
-      </IdeaBoardProvider>
-    </HabitProvider>
+              </div>
+            </ChatProvider>
+          </ProjectProvider>
+        </IdeaBoardProvider>
+      </HabitProvider>
+    </ToastProvider>
   );
 }
 

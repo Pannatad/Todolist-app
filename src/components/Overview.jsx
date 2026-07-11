@@ -14,9 +14,9 @@ import { useChatContext } from '../context/ChatContext';
 import { useIdeaBoard } from '../context/IdeaBoardContext';
 import { parseTaskInput, routeAgentCommand } from '../services/aiClient';
 import { canHandleLocally, generateLocalResponse, getCachedResponse, cacheResponse, generateCacheKey } from '../services/localAgentHandler';
-import { generateProactiveSuggestions } from '../services/proactiveEngine';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { getTaskCompletionTimestamp, isTaskActive } from '../utils/taskState';
+import { getColorForSubject } from '../constants/subjects';
 import Penguin from './Penguin';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
@@ -93,13 +93,13 @@ const OVERVIEW_WIDGETS = [
     },
 ];
 
-const DEFAULT_OVERVIEW_WIDGET_IDS = OVERVIEW_WIDGETS.map((widget) => widget.id);
+const DEFAULT_OVERVIEW_WIDGET_IDS = ['current', 'todayHabits', 'priorityTasks', 'recentNotes'];
 const OVERVIEW_WIDGET_STORAGE_KEY = 'overview-widget-ids';
 const OVERVIEW_USEFUL_WIDGETS_MIGRATION_KEY = 'overview-useful-widgets-v1';
 const OVERVIEW_POST_IT_STORAGE_KEY = 'overview-post-it-note';
 const OVERVIEW_POST_IT_THEME_STORAGE_KEY = 'overview-post-it-theme';
 const LEARNING_PINNED_PATHS_STORAGE_KEY = 'learning-pinned-path-ids';
-const USEFUL_OVERVIEW_WIDGET_IDS = ['postIt', 'pinnedLearning', 'todayHabits'];
+const USEFUL_OVERVIEW_WIDGET_IDS = [];
 
 const readPinnedLearningPathIds = () => {
     if (typeof window === 'undefined') return [];
@@ -153,57 +153,6 @@ const POST_IT_THEMES = [
         swatchClass: 'bg-[#6ee7b7]',
     },
 ];
-
-// Proactive Suggestion Card Component
-const ProactiveSuggestionCard = ({ suggestions, onAction, onDismiss }) => {
-    if (!suggestions || suggestions.length === 0) return null;
-
-    return (
-        <Motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="w-full max-w-2xl mx-auto mt-4"
-        >
-            <div className="space-y-2">
-                {suggestions.map((suggestion) => (
-                    <Motion.div
-                        key={suggestion.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={`flex items-center gap-4 p-4 rounded-2xl border transition-all hover:shadow-md cursor-pointer ${suggestion.priority === 'urgent'
-                            ? 'bg-red-50 border-red-200'
-                            : suggestion.priority === 'high'
-                                ? 'bg-amber-50 border-amber-200'
-                                : 'bg-indigo-50 border-indigo-100'
-                            }`}
-                        onClick={() => suggestion.action && onAction(suggestion.action)}
-                    >
-                        <span className="text-2xl">{suggestion.icon}</span>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm">{suggestion.title}</p>
-                            <p className="text-gray-600 text-xs mt-0.5 truncate">{suggestion.message}</p>
-                        </div>
-                        {suggestion.action && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onAction(suggestion.action); }}
-                                className="flex-shrink-0 px-3 py-1.5 bg-white/80 hover:bg-white rounded-lg text-xs font-medium text-indigo-600 border border-indigo-200 transition-colors"
-                            >
-                                Act
-                            </button>
-                        )}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onDismiss(suggestion.id); }}
-                            className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
-                        >
-                            <X size={14} />
-                        </button>
-                    </Motion.div>
-                ))}
-            </div>
-        </Motion.div>
-    );
-};
 
 const OverviewWidgetPicker = ({ isOpen, onClose, visibleWidgetIds, onToggleWidget, onResetWidgets }) => {
     if (!isOpen) return null;
@@ -536,7 +485,7 @@ const CurrentEventWidget = ({ scheduleItems, habitItems }) => {
                             </div>
                             <div>
                                 <h4 className="text-lg font-bold text-gray-900">Free Time</h4>
-                                <p className="text-sm text-gray-600">Recharge or pick a task from the garden.</p>
+                                <p className="text-sm text-gray-600">Recharge or pick a task from Tasks.</p>
                             </div>
                         </div>
 
@@ -1013,19 +962,7 @@ const Overview = ({ onNavigate }) => {
     const [showDailyRitual, setShowDailyRitual] = useState(false);
     const [ritualCompletedAt, setRitualCompletedAt] = useState(null);
     const [showWidgetPicker, setShowWidgetPicker] = useState(false);
-    const [visibleWidgetIds, setVisibleWidgetIds] = useState(() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem(OVERVIEW_WIDGET_STORAGE_KEY) || 'null');
-            if (Array.isArray(saved) && saved.length > 0) {
-                const validIds = new Set(OVERVIEW_WIDGETS.map((widget) => widget.id));
-                return saved.filter((id) => validIds.has(id));
-            }
-        } catch {
-            // Fall back to defaults.
-        }
-
-        return DEFAULT_OVERVIEW_WIDGET_IDS;
-    });
+    const [visibleWidgetIds, setVisibleWidgetIds] = useState(DEFAULT_OVERVIEW_WIDGET_IDS);
     const [pinnedLearningPathIds, setPinnedLearningPathIds] = useState(readPinnedLearningPathIds);
     const [showQuickSchedulePopup, setShowQuickSchedulePopup] = useState(false);
     const [showQuickAddTaskPopup, setShowQuickAddTaskPopup] = useState(false);
@@ -1044,10 +981,6 @@ const Overview = ({ onNavigate }) => {
 
     // Clarify conversation state (for iterative prompting)
     const [clarifyConversation, setClarifyConversation] = useState([]);
-
-    // Proactive suggestions state
-    const [proactiveSuggestions, setProactiveSuggestions] = useState([]);
-    const [dismissedSuggestions, setDismissedSuggestions] = useState([]);
 
     const now = useMemo(() => new Date(nowTick), [nowTick]);
     const todayStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now]);
@@ -1170,27 +1103,6 @@ const Overview = ({ onNavigate }) => {
             setRitualCompletedAt(null);
         }
     }, [todayKey]);
-
-    // Generate proactive suggestions
-    useEffect(() => {
-        if (profile?.preferences?.proactiveSuggestions === false) return;
-
-        const suggestions = generateProactiveSuggestions({
-            tasks,
-            schedule: scheduleItems,
-            habits,
-            profile,
-            currentTime: new Date().toISOString()
-        });
-
-        // Filter out dismissed suggestions
-        const filtered = suggestions.filter(s => !dismissedSuggestions.includes(s.id));
-        setProactiveSuggestions(filtered);
-    }, [tasks, scheduleItems, habits, profile, dismissedSuggestions]);
-
-    const handleDismissSuggestion = (suggestionId) => {
-        setDismissedSuggestions(prev => [...prev, suggestionId]);
-    };
 
     const getPopupStyle = (buttonRef) => {
         const buttonRect = buttonRef?.current?.getBoundingClientRect();
@@ -1809,6 +1721,46 @@ const Overview = ({ onNavigate }) => {
             return leftTime - rightTime;
         });
 
+    const scheduleBriefing = useMemo(() => {
+        const entries = commandCenterScheduleItems
+            .map((item) => {
+                const start = item.displayTime || new Date(item.startTime || item.start_time);
+                const duration = item.duration || 60;
+                const end = new Date(start.getTime() + duration * 60000);
+                const category = (item.category || item.subject || 'Other').toString().trim() || 'Other';
+                return { item, start, end, duration, category };
+            })
+            .filter((entry) => !Number.isNaN(entry.start.getTime()));
+
+        const totalBlocks = entries.length;
+        const totalMinutes = entries.reduce((sum, entry) => sum + entry.duration, 0);
+        const remainingBlocks = entries.filter((entry) => entry.end > now).length;
+        const remainingMinutes = entries.reduce((sum, entry) => (
+            entry.end > now ? sum + Math.max(0, getMinutesBetween(entry.start < now ? now : entry.start, entry.end)) : sum
+        ), 0);
+
+        const byCategory = new Map();
+        entries.forEach((entry) => {
+            const existing = byCategory.get(entry.category) || {
+                category: entry.category,
+                count: 0,
+                minutes: 0,
+                remaining: 0,
+                color: getColorForSubject(entry.category),
+            };
+            existing.count += 1;
+            existing.minutes += entry.duration;
+            if (entry.end > now) existing.remaining += 1;
+            byCategory.set(entry.category, existing);
+        });
+
+        const categories = [...byCategory.values()].sort((left, right) => (
+            right.remaining - left.remaining || right.minutes - left.minutes
+        ));
+
+        return { totalBlocks, totalMinutes, remainingBlocks, remainingMinutes, categories };
+    }, [commandCenterScheduleItems, now]);
+
     const scheduleSpotlight = (() => {
         const timedItems = commandCenterScheduleItems
             .map((item) => {
@@ -1886,16 +1838,16 @@ const Overview = ({ onNavigate }) => {
     return (
         <div className="h-full flex flex-col p-2 md:p-4 overflow-y-auto space-y-5 custom-scrollbar bg-transparent">
             <section className="overflow-hidden rounded-2xl border border-sage-200/70 bg-white/85 shadow-sm dark:border-white/10 dark:bg-void-900">
-                <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-                    <div className="min-w-0 border-b border-sage-100 p-5 sm:p-6 lg:border-b-0 lg:border-r">
+                <div className="min-w-0">
+                    <div className="min-w-0 p-5 sm:p-6">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                             <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-sage-700">
+                                <div className="app-eyebrow flex flex-wrap items-center gap-2">
                                     <span>{todayLabel}</span>
                                     <span className="h-1 w-1 rounded-full bg-sage-300" aria-hidden="true"></span>
                                     <span>{greeting}</span>
                                 </div>
-                                <h1 className="mt-2 text-2xl font-black leading-tight text-gray-950 sm:text-3xl">
+                                <h1 className="app-page-title mt-2">
                                     {displayName}'s overview
                                 </h1>
                             </div>
@@ -1927,7 +1879,7 @@ const Overview = ({ onNavigate }) => {
                         <div className="mt-7 border-l-2 border-indigo-400 pl-4">
                             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                 <div className="min-w-0">
-                                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-indigo-600">
+                                    <div className="app-eyebrow mb-2 flex flex-wrap items-center gap-2">
                                         <span className="inline-flex items-center gap-1">
                                             <Calendar size={13} />
                                             Current Schedule
@@ -1943,7 +1895,7 @@ const Overview = ({ onNavigate }) => {
                                             </span>
                                         )}
                                     </div>
-                                    <h2 className="text-xl font-black leading-snug text-gray-950">
+                                    <h2 className="app-section-title">
                                         {scheduleSpotlight.title}
                                     </h2>
                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
@@ -1959,13 +1911,11 @@ const Overview = ({ onNavigate }) => {
                         <div className="mt-4 min-w-0 overflow-hidden">
                             <MagicBox />
                         </div>
-                    </div>
 
-                    <aside className="min-w-0 bg-sage-50/35 p-5 sm:p-6">
-                        <div className="flex h-full min-h-[300px] flex-col">
+                        <div className="mt-6 border-t border-sage-100 pt-5">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <h2 className="text-lg font-black text-gray-950">Today</h2>
+                                    <h2 className="app-section-title">Today</h2>
                                     <p className="mt-1 text-xs font-medium text-gray-500">
                                         {todaySummary.eventsToday ? `${todaySummary.eventsToday} scheduled` : 'No scheduled events'}
                                     </p>
@@ -1979,7 +1929,48 @@ const Overview = ({ onNavigate }) => {
                                 </button>
                             </div>
 
-                            <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                            {scheduleBriefing.totalBlocks > 0 && (
+                                <div className="mt-4 rounded-xl border border-sage-200/70 bg-white/70 p-3.5">
+                                    <p className="text-sm font-semibold leading-6 text-gray-700">
+                                        {scheduleBriefing.remainingBlocks > 0 ? (
+                                            <>
+                                                You have{' '}
+                                                <span className="font-black text-gray-950">{scheduleBriefing.remainingBlocks}</span>
+                                                {' '}of {scheduleBriefing.totalBlocks}{' '}
+                                                {scheduleBriefing.totalBlocks === 1 ? 'block' : 'blocks'} still ahead
+                                                {' '}· {formatMinutesLabel(scheduleBriefing.remainingMinutes)} of scheduled time left
+                                            </>
+                                        ) : (
+                                            <>
+                                                All{' '}
+                                                <span className="font-black text-gray-950">{scheduleBriefing.totalBlocks}</span>
+                                                {' '}
+                                                {scheduleBriefing.totalBlocks === 1 ? 'block is' : 'blocks are'} behind you
+                                                {' '}· {formatMinutesLabel(scheduleBriefing.totalMinutes)} scheduled today
+                                            </>
+                                        )}
+                                        {' '}across {scheduleBriefing.categories.length}{' '}
+                                        {scheduleBriefing.categories.length === 1 ? 'area' : 'areas'}.
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-1.5">
+                                        {scheduleBriefing.categories.map((cat) => (
+                                            <span
+                                                key={cat.category}
+                                                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                style={{ backgroundColor: cat.color.bgColor, color: cat.color.color }}
+                                            >
+                                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color.color }}></span>
+                                                {cat.category}
+                                                <span className="opacity-70">
+                                                    {cat.count} · {formatMinutesLabel(cat.minutes)}
+                                                </span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="mt-5 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
                                 {commandCenterScheduleItems.length === 0 ? (
                                     <div className="pt-8 text-sm leading-6 text-gray-500">
                                         Nothing scheduled here yet.
@@ -2040,20 +2031,9 @@ const Overview = ({ onNavigate }) => {
                                 )}
                             </div>
                         </div>
-                    </aside>
+                    </div>
                 </div>
 
-                <AnimatePresence>
-                    {proactiveSuggestions.length > 0 && (
-                        <div className="border-t border-sage-100 px-5 pb-5 sm:px-6">
-                            <ProactiveSuggestionCard
-                                suggestions={proactiveSuggestions}
-                                onAction={handleChatAction}
-                                onDismiss={handleDismissSuggestion}
-                            />
-                        </div>
-                    )}
-                </AnimatePresence>
             </section>
 
             {/* Main Content Grid */}

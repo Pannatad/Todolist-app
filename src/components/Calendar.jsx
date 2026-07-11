@@ -160,7 +160,7 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, scheduleI
     };
 
     return (
-        <div className="w-full max-w-6xl mx-auto min-h-[850px] h-[calc(100vh-4rem)] flex flex-col relative overflow-hidden bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl p-6">
+        <div className="plan-surface w-full max-w-6xl mx-auto min-h-[850px] h-[calc(100vh-4rem)] flex flex-col relative overflow-hidden bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl p-6">
 
             {/* Camera Modal */}
             <AnimatePresence>
@@ -204,14 +204,14 @@ const Calendar = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, scheduleI
                 <div className="flex bg-white/20 backdrop-blur-md p-1 rounded-full border border-white/30">
                     <button
                         onClick={() => setViewMode('week')}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'week' ? 'bg-white/40 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/20'}`}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors ${viewMode === 'week' ? 'bg-white text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
                         <CalendarDays size={14} />
                         Weekly Plan
                     </button>
                     <button
                         onClick={() => setViewMode('schedule')}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${viewMode === 'schedule' ? 'bg-white/40 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/20'}`}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors ${viewMode === 'schedule' ? 'bg-white text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
                         <LayoutGrid size={14} />
                         Schedule

@@ -6,21 +6,74 @@ const ProjectContext = createContext();
 
 export const useProject = () => useContext(ProjectContext);
 
-// Default phases for new projects
-const DEFAULT_PHASES = [
-    { id: 'phase-1', name: 'Planning', color: 'purple', order: 0, deadline: null },
-    { id: 'phase-2', name: 'Prototype', color: 'blue', order: 1, deadline: null },
-    { id: 'phase-3', name: 'Testing', color: 'amber', order: 2, deadline: null },
-    { id: 'phase-4', name: 'Deployment', color: 'emerald', order: 3, deadline: null },
+const DEFAULT_COLUMNS = [
+    { id: 'c-1', title: 'Work tree 1' }
 ];
 
-// Default columns (same for each phase)
-const DEFAULT_COLUMNS = [
-    { id: 'c-1', title: 'To Do' },
-    { id: 'c-2', title: 'In Progress' },
-    { id: 'c-3', title: 'Review' },
-    { id: 'c-4', title: 'Done' }
+// Default phases for new projects
+const DEFAULT_PHASES = [
+    { id: 'phase-1', name: 'Stage 1', color: 'purple', order: 0, deadline: null, columns: DEFAULT_COLUMNS },
 ];
+
+const cloneColumns = (columns = DEFAULT_COLUMNS) => (
+    (Array.isArray(columns) && columns.length > 0 ? columns : DEFAULT_COLUMNS).map((column, index) => ({
+        id: column.id || `c-${index + 1}`,
+        title: column.title || `Work tree ${index + 1}`
+    }))
+);
+
+const getColumnSignature = (columns = []) => (
+    cloneColumns(columns).map((column) => `${column.id}:${column.title}`).join('|')
+);
+
+const getColumnsUsedInPhase = (tasks = [], phaseId, fallbackColumns = DEFAULT_COLUMNS, includeUnassignedTasks = false) => {
+    const usedColumnIds = new Set(
+        tasks
+            .filter((task) => (task.phaseId || (includeUnassignedTasks ? phaseId : null)) === phaseId && task.columnId)
+            .map((task) => task.columnId)
+    );
+
+    const usedColumns = cloneColumns(fallbackColumns).filter((column) => usedColumnIds.has(column.id));
+    return usedColumns.length > 0 ? usedColumns : cloneColumns(DEFAULT_COLUMNS);
+};
+
+const normalizePhases = (phases, fallbackColumns = DEFAULT_COLUMNS, tasks = [], options = {}) => (
+    (Array.isArray(phases) && phases.length > 0 ? phases : DEFAULT_PHASES).map((phase, index) => ({
+        ...phase,
+        id: phase.id || `phase-${index + 1}`,
+        name: phase.name || `Stage ${index + 1}`,
+        order: phase.order ?? index,
+        columns: !options.ignorePhaseColumns && Array.isArray(phase.columns) && phase.columns.length > 0
+            ? cloneColumns(phase.columns)
+            : getColumnsUsedInPhase(tasks, phase.id || `phase-${index + 1}`, fallbackColumns, index === 0)
+    }))
+);
+
+const getPhaseColumns = (project, phaseId) => {
+    const phase = project?.phases?.find((item) => item.id === phaseId);
+    return cloneColumns(phase?.columns || project?.columns || DEFAULT_COLUMNS);
+};
+
+const getDoneColumn = (project, phaseId = null) => (
+    getPhaseColumns(project, phaseId).find((column) => column.id === 'c-4' || column.title?.toLowerCase() === 'done')
+);
+
+const calculateProgress = (tasks = [], project) => {
+    if (tasks.length === 0) return 0;
+
+    const doneColumnByPhase = new Map();
+    const doneTasks = tasks.filter((task) => {
+        if (task.completed === true) return true;
+
+        if (!doneColumnByPhase.has(task.phaseId)) {
+            doneColumnByPhase.set(task.phaseId, getDoneColumn(project, task.phaseId));
+        }
+
+        return doneColumnByPhase.get(task.phaseId)?.id === task.columnId;
+    });
+
+    return Math.round((doneTasks.length / tasks.length) * 100);
+};
 
 const getDefaultLocalProjects = () => ([
     {
@@ -36,31 +89,52 @@ const getDefaultLocalProjects = () => ([
         phases: DEFAULT_PHASES,
         columns: DEFAULT_COLUMNS,
         tasks: [
-            { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'c-2', phaseId: 'phase-1' },
-            { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'c-4', phaseId: 'phase-1' },
-            { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'c-1', phaseId: 'phase-2' }
+            { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'c-1', phaseId: 'phase-1' },
+            { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'c-1', phaseId: 'phase-1' },
+            { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'c-1', phaseId: 'phase-1' }
         ]
     }
 ]);
 
-const normalizeProjectRecord = (project) => ({
-    ...project,
-    isPinned: project?.isPinned === true || project?.is_pinned === true,
-    isAIGenerated: project?.isAIGenerated === true || project?.is_ai_generated === true,
-    category: project?.category || 'General',
-    vision: project?.vision || project?.description || '',
-    notes: project?.notes || '',
-    deadline: project?.deadline || null,
-    phases: project?.phases || DEFAULT_PHASES,
-    columns: project?.columns || DEFAULT_COLUMNS,
-    tasks: Array.isArray(project?.tasks)
-        ? project.tasks.map((task) => ({
-            ...task,
-            id: task.id || crypto.randomUUID(),
-            phaseId: task.phaseId || (project?.phases?.[0]?.id || 'phase-1')
-        }))
-        : []
-});
+const normalizeProjectRecord = (project) => {
+    const projectColumns = cloneColumns(project?.columns);
+    const rawPhases = Array.isArray(project?.phases) && project.phases.length > 0 ? project.phases : DEFAULT_PHASES;
+    const tasks = Array.isArray(project?.tasks) ? project.tasks : [];
+    const projectColumnSignature = getColumnSignature(projectColumns);
+    const hasLegacySharedPhaseColumns = rawPhases.length > 1 && rawPhases.every((phase) => (
+        Array.isArray(phase.columns)
+        && phase.columns.length > 1
+        && getColumnSignature(phase.columns) === projectColumnSignature
+    ));
+    const phases = normalizePhases(rawPhases, projectColumns, tasks, {
+        ignorePhaseColumns: hasLegacySharedPhaseColumns
+    });
+
+    return {
+        ...project,
+        isPinned: project?.isPinned === true || project?.is_pinned === true,
+        isAIGenerated: project?.isAIGenerated === true || project?.is_ai_generated === true,
+        category: project?.category || 'General',
+        vision: project?.vision || project?.description || '',
+        notes: project?.notes || '',
+        deadline: project?.deadline || null,
+        phases,
+        columns: projectColumns,
+        tasks: tasks.length > 0
+            ? tasks.map((task) => {
+                const phaseId = task.phaseId || phases[0].id;
+                const phaseColumns = getPhaseColumns({ ...project, phases, columns: projectColumns }, phaseId);
+
+                return {
+                    ...task,
+                    id: task.id || crypto.randomUUID(),
+                    phaseId,
+                    columnId: task.columnId || phaseColumns[0]?.id || DEFAULT_COLUMNS[0].id
+                };
+            })
+            : []
+    };
+};
 
 const readLocalProjects = () => {
     try {
@@ -138,6 +212,18 @@ export const ProjectProvider = ({ children }) => {
     }, [projects, user]);
 
     const addProject = async (project) => {
+        const projectColumns = cloneColumns(project.columns);
+        const incomingTasks = Array.isArray(project.tasks) ? project.tasks : [];
+        const projectPhases = normalizePhases(project.phases, projectColumns, incomingTasks);
+        const projectTasks = Array.isArray(project.tasks)
+            ? project.tasks.map((task) => ({
+                ...task,
+                id: task.id || crypto.randomUUID(),
+                phaseId: task.phaseId || projectPhases[0].id,
+                columnId: task.columnId || getPhaseColumns({ ...project, phases: projectPhases, columns: projectColumns }, task.phaseId || projectPhases[0].id)[0]?.id || projectColumns[0].id
+            }))
+            : [];
+
         const newProject = {
             ...project,
             id: user ? undefined : crypto.randomUUID(),
@@ -150,9 +236,9 @@ export const ProjectProvider = ({ children }) => {
             notes: project.notes || '',
             deadline: project.deadline || null,
             tags: project.tags || [],
-            phases: project.phases || DEFAULT_PHASES,
-            columns: project.columns || DEFAULT_COLUMNS,
-            tasks: project.tasks || []
+            phases: projectPhases,
+            columns: projectColumns,
+            tasks: projectTasks
         };
 
         const tempId = crypto.randomUUID();
@@ -174,8 +260,8 @@ export const ProjectProvider = ({ children }) => {
                     is_ai_generated: newProject.isAIGenerated || false,
                     category: newProject.category || 'General',
                     is_pinned: newProject.isPinned || false,
-                    phases: newProject.phases || DEFAULT_PHASES,
-                    columns: newProject.columns || DEFAULT_COLUMNS,
+                    phases: newProject.phases,
+                    columns: newProject.columns,
                     tasks: newProject.tasks || [],
                     updated_at: newProject.updated_at
                 };
@@ -191,7 +277,8 @@ export const ProjectProvider = ({ children }) => {
                         vision: data.vision || data.description || '',
                         notes: data.notes || '',
                         deadline: data.deadline || null,
-                        phases: data.phases || DEFAULT_PHASES,
+                        phases: normalizePhases(data.phases, cloneColumns(data.columns), data.tasks),
+                        columns: cloneColumns(data.columns),
                         tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
                     };
                     setProjects(prev => prev.map(p => p.id === tempId ? { ...p, ...formattedData } : p));
@@ -259,7 +346,8 @@ export const ProjectProvider = ({ children }) => {
             name: phaseName,
             color: ['purple', 'blue', 'teal', 'amber', 'pink', 'emerald'][project.phases.length % 6],
             order: project.phases.length,
-            deadline: deadline || null
+            deadline: deadline || null,
+            columns: cloneColumns(DEFAULT_COLUMNS)
         };
 
         const updatedPhases = [...project.phases, newPhase];
@@ -306,6 +394,90 @@ export const ProjectProvider = ({ children }) => {
         await updateProject(projectId, { phases: reorderedPhases });
     };
 
+    const addColumn = async (projectId, columnTitle, phaseId = null) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const nextColumn = {
+            id: `c-${crypto.randomUUID().slice(0, 8)}`,
+            title: columnTitle
+        };
+
+        if (phaseId) {
+            const updatedPhases = normalizePhases(project.phases, project.columns).map(phase => {
+                if (phase.id !== phaseId) return phase;
+                return { ...phase, columns: [...getPhaseColumns(project, phaseId), nextColumn] };
+            });
+
+            await updateProject(projectId, { phases: updatedPhases });
+            return nextColumn;
+        }
+
+        const updatedColumns = [...cloneColumns(project.columns), nextColumn];
+        await updateProject(projectId, { columns: updatedColumns });
+        return nextColumn;
+    };
+
+    const updateColumn = async (projectId, columnId, updates, phaseId = null) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        if (phaseId) {
+            const updatedPhases = normalizePhases(project.phases, project.columns).map(phase => {
+                if (phase.id !== phaseId) return phase;
+                return {
+                    ...phase,
+                    columns: getPhaseColumns(project, phaseId).map(column =>
+                        column.id === columnId ? { ...column, ...updates } : column
+                    )
+                };
+            });
+
+            await updateProject(projectId, { phases: updatedPhases });
+            return;
+        }
+
+        const updatedColumns = cloneColumns(project.columns).map(column =>
+            column.id === columnId ? { ...column, ...updates } : column
+        );
+
+        await updateProject(projectId, { columns: updatedColumns });
+    };
+
+    const deleteColumn = async (projectId, columnId, phaseId = null) => {
+        const project = projects.find(p => p.id === projectId);
+        const columns = phaseId ? getPhaseColumns(project, phaseId) : cloneColumns(project?.columns);
+        if (!project || columns.length <= 1) return;
+
+        const remainingColumns = columns.filter(column => column.id !== columnId);
+        const fallbackColumnId = remainingColumns[0].id;
+        const updatedTasks = (project.tasks || []).map(task =>
+            task.columnId === columnId && (!phaseId || task.phaseId === phaseId) ? { ...task, columnId: fallbackColumnId } : task
+        );
+
+        if (phaseId) {
+            const updatedPhases = normalizePhases(project.phases, project.columns).map(phase =>
+                phase.id === phaseId ? { ...phase, columns: remainingColumns } : phase
+            );
+            const progress = calculateProgress(updatedTasks, { ...project, phases: updatedPhases });
+
+            await updateProject(projectId, {
+                phases: updatedPhases,
+                tasks: updatedTasks,
+                progress
+            });
+            return;
+        }
+
+        const progress = calculateProgress(updatedTasks, { ...project, columns: remainingColumns });
+
+        await updateProject(projectId, {
+            columns: remainingColumns,
+            tasks: updatedTasks,
+            progress
+        });
+    };
+
     const addTask = async (projectId, task) => {
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
@@ -314,17 +486,20 @@ export const ProjectProvider = ({ children }) => {
             ...task,
             id: crypto.randomUUID(),
             created_at: new Date().toISOString(),
-            phaseId: task.phaseId || project?.phases?.[0]?.id || 'phase-1'
+            phaseId: task.phaseId || project?.phases?.[0]?.id || DEFAULT_PHASES[0].id,
+            columnId: task.columnId || getPhaseColumns(project, task.phaseId || project?.phases?.[0]?.id || DEFAULT_PHASES[0].id)[0]?.id || DEFAULT_COLUMNS[0].id
         };
 
         // Create the updated tasks array BEFORE updating state
         const updatedTasks = [...project.tasks, newTask];
+        const progress = calculateProgress(updatedTasks, project);
 
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
             return {
                 ...p,
-                tasks: updatedTasks
+                tasks: updatedTasks,
+                progress
             };
         }));
 
@@ -332,6 +507,7 @@ export const ProjectProvider = ({ children }) => {
             try {
                 await supabase.from('projects').update({
                     tasks: updatedTasks,
+                    progress,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
                 console.log('✅ Task synced to cloud');
@@ -349,12 +525,14 @@ export const ProjectProvider = ({ children }) => {
 
         // Compute updated tasks BEFORE updating state
         const updatedTasks = project.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
+        const progress = calculateProgress(updatedTasks, project);
 
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
             return {
                 ...p,
-                tasks: updatedTasks
+                tasks: updatedTasks,
+                progress
             };
         }));
 
@@ -362,6 +540,7 @@ export const ProjectProvider = ({ children }) => {
             try {
                 await supabase.from('projects').update({
                     tasks: updatedTasks,
+                    progress,
                     updated_at: new Date().toISOString()
                 }).eq('id', projectId);
                 console.log('✅ Task update synced to cloud');
@@ -377,14 +556,7 @@ export const ProjectProvider = ({ children }) => {
 
         // Compute updated data BEFORE state update
         const updatedTasks = project.tasks.filter(t => t.id !== taskId);
-        const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
-        let progress = project.progress;
-
-        if (doneColumn) {
-            const totalTasks = updatedTasks.length;
-            const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
-            progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-        }
+        const progress = calculateProgress(updatedTasks, project);
 
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
@@ -425,14 +597,7 @@ export const ProjectProvider = ({ children }) => {
             return { ...task, ...updates };
         });
 
-        const doneColumn = project.columns.find(c => c.title.toLowerCase() === 'done');
-        let progress = project.progress;
-
-        if (doneColumn) {
-            const totalTasks = updatedTasks.length;
-            const doneTasks = updatedTasks.filter(t => t.columnId === doneColumn.id).length;
-            progress = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
-        }
+        const progress = calculateProgress(updatedTasks, project);
 
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
@@ -462,9 +627,7 @@ export const ProjectProvider = ({ children }) => {
             t.id === taskId ? { ...t, completed: !t.completed } : t
         );
 
-        // Recalculate progress
-        const completedCount = updatedTasks.filter(t => t.completed).length;
-        const progress = updatedTasks.length > 0 ? Math.round((completedCount / updatedTasks.length) * 100) : 0;
+        const progress = calculateProgress(updatedTasks, project);
 
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
@@ -623,9 +786,7 @@ export const ProjectProvider = ({ children }) => {
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
 
-        // Recalculate progress
-        const completedCount = newTaskOrder.filter(t => t.completed).length;
-        const progress = newTaskOrder.length > 0 ? Math.round((completedCount / newTaskOrder.length) * 100) : 0;
+        const progress = calculateProgress(newTaskOrder, project);
 
         setProjects(prev => prev.map(p => {
             if (p.id !== projectId) return p;
@@ -744,6 +905,10 @@ export const ProjectProvider = ({ children }) => {
             updatePhase,
             deletePhase,
             reorderPhases,
+            // Work tree operations
+            addColumn,
+            updateColumn,
+            deleteColumn,
             // Mind map operations
             toggleTaskComplete,
             addSubtask,

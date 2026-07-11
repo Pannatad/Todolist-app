@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
@@ -59,16 +59,15 @@ const WeeklyGrid = () => {
     return (
         <div className="space-y-4">
             <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 ${inkBorder} ${softPopShadow} dark:bg-void-900/90 sm:p-5`}>
-                <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-200/80" />
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="relative z-10">
                         <div className="flex items-center gap-2 text-slate-500">
-                            <span className="grid h-9 w-9 place-items-center rounded-2xl border-2 border-slate-800 bg-sky-300 text-slate-950">
+                            <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-sky-50 text-sky-700">
                                 <CalendarDays size={16} strokeWidth={2.7} />
                             </span>
-                            <span className="text-[11px] font-black uppercase tracking-[0.22em]">Weekly view</span>
+                            <span className="app-eyebrow">Weekly view</span>
                         </div>
-                        <h2 className="mt-2 text-xl font-black text-slate-950 dark:text-bone-100">{formatDateRange()}</h2>
+                        <h2 className="app-section-title mt-2">{formatDateRange()}</h2>
                     </div>
 
                     <div className="relative z-10 flex items-center gap-2">
@@ -81,7 +80,7 @@ const WeeklyGrid = () => {
                         {weekOffset !== 0 && (
                             <button
                                 onClick={() => setWeekOffset(0)}
-                                className={`rounded-full border-2 border-slate-800 bg-amber-200 px-3 py-2 text-sm font-black text-slate-900 shadow-[3px_3px_0_#1E293B] ${popMotion} hover:-translate-y-0.5`}
+                                className={`rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 ${popMotion} hover:bg-slate-50`}
                             >
                                 This week
                             </button>
@@ -99,13 +98,13 @@ const WeeklyGrid = () => {
 
             <section className={`overflow-hidden rounded-[28px] bg-white ${inkBorder} ${softPopShadow} dark:bg-void-900/90`}>
                 <div className="grid grid-cols-8 border-b-2 border-slate-800 bg-slate-100 dark:border-bone-200/70 dark:bg-void-800">
-                    <div className="p-3 text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:text-bone-200/70">Habit</div>
+                    <div className="app-eyebrow p-3">Habit</div>
                     {weekDates.map((date) => (
                         <div key={date.toISOString()} className={`border-l-2 border-slate-800 p-3 text-center dark:border-bone-200/70 ${isToday(date) ? 'bg-emerald-100' : ''}`}>
-                            <div className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                            <div className="text-xs font-medium text-slate-500">
                                 {date.toLocaleDateString('en-US', { weekday: 'short' })}
                             </div>
-                            <div className={`mt-1 text-sm font-black ${isToday(date) ? 'text-emerald-800' : 'text-slate-800 dark:text-bone-100'}`}>
+                            <div className={`mt-1 text-sm font-semibold ${isToday(date) ? 'text-emerald-800' : 'text-slate-800 dark:text-bone-100'}`}>
                                 {date.getDate()}
                             </div>
                         </div>
@@ -126,7 +125,7 @@ const WeeklyGrid = () => {
                                         <span className="text-base">{habit.icon}</span>
                                     </div>
                                     <div className="min-w-0">
-                                        <div className="truncate text-sm font-black text-slate-800 dark:text-bone-100">{habit.name}</div>
+                                        <div className="truncate text-sm font-semibold text-slate-800 dark:text-bone-100">{habit.name}</div>
                                         <div className="text-xs font-semibold text-slate-400">{habit.frequency === 'daily' ? 'Daily' : 'Custom schedule'}</div>
                                     </div>
                                 </div>
@@ -140,7 +139,7 @@ const WeeklyGrid = () => {
                                     return (
                                         <div key={`${habit.id}-${date.toISOString()}`} className={`flex items-center justify-center border-l border-slate-100 p-2 dark:border-white/10 ${isToday(date) ? 'bg-emerald-50/80' : ''}`}>
                                             {isScheduled ? (
-                                                <motion.button
+                                                <Motion.button
                                                     whileHover={isEditable ? { scale: 1.04 } : undefined}
                                                     whileTap={isEditable ? { scale: 0.96 } : undefined}
                                                     onClick={() => {
@@ -168,7 +167,7 @@ const WeeklyGrid = () => {
                                                         : isEditable
                                                             ? <span className="text-xs font-black">+</span>
                                                             : <Lock size={13} />}
-                                                </motion.button>
+                                                </Motion.button>
                                             ) : (
                                                 <div className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-slate-200 bg-slate-100 text-xs font-black text-slate-300">
                                                     -

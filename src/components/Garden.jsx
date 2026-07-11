@@ -858,28 +858,28 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
             >
                 <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sage-500">
+                        <div className="app-eyebrow flex items-center gap-2">
                             <Target size={15} />
                             Today’s task lane
                         </div>
                         <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
-                            <span className="text-4xl font-black leading-none text-sage-950 dark:text-bone-100">{allCount}</span>
+                            <span className="text-3xl font-bold leading-none text-sage-950 dark:text-bone-100">{allCount}</span>
                             <span className="pb-1 text-sm font-bold text-sage-500 dark:text-bone-200/60">active tasks moving</span>
                         </div>
                     </div>
 
                     <div className="grid min-w-0 grid-cols-3 gap-2 sm:w-[23rem]">
                         <div className="rounded-2xl bg-amber-50 px-3 py-2 text-amber-800 ring-1 ring-amber-100 dark:bg-amber-950/25 dark:text-amber-100 dark:ring-amber-900/30">
-                            <div className="text-[10px] font-black uppercase tracking-wide">Today</div>
-                            <div className="text-xl font-black">{todayTasks.length}</div>
+                            <div className="app-eyebrow">Today</div>
+                            <div className="text-xl font-bold">{todayTasks.length}</div>
                         </div>
                         <div className="rounded-2xl bg-sky-50 px-3 py-2 text-sky-800 ring-1 ring-sky-100 dark:bg-sky-950/25 dark:text-sky-100 dark:ring-sky-900/30">
-                            <div className="text-[10px] font-black uppercase tracking-wide">Chunked</div>
-                            <div className="text-xl font-black">{chunkedCount}</div>
+                            <div className="app-eyebrow">Chunked</div>
+                            <div className="text-xl font-bold">{chunkedCount}</div>
                         </div>
                         <div className="rounded-2xl bg-rose-50 px-3 py-2 text-rose-800 ring-1 ring-rose-100 dark:bg-rose-950/25 dark:text-rose-100 dark:ring-rose-900/30">
-                            <div className="text-[10px] font-black uppercase tracking-wide">Late</div>
-                            <div className="text-xl font-black">{overdueCount}</div>
+                            <div className="app-eyebrow">Late</div>
+                            <div className="text-xl font-bold">{overdueCount}</div>
                         </div>
                     </div>
                 </div>
@@ -893,7 +893,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                     <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
                         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                             <div>
-                                <h2 className="text-xl sm:text-2xl font-serif text-sage-700 dark:text-bone-100">Task Flow</h2>
+                                <h2 className="app-section-title">Task flow</h2>
                                 <p className="mt-0.5 text-xs font-medium text-sage-500 dark:text-bone-200/60">
                                     Pick a task, shape the next steps, keep it moving.
                                 </p>
@@ -998,7 +998,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
 
                 {completedTasks.length > 0 && (
                     <div className="rounded-3xl border border-sage-100 bg-white/50 p-3 shadow-sm dark:border-white/10 dark:bg-void-900/40 sm:p-4">
-                        <h2 className="mb-4 pl-1 text-lg font-serif text-sage-500 dark:text-bone-200/60">Completed</h2>
+                        <h2 className="app-section-title mb-4 pl-1">Completed</h2>
                         <div className="space-y-3 opacity-75 hover:opacity-100 transition-opacity">
                             {completedTasks.map(task => (
                                 <TaskListRow

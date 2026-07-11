@@ -397,9 +397,9 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                 <div>
                     <div className="flex items-center gap-2 text-indigo-500">
                         <CalendarDays size={18} />
-                        <span className="text-xs font-bold uppercase tracking-[0.18em]">Weekly Plan</span>
+                        <span className="app-eyebrow">Weekly plan</span>
                     </div>
-                    <h2 className="mt-1 text-2xl font-bold text-slate-900">{weekLabel}</h2>
+                    <h2 className="app-page-title mt-1">{weekLabel}</h2>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

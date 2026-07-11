@@ -250,8 +250,8 @@ const MagicBox = ({ onSubmit, isLoading: externalLoading = false }) => {
                 <div className="relative min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                     {/* Gradient accent line at top */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${isListening
-                        ? 'bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 animate-pulse'
-                        : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'}`}></div>
+                        ? 'bg-red-500 animate-pulse'
+                        : 'bg-indigo-500'}`}></div>
 
                     <div className="flex min-w-0 items-center p-2.5 pt-4 sm:p-3 sm:pt-4">
                         {/* Magic Icon */}
