@@ -1,224 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { ArrowRight, Calendar, Check, CheckCircle2, Clock, ListChecks, Sparkles, Sunrise, Target, X } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, Sparkles, Sunrise, X } from 'lucide-react';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
-
-const RITUAL_NOTE_PREFIX = 'Created from Daily Ritual';
-
-const STEP_META = [
-    { id: 'review', label: 'Review', icon: ListChecks },
-    { id: 'priorities', label: 'Priorities', icon: Target },
-    { id: 'plan', label: 'Plan', icon: Calendar },
-    { id: 'launch', label: 'Launch', icon: Sparkles },
-];
-
-const buttonPressProps = (handler) => ({
-    onMouseDown: (event) => {
-        event.preventDefault();
-        handler(event);
-    },
-    onKeyDown: (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handler(event);
-        }
-    },
-});
-
-const formatTime = (date) => (
-    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-);
-
-const formatMinutes = (minutes) => {
-    if (!minutes || minutes <= 0) return '0 min';
-    if (minutes < 60) return `${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    const rest = minutes % 60;
-    return rest ? `${hours}h ${rest}m` : `${hours}h`;
-};
-
-const roundToNextQuarter = (date) => {
-    const rounded = new Date(date);
-    rounded.setSeconds(0, 0);
-    const minutes = rounded.getMinutes();
-    const remainder = minutes % 15;
-    if (remainder !== 0) rounded.setMinutes(minutes + (15 - remainder));
-    return rounded;
-};
-
-const parseDayTime = (timeValue, fallbackHour, fallbackMinute = 0) => {
-    if (typeof timeValue !== 'string') return [fallbackHour, fallbackMinute];
-    const [hour, minute] = timeValue.split(':').map(Number);
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return [fallbackHour, fallbackMinute];
-    return [hour, minute];
-};
-
-const getTaskEstimate = (task) => {
-    const explicitEstimate = Number(task.estimatedTime ?? task.estimated_time);
-    if (Number.isFinite(explicitEstimate) && explicitEstimate > 0) {
-        return Math.min(120, Math.max(25, explicitEstimate));
-    }
-
-    switch (String(task.difficulty || '').toLowerCase()) {
-        case 'hard':
-            return 90;
-        case 'medium':
-            return 60;
-        default:
-            return 35;
-    }
-};
-
-const getHabitEstimate = (habit) => {
-    if (habit.type === 'duration') {
-        const target = Number(habit.target);
-        if (Number.isFinite(target) && target > 0) return Math.min(120, Math.max(10, target));
-    }
-
-    return 25;
-};
-
-const getRitualItemEstimate = (item) => (
-    item.kind === 'habit' ? getHabitEstimate(item.habit) : getTaskEstimate(item.task)
-);
-
-const sortTasksForRitual = (left, right) => {
-    const leftDeadline = left.deadline ? new Date(left.deadline).getTime() : Number.POSITIVE_INFINITY;
-    const rightDeadline = right.deadline ? new Date(right.deadline).getTime() : Number.POSITIVE_INFINITY;
-    if (leftDeadline !== rightDeadline) return leftDeadline - rightDeadline;
-
-    const difficultyRank = { hard: 0, medium: 1, easy: 2 };
-    return (difficultyRank[left.difficulty] ?? 3) - (difficultyRank[right.difficulty] ?? 3);
-};
-
-const makeTaskCandidate = (task) => ({
-    key: `task:${task.id}`,
-    kind: 'task',
-    id: String(task.id),
-    title: task.title,
-    task,
-});
-
-const makeHabitCandidate = (habit) => ({
-    key: `habit:${habit.id}`,
-    kind: 'habit',
-    id: String(habit.id),
-    title: habit.name,
-    habit,
-});
-
-const getFreeWindows = (scheduleItems, now, profile) => {
-    const workingHours = profile?.workingHours || {};
-    const [startHour, startMinute] = parseDayTime(workingHours.start, 8, 0);
-    const [endHour, endMinute] = parseDayTime(workingHours.end, 22, 0);
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMinute, 0, 0);
-    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endHour, endMinute, 0, 0);
-    const planningStart = roundToNextQuarter(now > dayStart ? now : dayStart);
-    const planningEnd = dayEnd > planningStart ? dayEnd : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 0, 0, 0);
-
-    const sortedEvents = scheduleItems
-        .map((item) => {
-            const start = item.displayTime || new Date(item.startTime || item.start_time);
-            const duration = Number(item.duration) || 60;
-            return {
-                start,
-                end: new Date(start.getTime() + duration * 60000),
-            };
-        })
-        .filter((event) => event.end > planningStart)
-        .sort((left, right) => left.start - right.start);
-
-    const windows = [];
-    let cursor = new Date(planningStart);
-
-    sortedEvents.forEach((event) => {
-        if (event.start > cursor) {
-            const minutes = Math.round((event.start - cursor) / 60000);
-            if (minutes >= 25) {
-                windows.push({ start: new Date(cursor), end: new Date(event.start), minutes });
-            }
-        }
-        if (event.end > cursor) cursor = new Date(event.end);
-    });
-
-    if (planningEnd > cursor) {
-        const minutes = Math.round((planningEnd - cursor) / 60000);
-        if (minutes >= 25) windows.push({ start: new Date(cursor), end: planningEnd, minutes });
-    }
-
-    return windows;
-};
-
-const buildPlanBlocks = (selectedItems, windows) => {
-    const blocks = [];
-    const mutableWindows = windows.map((window) => ({ ...window, cursor: new Date(window.start) }));
-
-    selectedItems.forEach((item) => {
-        const targetDuration = getRitualItemEstimate(item);
-        const window = mutableWindows.find((candidate) => candidate.minutes >= 25);
-        if (!window) return;
-
-        const remaining = Math.round((window.end - window.cursor) / 60000);
-        const minimumDuration = item.kind === 'habit' ? 10 : 25;
-        const duration = Math.min(targetDuration, remaining >= targetDuration ? targetDuration : Math.max(minimumDuration, remaining));
-        if (duration < minimumDuration || window.cursor >= window.end) return;
-
-        const start = new Date(window.cursor);
-        const end = new Date(start.getTime() + duration * 60000);
-        blocks.push({
-            id: `${item.key}_${start.toISOString()}`,
-            ...item,
-            start,
-            end,
-            duration,
-        });
-
-        window.cursor = new Date(end.getTime() + 10 * 60000);
-        window.minutes = Math.round((window.end - window.cursor) / 60000);
-    });
-
-    return blocks;
-};
-
-const getRitualKeyFromScheduleItem = (item) => {
-    const notes = item?.notes || '';
-    const keyMatch = notes.match(/Daily Ritual key:([^\s]+)/);
-    if (keyMatch?.[1]) return keyMatch[1];
-
-    const legacyTaskMatch = notes.match(/Daily Ritual task:([^\s]+)/);
-    return legacyTaskMatch?.[1] ? `task:${legacyTaskMatch[1]}` : null;
-};
-
-const RitualChoice = ({ item, selected, onToggle }) => {
-    const deadline = item.kind === 'task' && item.task.deadline ? new Date(item.task.deadline) : null;
-    const label = item.kind === 'habit' ? 'habit' : (item.task.difficulty || 'task');
-
-    return (
-        <button
-            type="button"
-            {...buttonPressProps(() => onToggle(item.key))}
-            className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${selected
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent)] shadow-sm'
-                : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
-                }`}
-        >
-            <div className="flex items-start gap-3">
-                <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-[var(--color-accent)]0 bg-[var(--color-accent)] text-white' : 'border-gray-300 bg-white text-transparent'}`}>
-                    <Check size={12} />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-gray-900">{item.title}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                        <span>{label}</span>
-                        <span>{formatMinutes(getRitualItemEstimate(item))}</span>
-                        {deadline && <span>due {deadline.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}
-                    </div>
-                </div>
-            </div>
-        </button>
-    );
-};
+import RitualChoice from './RitualChoice';
+import RitualNavigation from './RitualNavigation';
+import {
+    buildPlanBlocks,
+    buttonPressProps,
+    formatMinutes,
+    formatTime,
+    getFreeWindows,
+    getRitualKeyFromScheduleItem,
+    makeHabitCandidate,
+    makeTaskCandidate,
+    RITUAL_NOTE_PREFIX,
+    sortTasksForRitual,
+    STEP_META,
+} from './dailyRitualUtils';
 
 const DailyRitualModal = ({
     isOpen,
@@ -679,38 +478,19 @@ const DailyRitualModal = ({
                             </main>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-gray-100 px-5 py-4 sm:px-7">
-                            <button
-                                type="button"
-                                {...buttonPressProps(goBack)}
-                                disabled={stepIndex === 0}
-                                className="rounded-2xl px-4 py-2 text-sm font-bold text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                Back
-                            </button>
-                            {stepIndex < STEP_META.length - 1 ? (
-                                <button
-                                    type="button"
-                                    {...buttonPressProps(goNext)}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800"
-                                >
-                                    Continue <ArrowRight size={16} />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    {...buttonPressProps(handleFinish)}
-                                    className="rounded-2xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800"
-                                >
-                                    Done
-                                </button>
-                            )}
-                        </div>
+                        <RitualNavigation
+                            goBack={goBack}
+                            goNext={goNext}
+                            handleFinish={handleFinish}
+                            stepCount={STEP_META.length}
+                            stepIndex={stepIndex}
+                        />
                     </Motion.div>
                 </Motion.div>
             )}
         </AnimatePresence>
     );
 };
+
 
 export default DailyRitualModal;
