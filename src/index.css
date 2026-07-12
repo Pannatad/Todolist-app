@@ -59,32 +59,6 @@
   --color-emerald-600: #059669;
   --color-emerald-900: #064e3b;
 
-  /* Demon Mode Colors 🔥 */
-  --color-inferno-50: #fef2f2;
-  --color-inferno-100: #fee2e2;
-  --color-inferno-200: #fecaca;
-  --color-inferno-500: #ef4444;
-  --color-inferno-600: #dc2626;
-  --color-inferno-700: #b91c1c;
-  --color-inferno-800: #991b1b;
-  --color-inferno-900: #7f1d1d;
-  --color-lava-400: #fb923c;
-  --color-lava-500: #f97316;
-  --color-lava-600: #ea580c;
-
-  /* Penguin Mode Colors ❄️ */
-  --color-frost-50: #f0f9ff;
-  --color-frost-100: #e0f2fe;
-  --color-frost-200: #bae6fd;
-  --color-frost-500: #06b6d4;
-  --color-frost-600: #0891b2;
-  --color-frost-700: #0e7490;
-  --color-frost-800: #155e75;
-  --color-frost-900: #164e63;
-  --color-arctic-400: #2dd4bf;
-  --color-arctic-500: #14b8a6;
-  --color-arctic-600: #0d9488;
-
   --font-serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
@@ -387,33 +361,6 @@
     background-color: rgba(42, 42, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
-  }
-
-  /* Mode-Specific Background Themes */
-  /* Demon Mode 🔥 - Fiery red/orange theme */
-  .mode-demon body {
-    background-color: var(--color-inferno-50);
-    background-image: radial-gradient(at 100% 0%, rgba(239, 68, 68, 0.1) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(249, 115, 22, 0.1) 0px, transparent 50%);
-  }
-
-  .dark.mode-demon body {
-    background-color: var(--color-inferno-900);
-    background-image: radial-gradient(at 100% 0%, rgba(239, 68, 68, 0.3) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(249, 115, 22, 0.3) 0px, transparent 50%);
-  }
-
-  /* Penguin Mode ❄️ - Cool blue/cyan theme */
-  .mode-penguin body {
-    background-color: var(--color-frost-50);
-    background-image: radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(20, 184, 166, 0.1) 0px, transparent 50%);
-  }
-
-  .dark.mode-penguin body {
-    background-color: var(--color-frost-900);
-    background-image: radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.3) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(20, 184, 166, 0.3) 0px, transparent 50%);
   }
 
   /* Grid Pattern Background */

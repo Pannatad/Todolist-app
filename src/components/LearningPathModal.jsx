@@ -1,5 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
 
 const EMOJI_OPTIONS = ['📚', '🧠', '💻', '🎨', '🎵', '🌍', '🔬', '📐', '✍️', '🏋️', '🗣️', '📊', '🎯', '🚀', '⚡', '💡', '🔮', '🌟'];
@@ -62,14 +63,14 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
 
     return (
         <AnimatePresence>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
                 onClick={onClose}
             >
-                <motion.div
+                <Motion.div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -120,7 +121,7 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
                             {/* Emoji Picker */}
                             <AnimatePresence>
                                 {showEmojiPicker && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
@@ -139,7 +140,7 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
                                                 {emoji}
                                             </button>
                                         ))}
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
@@ -236,8 +237,8 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
                             </button>
                         </div>
                     </form>
-                </motion.div>
-            </motion.div>
+                </Motion.div>
+            </Motion.div>
         </AnimatePresence>
     );
 };

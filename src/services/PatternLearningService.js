@@ -19,7 +19,7 @@ class PatternLearningService {
      * Analyze all user data and generate insights
      */
     analyzeAndGenerateInsights(data) {
-        const { tasks, scheduleItems, sleepData, habits } = data;
+        const { tasks, scheduleItems, sleepData } = data;
         const insights = [];
 
         // Analyze work patterns

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 
@@ -10,6 +11,8 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         if (!supabase) {
+            // Guest mode must become available immediately when Supabase is not configured.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLoading(false);
             return;
         }

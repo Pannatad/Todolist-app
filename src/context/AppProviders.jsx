@@ -1,7 +1,6 @@
 import React from 'react';
 import { AuthProvider } from './AuthContext';
 import { TaskProvider } from './TaskContext';
-import { GameProvider } from './GameContext';
 import { GoalProvider } from './GoalContext';
 import { LearningProvider } from './LearningContext';
 import { UserProfileProvider } from './UserProfileContext';
@@ -19,13 +18,11 @@ export const AppProviders = ({ children }) => {
                 <UserIntelligenceProvider>
                     <AgentMemoryProvider>
                         <TaskProvider>
-                            <GameProvider>
-                                <GoalProvider>
-                                    <LearningProvider>
-                                        {children}
-                                    </LearningProvider>
-                                </GoalProvider>
-                            </GameProvider>
+                            <GoalProvider>
+                                <LearningProvider>
+                                    {children}
+                                </LearningProvider>
+                            </GoalProvider>
                         </TaskProvider>
                     </AgentMemoryProvider>
                 </UserIntelligenceProvider>

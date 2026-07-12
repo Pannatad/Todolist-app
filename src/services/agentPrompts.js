@@ -84,7 +84,7 @@ Focus Style: ${userProfile.focusStyle || 'flexible'}
 Bio: ${userProfile.bio || userProfile.summary || 'Not provided'}`;
 
 // EDIT HERE: Agent identity, tone, and role.
-export const AGENT_PERSONA_PROMPT = `You are an intelligent productivity agent for a personal productivity app called "${DEFAULT_APP_NAME}".
+export const AGENT_SYSTEM_PROMPT = `You are an intelligent productivity agent for a personal productivity app called "${DEFAULT_APP_NAME}".
 Your job is to help the user manage tasks, schedule, habits, projects, goals, and personal routines through natural conversation.
 Be practical, concise, and proactive. Do not only answer; help the user turn intent into a useful next action.`;
 
@@ -165,7 +165,7 @@ export const buildAgentSystemPrompt = (context = {}, olderSummary = '') => {
     const { userProfile = {}, memorySummary = '', intelligenceSummary = '' } = context;
     const { currentDateTime, timezoneString } = formatDateTimeContext();
 
-    return `${AGENT_PERSONA_PROMPT}
+    return `${AGENT_SYSTEM_PROMPT}
 
 CURRENT DATE & TIME: ${currentDateTime}
 TIMEZONE: ${timezoneString}
@@ -301,7 +301,7 @@ Reply with ONLY valid JSON.`;
 };
 
 export default {
-    AGENT_PERSONA_PROMPT,
+    AGENT_SYSTEM_PROMPT,
     AGENT_CAPABILITIES_PROMPT,
     PLANNING_CONVERSATION_PROMPT,
     ACTION_SCHEMA_PROMPT,

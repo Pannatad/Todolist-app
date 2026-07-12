@@ -2,12 +2,10 @@ import { supabase } from '../../services/supabase';
 import { sanitizeTopicPayload } from '../learningUtils';
 
 export const createLearningTopicActions = ({
-    resources,
     setResources,
     setTimeLogs,
     setTopics,
     syncPrimaryVideoResource,
-    timeLogs,
     topics,
     user,
 }) => {
@@ -38,7 +36,7 @@ export const createLearningTopicActions = ({
         let createdTopic = newTopic;
 
         if (user && supabase) {
-            const { id, ...dbTopic } = newTopic;
+            const { id: _id, ...dbTopic } = newTopic;
             const { data, error } = await supabase.from('learning_topics').insert([dbTopic]).select().single();
             if (data) {
                 setTopics(prev => prev.map(t => t.id === tempId ? data : t));
@@ -91,7 +89,11 @@ export const createLearningTopicActions = ({
 
         if (user && supabase) {
             try {
-                const dbTopics = newTopics.map(({ id, ...rest }) => rest);
+                const dbTopics = newTopics.map((topic) => {
+                    const dbTopic = { ...topic };
+                    delete dbTopic.id;
+                    return dbTopic;
+                });
                 const { data, error } = await supabase.from('learning_topics').insert(dbTopics).select();
                 if (data) {
                     createdTopics = data;
@@ -270,4 +272,3 @@ export const createLearningTopicActions = ({
         updateTopicStatus,
     };
 };
-

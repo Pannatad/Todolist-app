@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import { COLOR_OPTIONS } from './LearningPathModal';
@@ -45,7 +45,7 @@ const formatShortDate = (date) => {
 };
 
 const TimetableSummary = () => {
-    const { learningPaths, getAllTimetableEntries, getTimetableForDay } = useLearning();
+    const { getAllTimetableEntries, getTimetableForDay } = useLearning();
     const [hiddenPaths, setHiddenPaths] = useState(new Set());
     const [showFilter, setShowFilter] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
@@ -160,7 +160,7 @@ const TimetableSummary = () => {
     today.setHours(0, 0, 0, 0);
 
     return (
-        <motion.div
+        <Motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
@@ -207,7 +207,7 @@ const TimetableSummary = () => {
 
             <AnimatePresence initial={false}>
                 {!collapsed && (
-                    <motion.div
+                    <Motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -217,7 +217,7 @@ const TimetableSummary = () => {
                         {/* Filter Panel */}
                         <AnimatePresence>
                             {showFilter && (
-                                <motion.div
+                                <Motion.div
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
@@ -247,7 +247,7 @@ const TimetableSummary = () => {
                                             })}
                                         </div>
                                     </div>
-                                </motion.div>
+                                </Motion.div>
                             )}
                         </AnimatePresence>
 
@@ -364,7 +364,7 @@ const TimetableSummary = () => {
                                                 const blockHeight = (duration / 60) * CELL_HEIGHT;
 
                                                 return (
-                                                    <motion.div
+                                                    <Motion.div
                                                         key={`${slot.pathId}-${day.value}-${idx}`}
                                                         initial={{ opacity: 0, scale: 0.8 }}
                                                         animate={{ opacity: 1, scale: 1 }}
@@ -396,7 +396,7 @@ const TimetableSummary = () => {
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    </motion.div>
+                                                    </Motion.div>
                                                 );
                                             });
                                         })}
@@ -436,10 +436,10 @@ const TimetableSummary = () => {
                                 </div>
                             </div>
                         )}
-                    </motion.div>
+                    </Motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </Motion.div>
     );
 };
 

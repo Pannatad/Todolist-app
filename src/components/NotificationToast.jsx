@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, AlertTriangle, Clock, Zap, ArrowRight } from 'lucide-react';
 import smartNotificationService from '../services/SmartNotificationService';
 
@@ -68,7 +68,7 @@ const NotificationToast = ({ onAction }) => {
                     const colorClass = NOTIFICATION_COLORS[notification.type] || 'from-gray-500 to-gray-600';
 
                     return (
-                        <motion.div
+                        <Motion.div
                             key={notification.id}
                             initial={{ opacity: 0, x: 100, scale: 0.9 }}
                             animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -116,14 +116,14 @@ const NotificationToast = ({ onAction }) => {
                                 )}
 
                                 {/* Progress bar for auto-dismiss */}
-                                <motion.div
+                                <Motion.div
                                     className="absolute bottom-0 left-0 h-1 bg-white/30 rounded-b-2xl"
                                     initial={{ width: '100%' }}
                                     animate={{ width: '0%' }}
                                     transition={{ duration: 8, ease: 'linear' }}
                                 />
                             </div>
-                        </motion.div>
+                        </Motion.div>
                     );
                 })}
             </AnimatePresence>

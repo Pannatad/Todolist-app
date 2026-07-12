@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
@@ -30,15 +31,18 @@ export const AgentMemoryProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     // Load memory on mount or user change
+    // These loaders are intentionally re-created with the provider's current user state.
     useEffect(() => {
         if (user) {
             loadMemoryFromSupabase();
         } else {
             loadMemoryFromLocalStorage();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     // Auto-purge old short-term memory entries
+    // Purging uses the current save handler and is intentionally tied to memory updates.
     useEffect(() => {
         const now = Date.now();
         const filtered = shortTermMemory.filter(entry => {
@@ -50,6 +54,7 @@ export const AgentMemoryProvider = ({ children }) => {
             setShortTermMemory(filtered);
             saveMemory('short', filtered);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [shortTermMemory]);
 
     const loadMemoryFromSupabase = async () => {

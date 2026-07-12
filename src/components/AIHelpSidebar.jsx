@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Zap, ListChecks, BrainCircuit, Upload, FileText, Image as ImageIcon, Send } from 'lucide-react';
 
 const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdvice, isAnalyzing }) => {
@@ -31,7 +31,7 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
             {isOpen && (
                 <>
                     {/* Backdrop */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -40,7 +40,7 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
                     />
 
                     {/* Sidebar */}
-                    <motion.div
+                    <Motion.div
                         initial={{ x: '100%' }}
                         animate={{ x: 0 }}
                         exit={{ x: '100%' }}
@@ -128,12 +128,12 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
                                         className="p-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[60px]"
                                     >
                                         {isLoading || isAnalyzing ? (
-                                            <motion.div
+                                            <Motion.div
                                                 animate={{ rotate: 360 }}
                                                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                                             >
                                                 <Sparkles size={20} />
-                                            </motion.div>
+                                            </Motion.div>
                                         ) : (
                                             <Send size={20} />
                                         )}
@@ -150,13 +150,13 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
                                             <Zap size={18} />
                                             <h3 className="font-bold">Analysis</h3>
                                         </div>
-                                        <motion.div
+                                        <Motion.div
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-500/20 text-sm text-sage-700 dark:text-bone-300 whitespace-pre-wrap leading-relaxed"
                                         >
                                             {aiTips.analysis || aiTips.tips?.join('\n')}
-                                        </motion.div>
+                                        </Motion.div>
                                     </div>
 
                                     {/* Action Steps */}
@@ -168,7 +168,7 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
                                             </div>
                                             <div className="space-y-0">
                                                 {aiTips.steps.map((step, index) => (
-                                                    <motion.div
+                                                    <Motion.div
                                                         key={index}
                                                         initial={{ opacity: 0, x: -10 }}
                                                         animate={{ opacity: 1, x: 0 }}
@@ -179,7 +179,7 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
                                                             {index + 1}
                                                         </div>
                                                         <p className="text-sm text-sage-700 dark:text-bone-300 pt-0.5">{step}</p>
-                                                    </motion.div>
+                                                    </Motion.div>
                                                 ))}
                                             </div>
                                         </div>
@@ -187,7 +187,7 @@ const AIHelpSidebar = ({ isOpen, onClose, task, aiTips, isLoading, onGenerateAdv
                                 </div>
                             )}
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 </>
             )}
         </AnimatePresence>

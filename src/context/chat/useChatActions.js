@@ -207,6 +207,8 @@ export const useChatActions = ({
         } finally {
             setIsTyping(false);
         }
+    // sendMessage preserves the original closure boundary for agent action dispatch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [messages, buildContext, saveConversation, logInteraction, intelligence, learnMultipleFacts, selectedAIProvider]);
 
     // Execute actions internally (for auto-execution)
@@ -391,4 +393,3 @@ export const useChatActions = ({
     // Confirm and execute pending actions
     return { executeActionsInternal, sendMessage };
 };
-

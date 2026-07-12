@@ -7,17 +7,6 @@ const cleanText = (str) => {
     return str.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
 };
 
-// Get smart emoji for schedule/event items
-const getScheduleEmoji = (text) => {
-    const lower = (text || '').toLowerCase();
-    if (lower.includes('passed') || lower.includes('done') || lower.includes('complete')) return '✅';
-    if (lower.includes('recap') || lower.includes('plan')) return '📝';
-    if (lower.includes('journal')) return '📓';
-    if (lower.includes('gym') || lower.includes('workout')) return '💪';
-    if (lower.includes('meeting') || lower.includes('call')) return '📞';
-    return '📌';
-};
-
 // Get habit emoji
 const getHabitEmoji = (text) => {
     const lower = (text || '').toLowerCase();
@@ -212,10 +201,6 @@ const RichTextRenderer = ({ text }) => {
                                                         <p key={iIdx} className="text-gray-500 text-sm italic">{item.text}</p>
                                                     );
                                                 }
-
-                                                const emoji = section.type === 'habits' ? getHabitEmoji(item.text) :
-                                                    section.type === 'tasks' ? getTaskEmoji(item.text) :
-                                                        section.type === 'highlights' ? '⭐' : '•';
 
                                                 // Colors for dots
                                                 const dotColors = ['bg-blue-500', 'bg-orange-500', 'bg-emerald-500', 'bg-purple-500'];

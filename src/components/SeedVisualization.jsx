@@ -164,18 +164,10 @@ const TimelineGrid = ({ entries }) => {
 };
 
 const SeedVisualization = ({ insight, compact = false, title, subtitle }) => {
-    if (!insight) return null;
-
-    const stageMeta = SEED_STAGE_META[insight.stage || 'seed'] || SEED_STAGE_META.seed;
-    const healthMeta = SEED_HEALTH_META[insight.health || 'healthy'] || SEED_HEALTH_META.healthy;
-    const displayStage = insight.ended ? 'ended' : insight.stage;
-    const growthPercent = Math.round((insight.growthProgress || 0) * 100);
-    const consistencyPercent = Math.round((insight.consistencyRate || 0) * 100);
-    const completionLabel = `${insight.completedDays || 0}/${insight.durationDays || 0} completions`;
     const [isExpanded, setIsExpanded] = useState(false);
 
     const rowMeta = useMemo(() => {
-        const timeline = insight.timeline || [];
+        const timeline = insight?.timeline || [];
         const rowSize = 7;
         const currentIndex = Math.max(0, Math.min((insight.elapsedDays || 1) - 1, Math.max(timeline.length - 1, 0)));
         const rowIndex = Math.floor(currentIndex / rowSize);
@@ -190,6 +182,15 @@ const SeedVisualization = ({ insight, compact = false, title, subtitle }) => {
             allEntries: timeline,
         };
     }, [insight]);
+
+    if (!insight) return null;
+
+    const stageMeta = SEED_STAGE_META[insight.stage || 'seed'] || SEED_STAGE_META.seed;
+    const healthMeta = SEED_HEALTH_META[insight.health || 'healthy'] || SEED_HEALTH_META.healthy;
+    const displayStage = insight.ended ? 'ended' : insight.stage;
+    const growthPercent = Math.round((insight.growthProgress || 0) * 100);
+    const consistencyPercent = Math.round((insight.consistencyRate || 0) * 100);
+    const completionLabel = `${insight.completedDays || 0}/${insight.durationDays || 0} completions`;
 
     if (compact) {
         return (

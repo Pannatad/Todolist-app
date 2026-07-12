@@ -66,3 +66,4 @@ export const handleAIRequest = async (req, res, mode) => {
     sendJson(res, 500, { error: error.message || 'AI request failed' });
   }
 };
+/* global process */

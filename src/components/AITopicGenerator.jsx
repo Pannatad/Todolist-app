@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Image, Youtube, Loader2, Check, Upload, AlertCircle, Wand2, ArrowUpDown, Clock } from 'lucide-react';
 import { generateTopicsFromDescription, generateTopicsFromImage } from '../services/aiClient';
 import { parseYouTubePlaylist } from '../services/youtubeService';
@@ -192,14 +192,14 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
 
     return (
         <AnimatePresence>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
                 onClick={handleClose}
             >
-                <motion.div
+                <Motion.div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -333,14 +333,14 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
 
                                 {/* Error */}
                                 {error && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
                                     >
                                         <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
                                         <p className="text-xs text-red-300">{error}</p>
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
 
                                 {/* Generate Button */}
@@ -403,7 +403,7 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
                                     {generatedTopics.map((topic, index) => {
                                         const isSelected = selectedTopics.has(index);
                                         return (
-                                            <motion.button
+                                            <Motion.button
                                                 key={index}
                                                 initial={{ opacity: 0, x: -10 }}
                                                 animate={{ opacity: 1, x: 0 }}
@@ -443,7 +443,7 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
                                                         )}
                                                     </div>
                                                 </div>
-                                            </motion.button>
+                                            </Motion.button>
                                         );
                                     })}
                                 </div>
@@ -464,8 +464,8 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
                             </div>
                         )}
                     </div>
-                </motion.div>
-            </motion.div>
+                </Motion.div>
+            </Motion.div>
         </AnimatePresence>
     );
 };

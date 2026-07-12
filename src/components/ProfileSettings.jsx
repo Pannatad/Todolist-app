@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { User, Save, Clock, Target, Sparkles, X, Check, ChevronDown, FileText, Brain } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useUserIntelligence } from '../context/UserIntelligenceContext';
@@ -12,7 +12,7 @@ const FOCUS_STYLES = [
 ];
 
 const ProfileSettings = ({ isOpen, onClose }) => {
-    const { profile, updateProfile, isLoading } = useUserProfile();
+    const { profile, updateProfile } = useUserProfile();
     const { intelligence } = useUserIntelligence();
     const [formData, setFormData] = useState({
         nickname: '',
@@ -94,7 +94,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
             {isOpen && (
                 <>
                     {/* Backdrop */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -103,7 +103,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
                     />
 
                     {/* Modal */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -312,7 +312,7 @@ const ProfileSettings = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
 
                     {/* Teach Agent Modal */}
                     <TeachAgentModal

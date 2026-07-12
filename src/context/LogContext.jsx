@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
@@ -74,6 +75,8 @@ export const LogProvider = ({ children }) => {
 
     useEffect(() => {
         if (user) {
+            // Preserve the existing user/guest branch timing while loading persisted logs.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             loadLogsFromSupabase();
         } else {
             setActivityLogs(readLocalLogs());
@@ -99,11 +102,12 @@ export const LogProvider = ({ children }) => {
         setActivityLogs(prev => [...prev, { ...newLog, id: user ? tempId : newLog.id }]);
 
         if (user) {
-            const { id, ...dbLog } = newLog;
+            const { id: _id, ...dbLog } = newLog;
             const { data, error } = await supabase.from('activity_logs').insert([dbLog]).select().single();
             if (data) {
                 setActivityLogs(prev => prev.map(l => l.id === tempId ? { ...l, ...data } : l));
             }
+            if (error) console.error('Error adding activity log:', error);
         }
     };
 

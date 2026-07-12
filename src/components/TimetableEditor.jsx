@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Clock, Calendar, Trash2, CalendarRange, Repeat } from 'lucide-react';
 
 const DAYS = [
@@ -97,10 +97,6 @@ const TimetableEditor = ({ isOpen, onClose, timetable = [], onSave, pathGradient
         setSlots(prev => [...prev, ...newSlots]);
     };
 
-    const removeSlot = (index) => {
-        setSlots(prev => prev.filter((_, i) => i !== index));
-    };
-
     const clearAll = () => {
         setSlots([]);
     };
@@ -127,14 +123,14 @@ const TimetableEditor = ({ isOpen, onClose, timetable = [], onSave, pathGradient
 
     return (
         <AnimatePresence>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
                 onClick={onClose}
             >
-                <motion.div
+                <Motion.div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -193,7 +189,7 @@ const TimetableEditor = ({ isOpen, onClose, timetable = [], onSave, pathGradient
                             <div>
                                 <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2 block">Days</label>
                                 <div className="flex gap-2 justify-center">
-                                    {DAYS.map((day, idx) => {
+                                    {DAYS.map((day) => {
                                         const isSelected = selectedDays.includes(day.value);
                                         return (
                                             <button
@@ -326,7 +322,7 @@ const TimetableEditor = ({ isOpen, onClose, timetable = [], onSave, pathGradient
                                 </div>
 
                                 {Object.entries(groupedSlots).map(([key, group]) => (
-                                    <motion.div
+                                    <Motion.div
                                         key={key}
                                         initial={{ opacity: 0, y: 8 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -360,7 +356,7 @@ const TimetableEditor = ({ isOpen, onClose, timetable = [], onSave, pathGradient
                                         >
                                             <Trash2 size={14} />
                                         </button>
-                                    </motion.div>
+                                    </Motion.div>
                                 ))}
 
                                 {/* Visual Weekly Preview */}
@@ -408,8 +404,8 @@ const TimetableEditor = ({ isOpen, onClose, timetable = [], onSave, pathGradient
                             </button>
                         </div>
                     </div>
-                </motion.div>
-            </motion.div>
+                </Motion.div>
+            </Motion.div>
         </AnimatePresence>
     );
 };

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion as Motion, Reorder, useDragControls } from 'framer-motion';
 import { CheckCircle2, ChevronDown, Circle, Clock, GripVertical, Palette, Play, Sparkles, Target, Trash2 } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
-import { getTaskChunkEstimate, isTaskActive, normalizeTaskSubtasks } from '../utils/taskState';
+import { getTaskChunkEstimate, normalizeTaskSubtasks } from '../utils/taskState';
 
 const ChunkReorderItem = ({
     chunk,
@@ -448,4 +448,3 @@ const TaskListRow = ({
 
 
 export { ChunkReorderItem, TaskListRow };
-

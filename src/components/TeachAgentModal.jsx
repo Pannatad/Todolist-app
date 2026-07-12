@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Brain, Plus, X, Trash2, SparklesIcon, User, Heart, Clock, Edit2, Check, MessageSquare } from 'lucide-react';
 import { useUserIntelligence, INTELLIGENCE_CATEGORIES } from '../context/UserIntelligenceContext';
 
@@ -89,7 +89,7 @@ const TeachAgentModal = ({ isOpen, onClose }) => {
             {isOpen && (
                 <>
                     {/* Backdrop */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -98,7 +98,7 @@ const TeachAgentModal = ({ isOpen, onClose }) => {
                     />
 
                     {/* Modal */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -203,7 +203,7 @@ const TeachAgentModal = ({ isOpen, onClose }) => {
                                                 </h3>
                                                 <div className="space-y-2">
                                                     {items.map(item => (
-                                                        <motion.div
+                                                        <Motion.div
                                                             key={item.id}
                                                             initial={{ opacity: 0, y: 10 }}
                                                             animate={{ opacity: 1, y: 0 }}
@@ -260,7 +260,7 @@ const TeachAgentModal = ({ isOpen, onClose }) => {
                                                                     </button>
                                                                 </>
                                                             )}
-                                                        </motion.div>
+                                                        </Motion.div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -284,7 +284,7 @@ const TeachAgentModal = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 </>
             )}
         </AnimatePresence>

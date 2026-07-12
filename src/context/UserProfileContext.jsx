@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
@@ -35,12 +36,14 @@ export const UserProfileProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     // Load profile on mount or user change
+    // The loaders intentionally reflect the current authenticated user.
     useEffect(() => {
         if (user) {
             loadProfileFromSupabase();
         } else {
             loadProfileFromLocalStorage();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const loadProfileFromSupabase = async () => {

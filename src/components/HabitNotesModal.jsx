@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { CalendarDays, Check, FileText, X } from 'lucide-react';
 
 const HabitNotesModal = ({ isOpen, onClose, habit, entries = [] }) => {
@@ -7,14 +7,14 @@ const HabitNotesModal = ({ isOpen, onClose, habit, entries = [] }) => {
 
     return (
         <AnimatePresence>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
                 onClick={onClose}
             >
-                <motion.div
+                <Motion.div
                     initial={{ scale: 0.96, opacity: 0, y: 12 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.96, opacity: 0, y: 12 }}
@@ -71,8 +71,8 @@ const HabitNotesModal = ({ isOpen, onClose, habit, entries = [] }) => {
                             ))
                         )}
                     </div>
-                </motion.div>
-            </motion.div>
+                </Motion.div>
+            </Motion.div>
         </AnimatePresence>
     );
 };

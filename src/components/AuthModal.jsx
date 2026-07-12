@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -39,14 +39,14 @@ const AuthModal = ({ isOpen, onClose }) => {
 
     return (
         <AnimatePresence>
-            <motion.div
+            <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
                 onClick={onClose}
             >
-                <motion.div
+                <Motion.div
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.9, y: 20 }}
@@ -143,8 +143,8 @@ const AuthModal = ({ isOpen, onClose }) => {
                             </button>
                         </p>
                     </div>
-                </motion.div>
-            </motion.div>
+                </Motion.div>
+            </Motion.div>
         </AnimatePresence>
     );
 };

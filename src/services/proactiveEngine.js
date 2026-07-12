@@ -11,7 +11,7 @@ import { getTaskCompletionTimestamp, isTaskActive, isTaskCompleted } from '../ut
  * @returns {Array} - Array of suggestion objects
  */
 export const generateProactiveSuggestions = (context) => {
-    const { tasks, schedule, habits, profile, currentTime } = context;
+    const { tasks, schedule, profile, currentTime } = context;
     const now = currentTime ? new Date(currentTime) : new Date();
     const hour = now.getHours();
     const dayOfWeek = now.getDay(); // 0 = Sunday

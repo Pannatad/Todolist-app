@@ -2,12 +2,10 @@ import { supabase } from '../../services/supabase';
 
 export const createLearningPathActions = ({
     learningPaths,
-    resources,
     setLearningPaths,
     setResources,
     setTimeLogs,
     setTopics,
-    timeLogs,
     topics,
     user,
 }) => {
@@ -26,7 +24,7 @@ export const createLearningPathActions = ({
         setLearningPaths(prev => [...prev, { ...newPath, id: user ? tempId : newPath.id }]);
 
         if (user && supabase) {
-            const { id, ...dbPath } = newPath;
+            const { id: _id, ...dbPath } = newPath;
             const { data, error } = await supabase.from('learning_paths').insert([dbPath]).select().single();
             if (data) {
                 setLearningPaths(prev => prev.map(p => p.id === tempId ? data : p));
@@ -93,4 +91,3 @@ export const createLearningPathActions = ({
         updateLearningPath,
     };
 };
-

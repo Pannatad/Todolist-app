@@ -48,6 +48,7 @@ export const ProjectCalendar = ({ onBack }) => {
     };
 
     // Get phase deadlines for the current month
+    // getProjectColor is derived from the same project list and must retain the existing memo boundary.
     const phaseDeadlines = useMemo(() => {
         const deadlines = new Map();
 
@@ -80,6 +81,7 @@ export const ProjectCalendar = ({ onBack }) => {
         });
 
         return deadlines;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentDate, projectsWithPhases, selectedProjects]);
 
     // Toggle project filter

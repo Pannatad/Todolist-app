@@ -28,7 +28,7 @@ export const createLearningTimeAndMaterialActions = ({
         }
 
         if (user && supabase) {
-            const { id, ...dbLog } = newLog;
+            const { id: _id, ...dbLog } = newLog;
             const { data, error } = await supabase.from('topic_time_logs').insert([dbLog]).select().single();
             if (data) {
                 setTimeLogs(prev => prev.map(l => l.id === tempId ? data : l));
@@ -127,4 +127,3 @@ export const createLearningTimeAndMaterialActions = ({
         uploadMaterial,
     };
 };
-

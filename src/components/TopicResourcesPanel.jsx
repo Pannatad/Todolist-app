@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import {
     BookMarked,
     Download,
@@ -174,7 +174,7 @@ const TopicResourcesPanel = ({
                                     {/* Add Resource Form */}
                                     <AnimatePresence>
                                         {showResourceForm && (
-                                            <motion.div
+                                            <Motion.div
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: 1, height: 'auto' }}
                                                 exit={{ opacity: 0, height: 0 }}
@@ -226,7 +226,7 @@ const TopicResourcesPanel = ({
                                                         <Plus size={14} /> Add Resource
                                                     </button>
                                                 </div>
-                                            </motion.div>
+                                            </Motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>

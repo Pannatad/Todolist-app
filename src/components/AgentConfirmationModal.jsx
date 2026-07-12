@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Bot, Check, X, Edit2, Loader2, ListTodo, Calendar, Target, Navigation, BarChart3, MessageCircle, Send, Lightbulb, Info, ArrowRight } from 'lucide-react';
 import RichTextRenderer from './RichTextRenderer';
 
@@ -42,6 +42,8 @@ const AgentConfirmationModal = ({
     // Initialize edited prompt when modal opens
     useEffect(() => {
         if (isOpen && originalPrompt) {
+            // Keep the draft in sync with the opening action without changing the modal flow.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setEditedPrompt(originalPrompt);
             setIsEditingPrompt(false);
         }
@@ -87,7 +89,7 @@ const AgentConfirmationModal = ({
             {isOpen && (
                 <>
                     {/* Backdrop */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -96,7 +98,7 @@ const AgentConfirmationModal = ({
                     />
 
                     {/* Modal */}
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -114,7 +116,7 @@ const AgentConfirmationModal = ({
                                         : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'}`}
                             >
                                 <div className="flex items-center gap-4">
-                                    <motion.div
+                                    <Motion.div
                                         animate={{ rotate: isExecuting ? 360 : 0 }}
                                         transition={{ duration: 2, repeat: isExecuting ? Infinity : 0, ease: "linear" }}
                                         className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm"
@@ -130,7 +132,7 @@ const AgentConfirmationModal = ({
                                         ) : (
                                             <Bot size={28} className="text-white" />
                                         )}
-                                    </motion.div>
+                                    </Motion.div>
                                     <div>
                                         <h2 className="text-xl font-bold text-white">
                                             {isExecuting ? "Executing..."
@@ -248,7 +250,7 @@ const AgentConfirmationModal = ({
                                             const colorClass = ACTION_COLORS[action.type] || 'text-gray-600 bg-gray-50';
 
                                             return (
-                                                <motion.div
+                                                <Motion.div
                                                     key={index}
                                                     initial={{ opacity: 0, x: -20 }}
                                                     animate={{ opacity: 1, x: 0 }}
@@ -273,7 +275,7 @@ const AgentConfirmationModal = ({
                                                             <Check size={12} className="text-green-600" />
                                                         </div>
                                                     </div>
-                                                </motion.div>
+                                                </Motion.div>
                                             );
                                         })}
                                     </div>
@@ -329,7 +331,7 @@ const AgentConfirmationModal = ({
                                 )}
                             </div>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 </>
             )}
         </AnimatePresence>
