@@ -6,6 +6,7 @@ import { normalizeTaskRecord } from '../utils/taskState';
 import { toast } from '../ui/Toast';
 import { log } from '../utils/log.js';
 import { createScheduleRepo } from '../data/scheduleRepo';
+import { createTasksRepo } from '../data/tasksRepo';
 
 const TaskContext = createContext();
 
@@ -16,10 +17,6 @@ const formatScheduleItems = (items = []) => (
         recurrenceExceptions: item.recurrence_exceptions || []
     }))
 );
-
-const writeGuestTasks = (nextTasks) => {
-    localStorage.setItem('growth-tasks-guest', JSON.stringify(nextTasks));
-};
 
 export const useTask = () => {
     const context = useContext(TaskContext);
@@ -33,27 +30,17 @@ export const TaskProvider = ({ children }) => {
     const { user } = useAuth();
     const userId = user?.id;
     const scheduleRepo = useMemo(() => createScheduleRepo(userId ? { id: userId } : null), [userId]);
+    const tasksRepo = useMemo(() => createTasksRepo(userId ? { id: userId } : null), [userId]);
 
     // Task State - start empty, load based on user state
     const [tasks, setTasks] = useState([]);
     const [scheduleItems, setScheduleItems] = useState([]);
-    const [isLoaded, setIsLoaded] = useState(false);
 
     const refreshTasks = useCallback(async () => {
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: true });
-
-        log('📋 Tasks loaded:', data?.length || 0, 'Error:', error);
-
-        if (error) throw error;
-
-        setTasks((data || []).map(normalizeTaskRecord));
-    }, [user]);
+        const data = await tasksRepo.list();
+        log('📋 Tasks loaded:', data?.length || 0);
+        setTasks(data.map(normalizeTaskRecord));
+    }, [tasksRepo]);
 
     const refreshScheduleItems = useCallback(async () => {
         const data = await scheduleRepo.list();
@@ -83,25 +70,23 @@ export const TaskProvider = ({ children }) => {
     // Load from localStorage (guest mode)
     const loadFromLocalStorage = useCallback(async () => {
         try {
-            const savedTasks = localStorage.getItem('growth-tasks-guest');
-            if (savedTasks) setTasks(JSON.parse(savedTasks).map(normalizeTaskRecord));
+            setTasks((await tasksRepo.list()).map(normalizeTaskRecord));
             setScheduleItems(formatScheduleItems(await scheduleRepo.list()));
         } catch (e) {
             console.error("Failed to load from localStorage:", e);
         }
-    }, [scheduleRepo]);
+    }, [scheduleRepo, tasksRepo]);
 
     // Handle user state changes - load appropriate data
     useEffect(() => {
-        setIsLoaded(false);
         if (user) {
             // User is logged in - load from Supabase
-            loadTasksFromSupabase().then(() => setIsLoaded(true));
+            loadTasksFromSupabase();
         } else {
             // Guest mode - reset and load from guest-specific localStorage
             setTasks([]);
             setScheduleItems([]);
-            loadFromLocalStorage().then(() => setIsLoaded(true));
+            loadFromLocalStorage();
         }
     }, [loadFromLocalStorage, loadTasksFromSupabase, user]);
 
@@ -157,13 +142,6 @@ export const TaskProvider = ({ children }) => {
         };
     }, [refreshScheduleItems, user]);
 
-    // Save to LocalStorage (Guest Mode only)
-    useEffect(() => {
-        if (!user && isLoaded) {
-            localStorage.setItem('growth-tasks-guest', JSON.stringify(tasks));
-        }
-    }, [tasks, user, isLoaded]);
-
     // Task Handlers
     const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description, subtasks = [] }) => {
         // Convert local deadline string to UTC ISO string for storage
@@ -195,35 +173,15 @@ export const TaskProvider = ({ children }) => {
         const tempId = Date.now();
         setTasks(prev => [...prev, normalizeTaskRecord({ ...newTask, id: user ? tempId : newTask.id })]);
 
-        if (user) {
-            const dbTask = { ...newTask };
-            delete dbTask.id;
-            delete dbTask.estimatedTime;
-            delete dbTask.completed;
-            delete dbTask.completedAt;
-
-            // Try inserting with all fields
-            let { data, error } = await supabase.from('tasks').insert([dbTask]).select().single();
-
-            // Fallback: If insert fails (likely due to missing newer columns), try without them
-            if (error) {
-                console.warn("Insert failed, retrying without newer task fields...", error);
-                const legacyTask = { ...dbTask };
-                delete legacyTask.estimated_time;
-                delete legacyTask.subtasks;
-                const retry = await supabase.from('tasks').insert([legacyTask]).select().single();
-                data = retry.data;
-                error = retry.error;
-            }
-
-            if (data) {
+        try {
+            const data = await tasksRepo.create(newTask);
+            if (user) {
                 setTasks(prev => prev.map(t => t.id === tempId ? normalizeTaskRecord({ ...t, ...data }) : t));
-            } else if (error) {
-                console.error("Error adding task:", error);
-                // Revert optimistic update if both attempts fail
-                setTasks(prev => prev.filter(t => t.id !== tempId));
-                toast(`Failed to save task to cloud: ${error.message || JSON.stringify(error)}`, { tone: 'error' });
             }
+        } catch (error) {
+            console.error("Error adding task:", error);
+            setTasks(prev => prev.filter(t => t.id !== tempId));
+            if (user) toast(`Failed to save task to cloud: ${error.message || JSON.stringify(error)}`, { tone: 'error' });
         }
 
         return normalizeTaskRecord(newTask);
@@ -267,9 +225,7 @@ export const TaskProvider = ({ children }) => {
             t.id === id ? normalizeTaskRecord({ ...t, ...updates, completedAt }) : t
         ));
 
-        if (user) {
-            await supabase.from('tasks').update(updates).eq('id', id);
-        }
+        await tasksRepo.update(id, updates, normalizeTaskRecord({ ...task, ...updates, completedAt }));
 
         return { reward, task };
     };
@@ -284,16 +240,12 @@ export const TaskProvider = ({ children }) => {
             t.id === id ? normalizeTaskRecord({ ...t, ...updates, completedAt: null, completed: false }) : t
         ));
 
-        if (user) {
-            await supabase.from('tasks').update(updates).eq('id', id);
-        }
+        await tasksRepo.update(id, updates, normalizeTaskRecord({ ...task, ...updates, completedAt: null, completed: false }));
     };
 
     const deleteTask = async (id) => {
         setTasks(tasks.filter(t => t.id !== id));
-        if (user) {
-            await supabase.from('tasks').delete().eq('id', id);
-        }
+        await tasksRepo.remove(id);
     };
 
     const updateTask = async (id, updates) => {
@@ -323,49 +275,9 @@ export const TaskProvider = ({ children }) => {
             const mergedTask = normalizeTaskRecord({ ...existingTask, ...processedUpdates });
             const nextTasks = prevTasks.map(t => t.id === id ? mergedTask : t);
 
-            if (!user) {
-                writeGuestTasks(nextTasks);
-            }
-
             return nextTasks;
         });
-
-        if (user) {
-            const dbUpdates = {};
-            if (processedUpdates.title !== undefined) dbUpdates.title = mergedTaskForSave.title;
-            if (processedUpdates.description !== undefined) dbUpdates.description = mergedTaskForSave.description;
-            if (processedUpdates.difficulty !== undefined) dbUpdates.difficulty = mergedTaskForSave.difficulty;
-            if (processedUpdates.subject !== undefined) dbUpdates.subject = mergedTaskForSave.subject;
-            if (processedUpdates.deadline !== undefined) dbUpdates.deadline = mergedTaskForSave.deadline;
-            if (processedUpdates.archived !== undefined) dbUpdates.archived = mergedTaskForSave.archived;
-            if (processedUpdates.estimatedTime !== undefined || processedUpdates.estimated_time !== undefined) {
-                dbUpdates.estimated_time = mergedTaskForSave.estimated_time;
-            }
-            if (processedUpdates.subtasks !== undefined) dbUpdates.subtasks = mergedTaskForSave.subtasks;
-            if (processedUpdates.focus_sessions !== undefined) dbUpdates.focus_sessions = processedUpdates.focus_sessions;
-            if (
-                processedUpdates.status !== undefined ||
-                processedUpdates.completed !== undefined ||
-                processedUpdates.completedAt !== undefined ||
-                processedUpdates.completed_at !== undefined
-            ) {
-                dbUpdates.status = mergedTaskForSave.status;
-                dbUpdates.completed_at = mergedTaskForSave.completed_at;
-            }
-            if (Object.keys(dbUpdates).length > 0) {
-                const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', id);
-
-                if (error && (dbUpdates.subtasks !== undefined || dbUpdates.focus_sessions !== undefined)) {
-                    console.warn('Task update with newer fields failed, retrying without them...', error);
-                    const fallbackUpdates = { ...dbUpdates };
-                    delete fallbackUpdates.subtasks;
-                    delete fallbackUpdates.focus_sessions;
-                    if (Object.keys(fallbackUpdates).length > 0) {
-                        await supabase.from('tasks').update(fallbackUpdates).eq('id', id);
-                    }
-                }
-            }
-        }
+        await tasksRepo.update(id, processedUpdates, mergedTaskForSave);
     };
 
     // Schedule Handlers
