@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { normalizeTaskRecord } from '../utils/taskState';
 import { toast } from '../ui/Toast';
 import { log } from '../utils/log.js';
+import { createScheduleRepo } from '../data/scheduleRepo';
 
 const TaskContext = createContext();
 
@@ -16,81 +17,8 @@ const formatScheduleItems = (items = []) => (
     }))
 );
 
-const buildScheduleInsertPayloads = (item) => {
-    const fullPayload = {
-        user_id: item.user_id,
-        title: item.title,
-        start_time: item.start_time,
-        duration: item.duration,
-        category: item.category,
-        created_at: item.created_at,
-        color: item.color,
-        notes: item.notes,
-        recurrence_type: item.recurrence_type,
-        recurrence_interval: item.recurrence_interval,
-        recurrence_days_of_week: item.recurrence_days_of_week,
-        recurrence_end_date: item.recurrence_end_date,
-        recurrence_exceptions: item.recurrence_exceptions
-    };
-
-    const legacyPayload = {
-        user_id: item.user_id,
-        title: item.title,
-        start_time: item.start_time,
-        duration: item.duration,
-        category: item.category,
-        created_at: item.created_at
-    };
-
-    const minimalPayload = {
-        user_id: item.user_id,
-        title: item.title,
-        start_time: item.start_time,
-        created_at: item.created_at
-    };
-
-    return [fullPayload, legacyPayload, minimalPayload];
-};
-
-const withDefinedValues = (payload) => Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== undefined)
-);
-
 const writeGuestTasks = (nextTasks) => {
     localStorage.setItem('growth-tasks-guest', JSON.stringify(nextTasks));
-};
-
-const buildScheduleUpdatePayloads = (updates) => {
-    const fullPayload = withDefinedValues({
-        title: updates.title,
-        start_time: updates.start_time,
-        duration: updates.duration,
-        category: updates.category,
-        color: updates.color,
-        notes: updates.notes,
-        recurrence_type: updates.recurrence_type,
-        recurrence_interval: updates.recurrence_interval,
-        recurrence_days_of_week: updates.recurrence_days_of_week,
-        recurrence_end_date: updates.recurrence_end_date,
-        recurrence_exceptions: updates.recurrence_exceptions
-    });
-
-    const legacyPayload = withDefinedValues({
-        title: updates.title,
-        start_time: updates.start_time,
-        duration: updates.duration,
-        category: updates.category
-    });
-
-    const minimalPayload = withDefinedValues({
-        title: updates.title,
-        start_time: updates.start_time
-    });
-
-    return [fullPayload, legacyPayload, minimalPayload].filter((payload, index, payloads) => (
-        Object.keys(payload).length > 0 &&
-        payloads.findIndex((candidate) => JSON.stringify(candidate) === JSON.stringify(payload)) === index
-    ));
 };
 
 export const useTask = () => {
@@ -103,6 +31,8 @@ export const useTask = () => {
 
 export const TaskProvider = ({ children }) => {
     const { user } = useAuth();
+    const userId = user?.id;
+    const scheduleRepo = useMemo(() => createScheduleRepo(userId ? { id: userId } : null), [userId]);
 
     // Task State - start empty, load based on user state
     const [tasks, setTasks] = useState([]);
@@ -126,20 +56,10 @@ export const TaskProvider = ({ children }) => {
     }, [user]);
 
     const refreshScheduleItems = useCallback(async () => {
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from('schedule_items')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('start_time', { ascending: true });
-
-        log('📅 Schedule loaded:', data?.length || 0, 'Error:', error);
-
-        if (error) throw error;
-
-        setScheduleItems(formatScheduleItems(data || []));
-    }, [user]);
+        const data = await scheduleRepo.list();
+        log('📅 Schedule loaded:', data?.length || 0);
+        setScheduleItems(formatScheduleItems(data));
+    }, [scheduleRepo]);
 
     // Load from Supabase
     const loadTasksFromSupabase = useCallback(async () => {
@@ -161,16 +81,15 @@ export const TaskProvider = ({ children }) => {
     }, [refreshScheduleItems, refreshTasks, user]);
 
     // Load from localStorage (guest mode)
-    const loadFromLocalStorage = () => {
+    const loadFromLocalStorage = useCallback(async () => {
         try {
             const savedTasks = localStorage.getItem('growth-tasks-guest');
-            const savedSchedule = localStorage.getItem('growth-schedule-guest');
             if (savedTasks) setTasks(JSON.parse(savedTasks).map(normalizeTaskRecord));
-            if (savedSchedule) setScheduleItems(JSON.parse(savedSchedule));
+            setScheduleItems(formatScheduleItems(await scheduleRepo.list()));
         } catch (e) {
             console.error("Failed to load from localStorage:", e);
         }
-    };
+    }, [scheduleRepo]);
 
     // Handle user state changes - load appropriate data
     useEffect(() => {
@@ -182,10 +101,9 @@ export const TaskProvider = ({ children }) => {
             // Guest mode - reset and load from guest-specific localStorage
             setTasks([]);
             setScheduleItems([]);
-            loadFromLocalStorage();
-            setIsLoaded(true);
+            loadFromLocalStorage().then(() => setIsLoaded(true));
         }
-    }, [loadTasksFromSupabase, user]);
+    }, [loadFromLocalStorage, loadTasksFromSupabase, user]);
 
     useEffect(() => {
         if (!user || !supabase) return undefined;
@@ -243,9 +161,8 @@ export const TaskProvider = ({ children }) => {
     useEffect(() => {
         if (!user && isLoaded) {
             localStorage.setItem('growth-tasks-guest', JSON.stringify(tasks));
-            localStorage.setItem('growth-schedule-guest', JSON.stringify(scheduleItems));
         }
-    }, [tasks, scheduleItems, user, isLoaded]);
+    }, [tasks, user, isLoaded]);
 
     // Task Handlers
     const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description, subtasks = [] }) => {
@@ -474,27 +391,9 @@ export const TaskProvider = ({ children }) => {
         const tempId = Date.now();
         setScheduleItems(prev => [...prev, { ...newItem, id: user ? tempId : newItem.id }]);
 
-        if (user) {
-            let insertedRow = null;
-            let lastError = null;
-
-            for (const payload of buildScheduleInsertPayloads(newItem)) {
-                const { data, error } = await supabase
-                    .from('schedule_items')
-                    .insert([payload])
-                    .select()
-                    .single();
-
-                if (data) {
-                    insertedRow = data;
-                    break;
-                }
-
-                lastError = error;
-                console.warn('Schedule insert attempt failed, trying fallback payload...', error);
-            }
-
-            if (insertedRow) {
+        try {
+            const insertedRow = await scheduleRepo.create(newItem);
+            if (user) {
                 setScheduleItems(prev => prev.map(i => i.id === tempId ? {
                     ...i,
                     ...insertedRow,
@@ -505,16 +404,13 @@ export const TaskProvider = ({ children }) => {
                     recurrenceEndDate: insertedRow.recurrence_end_date,
                     recurrenceExceptions: insertedRow.recurrence_exceptions || []
                 } : i));
-
-                return insertedRow;
             }
-
+            return user ? insertedRow : newItem;
+        } catch (error) {
             setScheduleItems(prev => prev.filter(i => i.id !== tempId));
-            console.error('Error adding schedule item:', lastError);
-            throw new Error(lastError?.message || 'Failed to save schedule item to cloud.');
+            console.error('Error adding schedule item:', error);
+            throw error;
         }
-
-        return newItem;
     };
 
     const updateScheduleItem = async (id, updates) => {
@@ -534,56 +430,23 @@ export const TaskProvider = ({ children }) => {
 
         setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...processedUpdates } : i));
 
-        if (user) {
-            const scheduleUpdatePayloads = buildScheduleUpdatePayloads({
-                title: updates.title,
-                start_time: updates.startTime,
-                duration: updates.duration,
-                category: updates.category,
-                color: updates.color,
-                notes: updates.notes,
-                recurrence_type: updates.recurrenceType,
-                recurrence_interval: updates.recurrenceInterval,
-                recurrence_days_of_week: updates.recurrenceDaysOfWeek,
-                recurrence_end_date: updates.recurrenceEndDate,
-                recurrence_exceptions: updates.recurrenceExceptions
-            });
-
-            let updatedRow = null;
-            let lastError = null;
-
-            for (const payload of scheduleUpdatePayloads) {
-                const { data, error } = await supabase
-                    .from('schedule_items')
-                    .update(payload)
-                    .eq('id', id)
-                    .select()
-                    .maybeSingle();
-
-                if (data) {
-                    updatedRow = data;
-                    break;
-                }
-
-                lastError = error;
-                console.warn('Schedule update attempt failed, trying fallback payload...', error);
+        try {
+            const updatedRow = await scheduleRepo.update(id, processedUpdates);
+            if (user) {
+                setScheduleItems(prev => prev.map(i => i.id === id ? {
+                    ...i,
+                    ...updatedRow,
+                    startTime: updatedRow.start_time,
+                    recurrenceType: updatedRow.recurrence_type,
+                    recurrenceInterval: updatedRow.recurrence_interval,
+                    recurrenceDaysOfWeek: updatedRow.recurrence_days_of_week || [],
+                    recurrenceEndDate: updatedRow.recurrence_end_date,
+                    recurrenceExceptions: updatedRow.recurrence_exceptions || []
+                } : i));
             }
-
-            if (!updatedRow) {
-                setScheduleItems(prev => prev.map(i => i.id === id ? existingItem : i));
-                throw new Error(lastError?.message || 'Schedule item could not be updated in Supabase.');
-            }
-
-            setScheduleItems(prev => prev.map(i => i.id === id ? {
-                ...i,
-                ...updatedRow,
-                startTime: updatedRow.start_time,
-                recurrenceType: updatedRow.recurrence_type,
-                recurrenceInterval: updatedRow.recurrence_interval,
-                recurrenceDaysOfWeek: updatedRow.recurrence_days_of_week || [],
-                recurrenceEndDate: updatedRow.recurrence_end_date,
-                recurrenceExceptions: updatedRow.recurrence_exceptions || []
-            } : i));
+        } catch (error) {
+            setScheduleItems(prev => prev.map(i => i.id === id ? existingItem : i));
+            throw error;
         }
 
         return { ...existingItem, ...processedUpdates };
@@ -603,20 +466,13 @@ export const TaskProvider = ({ children }) => {
         }
 
         setScheduleItems(prev => prev.filter(i => i.id !== id));
-        if (user) {
-            const { data, error } = await supabase
-                .from('schedule_items')
-                .delete()
-                .eq('id', id)
-                .select('id')
-                .maybeSingle();
-
-            if (error || !data) {
-                setScheduleItems(prev => [...prev, existingItem].sort((a, b) =>
-                    new Date(a.startTime || a.start_time || 0) - new Date(b.startTime || b.start_time || 0)
-                ));
-                throw new Error(error?.message || 'Schedule item could not be deleted from Supabase.');
-            }
+        try {
+            await scheduleRepo.remove(id);
+        } catch (error) {
+            setScheduleItems(prev => [...prev, existingItem].sort((a, b) =>
+                new Date(a.startTime || a.start_time || 0) - new Date(b.startTime || b.start_time || 0)
+            ));
+            throw error;
         }
 
         return existingItem;
