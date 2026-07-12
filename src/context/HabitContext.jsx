@@ -1,7 +1,8 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { createHabitsRepo } from '../data/habitsRepo';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import {
     buildCompletedDatesByHabit,
@@ -13,7 +14,6 @@ import {
     isHabitScheduledOnDate,
     normalizeHabit,
     normalizeHabitLog,
-    toHabitDbPayload,
 } from './habitContextUtils';
 import { useHabitSeedInsight } from './habits/useHabitSeedInsight';
 
@@ -29,10 +29,11 @@ export const useHabit = () => {
 
 export const HabitProvider = ({ children }) => {
     const { user } = useAuth();
+    const userId = user?.id;
+    const habitsRepo = useMemo(() => createHabitsRepo(userId ? { id: userId } : null), [userId]);
 
     const [storedHabits, setStoredHabits] = useState([]);
     const [habitLogs, setHabitLogs] = useState({});
-    const [isLoaded, setIsLoaded] = useState(false);
 
     const activeHabits = useMemo(
         () => storedHabits.filter((habit) => !habit.archived),
@@ -50,35 +51,19 @@ export const HabitProvider = ({ children }) => {
     }, [activeHabits, completedDatesByHabit, habitLogs]);
 
     const refreshHabits = useCallback(async () => {
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from('habits')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        setStoredHabits((data || []).map(normalizeHabit));
-    }, [user]);
+        const data = await habitsRepo.list();
+        setStoredHabits(data.map(normalizeHabit));
+    }, [habitsRepo]);
 
     const refreshHabitLogs = useCallback(async () => {
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from('habit_logs')
-            .select('*')
-            .eq('user_id', user.id);
-
-        if (error) throw error;
-
+        const data = await habitsRepo.listLogs();
         const logsMap = {};
-        (data || []).forEach((log) => {
+        if (Array.isArray(data)) data.forEach((log) => {
             logsMap[getHabitLogKey(log.habit_id, log.date)] = normalizeHabitLog(log);
         });
+        else Object.entries(data).forEach(([key, log]) => { logsMap[key] = normalizeHabitLog(log); });
         setHabitLogs(logsMap);
-    }, [user]);
+    }, [habitsRepo]);
 
     const loadHabitsFromSupabase = useCallback(async () => {
         if (!user) return;
@@ -93,35 +78,26 @@ export const HabitProvider = ({ children }) => {
         }
     }, [refreshHabitLogs, refreshHabits, user]);
 
-    const loadHabitsFromLocalStorage = useCallback(() => {
+    const loadHabitsFromLocalStorage = useCallback(async () => {
         try {
-            const savedHabits = localStorage.getItem('habits-guest');
-            const savedLogs = localStorage.getItem('habit-logs-guest');
-            if (savedHabits) setStoredHabits(JSON.parse(savedHabits).map(normalizeHabit));
-            if (savedLogs) {
-                const parsedLogs = JSON.parse(savedLogs);
-                const normalizedLogs = {};
-                Object.entries(parsedLogs).forEach(([key, log]) => {
-                    normalizedLogs[key] = normalizeHabitLog(log);
-                });
-                setHabitLogs(normalizedLogs);
-            }
+            setStoredHabits((await habitsRepo.list()).map(normalizeHabit));
+            const normalizedLogs = {};
+            Object.entries(await habitsRepo.listLogs()).forEach(([key, log]) => { normalizedLogs[key] = normalizeHabitLog(log); });
+            setHabitLogs(normalizedLogs);
         } catch (error) {
             console.error('Failed to load habits from localStorage:', error);
         }
-    }, []);
+    }, [habitsRepo]);
 
     useEffect(() => {
-        setIsLoaded(false);
         if (user) {
-            loadHabitsFromSupabase().then(() => setIsLoaded(true));
+            loadHabitsFromSupabase();
             return;
         }
 
         setStoredHabits([]);
         setHabitLogs({});
         loadHabitsFromLocalStorage();
-        setIsLoaded(true);
     }, [loadHabitsFromLocalStorage, loadHabitsFromSupabase, user]);
 
     useEffect(() => {
@@ -176,13 +152,6 @@ export const HabitProvider = ({ children }) => {
         };
     }, [refreshHabitLogs, user]);
 
-    useEffect(() => {
-        if (!user && isLoaded) {
-            localStorage.setItem('habits-guest', JSON.stringify(storedHabits));
-            localStorage.setItem('habit-logs-guest', JSON.stringify(habitLogs));
-        }
-    }, [storedHabits, habitLogs, user, isLoaded]);
-
     const addHabit = async (habitData) => {
         const now = new Date().toISOString();
         const newHabit = normalizeHabit({
@@ -198,19 +167,9 @@ export const HabitProvider = ({ children }) => {
         const tempId = `habit_${Date.now()}`;
         setStoredHabits((prev) => [...prev, { ...newHabit, id: user ? tempId : newHabit.id }]);
 
-        if (!user) return normalizeHabit(newHabit);
-
         try {
-            const dbHabit = toHabitDbPayload(newHabit);
-
-            const { data, error } = await supabase
-                .from('habits')
-                .insert([dbHabit])
-                .select()
-                .single();
-
-            if (error) throw error;
-            if (data) {
+            const data = await habitsRepo.create(newHabit);
+            if (user) {
                 setStoredHabits((prev) => prev.map((habit) => (
                     habit.id === tempId ? normalizeHabit(data) : habit
                 )));
@@ -231,14 +190,8 @@ export const HabitProvider = ({ children }) => {
         const nextHabit = normalizeHabit({ ...previousHabit, ...updates });
         setStoredHabits((prev) => prev.map((habit) => (habit.id === id ? nextHabit : habit)));
 
-        if (!user) return nextHabit;
-
         try {
-            const { error } = await supabase
-                .from('habits')
-                .update(toHabitDbPayload(nextHabit))
-                .eq('id', id);
-            if (error) throw error;
+            await habitsRepo.update(id, nextHabit);
             return nextHabit;
         } catch (error) {
             console.error('Error updating habit:', error);
@@ -260,12 +213,9 @@ export const HabitProvider = ({ children }) => {
             Object.entries(prev).filter(([, log]) => log.habit_id !== id)
         ));
 
-        if (!user) return;
-
         try {
-            await supabase.from('habit_logs').delete().eq('habit_id', id);
-            const { error } = await supabase.from('habits').delete().eq('id', id);
-            if (error) throw error;
+            await habitsRepo.removeLogsForHabit(id);
+            await habitsRepo.remove(id);
         } catch (error) {
             console.error('Error deleting habit:', error);
             setStoredHabits((prev) => [...prev, previousHabit].sort((left, right) => (
@@ -311,21 +261,8 @@ export const HabitProvider = ({ children }) => {
             [key]: optimisticLog,
         }));
 
-        if (!user) return optimisticLog;
-
         try {
-            const payload = {
-                ...logData,
-                id: existingLog?.id,
-            };
-
-            const { data, error } = await supabase
-                .from('habit_logs')
-                .upsert(payload, { onConflict: 'habit_id, date' })
-                .select()
-                .maybeSingle();
-
-            if (error) throw error;
+            const data = await habitsRepo.upsertLog(key, { ...logData, id: existingLog?.id });
 
             if (data) {
                 const normalizedRow = normalizeHabitLog(data);
