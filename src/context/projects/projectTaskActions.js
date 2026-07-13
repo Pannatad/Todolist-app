@@ -7,7 +7,7 @@ import {
     getPhaseColumns,
 } from '../projectUtils';
 
-export const createProjectTaskActions = ({ projects, setProjects, user }) => {
+export const createProjectTaskActions = ({ projects, projectsRepo, setProjects, user }) => {
     const addTask = async (projectId, task) => {
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
@@ -110,9 +110,7 @@ export const createProjectTaskActions = ({ projects, setProjects, user }) => {
     const deleteProject = async (id) => {
         setProjects(prev => prev.filter(p => p.id !== id));
 
-        if (user) {
-            await supabase.from('projects').delete().eq('id', id);
-        }
+        await projectsRepo.remove(id);
     };
 
     const moveTask = async (projectId, taskId, newColumnId, newPhaseId = null) => {
@@ -343,13 +341,7 @@ export const createProjectTaskActions = ({ projects, setProjects, user }) => {
         if (!user) return { tasks: new Set(), subtasks: new Set() };
 
         try {
-            const { data, error } = await supabase
-                .from('project_highlights')
-                .select('task_id, subtask_id')
-                .eq('project_id', projectId)
-                .eq('user_id', user.id);
-
-            if (error) throw error;
+            const data = await projectsRepo.listHighlights(projectId);
 
             const taskHighlights = new Set();
             const subtaskHighlights = new Set();
@@ -375,16 +367,7 @@ export const createProjectTaskActions = ({ projects, setProjects, user }) => {
         if (!user) return;
 
         try {
-            const { error } = await supabase
-                .from('project_highlights')
-                .insert({
-                    user_id: user.id,
-                    project_id: projectId,
-                    task_id: taskId,
-                    subtask_id: subtaskId
-                });
-
-            if (error && error.code !== '23505') throw error;
+            await projectsRepo.addHighlight(projectId, taskId, subtaskId);
             log('✅ Highlight added');
         } catch (error) {
             console.error('❌ Failed to add highlight:', error);
@@ -396,21 +379,7 @@ export const createProjectTaskActions = ({ projects, setProjects, user }) => {
         if (!user) return;
 
         try {
-            let query = supabase
-                .from('project_highlights')
-                .delete()
-                .eq('user_id', user.id)
-                .eq('project_id', projectId)
-                .eq('task_id', taskId);
-
-            if (subtaskId) {
-                query = query.eq('subtask_id', subtaskId);
-            } else {
-                query = query.is('subtask_id', null);
-            }
-
-            const { error } = await query;
-            if (error) throw error;
+            await projectsRepo.removeHighlight(projectId, taskId, subtaskId);
             log('✅ Highlight removed');
         } catch (error) {
             console.error('❌ Failed to remove highlight:', error);
@@ -434,3 +403,4 @@ export const createProjectTaskActions = ({ projects, setProjects, user }) => {
         updateTask,
     };
 };
+

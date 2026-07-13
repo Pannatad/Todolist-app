@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { createProjectsRepo } from '../data/projectsRepo';
 import { createProjectStructureActions } from './projects/projectStructureActions';
 import { createProjectTaskActions } from './projects/projectTaskActions';
-import { normalizeProjectRecord, readLocalProjects } from './projectUtils';
+import { getDefaultLocalProjects, normalizeProjectRecord, readLocalProjects } from './projectUtils';
 
 const ProjectContext = createContext();
 
@@ -12,6 +13,8 @@ export const useProject = () => useContext(ProjectContext);
 
 export const ProjectProvider = ({ children }) => {
     const { user } = useAuth();
+    const userId = user?.id;
+    const projectsRepo = useMemo(() => createProjectsRepo(userId ? { id: userId } : null, getDefaultLocalProjects), [userId]);
 
     const [projects, setProjects] = useState(() => readLocalProjects());
 
@@ -20,11 +23,7 @@ export const ProjectProvider = ({ children }) => {
         if (!user) return;
 
         try {
-            const { data: projectsData } = await supabase
-                .from('projects')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
+            const projectsData = await projectsRepo.list();
 
             if (projectsData) {
                 const formattedProjects = projectsData.map(normalizeProjectRecord);
@@ -33,15 +32,15 @@ export const ProjectProvider = ({ children }) => {
         } catch (error) {
             console.error("Error loading projects:", error);
         }
-    }, [user]);
+    }, [projectsRepo, user]);
 
     useEffect(() => {
         if (user) {
             loadProjectsFromSupabase();
         } else {
-            setProjects(readLocalProjects());
+            projectsRepo.list().then((data) => setProjects(data.map(normalizeProjectRecord)));
         }
-    }, [loadProjectsFromSupabase, user]);
+    }, [loadProjectsFromSupabase, projectsRepo, user]);
 
     useEffect(() => {
         if (!user || !supabase) return undefined;
@@ -64,15 +63,12 @@ export const ProjectProvider = ({ children }) => {
         };
     }, [loadProjectsFromSupabase, user]);
 
-    // Save to LocalStorage (Guest Mode)
     useEffect(() => {
-        if (!user) {
-            localStorage.setItem('demon-projects', JSON.stringify(projects));
-        }
+        if (!user) localStorage.setItem('demon-projects', JSON.stringify(projects));
     }, [projects, user]);
 
-    const structureActions = createProjectStructureActions({ projects, setProjects, user });
-    const taskActions = createProjectTaskActions({ projects, setProjects, user });
+    const structureActions = createProjectStructureActions({ projects, projectsRepo, setProjects, user });
+    const taskActions = createProjectTaskActions({ projects, projectsRepo, setProjects, user });
 
     return (
         <ProjectContext.Provider value={{

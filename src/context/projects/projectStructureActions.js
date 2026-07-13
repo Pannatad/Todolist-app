@@ -1,5 +1,4 @@
 import { toast } from '../../ui/Toast';
-import { supabase } from '../../services/supabase';
 import {
     calculateProgress,
     cloneColumns,
@@ -8,7 +7,7 @@ import {
     normalizePhases,
 } from '../projectUtils';
 
-export const createProjectStructureActions = ({ projects, setProjects, user }) => {
+export const createProjectStructureActions = ({ projects, projectsRepo, setProjects, user }) => {
     const addProject = async (project) => {
         const projectColumns = cloneColumns(project.columns);
         const incomingTasks = Array.isArray(project.tasks) ? project.tasks : [];
@@ -43,6 +42,7 @@ export const createProjectStructureActions = ({ projects, setProjects, user }) =
         setProjects(prev => [...prev, { ...newProject, id: user ? tempId : newProject.id }]);
 
         if (!user) {
+            await projectsRepo.create(newProject);
             return newProject;
         }
 
@@ -68,11 +68,8 @@ export const createProjectStructureActions = ({ projects, setProjects, user }) =
                     updated_at: newProject.updated_at
                 };
 
-                const { data, error } = await supabase
-                    .from('projects')
-                    .insert(dbProject)
-                    .select()
-                    .single();
+                const data = await projectsRepo.create(dbProject);
+                const error = null;
 
                 if (data) {
                     const formattedData = {
@@ -117,6 +114,7 @@ export const createProjectStructureActions = ({ projects, setProjects, user }) =
         setProjects(prev => prev.map(p => p.id === id ? { ...p, ...fullUpdates } : p));
 
         if (!user) {
+            await projectsRepo.update(id, fullUpdates);
             return;
         }
 
@@ -141,7 +139,7 @@ export const createProjectStructureActions = ({ projects, setProjects, user }) =
 
             // Only update if there are valid DB fields
             if (Object.keys(dbUpdates).length > 0) {
-                await supabase.from('projects').update(dbUpdates).eq('id', id);
+                await projectsRepo.update(id, dbUpdates);
             }
         }
     };
@@ -300,3 +298,4 @@ export const createProjectStructureActions = ({ projects, setProjects, user }) =
         updateProject,
     };
 };
+
