@@ -1,18 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+import { createGoalsRepo } from '../data/goalsRepo';
 
 const GoalContext = createContext();
-
-const readStoredJson = (key, fallback) => {
-    try {
-        const saved = localStorage.getItem(key);
-        return saved ? JSON.parse(saved) : fallback;
-    } catch (error) {
-        console.error(`Failed to parse ${key}:`, error);
-        return fallback;
-    }
-};
 
 export const useGoal = () => {
     const context = useContext(GoalContext);
@@ -24,38 +16,28 @@ export const useGoal = () => {
 
 export const GoalProvider = ({ children }) => {
     const { user } = useAuth();
+    const userId = user?.id;
+    const goalsRepo = useMemo(() => createGoalsRepo(userId ? { id: userId } : null), [userId]);
 
     // Goals State
-    const [goals, setGoals] = useState(() => readStoredJson('vision-goals', []));
+    const [goals, setGoals] = useState([]);
 
     // Daily Highlights State
-    const [dailyHighlights, setDailyHighlights] = useState(() => readStoredJson('daily-highlights', {}));
+    const [dailyHighlights, setDailyHighlights] = useState({});
 
-    const loadGoalsFromLocalStorage = useCallback(() => {
-        setGoals(readStoredJson('vision-goals', []));
-        setDailyHighlights(readStoredJson('daily-highlights', {}));
-    }, []);
+    const loadGoalsFromLocalStorage = useCallback(async () => {
+        setGoals(await goalsRepo.list());
+        setDailyHighlights(await goalsRepo.listHighlights());
+    }, [goalsRepo]);
 
     // Load from Supabase
     const loadGoalsFromSupabase = useCallback(async () => {
-        if (!user) return;
-
         try {
-            // Load Goals
-            const { data: goalsData } = await supabase
-                .from('goals')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: true });
-            if (goalsData) setGoals(goalsData);
+            const goalsData = await goalsRepo.list();
+            setGoals(goalsData);
+            const highlightsData = await goalsRepo.listHighlights();
 
-            // Load Daily Highlights
-            const { data: highlightsData } = await supabase
-                .from('daily_highlights')
-                .select('*')
-                .eq('user_id', user.id);
-
-            if (highlightsData) {
+            if (Array.isArray(highlightsData)) {
                 const highlightsMap = {};
                 highlightsData.forEach(h => {
                     highlightsMap[h.key] = {
@@ -65,11 +47,13 @@ export const GoalProvider = ({ children }) => {
                     };
                 });
                 setDailyHighlights(highlightsMap);
+            } else {
+                setDailyHighlights(highlightsData);
             }
         } catch (error) {
             console.error("Error loading goals:", error);
         }
-    }, [user]);
+    }, [goalsRepo]);
 
     useEffect(() => {
         if (user) {
@@ -109,14 +93,6 @@ export const GoalProvider = ({ children }) => {
         };
     }, [loadGoalsFromSupabase, user]);
 
-    // Save to LocalStorage (Guest Mode)
-    useEffect(() => {
-        if (!user) {
-            localStorage.setItem('vision-goals', JSON.stringify(goals));
-            localStorage.setItem('daily-highlights', JSON.stringify(dailyHighlights));
-        }
-    }, [goals, dailyHighlights, user]);
-
     // Goal Handlers
     const addGoal = async (goalData) => {
         const newGoal = {
@@ -130,32 +106,26 @@ export const GoalProvider = ({ children }) => {
         const tempId = Date.now();
         setGoals(prev => [...prev, { ...newGoal, id: user ? tempId : newGoal.id }]);
 
-        if (user) {
-            const { id, colorTheme, ...dbGoal } = newGoal;
-            const { data, error } = await supabase.from('goals').insert([dbGoal]).select().single();
-            if (data) {
+        try {
+            const data = await goalsRepo.create(newGoal);
+            if (user && data) {
                 setGoals(prev => prev.map(g => g.id === tempId ? { ...g, ...data, colorTheme: data.color_theme } : g));
             }
+        } catch (error) {
+            console.error('Error saving goal:', error);
         }
     };
 
     const updateGoal = async (id, updates) => {
         setGoals(goals.map(g => g.id === id ? { ...g, ...updates } : g));
-        if (user) {
-            const dbUpdates = { ...updates };
-            if (dbUpdates.colorTheme) {
-                dbUpdates.color_theme = dbUpdates.colorTheme;
-                delete dbUpdates.colorTheme;
-            }
-            await supabase.from('goals').update(dbUpdates).eq('id', id);
-        }
+        try { await goalsRepo.update(id, updates); }
+        catch (error) { console.error('Error updating goal:', error); }
     };
 
     const deleteGoal = async (id) => {
         setGoals(goals.filter(g => g.id !== id));
-        if (user) {
-            await supabase.from('goals').delete().eq('id', id);
-        }
+        try { await goalsRepo.remove(id); }
+        catch (error) { console.error('Error deleting goal:', error); }
     };
 
     // Daily Highlight Handler
@@ -170,20 +140,8 @@ export const GoalProvider = ({ children }) => {
             [key]: { text, completed, status: finalStatus }
         }));
 
-        if (user) {
-            const { error } = await supabase
-                .from('daily_highlights')
-                .upsert({
-                    user_id: user.id,
-                    key,
-                    text,
-                    completed,
-                    status: finalStatus,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id, key' });
-
-            if (error) console.error("Error syncing highlight:", error);
-        }
+        try { await goalsRepo.upsertHighlight(key, { text, completed, status: finalStatus }); }
+        catch (error) { console.error('Error syncing highlight:', error); }
     };
 
     // Delete Highlight Handler
@@ -194,15 +152,8 @@ export const GoalProvider = ({ children }) => {
             return updated;
         });
 
-        if (user) {
-            const { error } = await supabase
-                .from('daily_highlights')
-                .delete()
-                .eq('user_id', user.id)
-                .eq('key', key);
-
-            if (error) console.error("Error deleting highlight:", error);
-        }
+        try { await goalsRepo.removeHighlight(key); }
+        catch (error) { console.error('Error deleting highlight:', error); }
     };
 
     const value = {
