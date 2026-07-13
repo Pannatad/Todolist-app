@@ -1,10 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from './AuthContext';
+import { createIdeasRepo } from '../data/ideasRepo';
 
 const IdeaBoardContext = createContext();
 
-const STORAGE_KEY = 'demon-idea-board-v1';
 export const IDEA_COLOR_OPTIONS = ['slate', 'sky', 'teal', 'emerald', 'amber', 'orange', 'rose', 'pink', 'violet', 'cyan'];
 
 const createIdeaNode = (overrides = {}) => ({
@@ -79,20 +80,6 @@ const normalizeBoardRecord = (record) => {
     };
 };
 
-const readLocalBoard = () => {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) {
-            return createDefaultBoard();
-        }
-
-        return normalizeBoardRecord(JSON.parse(saved));
-    } catch (error) {
-        console.error('Failed to read idea board from local storage:', error);
-        return createDefaultBoard();
-    }
-};
-
 const collectDescendantIds = (nodes, rootId) => {
     const ids = new Set([rootId]);
     let foundMore = true;
@@ -114,76 +101,46 @@ export const useIdeaBoard = () => useContext(IdeaBoardContext);
 
 export const IdeaBoardProvider = ({ children }) => {
     const { user } = useAuth();
-    const [board, setBoard] = useState(() => readLocalBoard());
+    const userId = user?.id;
+    const ideasRepo = useMemo(() => createIdeasRepo(userId ? { id: userId } : null), [userId]);
+    const [board, setBoard] = useState(() => createDefaultBoard());
     const [loading, setLoading] = useState(false);
     const saveCounterRef = useRef(0);
 
-    const persistLocalBoard = useCallback((nextBoard) => {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBoard));
-        } catch (error) {
-            console.error('Failed to save idea board locally:', error);
-        }
-    }, []);
-
     const persistBoardToSupabase = useCallback(async (nextBoard) => {
-        if (!user || !supabase) {
-            return nextBoard;
-        }
-
         const requestId = ++saveCounterRef.current;
-        const payload = {
-            user_id: user.id,
-            nodes: nextBoard.nodes,
-            updated_at: nextBoard.updated_at
-        };
-
-        if (nextBoard.id) {
-            payload.id = nextBoard.id;
-        }
-
-        const { data, error } = await supabase
-            .from('idea_boards')
-            .upsert(payload, { onConflict: 'user_id' })
-            .select()
-            .single();
-
-        if (error) {
+        try {
+            const data = nextBoard.id
+                ? await ideasRepo.update(nextBoard.id, nextBoard)
+                : await ideasRepo.create(nextBoard);
+            const normalized = normalizeBoardRecord(data);
+            if (requestId === saveCounterRef.current) {
+                setBoard(normalized);
+                await ideasRepo.writeGuest(normalized);
+            }
+            return normalized;
+        } catch (error) {
             console.error('Error saving idea board to Supabase:', error);
             return nextBoard;
         }
-
-        const normalized = normalizeBoardRecord(data);
-        if (requestId === saveCounterRef.current) {
-            setBoard(normalized);
-            persistLocalBoard(normalized);
-        }
-
-        return normalized;
-    }, [persistLocalBoard, user]);
-
-    useEffect(() => {
-        persistLocalBoard(board);
-    }, [board, persistLocalBoard]);
+    }, [ideasRepo]);
 
     useEffect(() => {
         let cancelled = false;
 
         const loadBoard = async () => {
             if (!user || !supabase) {
-                setBoard(readLocalBoard());
+                setBoard(normalizeBoardRecord(await ideasRepo.list(createDefaultBoard)));
                 setLoading(false);
                 return;
             }
 
             setLoading(true);
 
-            const guestBoard = readLocalBoard();
-            const { data, error } = await supabase
-                .from('idea_boards')
-                .select('*')
-                .eq('user_id', user.id)
-                .maybeSingle();
+            const guestBoard = normalizeBoardRecord(await ideasRepo.readGuest(createDefaultBoard));
+            let data = null;
+            let error = null;
+            try { data = await ideasRepo.list(); } catch (loadError) { error = loadError; }
 
             if (cancelled) {
                 return;
@@ -221,7 +178,7 @@ export const IdeaBoardProvider = ({ children }) => {
         return () => {
             cancelled = true;
         };
-    }, [persistBoardToSupabase, user]);
+    }, [ideasRepo, persistBoardToSupabase, user]);
 
     useEffect(() => {
         if (!user || !supabase) {
@@ -242,14 +199,14 @@ export const IdeaBoardProvider = ({ children }) => {
                     if (payload.eventType === 'DELETE') {
                         const fallback = createDefaultBoard();
                         setBoard(fallback);
-                        persistLocalBoard(fallback);
+                        ideasRepo.writeGuest(fallback);
                         return;
                     }
 
                     if (payload.new) {
                         const nextBoard = normalizeBoardRecord(payload.new);
                         setBoard(nextBoard);
-                        persistLocalBoard(nextBoard);
+                        ideasRepo.writeGuest(nextBoard);
                     }
                 }
             )
@@ -258,7 +215,7 @@ export const IdeaBoardProvider = ({ children }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [persistLocalBoard, user]);
+    }, [ideasRepo, user]);
 
     const applyBoardChange = useCallback(async (updater) => {
         let nextBoard;
@@ -277,10 +234,9 @@ export const IdeaBoardProvider = ({ children }) => {
             return null;
         }
 
-        persistLocalBoard(nextBoard);
         await persistBoardToSupabase(nextBoard);
         return nextBoard;
-    }, [persistBoardToSupabase, persistLocalBoard]);
+    }, [persistBoardToSupabase]);
 
     const addIdea = useCallback(async (overrides = {}) => {
         let createdIdea = null;
