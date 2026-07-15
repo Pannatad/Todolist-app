@@ -197,7 +197,7 @@ const DailyRitualModal = ({
         onClose();
     };
 
-    const displayName = profile?.nickname || profile?.name || user?.email?.split('@')[0] || 'there';
+    const displayName = profile?.nickname || profile?.name || user?.email?.split('@')[0] || '';
     const activeStep = STEP_META[stepIndex];
 
     return (
@@ -222,7 +222,7 @@ const DailyRitualModal = ({
                                 </div>
                                 <div>
                                     <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-warning)]">Daily Ritual</div>
-                                    <h2 className="text-2xl font-bold text-gray-900">Start with intention, {displayName}</h2>
+                                    <h2 className="text-2xl font-bold text-gray-900">{displayName ? `Start with intention, ${displayName}` : 'Start with intention'}</h2>
                                 </div>
                             </div>
                             <button
