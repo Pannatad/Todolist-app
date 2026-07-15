@@ -36,17 +36,17 @@ const TreeItem = ({
                 type="button"
                 onClick={() => onSelect(node.id)}
                 className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2.5 text-left transition ${
-                    selected ? `bg-white shadow-sm ring-1 ${colors.ring}` : 'hover:bg-white/70'
+                    selected ? `bg-[var(--color-card-raised)] shadow-sm ring-1 ${colors.ring}` : 'hover:bg-[var(--color-card-raised)]/70'
                 }`}
                 style={{ paddingLeft: `${8 + depth * 18}px` }}
             >
                 <span className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${colors.dot}`} />
                 <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-sm font-semibold ${node.completed ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                    <span className={`block truncate text-sm font-semibold ${node.completed ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-ink)]'}`}>
                         {node.title}
                     </span>
                     {node.details && depth === 0 && (
-                        <span className="mt-1 block truncate text-xs leading-5 text-slate-500">{node.details}</span>
+                        <span className="mt-1 block truncate text-xs leading-5 text-[var(--color-muted)]">{node.details}</span>
                     )}
                 </span>
                 {node.focused && <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />}
@@ -221,7 +221,7 @@ const IdeaNoteEditor = ({ node, onSave }) => {
                 onChange={(event) => setTitleDraft(event.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleSaveShortcut}
-                className={`w-full bg-transparent text-2xl font-bold leading-tight outline-none sm:text-3xl ${node.completed ? 'text-slate-400 line-through' : 'text-slate-950'}`}
+                className={`w-full bg-transparent text-2xl font-bold leading-tight outline-none sm:text-3xl ${node.completed ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-ink)]'}`}
                 placeholder="Untitled idea"
             />
 
@@ -230,14 +230,14 @@ const IdeaNoteEditor = ({ node, onSave }) => {
                     const placeholder = index === 0 ? 'Write the idea here. Add context, questions, examples, next steps...' : '';
 
                     return (
-                        <div key={`${index}-${line.type}`} className="flex min-h-9 items-start gap-3 rounded-lg px-1 transition-colors focus-within:bg-slate-50/80">
-                            <div className="flex h-9 w-7 shrink-0 items-center justify-center pt-0.5 text-sm font-semibold text-slate-400">
+                        <div key={`${index}-${line.type}`} className="flex min-h-9 items-start gap-3 rounded-lg px-1 transition-colors focus-within:bg-[var(--color-paper-2)]/80">
+                            <div className="flex h-9 w-7 shrink-0 items-center justify-center pt-0.5 text-sm font-semibold text-[var(--color-muted)]">
                                 {line.type === 'check' && (
                                     <input
                                         type="checkbox"
                                         checked={line.checked}
                                         onChange={() => toggleChecklistLine(index)}
-                                        className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-slate-900"
+                                        className="h-4 w-4 cursor-pointer rounded border-[var(--color-rule-2)] accent-[var(--color-accent)]"
                                         title={line.checked ? 'Mark open' : 'Mark done'}
                                     />
                                 )}
@@ -259,8 +259,8 @@ const IdeaNoteEditor = ({ node, onSave }) => {
                                 onFocus={() => setActiveLineIndex(index)}
                                 onBlur={handleBlur}
                                 onKeyDown={(event) => handleLineKeyDown(event, index)}
-                                className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-1 text-base leading-7 text-slate-700 outline-none placeholder:text-slate-400 ${
-                                    line.type === 'check' && line.checked ? 'text-slate-400 line-through' : ''
+                                className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-1 text-base leading-7 text-[var(--color-ink-2)] outline-none placeholder:text-[var(--color-muted)] ${
+                                    line.type === 'check' && line.checked ? 'text-[var(--color-muted)] line-through' : ''
                                 }`}
                                 placeholder={placeholder}
                             />
@@ -269,12 +269,12 @@ const IdeaNoteEditor = ({ node, onSave }) => {
                 })}
             </div>
 
-            <div className="mt-4 flex items-center gap-1 border-t border-slate-200 pt-3">
+            <div className="mt-4 flex items-center gap-1 border-t border-[var(--color-rule)] pt-3">
                 <button
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applyListFormat('bullet')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
                     title="Bullet list"
                 >
                     <List size={16} />
@@ -283,7 +283,7 @@ const IdeaNoteEditor = ({ node, onSave }) => {
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applyListFormat('check')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
                     title="Checklist"
                 >
                     <ListChecks size={16} />
@@ -292,7 +292,7 @@ const IdeaNoteEditor = ({ node, onSave }) => {
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applyListFormat('number')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
                     title="Numbered list"
                 >
                     <ListOrdered size={16} />

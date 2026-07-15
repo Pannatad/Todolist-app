@@ -427,6 +427,10 @@ button {
     width: auto;
     max-width: 44rem;
     border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--color-card) 82%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-floating);
   }
 
   .app-primary-nav .ui-segmented__item {

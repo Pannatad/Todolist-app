@@ -429,7 +429,7 @@ const Schedule = ({
                 <div className={`p-1.5 h-full flex flex-col overflow-hidden ${isCompactBlock ? 'justify-start' : 'justify-center'}`}>
                     <h4 className={`font-bold leading-tight truncate
                         ${isCompactBlock ? 'text-[10px]' : 'text-[11px]'}
-                        ${isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        ${isCompleted ? 'line-through text-[var(--color-muted)]' : 'text-[var(--color-ink-2)]'}`}>
                         {item.title}
                     </h4>
                     {showTimeRow && (
@@ -442,7 +442,7 @@ const Schedule = ({
                                 </span>
                             )}
                             {dur && (
-                                <span className="text-[9px] font-medium text-gray-400">
+                                <span className="text-[9px] font-medium text-[var(--color-muted)]">
                                     {formatDuration(dur)}
                                 </span>
                             )}
@@ -463,7 +463,7 @@ const Schedule = ({
                 {isTask && !isCompleted && (
                     <CheckCircle2
                         size={11}
-                        className="absolute top-1.5 right-1.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1.5 right-1.5 text-[var(--color-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
                     />
                 )}
             </Motion.div>
@@ -554,42 +554,42 @@ const Schedule = ({
                 />
             ) : <>
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-800">
+                <h3 className="text-lg font-bold text-[var(--color-ink)]">
                     {weekDates[0] && `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} — ${weekDates[6]?.toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
                 </h3>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-semibold">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-semibold">
                     {weekItemCount} item{weekItemCount !== 1 ? 's' : ''} this week
                 </span>
             </div>
             {/* Timetable Grid */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-rule)] shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <div className="min-w-[840px]">
                         {/* Day Headers */}
                         <div className="grid gap-0" style={{ gridTemplateColumns: '54px repeat(7, 1fr)' }}>
-                            <div className="border-b border-r border-gray-100 bg-gray-50/30" /> {/* Empty corner */}
+                            <div className="border-b border-r border-[var(--color-rule)] bg-[var(--color-paper-2)]/50" /> {/* Empty corner */}
                             {weekDates.map((date, index) => {
                                 const isTodayDate = isToday(date);
                                 const dayItems = getCombinedItemsForDay(date);
                                 return (
                                     <div
                                         key={`header-${index}`}
-                                        className={`px-2 py-3 text-center border-b border-r border-gray-100 last:border-r-0
-                                            ${isTodayDate ? 'bg-indigo-50' : 'bg-gray-50/50'}`}
+                                        className={`px-2 py-3 text-center border-b border-r border-[var(--color-rule)] last:border-r-0
+                                            ${isTodayDate ? 'bg-[var(--color-accent-soft)]' : 'bg-[var(--color-paper-2)]/60'}`}
                                     >
                                         <div className={`text-[10px] font-bold uppercase tracking-widest mb-1
-                                            ${isTodayDate ? 'text-indigo-500' : 'text-gray-400'}`}>
+                                            ${isTodayDate ? 'text-[var(--color-accent)]' : 'text-[var(--color-muted)]'}`}>
                                             {date.toLocaleDateString([], { weekday: 'short' })}
                                         </div>
                                         <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
                                             ${isTodayDate
-                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
-                                                : 'text-gray-700'
+                                                ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)] shadow-md'
+                                                : 'text-[var(--color-ink-2)]'
                                             }`}>
                                             {date.getDate()}
                                         </div>
                                         {dayItems.length > 0 && (
-                                            <div className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                            <div className="text-[10px] text-[var(--color-muted)] font-medium mt-0.5">
                                                 {dayItems.length} item{dayItems.length !== 1 ? 's' : ''}
                                             </div>
                                         )}
@@ -599,9 +599,9 @@ const Schedule = ({
                         </div>
                         {/* All Day Section */}
                         {hasAllDayItems && (
-                            <div className="grid gap-0 border-b border-gray-200" style={{ gridTemplateColumns: '54px repeat(7, 1fr)' }}>
-                                <div className="px-1 py-2 text-right pr-2 border-r border-gray-100 bg-gray-50/30">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">All Day</span>
+                            <div className="grid gap-0 border-b border-[var(--color-rule-2)]" style={{ gridTemplateColumns: '54px repeat(7, 1fr)' }}>
+                                <div className="px-1 py-2 text-right pr-2 border-r border-[var(--color-rule)] bg-[var(--color-paper-2)]/50">
+                                    <span className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider">All Day</span>
                                 </div>
                                 {weekDates.map((date, colIdx) => {
                                     const items = weekData.allDayByCol[colIdx] || [];
@@ -609,8 +609,8 @@ const Schedule = ({
                                     return (
                                         <div
                                             key={`allday-${colIdx}`}
-                                            className={`border-r border-gray-100 last:border-r-0 p-1 min-h-[36px] cursor-pointer hover:bg-gray-50/50 transition-colors
-                                                ${isTodayDate ? 'bg-indigo-50/20' : ''}`}
+                                            className={`border-r border-[var(--color-rule)] last:border-r-0 p-1 min-h-[36px] cursor-pointer hover:bg-[var(--color-paper-2)]/60 transition-colors
+                                                ${isTodayDate ? 'bg-[var(--color-accent-soft)]/30' : ''}`}
                                             onClick={() => handleColumnClick(date)}
                                         >
                                             <div className="space-y-1">
@@ -660,13 +660,13 @@ const Schedule = ({
                                     return (
                                         <React.Fragment key={`hour-${hour}`}>
                                             <div
-                                                className="text-[11px] text-gray-300 font-medium text-right pr-2 flex items-start justify-end pt-0 border-r border-gray-100"
+                                                className="text-[11px] text-[var(--color-muted)] font-medium text-right pr-2 flex items-start justify-end pt-0 border-r border-[var(--color-rule)]"
                                                 style={{ gridColumn: 1, gridRow: i + 1 }}
                                             >
                                                 {formatHour(hour)}
                                             </div>
                                             <div
-                                                className="border-t border-gray-100"
+                                                className="border-t border-[var(--color-rule)]"
                                                 style={{ gridColumn: '2 / -1', gridRow: i + 1 }}
                                             />
                                         </React.Fragment>
@@ -676,7 +676,7 @@ const Schedule = ({
                                 {weekDates.map((date, colIdx) => (
                                     <div
                                         key={`vsep-${colIdx}`}
-                                        className="border-l border-gray-50"
+                                        className="border-l border-[var(--color-rule)]/50"
                                         style={{
                                             gridColumn: colIdx + 2,
                                             gridRow: `1 / ${totalHours + 1}`,
@@ -706,8 +706,8 @@ const Schedule = ({
                                                 className="absolute left-0 right-0 flex items-center"
                                                 style={{ top: topOffset }}
                                             >
-                                                <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shadow-sm" />
-                                                <div className="flex-1 h-[2px] bg-red-500/60" />
+                                                <div className="w-2 h-2 rounded-full bg-[var(--color-error)] -ml-1 shadow-sm" />
+                                                <div className="flex-1 h-[2px] bg-[var(--color-error)]/60" />
                                             </div>
                                         </div>
                                     );
@@ -716,7 +716,7 @@ const Schedule = ({
                                 {weekDates.map((date, colIdx) => (
                                     <div
                                         key={`clickzone-${colIdx}`}
-                                        className="cursor-pointer hover:bg-indigo-50/20 transition-colors"
+                                        className="cursor-pointer hover:bg-[var(--color-accent-soft)]/30 transition-colors"
                                         style={{
                                             gridColumn: colIdx + 2,
                                             gridRow: `1 / ${totalHours + 1}`,

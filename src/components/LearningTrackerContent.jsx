@@ -226,7 +226,7 @@ const LearningTrackerContent = ({
                 <Motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ duration: 0.2 }}
                 >
                     <div className="flex items-center gap-2 mb-3">
                         <Zap size={18} className="text-amber-500" />
@@ -236,14 +236,14 @@ const LearningTrackerContent = ({
                         </span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sage-200">
-                        {inProgressTopics.map((topic, idx) => {
+                        {inProgressTopics.map((topic) => {
                             const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
                             return (
                                 <Motion.button
                                     key={topic.id}
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ type: 'spring', stiffness: 320, damping: 30, delay: 0.2 + idx * 0.04 }}
+                                    transition={{ duration: 0.2 }}
                                     whileHover={{ y: -2 }}
                                     onClick={() => setCurrentPathId(topic.learning_path_id)}
                                     className="group flex-shrink-0 min-w-[240px] max-w-[300px] rounded-[1.35rem] border border-amber-100 bg-white/85 p-4 text-left shadow-sm transition-colors hover:border-amber-200 hover:bg-amber-50/40 dark:border-white/10 dark:bg-void-900/80"
@@ -307,10 +307,10 @@ const LearningTrackerContent = ({
                     className="text-center py-16"
                 >
                     <div className="text-6xl mb-4">📚</div>
-                    <h3 className="text-xl font-bold text-gray-700 mb-2">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-bone-100 mb-2">
                         {searchQuery ? 'No paths found' : showArchived ? 'No archived paths' : 'Start Your Learning Journey'}
                     </h3>
-                    <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">
+                    <p className="text-gray-500 dark:text-bone-200/60 text-sm mb-6 max-w-md mx-auto">
                         {searchQuery
                             ? 'Try a different search term'
                             : 'Create your first learning path to organize and track topics you want to master.'
@@ -327,7 +327,7 @@ const LearningTrackerContent = ({
                             disabled={!canStart}
                             className={`px-6 py-3 rounded-2xl font-bold inline-flex items-center gap-2 transition-all
                                 ${canStart
-                                    ? 'text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105'
+                                    ? 'bg-sage-700 text-white shadow-sm hover:bg-sage-800 active:scale-95 dark:bg-bone-100 dark:text-void-950'
                                     : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
                                 }`}
                         >
@@ -357,7 +357,7 @@ const LearningTrackerContent = ({
                             {/* Path Cards Grid */}
                             <Motion.div layout className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 <AnimatePresence>
-                                    {catPaths.map((path, index) => {
+                                    {catPaths.map((path) => {
                                         const pathTopics = topics.filter(t => t.learning_path_id === path.id);
                                         const completedCount = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
 
@@ -368,7 +368,7 @@ const LearningTrackerContent = ({
                                                 initial={{ opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.9 }}
-                                                transition={{ type: 'spring', stiffness: 320, damping: 32, delay: index * 0.035 }}
+                                                transition={{ duration: 0.2 }}
                                             >
                                                 <LearningPathCard
                                                     path={path}

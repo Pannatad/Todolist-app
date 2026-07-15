@@ -210,9 +210,6 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
     }
     return (
         <motion.article
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.04 }}
             className="group relative overflow-hidden rounded-[24px] border border-[var(--color-rule)] bg-[var(--color-card)]"
         >
             <AnimatePresence>

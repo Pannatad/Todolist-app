@@ -133,10 +133,10 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
     );
 
     return (
-        <div className="h-full overflow-y-auto rounded-2xl bg-white/95 p-4 text-slate-900 shadow-xl backdrop-blur-xl sm:p-5">
+        <div className="h-full overflow-y-auto rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] p-4 text-[var(--color-ink)] shadow-sm sm:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <div className="flex items-center gap-2 text-indigo-500">
+                    <div className="flex items-center gap-2 text-[var(--color-accent)]">
                         <CalendarDays size={18} />
                         <span className="app-eyebrow">Weekly plan</span>
                     </div>
@@ -146,20 +146,20 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setWeekOffset((prev) => prev - 1)}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink-2)] transition hover:bg-[var(--color-paper-2)]"
                     >
                         <ChevronLeft size={18} />
                     </button>
                     <button
                         onClick={() => setWeekOffset(0)}
-                        className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                        className="flex h-10 items-center gap-2 rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 text-sm font-bold text-[var(--color-ink-2)] transition hover:bg-[var(--color-paper-2)]"
                     >
                         <RotateCcw size={15} />
                         This week
                     </button>
                     <button
                         onClick={() => setWeekOffset((prev) => prev + 1)}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink-2)] transition hover:bg-[var(--color-paper-2)]"
                     >
                         <ChevronRight size={18} />
                     </button>
@@ -167,37 +167,37 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-                <div className="rounded-2xl bg-indigo-50 p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-500">
+                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
                         <ListChecks size={14} />
                         Tasks
                     </div>
-                    <div className="mt-1 text-2xl font-bold text-indigo-900">{weeklyStats.taskCount}</div>
+                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{weeklyStats.taskCount}</div>
                 </div>
-                <div className="rounded-2xl bg-violet-50 p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-500">
+                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
                         <Layers size={14} />
                         Schedule
                     </div>
-                    <div className="mt-1 text-2xl font-bold text-violet-900">{weeklyStats.scheduleCount}</div>
+                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{weeklyStats.scheduleCount}</div>
                 </div>
-                <div className="rounded-2xl bg-sky-50 p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-500">
+                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
                         <GraduationCap size={14} />
                         Learning
                     </div>
-                    <div className="mt-1 text-2xl font-bold text-sky-900">{weeklyStats.learningCount}</div>
+                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{weeklyStats.learningCount}</div>
                 </div>
-                <div className="rounded-2xl bg-emerald-50 p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-500">
+                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
                         <Clock size={14} />
                         Load
                     </div>
-                    <div className="mt-1 text-2xl font-bold text-emerald-900">{formatDuration(weeklyStats.minutes)}</div>
+                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{formatDuration(weeklyStats.minutes)}</div>
                 </div>
-                <div className="rounded-2xl bg-amber-50 p-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-amber-500">Busiest</div>
-                    <div className="mt-1 truncate text-lg font-bold text-amber-900">
+                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Busiest</div>
+                    <div className="mt-1 truncate text-lg font-bold text-[var(--color-ink)]">
                         {weeklyStats.busiest?.count ? weeklyStats.busiest.date.toLocaleDateString([], { weekday: 'long' }) : 'Clear'}
                     </div>
                 </div>
@@ -207,7 +207,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                 <select
                     value={typeFilter}
                     onChange={(event) => setTypeFilter(event.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm font-bold text-[var(--color-ink-2)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
                 >
                     <option value="all">Tasks + schedule + learning</option>
                     <option value="task">Tasks only</option>
@@ -217,7 +217,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                 <select
                     value={subjectFilter}
                     onChange={(event) => setSubjectFilter(event.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm font-bold text-[var(--color-ink-2)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
                 >
                     <option value="all">All subjects/categories</option>
                     {subjects.map((subject) => (
@@ -227,39 +227,36 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-7">
-                {weekDates.map((date, dayIndex) => {
+                {weekDates.map((date) => {
                     const dateKey = toLocalDateKey(date);
                     const dayItems = itemsByDate[dateKey] || [];
                     const isToday = dateKey === todayKey;
                     const loadPercent = Math.round((dayItems.length / maxDailyItems) * 100);
 
                     return (
-                        <Motion.section
+                        <section
                             key={dateKey}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: dayIndex * 0.03 }}
-                            className={`rounded-2xl border p-3 ${isToday ? 'border-indigo-300 bg-indigo-50/80' : 'border-slate-200 bg-slate-50/80'}`}
+                            className={`rounded-2xl border p-3 ${isToday ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]' : 'border-[var(--color-rule)] bg-[var(--color-paper-2)]'}`}
                         >
                             <div className="flex items-start justify-between gap-2">
                                 <div>
-                                    <div className={`text-xs font-bold uppercase tracking-wide ${isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                    <div className={`text-xs font-bold uppercase tracking-wide ${isToday ? 'text-[var(--color-accent)]' : 'text-[var(--color-muted)]'}`}>
                                         {date.toLocaleDateString([], { weekday: 'short' })}
                                     </div>
-                                    <div className="text-xl font-bold text-slate-900">{date.getDate()}</div>
+                                    <div className="text-xl font-bold text-[var(--color-ink)]">{date.getDate()}</div>
                                 </div>
-                                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-500 shadow-sm">
+                                <span className="rounded-full bg-[var(--color-card-raised)] px-2 py-1 text-xs font-bold text-[var(--color-muted)] shadow-sm">
                                     {dayItems.length}
                                 </span>
                             </div>
 
-                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white">
-                                <div className="h-full rounded-full bg-indigo-400" style={{ width: `${loadPercent}%` }} />
+                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-rule)]">
+                                <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${loadPercent}%` }} />
                             </div>
 
                             <div className="mt-3 space-y-2">
                                 {dayItems.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 p-3 text-center text-xs text-slate-400">
+                                    <div className="rounded-xl border border-dashed border-[var(--color-rule)] bg-[var(--color-card-raised)]/70 p-3 text-center text-xs text-[var(--color-muted)]">
                                         Open
                                     </div>
                                 ) : (
@@ -268,7 +265,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                         const isLearning = item.type === 'learning';
                                         const learningColor = COLOR_OPTIONS.find((option) => option.name === item.pathColor) || COLOR_OPTIONS[0];
                                         const typeLabel = item.type === 'task' ? 'Task' : item.type === 'learning' ? 'Learning' : 'Schedule';
-                                        const typeColor = item.type === 'task' ? 'text-indigo-600' : item.type === 'learning' ? 'text-sky-600' : 'text-violet-600';
+                                        const typeColor = item.type === 'task' ? 'text-[var(--color-accent)]' : item.type === 'learning' ? 'text-[var(--color-success)]' : 'text-[var(--color-muted)]';
                                         return (
                                             <div
                                                 key={`${item.type}-${item.id}-${item.dateKey}`}
@@ -281,7 +278,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                                     event.preventDefault();
                                                     handleItemClick(item);
                                                 }}
-                                                className={`rounded-xl border bg-white p-2 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-300 ${isLearning ? 'cursor-default' : 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
+                                                className={`rounded-xl border bg-[var(--color-card-raised)] p-2 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] ${isLearning ? 'cursor-default' : 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
                                                 style={{ borderColor: color.border, backgroundColor: color.bg }}
                                                 title={isLearning ? 'Learning timetable slot' : `Edit ${item.type === 'task' ? 'task' : 'schedule item'}`}
                                             >
@@ -291,11 +288,11 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                                             {isLearning && (
                                                                 <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full bg-gradient-to-r ${learningColor.gradient}`} />
                                                             )}
-                                                            <div className="truncate text-xs font-bold text-slate-900">
+                                                            <div className="truncate text-xs font-bold text-[var(--color-ink)]">
                                                                 {isLearning ? `${item.pathIcon || '📚'} ${item.title}` : item.title}
                                                             </div>
                                                         </div>
-                                                        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+                                                        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-[var(--color-muted)]">
                                                             <Clock size={10} />
                                                             {formatTime(item.displayTime)}
                                                             {item.duration ? ` · ${formatDuration(item.duration)}` : ''}
@@ -307,7 +304,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                                                 event.stopPropagation();
                                                                 onCompleteTask?.(item.id);
                                                             }}
-                                                            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/80 text-emerald-600 transition hover:bg-emerald-100"
+                                                            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-card-raised)]/80 text-[var(--color-success)] transition hover:bg-[var(--color-success-soft)]"
                                                             title="Mark task done"
                                                         >
                                                             <CheckCircle2 size={15} />
@@ -315,7 +312,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                                     )}
                                                 </div>
                                                 <div className="mt-2 flex items-center justify-between gap-2">
-                                                    <span className="truncate rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                                                    <span className="truncate rounded-full bg-[var(--color-paper-2)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-muted)]">
                                                         {item.label}
                                                     </span>
                                                     <span className={`text-[10px] font-bold ${typeColor}`}>
@@ -327,7 +324,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
                                     })
                                 )}
                             </div>
-                        </Motion.section>
+                        </section>
                     );
                 })}
             </div>

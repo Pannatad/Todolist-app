@@ -160,7 +160,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 placeholder="Add title"
-                                className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0 font-medium text-lg"
+                                className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] font-medium text-lg"
                                 autoFocus
                             />
                         </div>
@@ -175,7 +175,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     type="date"
                                     value={formData.date}
                                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
+                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                                 />
                             </div>
                             <div>
@@ -186,7 +186,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     type="time"
                                     value={formData.startTime}
                                     onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
+                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                                 />
                             </div>
                         </div>
@@ -203,7 +203,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         type="button"
                                         onClick={() => setFormData({ ...formData, duration: mins })}
                                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.duration === mins
-                                                ? 'bg-[var(--color-accent)]0 text-white'
+                                                ? 'bg-[var(--color-accent)] text-white'
                                                 : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
                                             }`}
                                     >
@@ -234,7 +234,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         type="button"
                                         onClick={() => setFormData({ ...formData, category: cat })}
                                         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.category === cat
-                                            ? 'bg-[var(--color-accent)]0 text-white'
+                                            ? 'bg-[var(--color-accent)] text-white'
                                             : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
                                             }`}
                                     >
@@ -279,7 +279,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     const value = e.target.value;
                                     setFormData({ ...formData, recurrenceType: value });
                                 }}
-                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
+                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                             >
                                 {RECURRENCE_OPTIONS.map((opt) => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -313,7 +313,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                                     type="button"
                                                     onClick={() => toggleDayOfWeek(index)}
                                                     className={`w-9 h-9 rounded-full text-xs font-bold transition-colors ${formData.recurrenceDaysOfWeek.includes(index)
-                                                            ? 'bg-[var(--color-accent)]0 text-white'
+                                                            ? 'bg-[var(--color-accent)] text-white'
                                                             : 'bg-white dark:bg-void-900 text-sage-600 dark:text-bone-300 border border-sage-200 dark:border-white/10'
                                                         }`}
                                                 >
@@ -335,7 +335,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                         type="date"
                                         value={formData.recurrenceEndDate}
                                         onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0"
+                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                                     />
                                 </div>
                             )}
@@ -351,7 +351,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                 placeholder="Add notes..."
                                 rows={2}
-                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]0 resize-none"
+                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] resize-none"
                             />
                         </div>
                     </form>
@@ -397,7 +397,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                             onClick={handleSubmit}
                             disabled={!formData.title.trim() || isSubmitting}
                             className={`px-6 py-2 rounded-lg font-bold transition-colors ${formData.title.trim()
-                                    ? 'bg-[var(--color-accent)]0 text-white hover:bg-[var(--color-accent)]'
+                                    ? 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
                                     : 'bg-sage-300 text-sage-500 cursor-not-allowed'
                                 }`}
                         >

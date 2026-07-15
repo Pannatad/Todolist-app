@@ -132,7 +132,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                     <div className="px-8 pt-6">
                         <button
                             onClick={handleAddToToday}
-                            className="w-full flex items-center justify-center gap-3 p-4 bg-[var(--color-warning)] dark:bg-[var(--color-warning)]/20 border border-[var(--color-warning)] dark:border-[var(--color-warning)]/30 rounded-2xl text-[var(--color-warning)] dark:text-[var(--color-warning)] hover:bg-[var(--color-warning)] dark:hover:bg-[var(--color-warning)]/40 transition-colors font-semibold text-base"
+                            className="w-full flex items-center justify-center gap-3 p-4 bg-[var(--color-warning-soft)] border border-[var(--color-warning)]/30 rounded-2xl text-[var(--color-warning)] hover:opacity-80 transition-colors font-semibold text-base"
                         >
                             <Sun className="w-5 h-5" />
                             Add to Today's Focus
@@ -238,7 +238,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                                             <button
                                                 type="button"
                                                 onClick={saveSubtaskEdit}
-                                                className="text-[var(--color-success)]0 hover:text-[var(--color-success)]"
+                                                className="text-[var(--color-success)] hover:opacity-80"
                                             >
                                                 <Check className="w-4 h-4" />
                                             </button>
