@@ -46,24 +46,6 @@ const HabitModalForm = ({
     type,
 }) => (
         <Sheet open={isOpen} onClose={onClose} title={habit ? 'Edit habit' : 'New habit'}>
-                    <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
-                        <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                                {habit ? 'Edit habit' : 'New habit'}
-                            </div>
-                            <h2 className="mt-1 text-xl font-semibold text-slate-900">
-                                {habit ? 'Update habit' : 'Create habit'}
-                            </h2>
-                            <p className="mt-1 text-sm text-slate-500">Keep it simple and easy to maintain.</p>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-
                     <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
                         <div className="space-y-2">
                             <label className={labelClass}>Habit Name</label>
@@ -71,7 +53,7 @@ const HabitModalForm = ({
                                 <button
                                     type="button"
                                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-2xl transition-colors hover:bg-slate-100"
+                                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-2xl transition-colors hover:bg-[var(--color-paper-3)]"
                                 >
                                     {icon}
                                 </button>
@@ -103,8 +85,8 @@ const HabitModalForm = ({
                                                 }}
                                                 className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl transition-colors ${
                                                     icon === emoji
-                                                        ? 'bg-white ring-2 ring-slate-300'
-                                                        : 'bg-transparent hover:bg-white'
+                                                        ? 'bg-[var(--color-card-raised)] ring-2 ring-[var(--color-accent)]'
+                                                        : 'bg-transparent hover:bg-[var(--color-card-raised)]'
                                                 }`}
                                             >
                                                 {emoji}
@@ -125,13 +107,13 @@ const HabitModalForm = ({
                                         onClick={() => handleTimeOfDayChange(option.value)}
                                         className={`rounded-2xl border px-2 py-2.5 text-center text-xs font-medium transition-colors ${
                                             timeOfDay === option.value
-                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                : 'border-[var(--color-rule)] bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                         }`}
                                     >
                                         <option.icon
                                             size={16}
-                                            className={`mx-auto mb-1 ${timeOfDay === option.value ? 'text-white' : option.color}`}
+                                            className={`mx-auto mb-1 ${timeOfDay === option.value ? 'text-[var(--color-paper)]' : option.color}`}
                                         />
                                         {option.label}
                                     </button>
@@ -139,19 +121,19 @@ const HabitModalForm = ({
                             </div>
 
                             <div className={`${surfaceClass} flex items-center gap-3 px-4 py-3`}>
-                                <Clock size={15} className="text-slate-400" />
-                                <span className="text-sm text-slate-500">Scheduled time</span>
+                                <Clock size={15} className="text-[var(--color-muted)]" />
+                                <span className="text-sm text-[var(--color-muted)]">Scheduled time</span>
                                 <input
                                     type="time"
                                     value={reminderTime}
                                     onChange={(e) => setReminderTime(e.target.value)}
-                                    className="ml-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                                    className="ml-auto rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
                                 />
                                 {reminderTime && (
                                     <button
                                         type="button"
                                         onClick={() => setReminderTime('')}
-                                        className="text-slate-400 transition-colors hover:text-slate-700"
+                                        className="text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
                                     >
                                         <X size={14} />
                                     </button>
@@ -173,8 +155,8 @@ const HabitModalForm = ({
                                         onClick={() => setType(option.value)}
                                         className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
                                             type === option.value
-                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                : 'border-[var(--color-rule)] bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                         }`}
                                     >
                                         <option.icon size={15} />
@@ -190,7 +172,7 @@ const HabitModalForm = ({
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className={`space-y-2 ${surfaceClass} p-4`}
                             >
-                                <label className="text-sm font-medium text-slate-700">
+                                <label className="text-sm font-medium text-[var(--color-ink-2)]">
                                     Goal: {target} {type === 'duration' ? 'minutes' : 'times'}
                                 </label>
                                 <input
@@ -199,9 +181,9 @@ const HabitModalForm = ({
                                     max={type === 'duration' ? 120 : 20}
                                     value={target}
                                     onChange={(e) => setTarget(parseInt(e.target.value, 10))}
-                                    className="w-full accent-slate-900"
+                                    className="w-full accent-[var(--color-accent)]"
                                 />
-                                <div className="flex justify-between text-xs text-slate-400">
+                                <div className="flex justify-between text-xs text-[var(--color-muted)]">
                                     <span>1</span>
                                     <span>{type === 'duration' ? '120 min' : '20 times'}</span>
                                 </div>
@@ -214,25 +196,25 @@ const HabitModalForm = ({
                                 onClick={() => setIsSeed((prev) => !prev)}
                                 className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
                                     isSeed
-                                        ? 'border-[var(--color-success)] bg-[var(--color-success)]'
-                                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                                        ? 'border-[var(--color-success)] bg-[var(--color-success-soft)]'
+                                        : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] hover:bg-[var(--color-paper-2)]'
                                 }`}
                             >
                                 <div className="flex items-start gap-3">
                                     <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-                                        isSeed ? 'bg-[var(--color-success)] text-[var(--color-success)]' : 'bg-slate-100 text-slate-500'
+                                        isSeed ? 'bg-[var(--color-success)] text-white' : 'bg-[var(--color-paper-2)] text-[var(--color-muted)]'
                                     }`}>
                                         <Sprout size={16} />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <div className="text-sm font-semibold text-slate-900">Start as a seed</div>
-                                                <p className="mt-1 text-xs text-slate-500">
-                                                    Let this habit grow slowly with a patience window you choose.
+                                                <div className="text-sm font-semibold text-[var(--color-ink)]">Gentle start</div>
+                                                <p className="mt-1 text-xs text-[var(--color-muted)]">
+                                                    Skip streak pressure for the first days while the habit settles.
                                                 </p>
                                             </div>
-                                            <div className={`h-6 w-11 rounded-full p-1 transition-all ${isSeed ? 'bg-[var(--color-success)]0' : 'bg-slate-200'}`}>
+                                            <div className={`h-6 w-11 rounded-full p-1 transition-all ${isSeed ? 'bg-[var(--color-success)]' : 'bg-[var(--color-rule)]'}`}>
                                                 <div className={`h-4 w-4 rounded-full bg-white transition-transform ${isSeed ? 'translate-x-5' : 'translate-x-0'}`} />
                                             </div>
                                         </div>
@@ -249,7 +231,7 @@ const HabitModalForm = ({
                                         className="space-y-4 overflow-hidden"
                                     >
                                         <div className="space-y-2">
-                                            <label className={labelClass}>Patience Window</label>
+                                            <label className={labelClass}>Duration</label>
                                             <div className="grid grid-cols-3 gap-2">
                                                 {SEED_DURATION_OPTIONS.map((days) => (
                                                     <button
@@ -258,37 +240,34 @@ const HabitModalForm = ({
                                                         onClick={() => setSeedDurationDays(days)}
                                                         className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
                                                             seedDurationDays === days
-                                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                                : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]'
                                                         }`}
                                                     >
                                                         {days} days
                                                     </button>
                                                 ))}
                                             </div>
-                                            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-                                                <span className="text-sm text-slate-500">Custom</span>
+                                            <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-3">
+                                                <span className="text-sm text-[var(--color-muted)]">Custom</span>
                                                 <input
                                                     type="number"
                                                     min="7"
                                                     max="365"
                                                     value={seedDurationDays}
                                                     onChange={(e) => setSeedDurationDays(Math.max(7, Math.min(365, parseInt(e.target.value, 10) || DEFAULT_SEED_DURATION_DAYS)))}
-                                                    className="ml-auto w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                                                    className="ml-auto w-24 rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
                                                 />
-                                                <span className="text-sm text-slate-400">days</span>
-                                            </div>
-                                            <div className="text-xs text-slate-400">
-                                                Choose the growth window that feels right for this habit.
+                                                <span className="text-sm text-[var(--color-muted)]">days</span>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className={labelClass}>Why plant this?</label>
+                                            <label className={labelClass}>Why this habit?</label>
                                             <textarea
                                                 value={seedWhy}
                                                 onChange={(e) => setSeedWhy(e.target.value)}
-                                                placeholder="A short reason that keeps this habit grounded."
+                                                placeholder="A short reason to keep going."
                                                 rows={3}
                                                 className={inputClass}
                                             />
@@ -311,8 +290,8 @@ const HabitModalForm = ({
                                         onClick={() => setFrequency(option.value)}
                                         className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
                                             frequency === option.value
-                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                : 'border-[var(--color-rule)] bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                         }`}
                                     >
                                         {option.label}
@@ -337,15 +316,15 @@ const HabitModalForm = ({
                                             title={day.full}
                                             className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold transition-colors ${
                                                 scheduleDays.includes(day.value)
-                                                    ? 'border-slate-900 bg-slate-900 text-white'
-                                                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                                                    ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                    : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-muted)] hover:bg-[var(--color-paper-2)]'
                                             }`}
                                         >
                                             {day.label}
                                         </button>
                                     ))}
                                 </div>
-                                <div className="text-xs text-slate-400">
+                                <div className="text-xs text-[var(--color-muted)]">
                                     Only scheduled days count. Free days stay neutral.
                                 </div>
                             </Motion.div>
@@ -360,7 +339,7 @@ const HabitModalForm = ({
                                         type="button"
                                         onClick={() => setColor(colorOption.name)}
                                         className={`h-10 w-10 rounded-full ${colorOption.swatch} transition-transform ${
-                                            color === colorOption.name ? 'scale-110 ring-2 ring-slate-900 ring-offset-2' : 'opacity-70 hover:opacity-100'
+                                            color === colorOption.name ? 'scale-110 ring-2 ring-[var(--color-ink)] ring-offset-2 ring-offset-[var(--color-card)]' : 'opacity-70 hover:opacity-100'
                                         }`}
                                     />
                                 ))}
@@ -368,18 +347,18 @@ const HabitModalForm = ({
                         </div>
                     </form>
 
-                    <div className="flex gap-3 border-t border-slate-200 px-5 py-4">
+                    <div className="flex gap-3 border-t border-[var(--color-rule)] px-5 py-4">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                            className="flex-1 rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-4 py-3 text-sm font-medium text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-paper-2)]"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             onClick={handleSubmit}
-                            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--color-ink)] px-4 py-3 text-sm font-medium text-[var(--color-paper)] transition-colors hover:opacity-90"
                         >
                             <Plus size={16} />
                             {habit ? 'Update Habit' : 'Create Habit'}

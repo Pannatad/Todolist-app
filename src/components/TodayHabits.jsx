@@ -97,6 +97,7 @@ const TodayHabits = () => {
     }, [seedEntries]);
     const yesterdayReviewHabits = useMemo(() => (
         getHabitsForDate(yesterday)
+            .filter((habit) => !habit.created_at || toLocalDateKey(new Date(habit.created_at)) <= yesterdayStr)
             .filter((habit) => !getHabitLog(habit.id, yesterdayStr)?.completed)
             .filter((habit) => !dismissedBackfillIds.includes(habit.id))
     ), [dismissedBackfillIds, getHabitLog, getHabitsForDate, yesterday, yesterdayStr]);
@@ -179,7 +180,7 @@ const TodayHabits = () => {
     };
     return (
         <div className="space-y-4">
-            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 dark:bg-void-900/90 sm:p-5`}>
+            <section className={`relative overflow-hidden rounded-[28px] bg-[var(--color-card)] p-4 sm:p-5`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="relative z-10 max-w-xl">
                         <div className="app-eyebrow">
@@ -190,7 +191,7 @@ const TodayHabits = () => {
                                 ? 'Daily habits'
                                 : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                         </h2>
-                        <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-bone-200/70">
+                        <p className="mt-1 text-sm font-medium leading-6 text-[var(--color-muted)]">
                             {isToday
                                 ? getMotivationalMessage(completionRate, bestCurrentStreak)
                                 : isYesterday
@@ -199,10 +200,10 @@ const TodayHabits = () => {
                         </p>
                     </div>
                     <div className="ui-card relative z-10 min-w-44 px-4 py-3 text-sm font-semibold">
-                        <span className="text-slate-950">{completedToday}/{totalToday}</span> done
+                        <span className="text-[var(--color-ink)]">{completedToday}/{totalToday}</span> done
                         {bestCurrentStreak > 0 && (
                             <span className="ml-3">
-                                streak <span className="text-slate-950">{bestCurrentStreak}</span>
+                                streak <span className="text-[var(--color-ink)]">{bestCurrentStreak}</span>
                             </span>
                         )}
                         <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--color-rule)]">
@@ -224,12 +225,12 @@ const TodayHabits = () => {
                                     key={date.toISOString()}
                                     whileTap={{ scale: 0.96 }}
                                     onClick={() => setSelectedDate(new Date(date))}
-                                    className={`min-h-16 rounded-xl border border-slate-200 px-2 py-2.5 text-center text-sm font-semibold dark:border-white/10 ${
+                                    className={`min-h-16 rounded-xl border border-[var(--color-rule)] px-2 py-2.5 text-center text-sm font-semibold ${
                                         isSelected
-                                            ? 'bg-violet-500 text-white '
+                                            ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-ink)]'
                                             : isTodayDate
-                                                ? 'bg-emerald-100 text-emerald-950'
-                                                : 'bg-slate-50 text-slate-600 hover:bg-amber-100'
+                                                ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]'
+                                                : 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                     }`}
                                 >
                                     <div className="text-xs font-medium">{DAY_LABELS[index]}</div>
@@ -255,7 +256,7 @@ const TodayHabits = () => {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className={`rounded-[24px] bg-amber-100 p-4 text-amber-950 `}
+                        className={`rounded-[24px] border border-[var(--color-warning)]/30 bg-[var(--color-warning-soft)] p-4 text-[var(--color-ink)] `}
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
@@ -263,38 +264,38 @@ const TodayHabits = () => {
                                     <Bell size={16} strokeWidth={2.7} />
                                     Did you miss these yesterday, or just forget to log?
                                 </div>
-                                <p className="mt-1 text-sm text-amber-800">
+                                <p className="mt-1 text-sm text-[var(--color-ink-2)]">
                                     You can still backfill yesterday. After today, these entries become read-only.
                                 </p>
                             </div>
                             <button
                                 onClick={() => setSelectedDate(new Date(yesterday))}
-                                className="self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition-colors hover:bg-amber-50"
+                                className="self-start rounded-lg border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)] transition-colors hover:bg-[var(--color-paper-2)]"
                             >
                                 View yesterday
                             </button>
                         </div>
                         <div className="mt-3 space-y-2">
                             {yesterdayReviewHabits.slice(0, 4).map((habit) => (
-                                <div key={habit.id} className="flex flex-col gap-2 rounded-[20px] border border-[var(--color-rule)] bg-white px-3 py-3 sm:flex-row sm:items-center">
+                                <div key={habit.id} className="flex flex-col gap-2 rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-3 sm:flex-row sm:items-center">
                                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-amber-200 text-lg">{habit.icon}</span>
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-warning-soft)] text-lg">{habit.icon}</span>
                                         <div className="min-w-0">
-                                            <div className="truncate text-sm font-semibold text-slate-900">{habit.name}</div>
-                                            <div className="text-xs text-amber-700">Yesterday was scheduled for this habit.</div>
+                                            <div className="truncate text-sm font-semibold text-[var(--color-ink)]">{habit.name}</div>
+                                            <div className="text-xs text-[var(--color-muted)]">Yesterday was scheduled for this habit.</div>
                                         </div>
                                     </div>
                                     <div className="flex shrink-0 gap-2">
                                         <button
                                             onClick={() => handleBackfillDone(habit)}
-                                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100"
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-success)]/40 bg-[var(--color-success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--color-success)] transition-colors hover:opacity-80"
                                         >
                                             <CheckCircle2 size={14} />
                                             I did it
                                         </button>
                                         <button
                                             onClick={() => dismissYesterdayReview(habit.id)}
-                                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-rose-50"
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-error-soft)]"
                                         >
                                             <XCircle size={14} />
                                             I missed it
@@ -303,7 +304,7 @@ const TodayHabits = () => {
                                 </div>
                             ))}
                             {yesterdayReviewHabits.length > 4 && (
-                                <div className="text-xs font-medium text-amber-700">
+                                <div className="text-xs font-medium text-[var(--color-muted)]">
                                     +{yesterdayReviewHabits.length - 4} more in yesterday&apos;s list.
                                 </div>
                             )}
@@ -312,7 +313,7 @@ const TodayHabits = () => {
                 )}
             </AnimatePresence>
             {!canEditSelectedDate && (
-                <div className={`rounded-[18px] bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500 `}>
+                <div className={`rounded-[18px] bg-[var(--color-paper-2)] px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] `}>
                     This day is read-only. You can only edit today and yesterday.
                 </div>
             )}
@@ -322,7 +323,7 @@ const TodayHabits = () => {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className={`rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 `}
+                        className={`rounded-xl bg-[var(--color-success-soft)] px-4 py-2.5 text-sm font-semibold text-[var(--color-success)] `}
                     >
                         <div className="flex items-center gap-2">
                             <Sprout size={15} strokeWidth={2.7} />
@@ -337,12 +338,12 @@ const TodayHabits = () => {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
-                        className={`rounded-[22px] bg-white px-4 py-3 dark:bg-void-900/90`}
+                        className={`rounded-[22px] bg-[var(--color-card)] px-4 py-3`}
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <div className="text-sm font-semibold text-slate-950 dark:text-bone-100">How did {pendingReflection.habitName} feel?</div>
-                                <div className="mt-0.5 text-xs text-slate-500">One tap saves a small reflection to today&apos;s habit note.</div>
+                                <div className="text-sm font-semibold text-[var(--color-ink)]">How did {pendingReflection.habitName} feel?</div>
+                                <div className="mt-0.5 text-xs text-[var(--color-muted)]">One tap saves a small reflection to today&apos;s habit note.</div>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {(pendingReflection.completed ? REFLECTION_TAGS.completed : REFLECTION_TAGS.missed).map((tag) => (
@@ -350,7 +351,7 @@ const TodayHabits = () => {
                                         key={tag}
                                         type="button"
                                         onClick={() => handleReflection(tag)}
-                                        className="rounded-lg border border-slate-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-slate-800 transition-colors hover:bg-amber-100"
+                                        className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper-2)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-paper-3)]"
                                     >
                                         {tag}
                                     </button>
@@ -358,7 +359,7 @@ const TodayHabits = () => {
                                 <button
                                     type="button"
                                     onClick={() => setPendingReflection(null)}
-                                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                                    className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition-colors hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
                                 >
                                     skip
                                 </button>
@@ -368,7 +369,7 @@ const TodayHabits = () => {
                 )}
             </AnimatePresence>
             {seedEntries.length > 0 && <SeedGarden seeds={seedEntries} />}
-            <section className={`rounded-[28px] bg-white p-4 dark:bg-void-900/90 sm:p-5`}>
+            <section className={`rounded-[28px] bg-[var(--color-card)] p-4 sm:p-5`}>
                 {todayHabits.length === 0 ? (
                     <section className="ui-card px-5 py-12 text-center">
                         <h3 className="app-section-title">No habits yet.</h3>
@@ -377,7 +378,7 @@ const TodayHabits = () => {
                                 setEditingHabit(null);
                                 setShowModal(true);
                             }}
-                            className="mt-5 rounded-xl border border-violet-600 bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+                            className="mt-5 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--color-accent-ink)] transition hover:bg-[var(--color-accent-hover)]"
                         >
                             Add Habit
                         </button>
@@ -425,21 +426,19 @@ const TodayHabits = () => {
                                 </div>
                             );
                         })}
+                        <button
+                            onClick={() => {
+                                setEditingHabit(null);
+                                setShowModal(true);
+                            }}
+                            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-rule)] px-4 py-2.5 text-sm font-semibold text-[var(--color-accent)] transition-colors hover:bg-[var(--color-paper-2)]"
+                        >
+                            <Plus size={16} strokeWidth={2.7} />
+                            Add Habit
+                        </button>
                     </div>
                 )}
             </section>
-            <Motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => {
-                    setEditingHabit(null);
-                    setShowModal(true);
-                }}
-                className="fixed bottom-24 right-6 z-40 flex h-12 items-center gap-2 rounded-xl border border-violet-600 bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700"
-            >
-                <Plus size={16} strokeWidth={2.7} />
-                Add Habit
-            </Motion.button>
             <HabitModal
                 isOpen={showModal}
                 onClose={() => {

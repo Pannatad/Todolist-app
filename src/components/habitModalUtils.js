@@ -5,24 +5,24 @@ const EMOJI_OPTIONS = ['💧', '🧘', '🏃', '📚', '📝', '💪', '🎯', '
 
 const COLOR_OPTIONS = [
     { name: 'slate', swatch: 'bg-slate-500' },
-    { name: 'rose', swatch: 'bg-[var(--color-error)]0' },
+    { name: 'rose', swatch: 'bg-rose-500' },
     { name: 'purple', swatch: 'bg-purple-500' },
     { name: 'pink', swatch: 'bg-pink-500' },
-    { name: 'indigo', swatch: 'bg-[var(--color-accent)]0' },
+    { name: 'indigo', swatch: 'bg-indigo-500' },
     { name: 'blue', swatch: 'bg-blue-500' },
-    { name: 'teal', swatch: 'bg-[var(--color-success)]0' },
+    { name: 'teal', swatch: 'bg-teal-500' },
     { name: 'cyan', swatch: 'bg-cyan-500' },
     { name: 'lime', swatch: 'bg-lime-500' },
-    { name: 'amber', swatch: 'bg-[var(--color-warning)]0' },
-    { name: 'emerald', swatch: 'bg-[var(--color-success)]0' },
+    { name: 'amber', swatch: 'bg-amber-500' },
+    { name: 'emerald', swatch: 'bg-emerald-500' },
 ];
 
 const TIME_OF_DAY_OPTIONS = [
-    { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-[var(--color-warning)]0', defaultTime: '07:00' },
-    { value: 'afternoon', label: 'Afternoon', icon: Sun, color: 'text-yellow-500', defaultTime: '12:00' },
-    { value: 'evening', label: 'Evening', icon: Sunset, color: 'text-orange-500', defaultTime: '18:00' },
-    { value: 'night', label: 'Night', icon: Moon, color: 'text-[var(--color-accent)]0', defaultTime: '21:00' },
-    { value: 'anytime', label: 'Anytime', icon: Clock, color: 'text-slate-400', defaultTime: '' },
+    { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-[var(--color-warning)]', defaultTime: '07:00' },
+    { value: 'afternoon', label: 'Afternoon', icon: Sun, color: 'text-[var(--color-warning)]', defaultTime: '12:00' },
+    { value: 'evening', label: 'Evening', icon: Sunset, color: 'text-[var(--color-warning)]', defaultTime: '18:00' },
+    { value: 'night', label: 'Night', icon: Moon, color: 'text-[var(--color-accent)]', defaultTime: '21:00' },
+    { value: 'anytime', label: 'Anytime', icon: Clock, color: 'text-[var(--color-muted)]', defaultTime: '' },
 ];
 
 const DAYS = [
@@ -54,9 +54,9 @@ const getInitialFormState = (habit) => ({
     seedWhy: habit?.seed_why || '',
 });
 
-const labelClass = 'text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400';
-const surfaceClass = 'rounded-2xl border border-slate-200 bg-slate-50';
-const inputClass = 'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300';
+const labelClass = 'text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]';
+const surfaceClass = 'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)]';
+const inputClass = 'w-full rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] px-4 py-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]';
 
 export {
     COLOR_OPTIONS,

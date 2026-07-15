@@ -201,7 +201,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                 disabled={disabled}
                 className={`h-10 w-10 rounded-2xl border border-[var(--color-rule)]  transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isCompleted
                     ? `${color.actionBg} text-white`
-                    : 'bg-white text-slate-500'
+                    : 'bg-[var(--color-card-raised)] text-[var(--color-muted)]'
                     }`}
             >
                 {isCompleted ? <Check size={16} className="mx-auto" strokeWidth={3} /> : <span className="text-xs">+</span>}
@@ -213,62 +213,61 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04 }}
-            className={`group relative overflow-hidden rounded-[24px] bg-gradient-to-br ${color.surface}  `}
+            className="group relative overflow-hidden rounded-[24px] border border-[var(--color-rule)] bg-[var(--color-card)]"
         >
-            <div className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${habit.is_seed ? seedStageMeta?.accent || 'from-emerald-300 to-teal-300' : 'from-violet-300 via-rose-300 to-amber-300'}`} />
             <AnimatePresence>
                 {justCompleted && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-emerald-200/25"
+                        className="absolute inset-0 bg-[var(--color-success-soft)]/40"
                     />
                 )}
             </AnimatePresence>
             <div className="relative z-10 p-4">
                 <div className="flex items-start gap-3">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[var(--color-rule)] ${color.iconBg} text-xl `}>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-xl `}>
                         {habit.icon}
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className={`truncate text-base font-black text-slate-900 ${isCompleted ? 'line-through opacity-60' : ''}`}>
+                                    <h3 className={`truncate text-base font-black text-[var(--color-ink)] ${isCompleted ? 'line-through opacity-60' : ''}`}>
                                         {habit.name}
                                     </h3>
                                     {habit.is_seed && seedStageMeta && (
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-rule)] bg-emerald-200 px-2.5 py-1 text-[11px] font-black text-emerald-950">
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-success)]/40 bg-[var(--color-success-soft)] px-2.5 py-1 text-[11px] font-black text-[var(--color-success)]">
                                             <Sprout size={12} />
                                             {seedStageMeta.label}
                                         </span>
                                     )}
                                     {habit.is_seed && seedHealthMeta && (
-                                        <span className={`rounded-full border-2 px-2.5 py-1 text-[11px] font-black ${seedHealthMeta.badge}`}>
+                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${seedHealthMeta.badge}`}>
                                             {seedHealthMeta.label}
                                         </span>
                                     )}
                                 </div>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-slate-500">
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--color-muted)]">
                                     <span>{getFrequencyLabel(habit)}</span>
                                     {habit.reminder_time && (
                                         <span className={color.softText}>{formatTime12h(habit.reminder_time)}</span>
                                     )}
                                     {currentStreak > 0 && (
-                                        <span className="inline-flex items-center gap-1 font-medium text-orange-500">
+                                        <span className="inline-flex items-center gap-1 font-medium text-[var(--color-warning)]">
                                             <Flame size={14} strokeWidth={2.7} />
                                             {currentStreak} day streak
                                         </span>
                                     )}
                                     {disabled && (
-                                        <span className="inline-flex items-center gap-1 font-medium text-slate-400" title={disabledReason}>
+                                        <span className="inline-flex items-center gap-1 font-medium text-[var(--color-muted)]" title={disabledReason}>
                                             <Lock size={13} strokeWidth={2.7} />
                                             {seedEnded ? 'Seed ended' : 'Read-only'}
                                         </span>
                                     )}
                                     {habit.is_seed && seedInsight && (
-                                        <span className={`font-medium ${seedEnded ? 'text-zinc-600' : 'text-emerald-700'}`}>
+                                        <span className={`font-medium ${seedEnded ? 'text-[var(--color-muted)]' : 'text-[var(--color-success)]'}`}>
                                             {seedEnded ? 'Replant needed' : `Step ${seedInsight.elapsedDays} of ${seedInsight.durationDays}`}
                                         </span>
                                     )}
@@ -282,8 +281,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         disabled={disabled}
                                         title={disabled ? disabledReason : undefined}
                                         className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all disabled:cursor-not-allowed disabled:opacity-55 ${isCompleted
-                                            ? 'border-slate-800 bg-emerald-300 text-slate-950 '
-                                            : 'border-slate-800 bg-white text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'
+                                            ? 'border-[var(--color-success)] bg-[var(--color-success)] text-white'
+                                            : 'border-[var(--color-rule-2)] bg-[var(--color-card-raised)] text-[var(--color-muted)] hover:border-[var(--color-success)] hover:text-[var(--color-success)]'
                                             }`}
                                     >
                                         <Check size={18} strokeWidth={3} />
@@ -301,8 +300,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                     </motion.button>
                                 )}
                                 {habit.type === 'duration' && (
-                                    <div className="w-32 rounded-xl border border-[var(--color-rule)] bg-white p-2.5">
-                                        <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                                    <div className="w-32 rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] p-2.5">
+                                        <div className="mb-2 flex items-center justify-between text-xs text-[var(--color-muted)]">
                                             <span>Minutes</span>
                                             <span>{currentValue}/{habit.target}</span>
                                         </div>
@@ -325,16 +324,16 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                             </div>
                         </div>
                         {!habit.is_seed && (
-                            <div className="mt-3 rounded-[18px] border border-[var(--color-rule)] bg-white/80 p-3">
+                            <div className="mt-3 rounded-[18px] border border-[var(--color-rule)] bg-[var(--color-card-raised)] p-3">
                                 {habit.type === 'check' && (
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="text-sm font-black text-slate-800">Daily check-in</div>
-                                            <div className="mt-1 text-xs text-slate-500">
+                                            <div className="text-sm font-black text-[var(--color-ink)]">Daily check-in</div>
+                                            <div className="mt-1 text-xs text-[var(--color-muted)]">
                                                 {isCompleted ? 'Completed for this day.' : 'Tap the check button when done.'}
                                             </div>
                                         </div>
-                                        <div className={`rounded-full border border-[var(--color-rule)] px-3 py-1 text-xs font-black ${isCompleted ? 'bg-emerald-200 text-emerald-950' : 'bg-slate-100 text-slate-600'}`}>
+                                        <div className={`rounded-full border border-[var(--color-rule)] px-3 py-1 text-xs font-black ${isCompleted ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]' : 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)]'}`}>
                                             {isCompleted ? 'Done' : 'Pending'}
                                         </div>
                                     </div>
@@ -342,8 +341,8 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 {habit.type === 'count' && (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <div className="text-sm font-black text-slate-800">Count progress</div>
-                                            <div className="inline-flex items-center gap-1 text-sm font-semibold text-slate-700">
+                                            <div className="text-sm font-black text-[var(--color-ink)]">Count progress</div>
+                                            <div className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-ink-2)]">
                                                 <Hash size={14} />
                                                 {currentValue}/{habit.target}
                                             </div>
@@ -352,7 +351,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                             {Array.from({ length: Math.min(habit.target, 12) }).map((_, dotIndex) => (
                                                 <div
                                                     key={dotIndex}
-                                                    className={`h-4 w-4 rounded-full border border-[var(--color-rule)] transition-all ${dotIndex < currentValue ? color.dot : color.dotEmpty}`}
+                                                    className={`h-4 w-4 rounded-full border border-[var(--color-rule)] transition-all ${dotIndex < currentValue ? color.dot : 'bg-[var(--color-rule)]'}`}
                                                 />
                                             ))}
                                         </div>
@@ -361,13 +360,13 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 {habit.type === 'duration' && (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                    <div className="inline-flex items-center gap-2 text-sm font-black text-slate-700">
+                                    <div className="inline-flex items-center gap-2 text-sm font-black text-[var(--color-ink-2)]">
                                                 <Clock size={15} strokeWidth={2.7} />
                                                 Focus duration
                                             </div>
-                                            <div className="text-sm font-semibold text-slate-700">{currentValue}/{habit.target} min</div>
+                                            <div className="text-sm font-semibold text-[var(--color-ink-2)]">{currentValue}/{habit.target} min</div>
                                         </div>
-                                        <div className={`h-3 overflow-hidden rounded-full border border-[var(--color-rule)] ${color.progressBg}`}>
+                                        <div className={`h-3 overflow-hidden rounded-full border border-[var(--color-rule)] bg-[var(--color-paper-2)]`}>
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${progress}%` }}
@@ -379,9 +378,9 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 )}
                             </div>
                         )}
-                        <div className="mt-3 rounded-[18px] border border-[var(--color-rule)] bg-white/80 p-3">
+                        <div className="mt-3 rounded-[18px] border border-[var(--color-rule)] bg-[var(--color-card-raised)] p-3">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="inline-flex items-center gap-2 text-sm font-black text-slate-700">
+                                <div className="inline-flex items-center gap-2 text-sm font-black text-[var(--color-ink-2)]">
                                     <FileText size={14} strokeWidth={2.7} />
                                     Notes
                                 </div>
@@ -394,7 +393,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         }}
                                         disabled={disabled}
                                         title={disabled ? disabledReason : undefined}
-                                        className="rounded-full border border-[var(--color-rule)] bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-600 transition-colors hover:bg-amber-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="rounded-full border border-[var(--color-rule)] bg-[var(--color-paper-2)] px-2.5 py-1 text-xs font-black text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {noteText ? 'Edit' : 'Add note'}
                                     </button>
@@ -411,7 +410,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                         placeholder={habit.type === 'duration'
                                             ? 'e.g. Woke up at 6:20 AM'
                                             : 'e.g. Walking, running 2 km, weight training'}
-                                        className="w-full rounded-xl border border-[var(--color-rule)] bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="w-full rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     <div className="flex items-center justify-end gap-2">
                                         <button
@@ -420,7 +419,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 setNoteDraft(noteText);
                                                 setIsEditingNote(false);
                                             }}
-                                            className="rounded-full border border-[var(--color-rule)] bg-white px-3 py-1.5 text-xs font-black text-slate-600 transition-colors hover:bg-slate-50"
+                                            className="rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-1.5 text-xs font-black text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-paper-2)]"
                                         >
                                             Cancel
                                         </button>
@@ -430,7 +429,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 handleSaveNote();
                                             }}
                                             disabled={disabled}
-                                            className="rounded-full border border-[var(--color-rule)] bg-violet-500 px-3 py-1.5 text-xs font-black text-white  transition-colors hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-full border border-[var(--color-rule)] bg-[var(--color-accent)] px-3 py-1.5 text-xs font-black text-[var(--color-accent-ink)] transition-colors hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Save
                                         </button>
@@ -438,7 +437,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                 </div>
                             ) : (
                                 <div className="mt-2 space-y-2">
-                                    <div className="text-sm font-medium text-slate-500">
+                                    <div className="text-sm font-medium text-[var(--color-muted)]">
                                         {noteText || 'No note for this day.'}
                                     </div>
                                     {onViewNotes && (
@@ -447,7 +446,7 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                                                 event.stopPropagation();
                                                 onViewNotes();
                                             }}
-                                            className="text-xs font-black text-slate-500 transition-colors hover:text-slate-800"
+                                            className="text-xs font-black text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
                                         >
                                             {noteCount > 0 ? `View note history (${noteCount})` : 'Open note history'}
                                         </button>
@@ -458,13 +457,13 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
                         <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-rule)] pt-3">
                             <button
                                 onClick={(event) => { event.stopPropagation(); onEdit?.(habit); }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-rule)] bg-white text-slate-500  transition-colors hover:bg-amber-100 hover:text-slate-900"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-muted)] transition-colors hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
                             >
                                 <Edit2 size={14} />
                             </button>
                             <button
                                 onClick={(event) => { event.stopPropagation(); onDelete?.(habit.id); }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-rule)] bg-white text-slate-500  transition-colors hover:bg-rose-100 hover:text-red-500"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-muted)] transition-colors hover:bg-[var(--color-error-soft)] hover:text-[var(--color-error)]"
                             >
                                 <Trash2 size={14} />
                             </button>

@@ -11,17 +11,17 @@ const RitualChoice = ({ item, selected, onToggle }) => {
             type="button"
             {...buttonPressProps(() => onToggle(item.key))}
             className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${selected
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent)] shadow-sm'
-                : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] shadow-sm'
+                : 'border-[var(--color-rule)] bg-[var(--color-card)] hover:border-[var(--color-rule-2)] hover:bg-[var(--color-card-raised)]'
                 }`}
         >
             <div className="flex items-start gap-3">
-                <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-[var(--color-accent)]0 bg-[var(--color-accent)] text-white' : 'border-gray-300 bg-white text-transparent'}`}>
+                <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-ink)]' : 'border-[var(--color-rule-2)] bg-[var(--color-card-raised)] text-transparent'}`}>
                     <Check size={12} />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-gray-900">{item.title}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <div className="truncate text-sm font-semibold text-[var(--color-ink)]">{item.title}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]">
                         <span>{label}</span>
                         <span>{formatMinutes(getRitualItemEstimate(item))}</span>
                         {deadline && <span>due {deadline.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}

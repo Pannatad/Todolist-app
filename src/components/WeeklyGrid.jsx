@@ -55,11 +55,11 @@ const WeeklyGrid = () => {
 
     return (
         <div className="space-y-4">
-            <section className={`relative overflow-hidden rounded-[28px] bg-white p-4 dark:bg-void-900/90 sm:p-5`}>
+            <section className={`relative overflow-hidden rounded-[28px] bg-[var(--color-card)] p-4 sm:p-5`}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="relative z-10">
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-sky-50 text-sky-700">
+                        <div className="flex items-center gap-2 text-[var(--color-muted)]">
+                            <span className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-rule)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
                                 <CalendarDays size={16} strokeWidth={2.7} />
                             </span>
                             <span className="app-eyebrow">Weekly view</span>
@@ -70,14 +70,14 @@ const WeeklyGrid = () => {
                     <div className="relative z-10 flex items-center gap-2">
                         <button
                             onClick={() => setWeekOffset((prev) => prev - 1)}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-white text-slate-700  hover:bg-amber-100`}
+                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]`}
                         >
                             <ChevronLeft size={16} strokeWidth={2.7} />
                         </button>
                         {weekOffset !== 0 && (
                             <button
                                 onClick={() => setWeekOffset(0)}
-                                className={`rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50`}
+                                className={`rounded-lg border border-[var(--color-rule)] bg-[var(--color-card)] px-3 py-2 text-sm font-semibold text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]`}
                             >
                                 This week
                             </button>
@@ -85,7 +85,7 @@ const WeeklyGrid = () => {
                         <button
                             onClick={() => setWeekOffset((prev) => prev + 1)}
                             disabled={weekOffset >= 0}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-white text-slate-700  hover:bg-amber-100 disabled:opacity-40`}
+                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)] disabled:opacity-40`}
                         >
                             <ChevronRight size={16} strokeWidth={2.7} />
                         </button>
@@ -93,15 +93,15 @@ const WeeklyGrid = () => {
                 </div>
             </section>
 
-            <section className={`overflow-hidden rounded-[28px] bg-white dark:bg-void-900/90`}>
-                <div className="grid grid-cols-8 border-b border-[var(--color-rule)] bg-slate-100 dark:bg-void-800">
+            <section className={`overflow-hidden rounded-[28px] bg-[var(--color-card)]`}>
+                <div className="grid grid-cols-8 border-b border-[var(--color-rule)] bg-[var(--color-paper-2)]">
                     <div className="app-eyebrow p-3">Habit</div>
                     {weekDates.map((date) => (
-                        <div key={date.toISOString()} className={`border-l border-[var(--color-rule)] p-3 text-center ${isToday(date) ? 'bg-emerald-100' : ''}`}>
-                            <div className="text-xs font-medium text-slate-500">
+                        <div key={date.toISOString()} className={`border-l border-[var(--color-rule)] p-3 text-center ${isToday(date) ? 'bg-[var(--color-success-soft)]' : ''}`}>
+                            <div className="text-xs font-medium text-[var(--color-muted)]">
                                 {date.toLocaleDateString('en-US', { weekday: 'short' })}
                             </div>
-                            <div className={`mt-1 text-sm font-semibold ${isToday(date) ? 'text-emerald-800' : 'text-slate-800 dark:text-bone-100'}`}>
+                            <div className={`mt-1 text-sm font-semibold ${isToday(date) ? 'text-[var(--color-success)]' : 'text-[var(--color-ink)]'}`}>
                                 {date.getDate()}
                             </div>
                         </div>
@@ -109,21 +109,21 @@ const WeeklyGrid = () => {
                 </div>
 
                 {habits.length === 0 ? (
-                    <div className="p-10 text-center text-sm font-semibold text-slate-400">No habits created yet.</div>
+                    <div className="p-10 text-center text-sm font-semibold text-[var(--color-muted)]">No habits created yet.</div>
                 ) : (
                     habits.map((habit, habitIndex) => {
                         const colorKey = habit.color || INDEX_COLORS[habitIndex % INDEX_COLORS.length];
                         const color = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.teal;
 
                         return (
-                            <div key={habit.id} className="grid grid-cols-8 border-b-2 border-slate-100 last:border-b-0 dark:border-white/10">
+                            <div key={habit.id} className="grid grid-cols-8 border-b border-[var(--color-rule)] last:border-b-0">
                                 <div className="flex items-center gap-3 p-3">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] ${color.idle}`}>
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper-2)]`}>
                                         <span className="text-base">{habit.icon}</span>
                                     </div>
                                     <div className="min-w-0">
-                                        <div className="truncate text-sm font-semibold text-slate-800 dark:text-bone-100">{habit.name}</div>
-                                        <div className="text-xs font-semibold text-slate-400">{habit.frequency === 'daily' ? 'Daily' : 'Custom schedule'}</div>
+                                        <div className="truncate text-sm font-semibold text-[var(--color-ink)]">{habit.name}</div>
+                                        <div className="text-xs font-semibold text-[var(--color-muted)]">{habit.frequency === 'daily' ? 'Daily' : 'Custom schedule'}</div>
                                     </div>
                                 </div>
 
@@ -134,7 +134,7 @@ const WeeklyGrid = () => {
                                     const isEditable = canLogHabitDate(date);
 
                                     return (
-                                        <div key={`${habit.id}-${date.toISOString()}`} className={`flex items-center justify-center border-l border-slate-100 p-2 dark:border-white/10 ${isToday(date) ? 'bg-emerald-50/80' : ''}`}>
+                                        <div key={`${habit.id}-${date.toISOString()}`} className={`flex items-center justify-center border-l border-[var(--color-rule)] p-2 ${isToday(date) ? 'bg-[var(--color-success-soft)]/60' : ''}`}>
                                             {isScheduled ? (
                                                 <Motion.button
                                                     whileHover={isEditable ? { scale: 1.04 } : undefined}
@@ -155,8 +155,8 @@ const WeeklyGrid = () => {
                                                         isCompleted
                                                             ? `${color.active} text-white `
                                                             : isEditable
-                                                                ? 'bg-white text-slate-500 hover:bg-amber-100'
-                                                                : 'bg-slate-50 text-slate-300'
+                                                                ? 'bg-[var(--color-card-raised)] text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
+                                                                : 'bg-[var(--color-paper-2)] text-[var(--color-rule-2)]'
                                                     }`}
                                                 >
                                                     {isCompleted
@@ -166,7 +166,7 @@ const WeeklyGrid = () => {
                                                             : <Lock size={13} />}
                                                 </Motion.button>
                                             ) : (
-                                                <div className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-slate-200 bg-slate-100 text-xs font-black text-slate-300">
+                                                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-xs font-black text-[var(--color-rule-2)]">
                                                     -
                                                 </div>
                                             )}
