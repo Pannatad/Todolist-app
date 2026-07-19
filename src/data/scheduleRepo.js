@@ -33,7 +33,8 @@ const buildInsertPayloads = (item) => {
         recurrence_interval: item.recurrence_interval,
         recurrence_days_of_week: item.recurrence_days_of_week,
         recurrence_end_date: item.recurrence_end_date,
-        recurrence_exceptions: item.recurrence_exceptions
+        recurrence_exceptions: item.recurrence_exceptions,
+        recurrence_overrides: item.recurrence_overrides
     };
 
     const legacyPayload = {
@@ -66,7 +67,8 @@ const buildUpdatePayloads = (updates) => {
             recurrence_interval: updates.recurrence_interval,
             recurrence_days_of_week: updates.recurrence_days_of_week,
             recurrence_end_date: updates.recurrence_end_date,
-            recurrence_exceptions: updates.recurrence_exceptions
+            recurrence_exceptions: updates.recurrence_exceptions,
+            recurrence_overrides: updates.recurrence_overrides
         }),
         withDefinedValues({
             title: updates.title,

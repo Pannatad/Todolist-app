@@ -165,6 +165,7 @@ export const ChatProvider = ({ children }) => {
                 return new Date(t.deadline).toDateString() === today.toDateString();
             }) || [],
             recentSchedule,
+            allScheduleItems: scheduleItems || [],
             projects: projects?.map(p => ({
                 id: p.id,
                 title: p.title,
@@ -210,6 +211,7 @@ export const ChatProvider = ({ children }) => {
         pendingActions,
         rememberNote,
         saveConversation,
+        scheduleItems,
         selectedAIProvider,
         setActiveSubject,
         setIsTyping,

@@ -44,6 +44,7 @@ const startOfLocalDay = (value) => {
 const toMonthIndex = (date) => date.getFullYear() * 12 + date.getMonth();
 
 const getRecurrenceType = (item) => item?.recurrence_type || item?.recurrenceType || 'none';
+const getRecurrenceOverrides = (item) => item?.recurrence_overrides || item?.recurrenceOverrides || {};
 const getRecurrenceInterval = (item) => {
     const value = Number(item?.recurrence_interval ?? item?.recurrenceInterval ?? 1);
     return Number.isFinite(value) && value > 0 ? value : 1;
@@ -149,6 +150,43 @@ export const doesScheduleItemOccurOnDate = (item, targetDate) => {
     }
 };
 
+export const weekdayOverrideKey = (dayIndex) => `weekday-${dayIndex}`;
+
+const OVERRIDE_FIELDS = ['title', 'category', 'color', 'notes', 'duration', 'startTime'];
+
+const sanitizeOverride = (override = {}) => Object.fromEntries(
+    OVERRIDE_FIELDS
+        .map((field) => [field, override[field]])
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+);
+
+// Overrides customize one occurrence (date key "YYYY-MM-DD") or every occurrence on a
+// weekday (key "weekday-0".."weekday-6") without touching the recurring series itself.
+// A date override wins over a weekday override.
+export const getOverrideForDate = (item, targetDate) => {
+    const overrides = getRecurrenceOverrides(item);
+    const targetDay = startOfLocalDay(targetDate);
+    if (!targetDay || !overrides || typeof overrides !== 'object') return null;
+
+    const merged = {
+        ...sanitizeOverride(overrides[weekdayOverrideKey(targetDay.getDay())]),
+        ...sanitizeOverride(overrides[toLocalDateKey(targetDay)])
+    };
+
+    return Object.keys(merged).length ? merged : null;
+};
+
+export const upsertOverride = (item, key, override) => {
+    const next = { ...getRecurrenceOverrides(item) };
+    const cleaned = sanitizeOverride(override);
+    if (Object.keys(cleaned).length) {
+        next[key] = cleaned;
+    } else {
+        delete next[key];
+    }
+    return next;
+};
+
 export const getScheduleOccurrenceStart = (item, targetDate) => {
     const originalStart = getScheduleItemStartDate(item);
     const occurrenceDate = parseInputDate(targetDate);
@@ -172,11 +210,35 @@ export const getScheduleItemsForDate = (items = [], targetDate) => (
     items
         .filter((item) => doesScheduleItemOccurOnDate(item, targetDate))
         .map((item) => {
-            const displayTime = getScheduleOccurrenceStart(item, targetDate);
+            let displayTime = getScheduleOccurrenceStart(item, targetDate);
+            const override = getOverrideForDate(item, targetDate);
+
+            if (override?.startTime && /^\d{2}:\d{2}$/.test(override.startTime) && displayTime) {
+                const [hours, minutes] = override.startTime.split(':').map(Number);
+                displayTime = new Date(displayTime);
+                displayTime.setHours(hours, minutes, 0, 0);
+            }
+
             return {
                 ...item,
+                ...(override ? {
+                    title: override.title ?? item.title,
+                    category: override.category ?? item.category,
+                    color: override.color ?? item.color,
+                    notes: override.notes ?? item.notes,
+                    duration: override.duration ?? item.duration
+                } : null),
                 displayTime,
                 _occurrenceDate: toLocalDateKey(targetDate),
+                _seriesTitle: item.title,
+                _seriesBase: {
+                    title: item.title,
+                    category: item.category,
+                    color: item.color,
+                    notes: item.notes,
+                    duration: item.duration
+                },
+                _hasOverride: Boolean(override),
                 isRecurring: isRecurringScheduleItem(item) && !isSameLocalDate(getScheduleItemStartDate(item), targetDate)
             };
         })

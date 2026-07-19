@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, Repeat, Palette, Check, Tag } from 'lucide-react';
-import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { toLocalDateKey, upsertOverride, weekdayOverrideKey } from '../utils/scheduleOccurrences';
 import { toast } from '../ui/Toast';
 import { Sheet } from '../ui';
 import { confirmAction } from '../utils/confirm';
@@ -58,26 +58,43 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // 'series' edits the recurring event itself; 'day' customizes just this occurrence;
+    // 'weekday' customizes every occurrence on this weekday (e.g. Monday: Push day).
+    const [editScope, setEditScope] = useState('series');
     const occurrenceDate = event?._occurrenceDate;
     const isRecurringSeries = !!event && (event.recurrence_type || event.recurrenceType || 'none') !== 'none';
     const canDeleteSingleOccurrence = isRecurringSeries && !!occurrenceDate;
+    const canCustomizeDay = isRecurringSeries && !!occurrenceDate;
+    const isDayScope = canCustomizeDay && editScope !== 'series';
+    const occurrenceWeekday = occurrenceDate ? new Date(`${occurrenceDate}T12:00:00`).getDay() : null;
+    const weekdayLabel = occurrenceWeekday != null ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][occurrenceWeekday] : '';
 
-    // Initialize form with event data or defaults
+    const seriesBase = event?._seriesBase || event || {};
+    const seriesStart = event ? new Date(event.start_time || event.startTime) : null;
+    const seriesStartTime = seriesStart ? seriesStart.toTimeString().slice(0, 5) : '09:00';
+
+    // Initialize form with event data or defaults.
+    // Day/weekday scope starts from the occurrence's merged values (base + override);
+    // series scope starts from the series base so a day's override never leaks into the series.
     useEffect(() => {
         if (event) {
             const eventDate = new Date(event.start_time || event.startTime);
+            const useDayValues = canCustomizeDay && editScope !== 'series';
+            const source = useDayValues ? event : { ...event, ...(event._seriesBase || {}) };
             setFormData({
-                title: event.title || '',
+                title: source.title || '',
                 date: toLocalDateKey(eventDate),
-                startTime: eventDate.toTimeString().slice(0, 5),
-                duration: event.duration || 60,
-                color: event.color || '#6366f1',
-                category: event.category || 'Other',
+                startTime: useDayValues && event.displayTime
+                    ? new Date(event.displayTime).toTimeString().slice(0, 5)
+                    : eventDate.toTimeString().slice(0, 5),
+                duration: source.duration || 60,
+                color: source.color || '#6366f1',
+                category: source.category || 'Other',
                 recurrenceType: event.recurrence_type || 'none',
                 recurrenceInterval: event.recurrence_interval || 1,
                 recurrenceDaysOfWeek: event.recurrence_days_of_week || [],
                 recurrenceEndDate: event.recurrence_end_date || '',
-                notes: event.notes || ''
+                notes: source.notes || ''
             });
         } else if (selectedDate) {
             setFormData(prev => ({
@@ -85,34 +102,72 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                 date: toLocalDateKey(selectedDate)
             }));
         }
-    }, [event, selectedDate, isOpen]);
+    }, [event, selectedDate, isOpen, editScope, canCustomizeDay]);
+
+    // Default to "just this day" when opening an occurrence of a recurring event,
+    // so a quick rename never silently rewrites the whole series.
+    useEffect(() => {
+        if (isOpen) setEditScope(canCustomizeDay ? 'day' : 'series');
+    }, [isOpen, canCustomizeDay]);
+
+    const buildDayOverride = () => {
+        const override = {};
+        if (formData.title.trim() && formData.title.trim() !== (seriesBase.title || '')) override.title = formData.title.trim();
+        if (formData.category !== (seriesBase.category || 'Other')) override.category = formData.category;
+        if (formData.color !== (seriesBase.color || '#6366f1')) override.color = formData.color;
+        if ((formData.notes || '') !== (seriesBase.notes || '')) override.notes = formData.notes;
+        if (Number(formData.duration) !== Number(seriesBase.duration || 60)) override.duration = Number(formData.duration);
+        if (formData.startTime !== seriesStartTime) override.startTime = formData.startTime;
+        return override;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.title.trim() || isSubmitting) return;
 
-        const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
-
         setIsSubmitting(true);
 
         try {
-            await onSave?.({
-                id: event?.id,
-                title: formData.title,
-                startTime: startDateTime.toISOString(),
-                duration: formData.duration,
-                color: formData.color,
-                category: formData.category,
-                recurrenceType: formData.recurrenceType,
-                recurrenceInterval: formData.recurrenceInterval,
-                recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
-                recurrenceEndDate: formData.recurrenceEndDate || null,
-                notes: formData.notes
-            });
+            if (isDayScope && event?.id) {
+                const key = editScope === 'weekday' ? weekdayOverrideKey(occurrenceWeekday) : occurrenceDate;
+                await onSave?.({
+                    id: event.id,
+                    recurrenceOverrides: upsertOverride(event, key, buildDayOverride())
+                });
+            } else {
+                const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+                await onSave?.({
+                    id: event?.id,
+                    title: formData.title,
+                    startTime: startDateTime.toISOString(),
+                    duration: formData.duration,
+                    color: formData.color,
+                    category: formData.category,
+                    recurrenceType: formData.recurrenceType,
+                    recurrenceInterval: formData.recurrenceInterval,
+                    recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
+                    recurrenceEndDate: formData.recurrenceEndDate || null,
+                    notes: formData.notes
+                });
+            }
             onClose();
         } catch (error) {
             console.error('Failed to save schedule event:', error);
             toast(error?.message || 'Could not save this schedule event.', { tone: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResetDay = async () => {
+        if (!event?.id || isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            const key = editScope === 'weekday' ? weekdayOverrideKey(occurrenceWeekday) : occurrenceDate;
+            await onSave?.({ id: event.id, recurrenceOverrides: upsertOverride(event, key, {}) });
+            onClose();
+        } catch (error) {
+            toast(error?.message || 'Could not reset this day.', { tone: 'error' });
         } finally {
             setIsSubmitting(false);
         }
@@ -150,6 +205,38 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
     return (
         <Sheet open={isOpen} onClose={onClose} title={event ? 'Edit event' : 'New event'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Edit scope for recurring occurrences */}
+                        {canCustomizeDay && (
+                            <div>
+                                <div className="flex gap-1 rounded-xl bg-sage-100 dark:bg-void-800 p-1">
+                                    {[
+                                        { value: 'day', label: 'This day' },
+                                        { value: 'weekday', label: `${weekdayLabel}s` },
+                                        { value: 'series', label: 'Series' },
+                                    ].map((scope) => (
+                                        <button
+                                            key={scope.value}
+                                            type="button"
+                                            onClick={() => setEditScope(scope.value)}
+                                            className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors ${editScope === scope.value
+                                                ? 'bg-white dark:bg-void-900 text-sage-800 dark:text-bone-100 shadow-sm'
+                                                : 'text-sage-500 dark:text-bone-300'
+                                                }`}
+                                        >
+                                            {scope.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {isDayScope && (
+                                    <p className="mt-1.5 text-xs text-sage-500 dark:text-bone-300">
+                                        {editScope === 'weekday'
+                                            ? `Changes apply to every ${weekdayLabel} of “${seriesBase.title || event?.title}”.`
+                                            : `Changes apply to this day only. The series stays “${seriesBase.title || event?.title}”.`}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         {/* Title */}
                         <div>
                             <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
@@ -166,7 +253,8 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                         </div>
 
                         {/* Date and Time Row */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={`grid gap-4 ${isDayScope ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                            {!isDayScope && (
                             <div>
                                 <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
                                     <Calendar size={14} className="inline mr-1" /> Date
@@ -178,6 +266,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                                 />
                             </div>
+                            )}
                             <div>
                                 <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
                                     <Clock size={14} className="inline mr-1" /> Start Time
@@ -269,6 +358,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                         </div>
 
                         {/* Recurrence */}
+                        {!isDayScope && (
                         <div>
                             <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
                                 <Repeat size={14} className="inline mr-1" /> Recurrence
@@ -340,6 +430,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                 </div>
                             )}
                         </div>
+                        )}
 
                         {/* Notes */}
                         <div>
@@ -358,7 +449,17 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
 
                     {/* Footer */}
                     <div className="flex gap-3 p-4 border-t border-sage-100 dark:border-white/10 bg-sage-50 dark:bg-void-800/50">
-                        {event && onDelete && (
+                        {isDayScope && event?._hasOverride && (
+                            <button
+                                type="button"
+                                onClick={handleResetDay}
+                                disabled={isSubmitting}
+                                className="px-4 py-2 text-sage-600 dark:text-bone-300 hover:bg-sage-100 dark:hover:bg-void-700 rounded-lg font-bold transition-colors"
+                            >
+                                Reset day
+                            </button>
+                        )}
+                        {event && onDelete && !isDayScope && (
                             <button
                                 type="button"
                                 onClick={() => {
@@ -401,7 +502,7 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                                     : 'bg-sage-300 text-sage-500 cursor-not-allowed'
                                 }`}
                         >
-                            {isSubmitting ? 'Saving...' : event ? 'Save Changes' : 'Create Event'}
+                            {isSubmitting ? 'Saving...' : !event ? 'Create Event' : isDayScope ? (editScope === 'weekday' ? `Save ${weekdayLabel}s` : 'Save this day') : 'Save Changes'}
                         </button>
                     </div>
         </Sheet>

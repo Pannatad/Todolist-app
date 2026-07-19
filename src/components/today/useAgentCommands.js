@@ -3,6 +3,7 @@ import { routeAgentCommand } from '../../services/aiClient';
 import { cacheResponse, canHandleLocally, generateCacheKey, generateLocalResponse, getCachedResponse } from '../../services/localAgentHandler';
 import { isTaskActive } from '../../utils/taskState';
 import { toLocalDateKey, getScheduleItemsForDate } from '../../utils/scheduleOccurrences';
+import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload } from '../../services/agentScheduleActions';
 import { log } from '../../utils/log';
 
 export const useAgentCommands = ({ addScheduleItem, addTask, completeTask, dailyHighlights, deleteScheduleItem, deleteTask, getMemorySummary, getProfileSummary, getRecentInteractions, goals, habits, logHabit, logInteraction, onNavigate, profile, projects, scheduleItems, tasks, updateScheduleItem, updateTask, user }) => {
@@ -19,7 +20,7 @@ export const useAgentCommands = ({ addScheduleItem, addTask, completeTask, daily
         userProfile: { name: profile.nickname || profile.name || user?.email?.split('@')[0] || 'User', role: profile.role, workingHours: profile.workingHours, focusStyle: profile.focusStyle, goals: profile.goals, summary: getProfileSummary() },
         recentTasks: tasks?.filter(isTaskActive).slice(0, 15) || [],
         tasksDueToday: tasks?.filter((task) => isTaskActive(task) && task.deadline && new Date(task.deadline).toDateString() === new Date().toDateString()).map((task) => ({ title: task.title, deadline: task.deadline, difficulty: task.difficulty })) || [],
-        recentSchedule: getScheduleItemsForDate(scheduleItems || [], new Date()), projects: projects?.map((project) => ({ id: project.id, title: project.title, status: project.status, progress: project.progress, category: project.category, phases: project.phases?.map((phase) => ({ name: phase.name, deadline: phase.deadline })), taskCount: project.tasks?.length || 0, tasksInProgress: project.tasks?.filter((task) => task.columnId === 'c-2')?.length || 0, tasksDone: project.tasks?.filter((task) => task.columnId === 'c-4')?.length || 0 })) || [],
+        recentSchedule: getScheduleItemsForDate(scheduleItems || [], new Date()), allScheduleItems: scheduleItems || [], projects: projects?.map((project) => ({ id: project.id, title: project.title, status: project.status, progress: project.progress, category: project.category, phases: project.phases?.map((phase) => ({ name: phase.name, deadline: phase.deadline })), taskCount: project.tasks?.length || 0, tasksInProgress: project.tasks?.filter((task) => task.columnId === 'c-2')?.length || 0, tasksDone: project.tasks?.filter((task) => task.columnId === 'c-4')?.length || 0 })) || [],
         habits: habits?.map((habit) => ({ id: habit.id, name: habit.name, frequency: habit.frequency, streak: habit.streak || 0, completedToday: habit.completedToday === true })) || [], visionGoals: Array.isArray(goals) ? goals.slice(0, 10) : [], dailyHighlights: Array.isArray(dailyHighlights) ? dailyHighlights.slice(0, 5) : [], memorySummary: getMemorySummary(profile), recentInteractions: getRecentInteractions(5), conversationHistory: clarifyConversation.length ? clarifyConversation.map((item) => `User: ${item.input}\nAgent: ${item.response}`).join('\n') : null,
       };
       const localType = canHandleLocally(input);
@@ -39,9 +40,19 @@ export const useAgentCommands = ({ addScheduleItem, addTask, completeTask, daily
         if (type === 'edit_task' && params.taskId && params.updates) await updateTask(params.taskId, params.updates);
         if (type === 'delete_task' && params.taskId) await deleteTask(params.taskId);
         if (type === 'complete_task' && params.taskId) await completeTask(params.taskId);
-        if (type === 'add_schedule') await addScheduleItem({ title: params.title, startTime: params.startTime, duration: params.duration || 60, category: params.category || 'Other' });
+        if (type === 'add_schedule') await addScheduleItem(buildSchedulePayload(params));
         if (type === 'edit_schedule' && params.eventId && params.updates) await updateScheduleItem(params.eventId, params.updates);
         if (type === 'delete_schedule' && params.eventId) await deleteScheduleItem(params.eventId);
+        if (type === 'duplicate_schedule' && params.eventId && params.startTime) {
+          const source = scheduleItems?.find((item) => item.id === params.eventId);
+          if (source) await addScheduleItem(buildDuplicatePayload(source, params));
+        }
+        if (type === 'override_schedule_day' && params.eventId) {
+          const target = scheduleItems?.find((item) => item.id === params.eventId);
+          const overrideUpdates = target ? buildOverrideUpdates(target, params) : null;
+          if (overrideUpdates) await updateScheduleItem(target.id, overrideUpdates);
+        }
+        if (type === 'plan_day') for (const payload of buildPlanDayPayloads(params)) await addScheduleItem(payload);
         if (type === 'complete_habit' && params.habitId) await logHabit(params.habitId, toLocalDateKey(new Date()), 1, true);
         if (type === 'navigate' && params.tabName) onNavigate?.(params.tabName);
         if (type === 'set_goal' || type === 'analyze') log('Agent action:', params);

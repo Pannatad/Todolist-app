@@ -3,6 +3,7 @@ import { canHandleLocally, cacheResponse, generateCacheKey, generateLocalRespons
 import { sendChatMessage } from '../../services/ConversationService';
 import { extractInsightsFromExchange } from '../../services/InsightExtractionService';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
+import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload } from '../../services/agentScheduleActions';
 import { log } from '../../utils/log.js';
 
 const ACTIONS_REQUIRING_CONFIRMATION = [
@@ -12,6 +13,9 @@ const ACTIONS_REQUIRING_CONFIRMATION = [
     'add_schedule',
     'edit_schedule',
     'delete_schedule',
+    'duplicate_schedule',
+    'override_schedule_day',
+    'plan_day',
     'set_goal',
 ];
 
@@ -32,6 +36,7 @@ export const useChatActions = ({
     pendingActions,
     rememberNote,
     saveConversation,
+    scheduleItems,
     selectedAIProvider,
     setActiveSubject,
     setIsTyping,
@@ -244,36 +249,32 @@ export const useChatActions = ({
                             await completeTask(action.params.taskId);
                         }
                         break;
-                    case 'add_schedule': {
-                        // Parse and fix timezone for startTime
-                        let fixedStartTime = action.params.startTime;
-                        if (fixedStartTime) {
-                            // If the time doesn't include timezone info (no Z or +/-), treat it as local time
-                            // JavaScript Date parsing of "2026-01-08T13:00:00" treats it as UTC
-                            // We need to interpret it as local time instead
-                            if (!fixedStartTime.includes('Z') && !fixedStartTime.match(/[+-]\d{2}:\d{2}$/)) {
-                                // Parse as local time components and create a local Date
-                                const match = fixedStartTime.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-                                if (match) {
-                                    const [, year, month, day, hour, minute] = match;
-                                    const localDate = new Date(
-                                        parseInt(year),
-                                        parseInt(month) - 1, // months are 0-indexed
-                                        parseInt(day),
-                                        parseInt(hour),
-                                        parseInt(minute)
-                                    );
-                                    fixedStartTime = localDate.toISOString();
-                                    log('🕐 Fixed schedule time:', action.params.startTime, '->', fixedStartTime);
-                                }
-                            }
+                    case 'add_schedule':
+                        await addScheduleItem(buildSchedulePayload(action.params));
+                        break;
+                    case 'duplicate_schedule': {
+                        const source = scheduleItems?.find(item => item.id === action.params.eventId);
+                        if (source && action.params.startTime) {
+                            await addScheduleItem(buildDuplicatePayload(source, action.params));
+                        } else {
+                            log('duplicate_schedule skipped: missing source event or startTime', action.params);
                         }
-                        await addScheduleItem({
-                            title: action.params.title,
-                            startTime: fixedStartTime,
-                            duration: action.params.duration || 60,
-                            category: action.params.category || 'Other'
-                        });
+                        break;
+                    }
+                    case 'override_schedule_day': {
+                        const target = scheduleItems?.find(item => item.id === action.params.eventId);
+                        const overrideUpdates = target ? buildOverrideUpdates(target, action.params) : null;
+                        if (overrideUpdates) {
+                            await updateScheduleItem(target.id, overrideUpdates);
+                        } else {
+                            log('override_schedule_day skipped: missing event or date/weekday', action.params);
+                        }
+                        break;
+                    }
+                    case 'plan_day': {
+                        for (const payload of buildPlanDayPayloads(action.params)) {
+                            await addScheduleItem(payload);
+                        }
                         break;
                     }
                     case 'edit_schedule':

@@ -14,7 +14,8 @@ const formatScheduleItems = (items = []) => (
     items.map(item => ({
         ...item,
         startTime: item.start_time,
-        recurrenceExceptions: item.recurrence_exceptions || []
+        recurrenceExceptions: item.recurrence_exceptions || [],
+        recurrenceOverrides: item.recurrence_overrides || {}
     }))
 );
 
@@ -296,6 +297,8 @@ export const TaskProvider = ({ children }) => {
             recurrence_end_date: itemData.recurrenceEndDate || null,
             recurrence_exceptions: itemData.recurrenceExceptions || [],
             recurrenceExceptions: itemData.recurrenceExceptions || [],
+            recurrence_overrides: itemData.recurrenceOverrides || {},
+            recurrenceOverrides: itemData.recurrenceOverrides || {},
             color: itemData.color || '#6366f1',
             notes: itemData.notes || null
         };
@@ -314,7 +317,8 @@ export const TaskProvider = ({ children }) => {
                     recurrenceInterval: insertedRow.recurrence_interval,
                     recurrenceDaysOfWeek: insertedRow.recurrence_days_of_week,
                     recurrenceEndDate: insertedRow.recurrence_end_date,
-                    recurrenceExceptions: insertedRow.recurrence_exceptions || []
+                    recurrenceExceptions: insertedRow.recurrence_exceptions || [],
+                    recurrenceOverrides: insertedRow.recurrence_overrides || {}
                 } : i));
             }
             return user ? insertedRow : newItem;
@@ -339,6 +343,7 @@ export const TaskProvider = ({ children }) => {
         if (updates.recurrenceDaysOfWeek !== undefined) processedUpdates.recurrence_days_of_week = updates.recurrenceDaysOfWeek;
         if (updates.recurrenceEndDate !== undefined) processedUpdates.recurrence_end_date = updates.recurrenceEndDate;
         if (updates.recurrenceExceptions !== undefined) processedUpdates.recurrence_exceptions = updates.recurrenceExceptions;
+        if (updates.recurrenceOverrides !== undefined) processedUpdates.recurrence_overrides = updates.recurrenceOverrides;
 
         setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...processedUpdates } : i));
 
@@ -353,7 +358,8 @@ export const TaskProvider = ({ children }) => {
                     recurrenceInterval: updatedRow.recurrence_interval,
                     recurrenceDaysOfWeek: updatedRow.recurrence_days_of_week || [],
                     recurrenceEndDate: updatedRow.recurrence_end_date,
-                    recurrenceExceptions: updatedRow.recurrence_exceptions || []
+                    recurrenceExceptions: updatedRow.recurrence_exceptions || [],
+                    recurrenceOverrides: updatedRow.recurrence_overrides || {}
                 } : i));
             }
         } catch (error) {
