@@ -1,4 +1,4 @@
-import { upsertOverride, weekdayOverrideKey } from '../utils/scheduleOccurrences';
+import { upsertOverride, weekdayOverrideKey } from '../utils/scheduleOccurrences.js';
 
 // The model emits local wall-clock times ("2026-07-19T08:30:00"). JS parses that as UTC,
 // so rebuild it from local components before storing as ISO.
@@ -54,3 +54,44 @@ export const buildPlanDayPayloads = (params = {}) => (params.blocks || [])
         ...block,
         startTime: `${params.date}T${block.startTime.padStart(5, '0')}:00`
     }));
+
+// Template blocks are stored as plan_day-style blocks: { title, startTime "HH:MM", duration, category, color }.
+export const sanitizeTemplateBlocks = (blocks = []) => (Array.isArray(blocks) ? blocks : [])
+    .filter((block) => block?.title && /^\d{1,2}:\d{2}$/.test(block.startTime || ''))
+    .map((block) => ({
+        title: String(block.title).trim(),
+        startTime: block.startTime.padStart(5, '0'),
+        duration: Number(block.duration) > 0 ? Number(block.duration) : 60,
+        category: block.category || 'Other',
+        ...(block.color ? { color: block.color } : {})
+    }))
+    .sort((left, right) => left.startTime.localeCompare(right.startTime));
+
+export const resolveTemplate = (templates = [], params = {}) => {
+    if (params.templateId != null) {
+        const byId = templates.find((template) => String(template.id) === String(params.templateId));
+        if (byId) return byId;
+    }
+    if (params.name) {
+        const query = String(params.name).trim().toLowerCase();
+        return templates.find((template) => template.name.toLowerCase() === query)
+            || templates.find((template) => template.name.toLowerCase().includes(query))
+            || null;
+    }
+    return null;
+};
+
+// Turn a day's occurrences into template blocks, e.g. "save today as a template".
+export const occurrencesToTemplateBlocks = (occurrences = []) => sanitizeTemplateBlocks(
+    occurrences.map((item) => {
+        const start = item.displayTime ? new Date(item.displayTime) : new Date(item.startTime || item.start_time);
+        if (Number.isNaN(start.getTime())) return null;
+        return {
+            title: item.title,
+            startTime: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
+            duration: item.duration || 60,
+            category: item.category || 'Other',
+            color: item.color
+        };
+    }).filter(Boolean)
+);

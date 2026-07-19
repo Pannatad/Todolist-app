@@ -9,6 +9,7 @@ import { useGoal } from './GoalContext';
 import { useUserProfile } from './UserProfileContext';
 import { useAgentMemory } from './AgentMemoryContext';
 import { useUserIntelligence } from './UserIntelligenceContext';
+import { useScheduleTemplates } from './ScheduleTemplateContext';
 import { clearChatSession } from '../services/ConversationService';
 import { AI_PROVIDER_OPTIONS, DEFAULT_AI_PROVIDER, normalizeAIProvider } from '../services/aiProvider';
 import { isTaskActive } from '../utils/taskState';
@@ -34,6 +35,7 @@ export const ChatProvider = ({ children }) => {
     const { profile, getProfileSummary } = useUserProfile();
     const { logInteraction, getMemorySummary, getRecentInteractions, rememberNote } = useAgentMemory();
     const { intelligence, learnMultipleFacts, getIntelligenceSummary } = useUserIntelligence();
+    const { templates: scheduleTemplates, saveTemplate, deleteTemplate } = useScheduleTemplates();
 
     // Chat state
     const [isOpen, setIsOpen] = useState(false);
@@ -166,6 +168,7 @@ export const ChatProvider = ({ children }) => {
             }) || [],
             recentSchedule,
             allScheduleItems: scheduleItems || [],
+            scheduleTemplates: scheduleTemplates || [],
             projects: projects?.map(p => ({
                 id: p.id,
                 title: p.title,
@@ -191,7 +194,7 @@ export const ChatProvider = ({ children }) => {
             // Pending actions - actions awaiting user confirmation (not yet executed)
             pendingActions: pendingActions?.actions || null
         };
-    }, [tasks, scheduleItems, habits, projects, goals, dailyHighlights, profile, user, messages, activeSubject, pendingActions, getProfileSummary, getMemorySummary, getRecentInteractions, getIntelligenceSummary]);
+    }, [tasks, scheduleItems, scheduleTemplates, habits, projects, goals, dailyHighlights, profile, user, messages, activeSubject, pendingActions, getProfileSummary, getMemorySummary, getRecentInteractions, getIntelligenceSummary]);
 
     // Send a message
     const { executeActionsInternal, sendMessage } = useChatActions({
@@ -211,7 +214,10 @@ export const ChatProvider = ({ children }) => {
         pendingActions,
         rememberNote,
         saveConversation,
+        saveTemplate,
+        deleteTemplate,
         scheduleItems,
+        scheduleTemplates,
         selectedAIProvider,
         setActiveSubject,
         setIsTyping,

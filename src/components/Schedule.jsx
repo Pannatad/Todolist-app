@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus, GraduationCap, Camera, Upload, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mic, MicOff, Loader2, Clock, CheckCircle2, Calendar, Plus, GraduationCap, Camera, Upload, X, LayoutTemplate } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { parseScheduleCommand, parseScheduleImage } from '../services/aiClient';
 import ScheduleEventModal from './ScheduleEventModal';
+import ScheduleTemplatesSheet from './ScheduleTemplatesSheet';
 import WeeklyPlan from './WeeklyPlan';
 import { useLearning } from '../context/LearningContext';
 import { COLOR_OPTIONS } from './LearningPathModal';
@@ -51,6 +52,7 @@ const Schedule = ({
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [cameraStream, setCameraStream] = useState(null);
     const [showEventModal, setShowEventModal] = useState(false);
+    const [showTemplatesSheet, setShowTemplatesSheet] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [selectedDate, setSelectedDate] = useState(null);
     const scrollContainerRef = useRef(null);
@@ -497,6 +499,7 @@ const Schedule = ({
                         ariaLabel="Plan view"
                     />
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                    <button type="button" onClick={() => setShowTemplatesSheet(true)} className="ui-icon-button" title="Day templates" aria-label="Day templates"><LayoutTemplate size={18} /></button>
                     <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="ui-icon-button" title="Upload Schedule Image" aria-label="Upload schedule image"><Upload size={18} /></button>
                     <button type="button" onClick={startCamera} disabled={isScanning} className="ui-icon-button" title="Scan with Camera" aria-label="Scan with camera">{isScanning ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}</button>
                     <button
@@ -760,6 +763,12 @@ const Schedule = ({
                 selectedDate={selectedDate}
             />
             </>}
+            <ScheduleTemplatesSheet
+                isOpen={showTemplatesSheet}
+                onClose={() => setShowTemplatesSheet(false)}
+                events={events}
+                onAddEvent={onAddEvent}
+            />
         </div>
     );
 };

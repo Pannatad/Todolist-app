@@ -164,6 +164,9 @@ SUPPORTED ACTIONS:
 - duplicate_schedule: params { eventId, startTime, title?, duration?, category?, color? } — copy an existing event to a new date/time
 - override_schedule_day: params { eventId, date ("YYYY-MM-DD") OR weekday (0-6), updates { title, category, color, notes, duration, startTime ("HH:MM") }, clear (true removes the customization) } — customize one day (or every such weekday) of a recurring block WITHOUT changing the series. Example: daily "Gym" block, weekday 1 → { title: "Push day" }.
 - plan_day: params { date ("YYYY-MM-DD"), blocks: [{ title, startTime ("HH:MM"), duration, category, color }] } — lay out several one-off blocks for a day in one action. Use this for day planning and templates.
+- save_template: params { name, blocks: [{ title, startTime ("HH:MM"), duration, category, color }] } — save a reusable day template. Saving with an existing name replaces that template. For "save today as a template", build blocks from today's SCHEDULE ITEMS.
+- apply_template: params { name OR templateId, date ("YYYY-MM-DD") } — lay the named template's blocks onto a date as one-off events.
+- delete_template: params { templateId, name }
 - complete_habit: params { habitId, name }
 - navigate: params { tabName }
 - info_response: params { message, suggestedTab }
@@ -173,7 +176,8 @@ SUPPORTED ACTIONS:
 
 Use only these action types. If no database change is needed, use info_response or clarify.
 Prefer override_schedule_day over edit_schedule when the user wants one day of a recurring block to differ.
-Prefer plan_day over many add_schedule actions when laying out 3+ blocks for the same day.`;
+Prefer plan_day over many add_schedule actions when laying out 3+ blocks for the same day.
+Prefer apply_template when the user asks for a day "like" a saved template; offer save_template when they build a day shape worth reusing.`;
 
 // EDIT HERE: Behavior guardrails and action rules.
 export const AGENT_RULES_PROMPT = `CORE RULES:
@@ -277,6 +281,7 @@ export const buildAgentStateMessage = (userMessage, context = {}) => {
         tasksDueToday = [],
         recentSchedule = [],
         allScheduleItems = [],
+        scheduleTemplates = [],
         habits = [],
         projects = [],
         visionGoals = [],
@@ -306,6 +311,9 @@ SCHEDULE ITEMS:
 ${recentSchedule.slice(0, 20).map(event => scheduleLine(event, now)).join('\n') || 'No schedule events'}
 
 ${buildScheduleOutlookSection(allScheduleItems, now)}
+
+DAY TEMPLATES (apply with apply_template; * = block summary):
+${scheduleTemplates.slice(0, 10).map((template) => `- [ID: ${template.id}] "${template.name}": ${(template.blocks || []).map((block) => `${block.startTime} ${block.title} (${block.duration || 60}m)`).join(', ') || 'empty'}`).join('\n') || 'No saved templates yet'}
 
 HABITS:
 ${habits.slice(0, 12).map(habit => `- [ID: ${habit.id}] "${habit.name}" (${habit.frequency || 'unspecified'}, streak: ${habit.streak || 0}, ${habit.completedToday ? 'done today' : 'not done today'})`).join('\n') || 'No habits'}

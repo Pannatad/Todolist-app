@@ -21,6 +21,7 @@ import { useTask } from './context/TaskContext';
 import { ProjectProvider } from './context/ProjectContext';
 import { HabitProvider } from './context/HabitContext';
 import { ChatProvider, useChatContext } from './context/ChatContext';
+import { ScheduleTemplateProvider } from './context/ScheduleTemplateContext';
 import { useHabit } from './context/HabitContext';
 import { useUserProfile } from './context/UserProfileContext';
 import smartNotificationService from './services/SmartNotificationService';
@@ -178,6 +179,7 @@ function App() {
       <HabitProvider>
         <IdeaBoardProvider>
           <ProjectProvider>
+            <ScheduleTemplateProvider>
             <ChatProvider>
               <SmartNotificationBridge />
               <UnifiedChatBridge />
@@ -306,6 +308,7 @@ function App() {
                 </Suspense>
               </div>
             </ChatProvider>
+            </ScheduleTemplateProvider>
           </ProjectProvider>
         </IdeaBoardProvider>
       </HabitProvider>

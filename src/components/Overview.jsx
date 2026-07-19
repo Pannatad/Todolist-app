@@ -9,6 +9,7 @@ import { useAgentMemory } from '../context/AgentMemoryContext';
 import { useProject } from '../context/ProjectContext';
 import { useHabit } from '../context/HabitContext';
 import { useChatContext } from '../context/ChatContext';
+import { useScheduleTemplates } from '../context/ScheduleTemplateContext';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
 import { buildAssistantSuggestions } from '../services/assistantSuggestions';
@@ -39,6 +40,7 @@ const Overview = ({ onNavigate }) => {
   const { projects } = useProject();
   const { habits, logHabit, getHabitsForDate, getHabitLog } = useHabit();
   const { sendMessage, openSidebar } = useChatContext();
+  const { templates: scheduleTemplates, saveTemplate, deleteTemplate } = useScheduleTemplates();
   const [nowTick, setNowTick] = useState(Date.now());
   const [selectedScheduleItem, setSelectedScheduleItem] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -66,7 +68,7 @@ const Overview = ({ onNavigate }) => {
   }, [commandCenterScheduleItems, now]);
   const suggestions = useMemo(() => buildAssistantSuggestions({ scheduleToday: commandCenterScheduleItems, tasks, habitItems, now }), [commandCenterScheduleItems, tasks, habitItems, now]);
   const askAgent = (prompt) => { sendMessage(prompt); openSidebar(); };
-  const agent = useAgentCommands({ addScheduleItem, addTask, completeTask, dailyHighlights, deleteScheduleItem, deleteTask, getMemorySummary, getProfileSummary, getRecentInteractions, goals, habits, logHabit, logInteraction, onNavigate, profile, projects, scheduleItems, tasks, updateScheduleItem, updateTask, user });
+  const agent = useAgentCommands({ addScheduleItem, addTask, completeTask, dailyHighlights, deleteScheduleItem, deleteTask, deleteTemplate, getMemorySummary, getProfileSummary, getRecentInteractions, goals, habits, logHabit, logInteraction, onNavigate, profile, projects, saveTemplate, scheduleItems, scheduleTemplates, tasks, updateScheduleItem, updateTask, user });
 
   useEffect(() => { setNowTick(Date.now()); const timer = window.setInterval(() => setNowTick(Date.now()), 60000); return () => window.clearInterval(timer); }, []);
   useEffect(() => { try { setRitualCompletedAt(localStorage.getItem(`daily-ritual-completed-${todayKey}`)); } catch { setRitualCompletedAt(null); } }, [todayKey]);

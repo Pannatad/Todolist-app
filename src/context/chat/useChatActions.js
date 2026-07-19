@@ -3,7 +3,7 @@ import { canHandleLocally, cacheResponse, generateCacheKey, generateLocalRespons
 import { sendChatMessage } from '../../services/ConversationService';
 import { extractInsightsFromExchange } from '../../services/InsightExtractionService';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
-import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload } from '../../services/agentScheduleActions';
+import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload, resolveTemplate, sanitizeTemplateBlocks } from '../../services/agentScheduleActions';
 import { log } from '../../utils/log.js';
 
 const ACTIONS_REQUIRING_CONFIRMATION = [
@@ -16,6 +16,9 @@ const ACTIONS_REQUIRING_CONFIRMATION = [
     'duplicate_schedule',
     'override_schedule_day',
     'plan_day',
+    'save_template',
+    'apply_template',
+    'delete_template',
     'set_goal',
 ];
 
@@ -36,7 +39,10 @@ export const useChatActions = ({
     pendingActions,
     rememberNote,
     saveConversation,
+    saveTemplate,
+    deleteTemplate,
     scheduleItems,
+    scheduleTemplates,
     selectedAIProvider,
     setActiveSubject,
     setIsTyping,
@@ -274,6 +280,35 @@ export const useChatActions = ({
                     case 'plan_day': {
                         for (const payload of buildPlanDayPayloads(action.params)) {
                             await addScheduleItem(payload);
+                        }
+                        break;
+                    }
+                    case 'save_template': {
+                        const blocks = sanitizeTemplateBlocks(action.params.blocks);
+                        if (action.params.name && blocks.length) {
+                            await saveTemplate?.({ name: action.params.name, blocks });
+                        } else {
+                            log('save_template skipped: missing name or valid blocks', action.params);
+                        }
+                        break;
+                    }
+                    case 'apply_template': {
+                        const template = resolveTemplate(scheduleTemplates, action.params);
+                        if (template && action.params.date) {
+                            for (const payload of buildPlanDayPayloads({ date: action.params.date, blocks: template.blocks })) {
+                                await addScheduleItem(payload);
+                            }
+                        } else {
+                            log('apply_template skipped: template not found or missing date', action.params);
+                        }
+                        break;
+                    }
+                    case 'delete_template': {
+                        const template = resolveTemplate(scheduleTemplates, action.params);
+                        if (template) {
+                            await deleteTemplate?.(template.id);
+                        } else {
+                            log('delete_template skipped: template not found', action.params);
                         }
                         break;
                     }

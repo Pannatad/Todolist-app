@@ -34,6 +34,9 @@ const ACTION_DISPLAY = {
     duplicate_schedule: { icon: CalendarPlus, label: 'Duplicate Event', color: 'bg-violet-50 border-violet-200 text-violet-700' },
     override_schedule_day: { icon: CalendarClock, label: 'Customize Day', color: 'bg-sky-50 border-sky-200 text-sky-700' },
     plan_day: { icon: CalendarPlus, label: 'Plan Day', color: 'bg-violet-50 border-violet-200 text-violet-700' },
+    save_template: { icon: ClipboardList, label: 'Save Template', color: 'bg-teal-50 border-teal-200 text-teal-700' },
+    apply_template: { icon: CalendarPlus, label: 'Apply Template', color: 'bg-teal-50 border-teal-200 text-teal-700' },
+    delete_template: { icon: Trash2, label: 'Delete Template', color: 'bg-red-50 border-red-200 text-red-700' },
     complete_habit: { icon: Target, label: 'Complete Habit', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
     set_goal: { icon: Flag, label: 'Set Goal', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
     navigate: { icon: ArrowRight, label: 'Navigate', color: 'bg-slate-50 border-slate-200 text-slate-700' },
@@ -51,6 +54,12 @@ const getActionTitle = (action, displayLabel) => {
             : '');
         const label = action.params?.updates?.title || 'Customize';
         return when ? `${label} (${when})` : label;
+    }
+    if (action.type === 'save_template' && action.params?.name) {
+        return `“${action.params.name}” · ${action.params.blocks?.length || 0} blocks`;
+    }
+    if (action.type === 'apply_template' && action.params?.name) {
+        return `“${action.params.name}” → ${action.params.date || ''}`.trim();
     }
     if (action.params?.title) return action.params.title;
     if (action.params?.name) return action.params.name;
@@ -139,7 +148,7 @@ const ActionCard = ({ action, showDetails = true, onSendMessage }) => {
                         </div>
                     )}
                     {/* Show the proposed blocks for a full day plan */}
-                    {action.type === 'plan_day' && Array.isArray(action.params.blocks) && (
+                    {(action.type === 'plan_day' || action.type === 'save_template') && Array.isArray(action.params.blocks) && (
                         <div className="space-y-0.5 font-medium">
                             {action.params.blocks.map((block, index) => (
                                 <div key={`${block.startTime}-${index}`}>{block.startTime} · {block.title} ({block.duration || 60} min)</div>
