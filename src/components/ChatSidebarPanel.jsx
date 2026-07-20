@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import {
+    CalendarPlus,
+    CheckSquare,
     MessageCircle,
     Mic,
     MicOff,
@@ -10,6 +13,65 @@ import {
 } from 'lucide-react';
 import ChatMessage, { TypingIndicator } from './ChatMessage';
 import { GUIDE_MODES, plannerSummaryLines, TOMORROW_PLANNER_STEPS } from './chatSidebarUtils';
+import { useTask } from '../context/TaskContext';
+import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { toast } from '../ui/Toast';
+
+const nextRoundHour = () => {
+    const date = new Date();
+    date.setMinutes(0, 0, 0);
+    date.setHours(date.getHours() + 1);
+    return `${String(date.getHours()).padStart(2, '0')}:00`;
+};
+
+const addMinutes = (hhmm, minutes) => {
+    const [hours, mins] = hhmm.split(':').map(Number);
+    const total = Math.min(23 * 60 + 59, hours * 60 + mins + minutes);
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
+
+const timeInputClass = 'rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-900 focus:border-slate-400 focus:bg-white focus:outline-none';
+
+/**
+ * Structured quick-add: pick times/dates, type a title, send — the item is
+ * created directly (no model round-trip). Lives above the chat input.
+ */
+const useQuickAdd = ({ input, setInput }) => {
+    const { addScheduleItem, addTask } = useTask();
+    const [mode, setMode] = useState(null); // null | 'event' | 'task'
+    const [date, setDate] = useState(() => toLocalDateKey(new Date()));
+    const [startTime, setStartTime] = useState(nextRoundHour);
+    const [endTime, setEndTime] = useState(() => addMinutes(nextRoundHour(), 90));
+    const [taskTime, setTaskTime] = useState('18:00');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const toggleMode = (nextMode) => setMode((current) => (current === nextMode ? null : nextMode));
+
+    const submit = async () => {
+        const title = input.trim();
+        if (!title || isSaving) return;
+        setIsSaving(true);
+        try {
+            if (mode === 'event') {
+                const start = new Date(`${date}T${startTime}`);
+                let duration = Math.round((new Date(`${date}T${endTime}`) - start) / 60000);
+                if (!Number.isFinite(duration) || duration <= 0) duration = 60;
+                await addScheduleItem({ title, startTime: start.toISOString(), duration, category: 'Other' });
+                toast(`Added “${title}” · ${startTime}–${endTime}`);
+            } else {
+                await addTask({ title, difficulty: 'easy', deadline: `${date}T${taskTime || '23:59'}` });
+                toast(`Task “${title}” due ${date} ${taskTime}`);
+            }
+            setInput('');
+        } catch (error) {
+            toast(error?.message || 'Could not save.', { tone: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return { mode, toggleMode, date, setDate, startTime, setStartTime, endTime, setEndTime, taskTime, setTaskTime, submit, isSaving };
+};
 
 const ChatSidebarPanel = ({
     activeGuide,
@@ -43,19 +105,31 @@ const ChatSidebarPanel = ({
     toggleListening,
     updateGuideAnswer,
     updatePlannerAnswer,
-}) => (
+}) => {
+    const quickAdd = useQuickAdd({ input, setInput });
+
+    const onComposerSubmit = (event) => {
+        if (quickAdd.mode) {
+            event.preventDefault();
+            quickAdd.submit();
+        } else {
+            handleSubmit(event);
+        }
+    };
+
+    return (
         <AnimatePresence>
             {isOpen && (
                 <>
                     {/* Backdrop */}
                     <div
                         onClick={closeSidebar}
-                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[300]"
                     />
 
                     {/* Sidebar Panel */}
                     <div
-                        className="fixed right-0 top-0 h-full w-full sm:w-[440px] md:w-[500px] bg-slate-50 shadow-2xl z-50 flex flex-col"
+                        className="fixed right-0 top-0 h-full w-full sm:w-[440px] md:w-[500px] bg-slate-50 shadow-2xl z-[350] flex flex-col"
                     >
                         {/* Header */}
                         <div className="border-b border-slate-200 bg-white">
@@ -377,16 +451,62 @@ const ChatSidebarPanel = ({
                         </div>
 
                         {/* Input Area */}
-                        <div className="border-t border-slate-200 bg-white p-4">
-                            <form onSubmit={handleSubmit} className="flex items-center gap-2">
+                        <div className="border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                            {/* Quick-add mode chips */}
+                            <div className="mb-2 flex items-center gap-1.5">
+                                {[
+                                    { id: 'event', label: 'Event', icon: CalendarPlus },
+                                    { id: 'task', label: 'Task', icon: CheckSquare },
+                                ].map((chip) => {
+                                    const ChipIcon = chip.icon;
+                                    const { id, label } = chip;
+                                    return (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => quickAdd.toggleMode(id)}
+                                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${quickAdd.mode === id
+                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                        title={id === 'event' ? 'Add a schedule block directly' : 'Add a task directly'}
+                                    >
+                                        <ChipIcon size={13} />
+                                        {label}
+                                    </button>
+                                    );
+                                })}
+                                {quickAdd.mode && (
+                                    <span className="text-xs text-slate-400">added instantly, no agent</span>
+                                )}
+                            </div>
+
+                            {/* Structured fields for the active quick-add mode */}
+                            {quickAdd.mode === 'event' && (
+                                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                    <input type="date" value={quickAdd.date} onChange={(e) => quickAdd.setDate(e.target.value)} className={timeInputClass} aria-label="Event date" />
+                                    <input type="time" value={quickAdd.startTime} onChange={(e) => { quickAdd.setStartTime(e.target.value); quickAdd.setEndTime(addMinutes(e.target.value, 90)); }} className={timeInputClass} aria-label="Start time" />
+                                    <span className="text-sm text-slate-400">–</span>
+                                    <input type="time" value={quickAdd.endTime} onChange={(e) => quickAdd.setEndTime(e.target.value)} className={timeInputClass} aria-label="End time" />
+                                </div>
+                            )}
+                            {quickAdd.mode === 'task' && (
+                                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                    <span className="text-xs font-medium text-slate-400">Due</span>
+                                    <input type="date" value={quickAdd.date} onChange={(e) => quickAdd.setDate(e.target.value)} className={timeInputClass} aria-label="Due date" />
+                                    <input type="time" value={quickAdd.taskTime} onChange={(e) => quickAdd.setTaskTime(e.target.value)} className={timeInputClass} aria-label="Due time" />
+                                </div>
+                            )}
+
+                            <form onSubmit={onComposerSubmit} className="flex items-center gap-2">
                                 <div className="flex-1 relative">
                                     <input
                                         ref={inputRef}
                                         type="text"
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
-                                        placeholder={isListening ? "Listening..." : "Ask for a decision or action..."}
-                                        disabled={isTyping}
+                                        placeholder={isListening ? 'Listening...' : quickAdd.mode === 'event' ? 'Event title...' : quickAdd.mode === 'task' ? 'Task title...' : 'Ask for a decision or action...'}
+                                        disabled={isTyping && !quickAdd.mode}
                                         className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 transition-all focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-50"
                                     />
                                 </div>
@@ -410,9 +530,9 @@ const ChatSidebarPanel = ({
                                 {/* Send button */}
                                 <button
                                     type="submit"
-                                    disabled={!input.trim() || isTyping}
+                                    disabled={!input.trim() || quickAdd.isSaving || (isTyping && !quickAdd.mode)}
                                     className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                    title="Send"
+                                    title={quickAdd.mode ? 'Add' : 'Send'}
                                 >
                                     <Send size={20} />
                                 </button>
@@ -425,7 +545,8 @@ const ChatSidebarPanel = ({
                 </>
             )}
         </AnimatePresence>
-);
+    );
+};
 
 export default ChatSidebarPanel;
 
