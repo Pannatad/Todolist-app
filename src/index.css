@@ -161,7 +161,7 @@
     letter-spacing: -0.02em;
     color: inherit;
     filter: none;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .dark h1,
@@ -447,7 +447,7 @@
 
   .ios-codex-projects :where(h1, h2, h3, h4),
   .ios-codex-board :where(h1, h2, h3, h4) {
-    font-weight: 700 !important;
+    font-weight: 600 !important;
   }
 
   .ios-codex-projects :where(p, span, button, input, textarea, select, label),
