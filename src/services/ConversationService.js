@@ -4,12 +4,25 @@
  */
 
 import { createGenerativeModel } from './generativeClient';
-import { getAIProviderRequestOptions, DEFAULT_GEMINI_MODEL } from './aiProvider';
+import { getAIProviderRequestOptions, DEFAULT_GEMINI_MODEL, normalizeAIProvider } from './aiProvider';
+import {
+    AGENT_PLAN_RESPONSE_FORMAT,
+    extractConversationText,
+    shouldIncludeAgentState,
+    shouldUseAgentActionMode
+} from './agentResponseSchema';
 import {
     buildAgentStateMessage,
-    buildAgentSystemPrompt as buildConfiguredAgentSystemPrompt
+    buildAgentSystemPrompt as buildConfiguredAgentSystemPrompt,
+    buildConversationSystemPrompt
 } from './agentPrompts';
 import { log } from '../utils/log.js';
+import { buildAttachmentMessage } from './chatAttachments.js';
+import {
+    DEFAULT_RECENT_MESSAGES_WINDOW,
+    DEFAULT_SUMMARY_BATCH_SIZE,
+    getConversationWindowPlan
+} from './conversationHistory.js';
 
 const API_BACKEND_AVAILABLE = true;
 const genAI = {
@@ -18,13 +31,33 @@ const genAI = {
 
 // Configuration
 const CONFIG = {
-    RECENT_MESSAGES_WINDOW: 20,  // Keep last 20 messages in full detail
-    SUMMARY_BATCH_SIZE: 10,      // Summarize 10 messages at a time
+    RECENT_MESSAGES_WINDOW: DEFAULT_RECENT_MESSAGES_WINDOW,
+    SUMMARY_BATCH_SIZE: DEFAULT_SUMMARY_BATCH_SIZE,
     MODEL_NAME: DEFAULT_GEMINI_MODEL
 };
 
 // Active chat session cache (per-session, not persisted)
 let activeChatSession = null;
+let summaryCache = {
+    provider: null,
+    firstMessageKey: null,
+    summarizedCount: 0,
+    lastSummarizedKey: null,
+    summary: ''
+};
+
+const messageKey = (message) => message?.id
+    || `${message?.role || 'unknown'}:${String(message?.content || '').slice(0, 120)}`;
+
+const resetSummaryCache = () => {
+    summaryCache = {
+        provider: null,
+        firstMessageKey: null,
+        summarizedCount: 0,
+        lastSummarizedKey: null,
+        summary: ''
+    };
+};
 
 /**
  * Format messages for Gemini's chat history format
@@ -76,7 +109,7 @@ export const formatHistoryForGemini = (messages) => {
  * @param {Array} oldMessages - Messages to summarize (beyond the recent window)
  * @returns {Promise<string>} - Concise summary of older conversation
  */
-export const summarizeOlderMessages = async (oldMessages, aiProvider = undefined) => {
+export const summarizeOlderMessages = async (oldMessages, aiProvider = undefined, previousSummary = '') => {
     if (!oldMessages || oldMessages.length === 0) {
         return '';
     }
@@ -95,14 +128,14 @@ export const summarizeOlderMessages = async (oldMessages, aiProvider = undefined
             `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`
         ).join('\n');
 
-        const prompt = `Summarize this conversation history into a concise context summary (max 200 words). 
+        const prompt = `Update the conversation context summary below. Keep the result under 240 words.
 Focus on:
 1. Key decisions or actions taken
 2. Important information shared by the user
 3. Ongoing topics or unresolved questions
 4. User preferences mentioned
 
-Conversation:
+${previousSummary ? `Existing summary:\n${previousSummary}\n\n` : ''}New conversation messages:
 ${conversationText}
 
 Summary (be concise, focus on context the agent needs to remember):`;
@@ -117,9 +150,10 @@ Summary (be concise, focus on context the agent needs to remember):`;
     } catch (error) {
         console.error('Error summarizing messages:', error);
         // Fallback to simple extraction
-        return oldMessages.slice(-3).map(m =>
+        const fallback = oldMessages.slice(-3).map(m =>
             `${m.role === 'user' ? 'User asked' : 'Agent said'}: ${m.content.substring(0, 80)}...`
         ).join(' ');
+        return [previousSummary, fallback].filter(Boolean).join(' ').slice(0, 1800);
     }
 };
 
@@ -133,17 +167,47 @@ export const prepareConversationContext = async (allMessages, aiProvider = undef
         return { recentHistory: [], olderSummary: '' };
     }
 
-    const recentMessages = allMessages.slice(-CONFIG.RECENT_MESSAGES_WINDOW);
-    const olderMessages = allMessages.slice(0, -CONFIG.RECENT_MESSAGES_WINDOW);
+    const provider = normalizeAIProvider(aiProvider);
+    const firstMessageKey = messageKey(allMessages[0]);
+    const cacheStillMatches = summaryCache.provider === provider
+        && summaryCache.firstMessageKey === firstMessageKey
+        && summaryCache.summarizedCount <= allMessages.length
+        && (summaryCache.summarizedCount === 0
+            || messageKey(allMessages[summaryCache.summarizedCount - 1]) === summaryCache.lastSummarizedKey);
 
-    let olderSummary = '';
-    if (olderMessages.length > 0) {
-        olderSummary = await summarizeOlderMessages(olderMessages, aiProvider);
+    if (!cacheStillMatches) resetSummaryCache();
+    if (!summaryCache.firstMessageKey) {
+        summaryCache.provider = provider;
+        summaryCache.firstMessageKey = firstMessageKey;
+    }
+
+    const windowPlan = getConversationWindowPlan(
+        allMessages.length,
+        summaryCache.summarizedCount,
+        {
+            recentMessagesWindow: CONFIG.RECENT_MESSAGES_WINDOW,
+            summaryBatchSize: CONFIG.SUMMARY_BATCH_SIZE
+        }
+    );
+    const { targetSummaryCount } = windowPlan;
+
+    if (targetSummaryCount > summaryCache.summarizedCount) {
+        const nextBatch = allMessages.slice(windowPlan.nextSummaryStart, windowPlan.nextSummaryEnd);
+        summaryCache.summary = await summarizeOlderMessages(
+            nextBatch,
+            aiProvider,
+            summaryCache.summary
+        );
+        summaryCache.summarizedCount = targetSummaryCount;
+        summaryCache.lastSummarizedKey = messageKey(allMessages[targetSummaryCount - 1]);
     }
 
     return {
-        recentHistory: recentMessages,
-        olderSummary
+        // Between summary batches this can temporarily reach 29 messages,
+        // avoiding an extra model call on every turn while keeping a bounded
+        // context window.
+        recentHistory: allMessages.slice(windowPlan.recentStart),
+        olderSummary: summaryCache.summary
     };
 };
 
@@ -163,7 +227,12 @@ export const buildAgentSystemPrompt = (context, olderSummary = '') => {
  * @param {Object} context - User context
  * @returns {Promise<Object>} - Chat session object
  */
-export const createChatSession = async (messages, context, aiProvider = undefined) => {
+export const createChatSession = async (
+    messages,
+    context,
+    aiProvider = undefined,
+    { actionMode = true, enableThinking = false } = {}
+) => {
     if (!API_BACKEND_AVAILABLE) {
         console.warn('⚠️ Gemini API Key missing');
         return null;
@@ -174,24 +243,27 @@ export const createChatSession = async (messages, context, aiProvider = undefine
         const { recentHistory, olderSummary } = await prepareConversationContext(messages, aiProvider);
 
         // Build system prompt
-        const systemPrompt = buildAgentSystemPrompt(context, olderSummary);
+        const systemPrompt = actionMode
+            ? buildAgentSystemPrompt(context, olderSummary)
+            : buildConversationSystemPrompt(context, olderSummary);
 
         // Format history for Gemini (exclude the last user message - that gets sent separately)
         const historyForGemini = formatHistoryForGemini(recentHistory.slice(0, -1));
 
         // Create the model with system instruction
         const model = genAI.getGenerativeModel({
-            ...getAIProviderRequestOptions(aiProvider),
-            systemInstruction: systemPrompt
+            ...getAIProviderRequestOptions(aiProvider, { enableThinking }),
+            systemInstruction: systemPrompt,
+            ...(actionMode ? { responseFormat: AGENT_PLAN_RESPONSE_FORMAT } : {})
         });
 
         // Start chat with history
         const chat = model.startChat({
             history: historyForGemini,
             generationConfig: {
-                temperature: 0.7,
-                topP: 0.95,
-                topK: 40,
+                temperature: actionMode ? 0.2 : 0.5,
+                topP: actionMode ? 0.8 : 0.9,
+                topK: actionMode ? 20 : 40,
                 maxOutputTokens: 2048,
             }
         });
@@ -215,7 +287,13 @@ export const createChatSession = async (messages, context, aiProvider = undefine
  * @param {Object} context - User context (tasks, schedule, etc.)
  * @returns {Promise<Object>} - Parsed response { actions, summary }
  */
-export const sendChatMessage = async (userMessage, allMessages, context, aiProvider = undefined) => {
+export const sendChatMessage = async (
+    userMessage,
+    allMessages,
+    context,
+    aiProvider = undefined,
+    { attachment, enableThinking = false, onStream, signal } = {}
+) => {
     if (!API_BACKEND_AVAILABLE) {
         return {
             actions: [{
@@ -228,22 +306,47 @@ export const sendChatMessage = async (userMessage, allMessages, context, aiProvi
     }
 
     try {
+        const actionMode = shouldUseAgentActionMode(userMessage, {
+            hasPendingAction: Array.isArray(context?.pendingActions) && context.pendingActions.length > 0
+        });
+
         // Create/update chat session
-        const chat = await createChatSession(allMessages, context, aiProvider);
+        const chat = await createChatSession(allMessages, context, aiProvider, {
+            actionMode,
+            enableThinking
+        });
 
         if (!chat) {
             throw new Error('Failed to create chat session');
         }
 
         // Build the message with current context
-        const messageWithContext = buildMessageWithContext(userMessage, context);
+        const messageWithContext = buildAttachmentMessage(
+            buildMessageWithContext(userMessage, context, { actionMode }),
+            attachment
+        );
 
         log('Sending chat message');
-        const result = await chat.sendMessage(messageWithContext);
+        const shouldStream = !actionMode && typeof onStream === 'function';
+        const result = shouldStream
+            ? await chat.sendMessageStream(messageWithContext, { onText: onStream, signal })
+            : await chat.sendMessage(messageWithContext);
         const response = await result.response;
         let text = response.text().trim();
 
         log('Chat response:', text.substring(0, 200) + '...');
+
+        if (!actionMode) {
+            const conversationText = extractConversationText(text);
+            return {
+                actions: [{
+                    type: 'info_response',
+                    params: { message: conversationText },
+                    explanation: 'Conversational response'
+                }],
+                summary: 'Answered the user directly.'
+            };
+        }
 
         // Clean up markdown if present
         if (text.startsWith('```')) {
@@ -258,7 +361,21 @@ export const sendChatMessage = async (userMessage, allMessages, context, aiProvi
         };
 
     } catch (error) {
+        // A user-initiated stop is not a provider failure and must never start
+        // the buffered fallback request.
+        if (error?.name === 'AbortError') throw error;
         console.error('❌ Error in chat message:', error);
+
+        if (normalizeAIProvider(aiProvider) === 'local' && /LM Studio|local AI|empty final answer|timed out|not reachable/i.test(error.message)) {
+            return {
+                actions: [{
+                    type: 'info_response',
+                    params: { message: `Local Gemma is unavailable: ${error.message}` },
+                    explanation: 'Local model connection error'
+                }],
+                summary: 'Local Gemma is unavailable.'
+            };
+        }
 
         // Fallback: try single-shot if chat fails
         log('Falling back to single-shot mode');
@@ -269,8 +386,15 @@ export const sendChatMessage = async (userMessage, allMessages, context, aiProvi
 /**
  * Build message with current dynamic context (tasks, schedule, etc.)
  */
-const buildMessageWithContext = (userMessage, context) => {
-    return buildAgentStateMessage(userMessage, context);
+const buildMessageWithContext = (userMessage, context, { actionMode = true } = {}) => {
+    if (!actionMode && !shouldIncludeAgentState(userMessage)) return userMessage;
+
+    // The chat history is already sent as first-class assistant/user messages.
+    // Do not repeat the same exchanges inside the current state prompt.
+    return buildAgentStateMessage(userMessage, {
+        ...context,
+        conversationHistory: null
+    }, { actionMode });
 };
 
 /**
@@ -308,6 +432,7 @@ const fallbackSingleShot = async (userMessage, allMessages, context, aiProvider 
  */
 export const clearChatSession = () => {
     activeChatSession = null;
+    resetSummaryCache();
     log('Chat session cleared');
 };
 

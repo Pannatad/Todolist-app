@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
-import { canHandleLocally, cacheResponse, generateCacheKey, generateLocalResponse, getCachedResponse } from '../../services/localAgentHandler';
+import { useCallback, useRef } from 'react';
+import { canHandleLocally, generateLocalResponse } from '../../services/localAgentHandler';
 import { sendChatMessage } from '../../services/ConversationService';
 import { extractInsightsFromExchange } from '../../services/InsightExtractionService';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
 import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload, resolveTemplate, sanitizeTemplateBlocks } from '../../services/agentScheduleActions';
 import { log } from '../../utils/log.js';
+import { attachmentMetadata } from '../../services/chatAttachments.js';
 
 const ACTIONS_REQUIRING_CONFIRMATION = [
     'add_task',
@@ -22,6 +23,27 @@ const ACTIONS_REQUIRING_CONFIRMATION = [
     'set_goal',
 ];
 
+const DISPLAY_ONLY_ACTIONS = ['info_response', 'clarify'];
+
+const ACTION_CONFIRMATION_LABELS = {
+    add_task: 'add this task',
+    edit_task: 'update this task',
+    delete_task: 'delete this task',
+    add_schedule: 'add this schedule item',
+    edit_schedule: 'update this schedule item',
+    delete_schedule: 'delete this schedule item',
+    set_goal: 'set this goal',
+};
+
+const buildConfirmationMessage = (actions) => {
+    if (actions.length !== 1) {
+        return `Ready to make ${actions.length} changes. Review the details below and confirm.`;
+    }
+
+    const label = ACTION_CONFIRMATION_LABELS[actions[0].type] || 'make this change';
+    return `Ready to ${label}. Review the details below and confirm.`;
+};
+
 export const useChatActions = ({
     activeSubject,
     addScheduleItem,
@@ -33,6 +55,7 @@ export const useChatActions = ({
     intelligence,
     lastProposedSchedule,
     learnMultipleFacts,
+    localThinkingEnabled,
     logHabit,
     logInteraction,
     messages,
@@ -52,7 +75,13 @@ export const useChatActions = ({
     updateScheduleItem,
     updateTask,
 }) => {
-    const sendMessage = useCallback(async (text) => {
+    const activeRequestRef = useRef(null);
+
+    const stopMessage = useCallback(() => {
+        activeRequestRef.current?.abort();
+    }, []);
+
+    const sendMessage = useCallback(async (text, attachment = null) => {
         if (!text.trim()) return;
 
         // Add user message
@@ -60,12 +89,17 @@ export const useChatActions = ({
             id: crypto.randomUUID(),
             role: 'user',
             content: text.trim(),
+            attachment: attachmentMetadata(attachment),
             timestamp: new Date().toISOString()
         };
 
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
         setIsTyping(true);
+        const requestController = new AbortController();
+        activeRequestRef.current = requestController;
+        let streamingMessageId = null;
+        let streamedText = '';
 
         try {
             // Build context
@@ -79,45 +113,56 @@ export const useChatActions = ({
                 log('🚀 Handling locally:', patternType);
                 plan = generateLocalResponse(patternType, context);
             } else {
-                // Check cache for simple repeated queries
-                const cacheKey = generateCacheKey(`${selectedAIProvider}:${text}`);
-                const cachedPlan = getCachedResponse(cacheKey);
-
-                if (cachedPlan) {
-                    log('📦 Using cached response');
-                    plan = cachedPlan;
-                } else {
-                    // Use multi-turn chat API for better context retention
-                    log('🤖 Using multi-turn chat API with provider:', selectedAIProvider);
-                    plan = await sendChatMessage(text, newMessages, context, selectedAIProvider);
-
-                    // Only cache non-conversational responses
-                    if (!text.toLowerCase().includes('earlier') &&
-                        !text.toLowerCase().includes('you said') &&
-                        !text.toLowerCase().includes('remember')) {
-                        cacheResponse(cacheKey, plan);
-                    }
-                }
+                // Every model turn includes live conversation/app context. Reusing a
+                // response by prompt text alone makes follow-ups such as "tell me more"
+                // return stale answers from another point in the conversation.
+                log('🤖 Using multi-turn chat API with provider:', selectedAIProvider);
+                plan = await sendChatMessage(text, newMessages, context, selectedAIProvider, {
+                    attachment,
+                    enableThinking: selectedAIProvider === 'local' && localThinkingEnabled,
+                    signal: requestController.signal,
+                    onStream: selectedAIProvider === 'local' ? (fullText) => {
+                        streamedText = fullText;
+                        streamingMessageId ||= crypto.randomUUID();
+                        const streamingMessage = {
+                            id: streamingMessageId,
+                            role: 'assistant',
+                            content: fullText,
+                            timestamp: new Date().toISOString(),
+                            isStreaming: true
+                        };
+                        setMessages([...newMessages, streamingMessage]);
+                    } : undefined
+                });
             }
 
             // Process the response
             // Extract the actual message content from info_response or clarify actions
             const infoAction = plan.actions?.find(a => a.type === 'info_response' || a.type === 'clarify');
-            const messageContent = infoAction?.params?.message || infoAction?.params?.question || plan.summary || "I'll help you with that.";
+            const planActions = Array.isArray(plan.actions) ? plan.actions : [];
+            const executableActions = planActions.filter(action =>
+                !DISPLAY_ONLY_ACTIONS.includes(action.type)
+            );
+
+            // Check if any actions require confirmation
+            const needsConfirmation = executableActions.some(a =>
+                ACTIONS_REQUIRING_CONFIRMATION.includes(a.type)
+            );
+
+            const modelMessage = infoAction?.params?.message || infoAction?.params?.question || plan.summary || "I'll help you with that.";
+            const messageContent = needsConfirmation
+                ? buildConfirmationMessage(executableActions)
+                : modelMessage;
 
             const aiMessage = {
-                id: crypto.randomUUID(),
+                id: streamingMessageId || crypto.randomUUID(),
                 role: 'assistant',
                 content: messageContent,
                 timestamp: new Date().toISOString(),
-                actions: plan.actions || [],
+                renderHint: infoAction?.params?.suggestedTab || null,
+                actions: planActions,
                 actionsExecuted: false
             };
-
-            // Check if any actions require confirmation
-            const needsConfirmation = plan.actions?.some(a =>
-                ACTIONS_REQUIRING_CONFIRMATION.includes(a.type)
-            );
 
             // Extract active subject from actions for follow-up context
             const extractActiveSubject = (actions) => {
@@ -153,43 +198,48 @@ export const useChatActions = ({
             };
 
             // Set active subject for follow-up messages
-            const newActiveSubject = extractActiveSubject(plan.actions);
+            const newActiveSubject = extractActiveSubject(executableActions);
             if (newActiveSubject) {
                 setActiveSubject(newActiveSubject);
             }
 
             // Debug logging
-            log('🔍 Actions received:', plan.actions?.map(a => ({ type: a.type, params: a.params })));
+            log('🔍 Actions received:', planActions.map(a => ({ type: a.type, params: a.params })));
             log('🔍 Actions requiring confirmation:', ACTIONS_REQUIRING_CONFIRMATION);
             log('🔍 needsConfirmation:', needsConfirmation);
 
             if (needsConfirmation) {
                 // Store pending actions for confirmation
                 log('⏳ Storing pending actions for confirmation');
-                setPendingActions({ messageId: aiMessage.id, actions: plan.actions });
+                setPendingActions({ messageId: aiMessage.id, actions: executableActions });
                 aiMessage.pendingConfirmation = true;
 
                 // Save add_schedule proposal for later recovery (survives pendingActions overwrite)
-                const addScheduleAction = plan.actions.find(a => a.type === 'add_schedule');
+                const addScheduleAction = executableActions.find(a => a.type === 'add_schedule');
                 if (addScheduleAction) {
                     log('💾 Saving lastProposedSchedule:', addScheduleAction.params);
                     setLastProposedSchedule(addScheduleAction.params);
                 }
-            } else {
+            } else if (executableActions.length > 0) {
                 // Auto-execute non-destructive actions
                 log('⚡ Auto-executing actions (no confirmation needed)');
-                await executeActionsInternal(plan.actions);
+                await executeActionsInternal(executableActions);
                 aiMessage.actionsExecuted = true;
             }
 
-            const updatedMessages = [...newMessages, aiMessage];
+            const priorMessages = needsConfirmation
+                ? newMessages.map(message => message.pendingConfirmation
+                    ? { ...message, pendingConfirmation: false, actionsCancelled: true }
+                    : message)
+                : newMessages;
+            const updatedMessages = [...priorMessages, aiMessage];
             setMessages(updatedMessages);
             saveConversation(updatedMessages);
 
             // Log interaction
             logInteraction?.({
                 input: text,
-                actions: plan.actions,
+                actions: planActions,
                 outcome: 'success'
             });
 
@@ -204,6 +254,19 @@ export const useChatActions = ({
                 .catch(err => log('Insight extraction skipped:', err.message));
 
         } catch (error) {
+            if (error?.name === 'AbortError') {
+                const stoppedMessage = {
+                    id: streamingMessageId || crypto.randomUUID(),
+                    role: 'assistant',
+                    content: streamedText || 'Response stopped.',
+                    timestamp: new Date().toISOString(),
+                    isStopped: true
+                };
+                const updatedMessages = [...newMessages, stoppedMessage];
+                setMessages(updatedMessages);
+                saveConversation(updatedMessages);
+                return;
+            }
             console.error('Error sending message:', error);
             const errorMessage = {
                 id: crypto.randomUUID(),
@@ -216,11 +279,12 @@ export const useChatActions = ({
             setMessages(updatedMessages);
             saveConversation(updatedMessages);
         } finally {
+            if (activeRequestRef.current === requestController) activeRequestRef.current = null;
             setIsTyping(false);
         }
     // sendMessage preserves the original closure boundary for agent action dispatch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [messages, buildContext, saveConversation, logInteraction, intelligence, learnMultipleFacts, selectedAIProvider]);
+    }, [messages, buildContext, saveConversation, logInteraction, intelligence, learnMultipleFacts, selectedAIProvider, localThinkingEnabled]);
 
     // Execute actions internally (for auto-execution)
     const executeActionsInternal = async (actions) => {
@@ -427,5 +491,5 @@ export const useChatActions = ({
     };
 
     // Confirm and execute pending actions
-    return { executeActionsInternal, sendMessage };
+    return { executeActionsInternal, sendMessage, stopMessage };
 };

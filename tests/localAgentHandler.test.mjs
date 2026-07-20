@@ -3,54 +3,54 @@ import assert from 'node:assert/strict';
 
 import {
   canHandleLocally,
-  generateLocalResponse
+  generateLocalResponse,
 } from '../src/services/localAgentHandler.js';
 
-test('schedule read questions are handled locally as existing-data queries', () => {
-  const readOnlyQuestions = [
-    'what is my schedule',
-    "what's my schedule today",
-    'can you show me my schedule',
-    'do I have anything today',
-    "what's on my calendar today"
+test('day-summary wording uses the deterministic overview route', () => {
+  const overviewRequests = [
+    'summarize my today',
+    'Summarize my day.',
+    'Can you summarize my day?',
+    "Give me today's overview",
+    'show me a summary of today',
+    "what's my day like?",
   ];
 
-  for (const question of readOnlyQuestions) {
-    assert.equal(canHandleLocally(question), 'scheduleQuery', question);
+  for (const request of overviewRequests) {
+    assert.equal(canHandleLocally(request), 'overview', request);
   }
+
+  assert.equal(canHandleLocally('hello there'), null);
 });
 
-test('schedule creation requests are not treated as read-only schedule queries', () => {
-  const creationRequests = [
-    'schedule a meeting at 4',
-    'add a schedule for gym tonight',
-    'block time for writing tomorrow',
-    'create an event today'
-  ];
+test('day overview includes only schedule items from today', () => {
+  const now = new Date();
+  const atDayOffset = (offset, hour) => new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + offset,
+    hour,
+    0,
+    0,
+    0,
+  ).toISOString();
 
-  for (const request of creationRequests) {
-    assert.notEqual(canHandleLocally(request), 'scheduleQuery', request);
-  }
-});
-
-test('schedule local response reports existing events without add actions', () => {
-  const eventTime = new Date();
-  eventTime.setHours(15, 30, 0, 0);
-
-  const response = generateLocalResponse('scheduleQuery', {
+  const plan = generateLocalResponse('overview', {
     recentSchedule: [
-      {
-        id: 'event-1',
-        title: 'Design review',
-        startTime: eventTime.toISOString(),
-        duration: 45
-      }
-    ]
+      { title: 'Yesterday event', startTime: atDayOffset(-1, 9) },
+      { title: 'Today event', startTime: atDayOffset(0, 10) },
+      { title: 'Tomorrow event', startTime: atDayOffset(1, 11) },
+    ],
+    tasksDueToday: [{ title: 'Today task' }],
+    habits: [{ name: 'Drink water', frequency: 'Daily', completedToday: false }],
+    dailyHighlights: [{ text: 'Finish the important thing' }],
   });
 
-  assert.equal(response.actions.length, 1);
-  assert.equal(response.actions[0].type, 'info_response');
-  assert.match(response.actions[0].params.message, /Design review/);
-  assert.doesNotMatch(JSON.stringify(response), /add_schedule/);
+  const message = plan.actions[0].params.message;
+  assert.match(message, /Today event/);
+  assert.doesNotMatch(message, /Yesterday event/);
+  assert.doesNotMatch(message, /Tomorrow event/);
+  assert.match(message, /Today task/);
+  assert.match(message, /Drink water/);
+  assert.match(message, /Finish the important thing/);
 });
-

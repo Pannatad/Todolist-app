@@ -68,7 +68,7 @@ A beautiful, feature-rich productivity application combining task management, fo
 - **Frontend**: React 18, Vite
 - **Styling**: Tailwind CSS
 - **Backend**: Supabase (Auth + PostgreSQL)
-- **AI**: LM Studio local models with server-side Gemini fallback
+- **AI**: Gemini cloud or Gemma 4 26B A4B QAT through a local LM Studio proxy
 - **Sound**: use-sound
 - **Icons**: Lucide React
 
@@ -78,7 +78,7 @@ A beautiful, feature-rich productivity application combining task management, fo
 - Node.js (v18 or higher)
 - npm or yarn
 - Supabase account (for cloud features)
-- LM Studio local server and/or a Google Gemini API key for AI fallback
+- LM Studio with Gemma 4 26B A4B QAT and/or a Google Gemini API key
 
 ### Installation
 
@@ -101,16 +101,25 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # AI keys stay server-side. Do not use VITE_ for Gemini.
 AI_PROVIDER=lmstudio
-LM_STUDIO_BASE_URL=http://localhost:1234/v1
-# Optional. Leave unset to use the model currently loaded in LM Studio.
-LM_STUDIO_MODEL=your_loaded_lm_studio_model_id
+LM_STUDIO_BASE_URL=http://127.0.0.1:1234/v1
+LM_STUDIO_MODEL=google/gemma-4-26b-a4b-qat
+LM_STUDIO_REQUEST_TIMEOUT_MS=120000
 
-# Optional Ollama fallback for local Gemma if LM Studio's server is off.
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma4:e2b
+# Off by default. Set true only on a trusted Wi-Fi network to open the
+# authenticated production app from a phone through this Mac's LAN IP.
+APP_LAN_ACCESS=false
+APP_ACCESS_TOKEN=
+APP_PORT=4173
+
+# Debugging only: exposes the unauthenticated Vite server when true.
+APP_DEV_LAN_ACCESS=false
+
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.1-flash-lite-preview
 \`\`\`
+
+For the tested local setup, phone-access constraints, and troubleshooting, see
+[Local LLM Phase 1](docs/LOCAL_LLM_PHASE_1.md).
 
 4. Run the development server
 \`\`\`bash
@@ -124,6 +133,17 @@ npm run dev
 \`\`\`bash
 npm run build
 \`\`\`
+
+To serve the production build on this Mac:
+
+\`\`\`bash
+npm run deploy:local
+\`\`\`
+
+For authenticated phone access on the same trusted Wi-Fi, set
+`APP_LAN_ACCESS=true` and a random `APP_ACCESS_TOKEN` of at least 16 characters.
+The complete setup and constraints are documented in
+[Local LLM Phase 1](docs/LOCAL_LLM_PHASE_1.md).
 
 ## 🤖 Agent Prompts
 

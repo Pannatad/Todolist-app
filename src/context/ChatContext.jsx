@@ -46,6 +46,10 @@ export const ChatProvider = ({ children }) => {
         if (typeof localStorage === 'undefined') return DEFAULT_AI_PROVIDER;
         return normalizeAIProvider(localStorage.getItem('chat_ai_provider'));
     });
+    const [localThinkingEnabled, setLocalThinkingEnabledState] = useState(() => {
+        if (typeof localStorage === 'undefined') return false;
+        return localStorage.getItem('chat_local_thinking_enabled') === 'true';
+    });
 
     // Active subject tracking - remembers what item user is currently discussing
     // Format: { type: 'schedule'|'task', id: string, title: string } or null
@@ -64,6 +68,43 @@ export const ChatProvider = ({ children }) => {
         clearChatSession();
     }, []);
 
+    const setLocalThinkingEnabled = useCallback((enabled) => {
+        const normalized = Boolean(enabled);
+        setLocalThinkingEnabledState(normalized);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('chat_local_thinking_enabled', String(normalized));
+        }
+        clearChatSession();
+    }, []);
+
+    const restoreConversation = (storedMessages) => {
+        const restoredMessages = Array.isArray(storedMessages) ? storedMessages : [];
+        let latestPendingIndex = -1;
+
+        restoredMessages.forEach((message, index) => {
+            if (message?.pendingConfirmation) latestPendingIndex = index;
+        });
+
+        const normalizedMessages = restoredMessages.map((message, index) => (
+            message?.pendingConfirmation && index !== latestPendingIndex
+                ? { ...message, pendingConfirmation: false, actionsCancelled: true }
+                : message
+        ));
+
+        const latestPendingMessage = normalizedMessages[latestPendingIndex];
+        const restoredActions = latestPendingMessage?.actions?.filter(action =>
+            !['info_response', 'clarify'].includes(action.type)
+        ) || [];
+
+        setMessages(normalizedMessages);
+        setPendingActions(restoredActions.length > 0
+            ? { messageId: latestPendingMessage.id, actions: restoredActions }
+            : null);
+
+        const pendingSchedule = restoredActions.find(action => action.type === 'add_schedule');
+        setLastProposedSchedule(pendingSchedule?.params || null);
+    };
+
     async function loadConversation() {
         try {
             if (user) {
@@ -75,13 +116,13 @@ export const ChatProvider = ({ children }) => {
                     .single();
 
                 if (data?.messages) {
-                    setMessages(data.messages);
+                    restoreConversation(data.messages);
                 }
             } else {
                 // Load from localStorage for guests
                 const stored = localStorage.getItem('chat_messages');
                 if (stored) {
-                    setMessages(JSON.parse(stored));
+                    restoreConversation(JSON.parse(stored));
                 }
             }
         } catch {
@@ -197,7 +238,7 @@ export const ChatProvider = ({ children }) => {
     }, [tasks, scheduleItems, scheduleTemplates, habits, projects, goals, dailyHighlights, profile, user, messages, activeSubject, pendingActions, getProfileSummary, getMemorySummary, getRecentInteractions, getIntelligenceSummary]);
 
     // Send a message
-    const { executeActionsInternal, sendMessage } = useChatActions({
+    const { executeActionsInternal, sendMessage, stopMessage } = useChatActions({
         activeSubject,
         addScheduleItem,
         addTask,
@@ -208,6 +249,7 @@ export const ChatProvider = ({ children }) => {
         intelligence,
         lastProposedSchedule,
         learnMultipleFacts,
+        localThinkingEnabled,
         logHabit,
         logInteraction,
         messages,
@@ -313,11 +355,14 @@ export const ChatProvider = ({ children }) => {
                 pendingActions,
                 selectedAIProvider,
                 setSelectedAIProvider,
+                localThinkingEnabled,
+                setLocalThinkingEnabled,
                 aiProviderOptions: AI_PROVIDER_OPTIONS,
                 toggleSidebar,
                 openSidebar,
                 closeSidebar,
                 sendMessage,
+                stopMessage,
                 confirmActions,
                 cancelActions,
                 clearConversation

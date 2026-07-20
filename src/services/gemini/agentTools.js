@@ -1,4 +1,5 @@
 import { getAIProviderRequestOptions } from '../aiProvider';
+import { AGENT_PLAN_RESPONSE_FORMAT } from '../agentResponseSchema';
 import { buildRouteAgentPrompt } from '../agentPrompts';
 import { isTaskActive } from '../../utils/taskState';
 import { log } from '../../utils/log.js';
@@ -17,7 +18,11 @@ export const routeAgentCommand = async (input, context = {}, aiProvider = undefi
 
     try {
         const prompt = buildRouteAgentPrompt(input, context);
-        const routingModel = genAI.getGenerativeModel(getAIProviderRequestOptions(aiProvider));
+        const routingModel = genAI.getGenerativeModel({
+            ...getAIProviderRequestOptions(aiProvider),
+            responseFormat: AGENT_PLAN_RESPONSE_FORMAT,
+            enableThinking: false
+        });
 
         log('Sending agent routing request');
         const result = await routingModel.generateContent(prompt);
@@ -328,4 +333,3 @@ export const generateTopicsFromImage = async (file, pathName = '') => {
         return [];
     }
 };
-
