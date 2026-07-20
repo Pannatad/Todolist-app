@@ -16,6 +16,7 @@ const AI_REQUIRED_PATTERNS = [
 
 const SCHEDULE_READ_PATTERN = /^(?!.*\b(?:add|create|book|block|put|set up|make|new)\b)(?=.*\b(?:schedule|calendar|agenda|events?|plans?)\b)(?=.*\b(?:show|list|view|tell|check|what(?:'s|s| is)?|when|anything|do i have|have i got|what do i have|can you show|could you show)\b).*/i;
 const TODAY_SCHEDULE_READ_PATTERN = /^(?!.*\b(?:add|create|book|block|put|set up|make|new)\b)(?=.*\b(?:today|tonight|this morning|this afternoon|this evening|right now)\b)(?=.*\b(?:schedule|calendar|agenda|events?|plans?|anything|do i have|what do i have|what(?:'s|s)? on)\b).*/i;
+const DAY_OVERVIEW_PATTERN = /^(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?(?:(?:summarize|recap|review)\s+(?:my\s+)?(?:day|today)|(?:show|give)\s+(?:me\s+)?(?:a\s+)?(?:summary|overview|recap)\s+(?:of\s+)?(?:my\s+)?(?:day|today)|(?:show|give)\s+(?:me\s+)?(?:my\s+)?(?:day|today)(?:'s)?\s+(?:summary|overview|recap)|what(?:'s| is)\s+(?:my\s+)?day\s+like)[?.!]*$/i;
 
 // Simple data queries that can be handled locally
 // These must be EXACT data display requests, not analytical questions
@@ -45,6 +46,10 @@ export const canHandleLocally = (input) => {
     // ("can you show...") so the LLM does not mistake "schedule" as a create verb.
     if (SCHEDULE_READ_PATTERN.test(trimmed) || TODAY_SCHEDULE_READ_PATTERN.test(trimmed)) {
         return 'scheduleQuery';
+    }
+
+    if (DAY_OVERVIEW_PATTERN.test(trimmed)) {
+        return 'overview';
     }
 
     // FIRST: Check if this needs AI reasoning - if so, don't handle locally
@@ -117,13 +122,18 @@ export const generateLocalResponse = (patternType, context) => {
  */
 const generateDayOverview = (context, today) => {
     const { recentSchedule = [], tasksDueToday = [], habits = [], dailyHighlights = [] } = context;
+    const todayKey = new Date().toDateString();
 
     // Build schedule section
-    const scheduleItems = recentSchedule.slice(0, 5).map(s => {
+    const scheduleItems = recentSchedule
+        .filter(s => new Date(s.displayTime || s.startTime || s.start_time).toDateString() === todayKey)
+        .sort((a, b) => new Date(a.displayTime || a.startTime || a.start_time) - new Date(b.displayTime || b.startTime || b.start_time))
+        .slice(0, 5)
+        .map(s => {
         const time = new Date(s.displayTime || s.startTime || s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const isPassed = new Date(s.displayTime || s.startTime || s.start_time) < new Date();
         return `• ${time}: ${s.title}${isPassed ? ' (passed)' : ''}${s.isRecurring ? ' (recurring)' : ''}`;
-    }).join('\n');
+        }).join('\n');
 
     // Build tasks section
     const taskItems = tasksDueToday.slice(0, 5).map(t => `• ${t.title}`).join('\n');

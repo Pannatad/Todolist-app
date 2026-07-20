@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy:local": "npm run build && npm run serve:local",
     "lint": "eslint .",
+    "serve:local": "node server/appServer.js",
+    "test:local-llm": "node --test tests/aiProvider.test.mjs tests/chatAttachments.test.mjs tests/chatRenderMode.test.mjs tests/conversationHistory.test.mjs tests/lmStudioClient.test.mjs tests/localAgentHandler.test.mjs tests/randomUUID.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,6 +21,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.554.0",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.5.0",

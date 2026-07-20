@@ -1,10 +1,15 @@
 import { AnimatePresence } from 'framer-motion';
 import {
     MessageCircle,
+    FileText,
+    Image as ImageIcon,
+    LoaderCircle,
     Mic,
     MicOff,
+    Paperclip,
     Send,
     Sparkles,
+    Square,
     Trash2,
     X,
 } from 'lucide-react';
@@ -13,28 +18,38 @@ import { GUIDE_MODES, plannerSummaryLines, TOMORROW_PLANNER_STEPS } from './chat
 
 const ChatSidebarPanel = ({
     activeGuide,
+    attachment,
+    attachmentError,
     aiProviderOptions,
     applyPlannerChip,
     cancelActions,
     closeSidebar,
     confirmActions,
     guideAnswers,
+    fileInputRef,
+    handleAttachmentChange,
     handleClearChat,
     handleSubmit,
     input,
     inputRef,
     isListening,
     isOpen,
+    isPreparingAttachment,
     isTyping,
+    localAIStatus,
+    localThinkingEnabled,
     messages,
     messagesEndRef,
     movePlannerStep,
     openGuide,
+    removeAttachment,
     selectedAIProvider,
     sendMessage,
+    stopMessage,
     sendTomorrowPlan,
     setActiveGuide,
     setInput,
+    setLocalThinkingEnabled,
     setSelectedAIProvider,
     setTomorrowPlanner,
     speechSupported,
@@ -50,12 +65,12 @@ const ChatSidebarPanel = ({
                     {/* Backdrop */}
                     <div
                         onClick={closeSidebar}
-                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+                        className="fixed inset-0 z-[400] bg-black/20 backdrop-blur-sm"
                     />
 
                     {/* Sidebar Panel */}
                     <div
-                        className="fixed right-0 top-0 h-full w-full sm:w-[440px] md:w-[500px] bg-slate-50 shadow-2xl z-50 flex flex-col"
+                        className="fixed right-0 top-0 z-[410] flex h-dvh w-full flex-col bg-slate-50 shadow-2xl sm:w-[440px] md:w-[500px]"
                     >
                         {/* Header */}
                         <div className="border-b border-slate-200 bg-white">
@@ -113,6 +128,52 @@ const ChatSidebarPanel = ({
                                         })}
                                     </div>
                                 </div>
+                                {selectedAIProvider === 'local' && (
+                                    <div className="mb-3 space-y-2">
+                                        <div
+                                            className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs ${localAIStatus.status === 'ready'
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                : localAIStatus.status === 'checking'
+                                                    ? 'border-slate-200 bg-white text-slate-500'
+                                                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                                                }`}
+                                            role="status"
+                                        >
+                                            <span
+                                                className={`h-2 w-2 shrink-0 rounded-full ${localAIStatus.status === 'ready'
+                                                    ? 'bg-emerald-500'
+                                                    : localAIStatus.status === 'checking'
+                                                        ? 'animate-pulse bg-slate-400'
+                                                        : 'bg-amber-500'
+                                                    }`}
+                                            />
+                                            <span className="truncate">
+                                                {localAIStatus.status === 'ready'
+                                                    ? `Ready · ${localAIStatus.model}`
+                                                    : localAIStatus.message || 'Open LM Studio and start its local server.'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-semibold text-slate-700">Thinking mode</div>
+                                                <div className="text-[11px] text-slate-400">
+                                                    {localThinkingEnabled ? 'Enabled · slower, deeper response' : 'Disabled · faster response'}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={localThinkingEnabled}
+                                                aria-label="Thinking mode"
+                                                onClick={() => setLocalThinkingEnabled(!localThinkingEnabled)}
+                                                disabled={isTyping}
+                                                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${localThinkingEnabled ? 'bg-slate-900' : 'bg-slate-300'}`}
+                                            >
+                                                <span className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${localThinkingEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-5 gap-1.5">
                                     {GUIDE_MODES.map((command) => {
                                         const Icon = command.icon;
@@ -377,8 +438,55 @@ const ChatSidebarPanel = ({
                         </div>
 
                         {/* Input Area */}
-                        <div className="border-t border-slate-200 bg-white p-4">
+                        <div className="border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                            {(attachment || isPreparingAttachment) && (
+                                <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        {isPreparingAttachment ? (
+                                            <LoaderCircle size={16} className="shrink-0 animate-spin" />
+                                        ) : attachment.kind === 'pdf' ? (
+                                            <FileText size={16} className="shrink-0" />
+                                        ) : (
+                                            <ImageIcon size={16} className="shrink-0" />
+                                        )}
+                                        <span className="truncate">
+                                            {isPreparingAttachment ? 'Preparing attachment…' : attachment.name}
+                                        </span>
+                                    </div>
+                                    {!isPreparingAttachment && (
+                                        <button
+                                            type="button"
+                                            onClick={removeAttachment}
+                                            className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                            aria-label="Remove attachment"
+                                            title="Remove attachment"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {attachmentError && (
+                                <p className="mb-2 text-xs text-red-600" role="alert">{attachmentError}</p>
+                            )}
                             <form onSubmit={handleSubmit} className="flex items-center gap-2">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                                    onChange={handleAttachmentChange}
+                                    className="hidden"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isTyping || isPreparingAttachment}
+                                    className="rounded-lg bg-slate-100 p-3 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                    title="Attach image or PDF"
+                                    aria-label="Attach image or PDF"
+                                >
+                                    <Paperclip size={20} />
+                                </button>
                                 <div className="flex-1 relative">
                                     <input
                                         ref={inputRef}
@@ -386,7 +494,7 @@ const ChatSidebarPanel = ({
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         placeholder={isListening ? "Listening..." : "Ask for a decision or action..."}
-                                        disabled={isTyping}
+                                        disabled={isTyping || isPreparingAttachment}
                                         className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 transition-all focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-50"
                                     />
                                 </div>
@@ -408,17 +516,29 @@ const ChatSidebarPanel = ({
                                 )}
 
                                 {/* Send button */}
-                                <button
-                                    type="submit"
-                                    disabled={!input.trim() || isTyping}
-                                    className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                    title="Send"
-                                >
-                                    <Send size={20} />
-                                </button>
+                                {isTyping ? (
+                                    <button
+                                        type="button"
+                                        onClick={stopMessage}
+                                        className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700"
+                                        title="Stop response"
+                                        aria-label="Stop response"
+                                    >
+                                        <Square size={18} fill="currentColor" />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="submit"
+                                        disabled={(!input.trim() && !attachment) || isPreparingAttachment}
+                                        className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                        title="Send"
+                                    >
+                                        <Send size={20} />
+                                    </button>
+                                )}
                             </form>
                             <p className="text-xs text-slate-400 text-center mt-2">
-                                Press Enter to send • Escape to close
+                                Attach PNG, JPEG, WebP, or PDF • Press Enter to send
                             </p>
                         </div>
                     </div>
@@ -428,4 +548,3 @@ const ChatSidebarPanel = ({
 );
 
 export default ChatSidebarPanel;
-

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Circle, FolderKanban, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { resolveChatRenderMode } from '../services/chatRenderMode.js';
 
 // Clean markdown
 const cleanText = (str) => {
@@ -159,11 +160,14 @@ const parseDayOverview = (text) => {
 };
 
 // Rich Text Renderer
-const RichTextRenderer = ({ text }) => {
+const RichTextRenderer = ({ text, renderHint }) => {
     if (!text) return null;
+    const renderMode = resolveChatRenderMode(renderHint);
 
-    // Detect if this is a "day overview" type response
-    const isDayOverview = (
+    // Structured cards are opt-in metadata from deterministic app queries.
+    // Never infer them from ordinary model prose: a sentence mentioning
+    // "habit trackers" must remain a conversational answer.
+    const isDayOverview = renderMode === 'overview' && (
         (text.toUpperCase().includes('SCHEDULE') || text.includes('schedule today')) &&
         (text.toUpperCase().includes('TASK') || text.toUpperCase().includes('HABIT'))
     );
@@ -230,7 +234,7 @@ const RichTextRenderer = ({ text }) => {
     }
 
     // === DETECT SCHEDULE ONLY ===
-    const isScheduleOnly = text.toLowerCase().includes('schedule') &&
+    const isScheduleOnly = renderMode === 'schedule' && text.toLowerCase().includes('schedule') &&
         !text.toUpperCase().includes('HABIT') &&
         !text.toUpperCase().includes('TASK DUE');
     if (isScheduleOnly) {
@@ -253,7 +257,7 @@ const RichTextRenderer = ({ text }) => {
     }
 
     // === DETECT PROJECTS ===
-    const hasProjects = text.includes('% done') && text.includes('task');
+    const hasProjects = renderMode === 'projects' && text.includes('% done') && text.includes('task');
     if (hasProjects) {
         const pattern = /"([^"]+)"\s*\((\d+)%\s*done,?\s*(\d+)\s*tasks?\)/gi;
         const projects = [];
@@ -296,7 +300,9 @@ const RichTextRenderer = ({ text }) => {
     }
 
     // === DETECT TASKS ===
-    const hasTasks = text.toLowerCase().includes('pending task') || (text.includes('(due:') && text.includes('•'));
+    const hasTasks = renderMode === 'tasks' && (
+        text.toLowerCase().includes('pending task') || (text.includes('(due:') && text.includes('•'))
+    );
     if (hasTasks) {
         const lines = text.split('\n');
         const tasks = [];
@@ -339,7 +345,7 @@ const RichTextRenderer = ({ text }) => {
     }
 
     // === DETECT HABITS ===
-    const hasHabits = text.toLowerCase().includes('habit') && !text.includes('% done');
+    const hasHabits = renderMode === 'habits' && text.toLowerCase().includes('habit') && !text.includes('% done');
     if (hasHabits) {
         const listMatch = text.match(/(?:complete today|left to complete|habits?:?)\s*:?\s*([^.]+)/i);
         if (listMatch) {

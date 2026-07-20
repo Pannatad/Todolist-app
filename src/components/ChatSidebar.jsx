@@ -3,6 +3,8 @@ import { MessageCircle } from 'lucide-react';
 import { useChatContext } from '../context/ChatContext';
 import { confirmAction } from '../utils/confirm';
 import ChatSidebarPanel from './ChatSidebarPanel';
+import { getAIHealth } from '../services/generativeClient';
+import { prepareChatAttachment } from '../services/chatAttachments';
 import {
     buildInitialGuideAnswers,
     buildTomorrowPlannerPrompt,
@@ -18,11 +20,14 @@ const ChatSidebar = () => {
         isTyping,
         closeSidebar,
         sendMessage,
+        stopMessage,
         confirmActions,
         cancelActions,
         clearConversation,
         selectedAIProvider,
         setSelectedAIProvider,
+        localThinkingEnabled,
+        setLocalThinkingEnabled,
         aiProviderOptions
     } = useChatContext();
 
@@ -31,6 +36,10 @@ const ChatSidebar = () => {
     const [guideAnswers, setGuideAnswers] = useState({});
     const [tomorrowPlanner, setTomorrowPlanner] = useState(null);
     const [isListening, setIsListening] = useState(false);
+    const [localAIStatus, setLocalAIStatus] = useState({ status: 'checking', message: 'Checking LM Studio…' });
+    const [attachment, setAttachment] = useState(null);
+    const [attachmentError, setAttachmentError] = useState('');
+    const [isPreparingAttachment, setIsPreparingAttachment] = useState(false);
     const [speechSupported] = useState(() => {
         if (typeof window === 'undefined') return false;
         return Boolean(
@@ -43,6 +52,7 @@ const ChatSidebar = () => {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const recognitionRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Initialize speech recognition
     useEffect(() => {
@@ -96,6 +106,19 @@ const ChatSidebar = () => {
         }
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen || selectedAIProvider !== 'local') return undefined;
+
+        let cancelled = false;
+        getAIHealth('lmstudio').then((health) => {
+            if (!cancelled) setLocalAIStatus(health);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, selectedAIProvider]);
+
     // Handle keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -109,15 +132,42 @@ const ChatSidebar = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!input.trim() || isTyping) return;
-        if (isTomorrowPlanningRequest(input)) {
+        if ((!input.trim() && !attachment) || isTyping || isPreparingAttachment) return;
+        if (!attachment && isTomorrowPlanningRequest(input)) {
             setTomorrowPlanner(createPlannerState({ context: input.trim() }));
             setActiveGuide(null);
             setInput('');
             return;
         }
-        sendMessage(input.trim());
+        const prompt = input.trim() || (attachment?.kind === 'pdf'
+            ? 'Summarize this PDF and identify the most important points.'
+            : 'Describe this image and explain what is important.');
+        sendMessage(prompt, attachment);
         setInput('');
+        setAttachment(null);
+        setAttachmentError('');
+    };
+
+    const handleAttachmentChange = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+
+        setAttachmentError('');
+        setIsPreparingAttachment(true);
+        try {
+            setAttachment(await prepareChatAttachment(file));
+        } catch (error) {
+            setAttachment(null);
+            setAttachmentError(error.message || 'Could not prepare this attachment.');
+        } finally {
+            setIsPreparingAttachment(false);
+        }
+    };
+
+    const removeAttachment = () => {
+        setAttachment(null);
+        setAttachmentError('');
     };
 
     const openGuide = (mode) => {
@@ -231,22 +281,32 @@ const ChatSidebar = () => {
             closeSidebar={closeSidebar}
             confirmActions={confirmActions}
             guideAnswers={guideAnswers}
+            attachment={attachment}
+            attachmentError={attachmentError}
+            fileInputRef={fileInputRef}
+            handleAttachmentChange={handleAttachmentChange}
             handleClearChat={handleClearChat}
             handleSubmit={handleSubmit}
             input={input}
             inputRef={inputRef}
             isListening={isListening}
             isOpen={isOpen}
+            isPreparingAttachment={isPreparingAttachment}
             isTyping={isTyping}
+            localAIStatus={localAIStatus}
+            localThinkingEnabled={localThinkingEnabled}
             messages={messages}
             messagesEndRef={messagesEndRef}
             movePlannerStep={movePlannerStep}
             openGuide={openGuide}
+            removeAttachment={removeAttachment}
             selectedAIProvider={selectedAIProvider}
             sendMessage={sendMessage}
+            stopMessage={stopMessage}
             sendTomorrowPlan={sendTomorrowPlan}
             setActiveGuide={setActiveGuide}
             setInput={setInput}
+            setLocalThinkingEnabled={setLocalThinkingEnabled}
             setSelectedAIProvider={setSelectedAIProvider}
             setTomorrowPlanner={setTomorrowPlanner}
             speechSupported={speechSupported}
@@ -269,8 +329,9 @@ export const FloatingChatButton = () => {
     return (
         <button
             onClick={toggleSidebar}
-            className="fixed bottom-6 right-6 w-14 h-14 bg-slate-900 rounded-full shadow-lg hover:shadow-xl flex items-center justify-center text-white z-30 transition-shadow"
+            className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-shadow hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
             title="Open agent"
+            aria-label="Open agent"
         >
             <MessageCircle size={24} />
             {unreadCount > 0 && (

@@ -1,5 +1,5 @@
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
-export const DEFAULT_AI_PROVIDER = 'gemini';
+export const DEFAULT_AI_PROVIDER = 'local';
 
 export const AI_PROVIDER_OPTIONS = [
     {
@@ -14,7 +14,7 @@ export const AI_PROVIDER_OPTIONS = [
         label: 'Gemma Local',
         proxyProvider: 'lmstudio',
         model: null,
-        description: 'Loaded local model through LM Studio'
+        description: 'Gemma 4 26B A4B QAT through LM Studio on this Mac'
     }
 ];
 
@@ -34,7 +34,7 @@ export const getAIProviderOption = (provider) => OPTION_BY_ID[normalizeAIProvide
 
 export const getAIProviderLabel = (provider) => getAIProviderOption(provider).label;
 
-export const getAIProviderRequestOptions = (provider) => {
+export const getAIProviderRequestOptions = (provider, { enableThinking = false } = {}) => {
     const option = getAIProviderOption(provider);
     const requestOptions = {
         provider: option.proxyProvider
@@ -46,6 +46,7 @@ export const getAIProviderRequestOptions = (provider) => {
 
     if (option.proxyProvider === 'lmstudio') {
         requestOptions.fallbackToGemini = false;
+        requestOptions.enableThinking = Boolean(enableThinking);
     }
 
     return requestOptions;

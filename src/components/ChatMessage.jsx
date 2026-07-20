@@ -18,7 +18,9 @@ import {
     ArrowRight,
     ChevronDown,
     ChevronUp,
-    SlidersHorizontal
+    SlidersHorizontal,
+    FileText,
+    Image as ImageIcon
 } from 'lucide-react';
 import RichTextRenderer from './RichTextRenderer';
 
@@ -47,7 +49,7 @@ const getActionTitle = (action, displayLabel) => {
     return displayLabel;
 };
 
-const ActionCard = ({ action, showDetails = true, onSendMessage }) => {
+const ActionCard = ({ action, isCancelled = false, isPending = false, showDetails = true, onSendMessage }) => {
     const display = ACTION_DISPLAY[action.type] || {
         icon: ClipboardList,
         label: action.type,
@@ -109,8 +111,14 @@ const ActionCard = ({ action, showDetails = true, onSendMessage }) => {
                 <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold uppercase tracking-wide opacity-75">{display.label}</div>
                     <div className="mt-0.5 break-words font-medium text-slate-900">{title}</div>
-                    {action.explanation && (
-                        <div className="mt-1 text-xs text-slate-500">{action.explanation}</div>
+                    {(isPending || isCancelled || action.explanation) && (
+                        <div className="mt-1 text-xs text-slate-500">
+                            {isPending
+                                ? 'Pending your confirmation.'
+                                : isCancelled
+                                    ? 'Proposal cancelled.'
+                                    : action.explanation}
+                        </div>
                     )}
                 </div>
             </div>
@@ -185,7 +193,7 @@ const ChatMessage = ({
     onSendMessage
 }) => {
     const isUser = message.role === 'user';
-    const hasActions = message.actions && message.actions.length > 0;
+    const hasActions = message.actions?.some(action => action.type !== 'info_response');
     const hasPendingConfirmation = message.pendingConfirmation;
     const wasExecuted = message.actionsExecuted;
     const wasCancelled = message.actionsCancelled;
@@ -226,10 +234,20 @@ const ChatMessage = ({
                     : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
                     } ${message.isError ? 'border-red-200 bg-red-50' : ''}`}>
                     {isUser ? (
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                        <div>
+                            {message.attachment && (
+                                <div className="mb-2 flex items-center gap-2 rounded-md bg-white/10 px-2 py-1.5 text-xs text-slate-200">
+                                    {message.attachment.kind === 'pdf'
+                                        ? <FileText size={14} />
+                                        : <ImageIcon size={14} />}
+                                    <span className="truncate">{message.attachment.name}</span>
+                                </div>
+                            )}
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                        </div>
                     ) : (
                         <div className="text-sm leading-relaxed">
-                            <RichTextRenderer text={renderedContent} />
+                            <RichTextRenderer text={renderedContent} renderHint={message.renderHint} />
                         </div>
                     )}
                     {collapsible && (
@@ -248,7 +266,13 @@ const ChatMessage = ({
                 {!isUser && hasActions && (
                     <div className="mt-2 space-y-2 w-full">
                         {message.actions.filter(a => a.type !== 'info_response').map((action, idx) => (
-                            <ActionCard key={idx} action={action} onSendMessage={onSendMessage} />
+                            <ActionCard
+                                key={idx}
+                                action={action}
+                                isCancelled={wasCancelled}
+                                isPending={hasPendingConfirmation}
+                                onSendMessage={onSendMessage}
+                            />
                         ))}
 
                         {/* Confirmation buttons */}

@@ -8,11 +8,16 @@ import {
   getAIProviderLabel
 } from '../src/services/aiProvider.js';
 import { createGenerativeModel } from '../src/services/generativeClient.js';
+import {
+  extractConversationText,
+  shouldIncludeAgentState,
+  shouldUseAgentActionMode
+} from '../src/services/agentResponseSchema.js';
 
-test('Gemini is the default chat provider', () => {
-  assert.equal(DEFAULT_AI_PROVIDER, 'gemini');
-  assert.equal(normalizeAIProvider(undefined), 'gemini');
-  assert.equal(normalizeAIProvider('unknown'), 'gemini');
+test('Local Gemma is the default chat provider', () => {
+  assert.equal(DEFAULT_AI_PROVIDER, 'local');
+  assert.equal(normalizeAIProvider(undefined), 'local');
+  assert.equal(normalizeAIProvider('unknown'), 'local');
 });
 
 test('Gemini requests are explicitly routed to the Gemini proxy provider', () => {
@@ -25,15 +30,22 @@ test('Gemini requests are explicitly routed to the Gemini proxy provider', () =>
 test('Local requests are routed to LM Studio without pinning a model id', () => {
   assert.deepEqual(getAIProviderRequestOptions('local'), {
     provider: 'lmstudio',
-    fallbackToGemini: false
+    fallbackToGemini: false,
+    enableThinking: false
+  });
+  assert.deepEqual(getAIProviderRequestOptions('local', { enableThinking: true }), {
+    provider: 'lmstudio',
+    fallbackToGemini: false,
+    enableThinking: true
   });
 });
 
-test('Old Qwen provider setting is normalized to local', () => {
+test('Old Qwen provider setting remains normalized to local', () => {
   assert.equal(normalizeAIProvider('qwen'), 'local');
   assert.deepEqual(getAIProviderRequestOptions('qwen'), {
     provider: 'lmstudio',
-    fallbackToGemini: false
+    fallbackToGemini: false,
+    enableThinking: false
   });
 });
 
@@ -69,8 +81,40 @@ test('Generative client forwards local provider options to the AI proxy', async 
       assert.equal(request.body.provider, 'lmstudio');
       assert.equal(request.body.model, undefined);
       assert.equal(request.body.fallbackToGemini, false);
+      assert.equal(request.body.enableThinking, false);
     }
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('conversation questions stay out of action mode', () => {
+  assert.equal(shouldUseAgentActionMode('What is the difference between a task and a habit?'), false);
+  assert.equal(shouldUseAgentActionMode('Give me one concrete example of each using exercise.'), false);
+  assert.equal(shouldUseAgentActionMode('How do I create a task?'), false);
+});
+
+test('explicit app mutations use action mode', () => {
+  assert.equal(shouldUseAgentActionMode('Add a task to buy milk tomorrow.'), true);
+  assert.equal(shouldUseAgentActionMode('Can you schedule a focus block at 2 PM?'), true);
+  assert.equal(shouldUseAgentActionMode('Make it 60 minutes.', { hasPendingAction: true }), true);
+});
+
+test('generic conversation avoids unnecessary app-state prompt data', () => {
+  assert.equal(shouldIncludeAgentState('Explain how sleep supports memory.'), false);
+  assert.equal(shouldIncludeAgentState('Tell me more about that.'), false);
+  assert.equal(shouldIncludeAgentState('What tasks should I prioritize today?'), true);
+  assert.equal(shouldIncludeAgentState('What is on my calendar tomorrow?'), true);
+});
+
+test('conversation mode unwraps accidental JSON without exposing action formatting', () => {
+  assert.equal(
+    extractConversationText('```json\n{"actions":[],"summary":"Thinking is disabled."}\n```'),
+    'Thinking is disabled.'
+  );
+  assert.equal(
+    extractConversationText('{"actions":[{"type":"info_response","params":{"message":"Direct answer"}}],"summary":"Fallback"}'),
+    'Direct answer'
+  );
+  assert.equal(extractConversationText('Plain answer'), 'Plain answer');
 });
