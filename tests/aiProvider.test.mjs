@@ -100,6 +100,26 @@ test('explicit app mutations use action mode', () => {
   assert.equal(shouldUseAgentActionMode('Make it 60 minutes.', { hasPendingAction: true }), true);
 });
 
+test('scheduling verbs beyond the basics use action mode', () => {
+  // Previously fell into conversation mode and silently did nothing.
+  assert.equal(shouldUseAgentActionMode('Duplicate my gym session to tomorrow.'), true);
+  assert.equal(shouldUseAgentActionMode('Plan my day.'), true);
+  assert.equal(shouldUseAgentActionMode('Apply my standard workday to Friday.'), true);
+  assert.equal(shouldUseAgentActionMode('Save today as a template called Deep Work.'), true);
+  assert.equal(shouldUseAgentActionMode('Change the category of my gym block to Health.'), true);
+  assert.equal(shouldUseAgentActionMode('Delete my 3pm meeting.'), true);
+  assert.equal(shouldUseAgentActionMode('Add a meeting at 2pm and a call at 4pm.'), true);
+  // Verb not at the very start, but clearly a command on app data.
+  assert.equal(shouldUseAgentActionMode('For Friday, duplicate my gym block.'), true);
+  assert.equal(shouldUseAgentActionMode('I need to reschedule my deep work block to 10am.'), true);
+});
+
+test('questions that merely mention actions stay conversational', () => {
+  assert.equal(shouldUseAgentActionMode('How do I duplicate an event?'), false);
+  assert.equal(shouldUseAgentActionMode('What should I add to my schedule?'), false);
+  assert.equal(shouldUseAgentActionMode('Should I move my gym session?'), false);
+});
+
 test('generic conversation avoids unnecessary app-state prompt data', () => {
   assert.equal(shouldIncludeAgentState('Explain how sleep supports memory.'), false);
   assert.equal(shouldIncludeAgentState('Tell me more about that.'), false);
