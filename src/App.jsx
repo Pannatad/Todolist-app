@@ -1,9 +1,11 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import {
   CalendarDays,
+  ChevronRight,
   ClipboardList,
   FolderKanban,
   GraduationCap,
+  LayoutGrid,
   ListTodo,
   LogIn,
   LogOut,
@@ -26,7 +28,7 @@ import { useHabit } from './context/HabitContext';
 import { useUserProfile } from './context/UserProfileContext';
 import smartNotificationService from './services/SmartNotificationService';
 import { IdeaBoardProvider } from './context/IdeaBoardContext';
-import { SegmentedControl, ToastProvider } from './ui';
+import { SegmentedControl, Sheet, ToastProvider } from './ui';
 const TaskInput = lazy(() => import('./components/TaskInput'));
 const Garden = lazy(() => import('./components/Garden'));
 const Schedule = lazy(() => import('./components/Schedule'));
@@ -129,6 +131,7 @@ function App() {
     }
   });
   const [activeTab, setActiveTab] = useState('today');
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
 
   const tabs = [
     { id: 'today', label: 'Today', icon: SunMedium, controls: 'app-active-workspace' },
@@ -241,6 +244,62 @@ function App() {
                       className="app-primary-nav__control"
                     />
                   </nav>
+
+                  {/* Mobile tab dock: 4 main tabs + More (Learning, Projects) */}
+                  <nav className="app-tabbar" aria-label="Primary navigation">
+                    {tabs.filter((tab) => !['learning', 'projects'].includes(tab.id)).map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => navigateTo(tab.id)}
+                          className={`app-tabbar__item${activeTab === tab.id ? ' is-active' : ''}`}
+                          aria-current={activeTab === tab.id ? 'page' : undefined}
+                        >
+                          <Icon size={19} aria-hidden="true" />
+                          <span className="app-tabbar__label">{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreSheet(true)}
+                      className={`app-tabbar__item${['learning', 'projects'].includes(activeTab) ? ' is-active' : ''}`}
+                      aria-haspopup="dialog"
+                    >
+                      <LayoutGrid size={19} aria-hidden="true" />
+                      <span className="app-tabbar__label">More</span>
+                    </button>
+                  </nav>
+
+                  <Sheet open={showMoreSheet} onClose={() => setShowMoreSheet(false)} title="More">
+                    <div className="space-y-1">
+                      {[
+                        { id: 'learning', label: 'Learning', icon: GraduationCap, hint: 'Paths, topics, timetable' },
+                        { id: 'projects', label: 'Projects', icon: FolderKanban, hint: 'Boards and planning' },
+                      ].map((entry) => {
+                        const Icon = entry.icon;
+                        return (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onClick={() => { navigateTo(entry.id); setShowMoreSheet(false); }}
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-[var(--color-paper-2)]"
+                          >
+                            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+                              <Icon size={18} aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-[var(--color-ink)]">{entry.label}</span>
+                              <span className="block text-xs text-[var(--color-muted)]">{entry.hint}</span>
+                            </span>
+                            <ChevronRight size={16} className="text-[var(--color-muted)]" aria-hidden="true" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Sheet>
 
                   {activeTab === 'tasks' && (
                     <div className="app-task-composer">

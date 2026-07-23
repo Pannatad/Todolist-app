@@ -54,8 +54,8 @@
   --rule-fine: 2px;
   --radius-control: 0.75rem;
   --radius-input: 0.75rem;
-  --radius-card: 1rem;
-  --radius-sheet: 1.25rem;
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.5rem;
   --radius-pill: 999px;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -65,7 +65,7 @@
   --dur-short: 220ms;
   --dur-long: 420ms;
 
-  --shadow-card: 0 1px 2px oklch(20% 0.015 285 / 0.05);
+  --shadow-card: 0 1px 2px oklch(20% 0.015 285 / 0.05), 0 12px 32px -14px oklch(25% 0.02 285 / 0.14);
   --shadow-floating: 0 16px 40px oklch(20% 0.015 285 / 0.12);
 
   --z-base: 1;
@@ -103,6 +103,6 @@
   --color-error: oklch(72% 0.16 25);
   --color-error-soft: oklch(25% 0.045 25);
   --color-overlay: oklch(8% 0.012 285 / 0.68);
-  --shadow-card: 0 0 0 1px oklch(95% 0.008 285 / 0.035);
+  --shadow-card: 0 0 0 1px oklch(95% 0.008 285 / 0.05), 0 12px 32px -14px oklch(0% 0 0 / 0.5);
   --shadow-floating: 0 18px 48px oklch(5% 0.012 285 / 0.38);
 }

@@ -57,9 +57,9 @@ const TodaySchedule = ({ entries, now, onOpen }) => {
   );
 
   return (
-    <section className="ui-card p-4">
-      <div className="mb-1 flex items-baseline justify-between px-2">
-        <h2 className="text-base font-bold tracking-tight text-[var(--color-ink)]">Today</h2>
+    <section>
+      <div className="mb-1.5 flex items-baseline justify-between px-4">
+        <h2 className="text-sm font-semibold text-[var(--color-muted)]">Today</h2>
         <span className="text-xs font-medium text-[var(--color-muted)]">
           {entries.length === 0
             ? 'Nothing scheduled'
@@ -68,6 +68,7 @@ const TodaySchedule = ({ entries, now, onOpen }) => {
               : `${rest.length} left · ${durationLabel(remainingMinutes)}`}
         </span>
       </div>
+      <div className="ui-card p-2">
 
       {past.length > 0 && (
         <button
@@ -110,8 +111,9 @@ const TodaySchedule = ({ entries, now, onOpen }) => {
       ))}
 
       {entries.length === 0 && (
-        <p className="px-2 pb-1 text-sm text-[var(--color-muted)]">A clear day. Ask your agent to plan it.</p>
+        <p className="px-2 py-2 text-sm text-[var(--color-muted)]">A clear day. Ask your agent to plan it.</p>
       )}
+      </div>
     </section>
   );
 };

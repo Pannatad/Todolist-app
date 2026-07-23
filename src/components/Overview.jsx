@@ -181,12 +181,12 @@ const Overview = ({ onNavigate }) => {
 
         {/* Due today: complete with one tap on the circle */}
         {dueTasks.length > 0 && (
-          <section className="ui-card p-4">
-            <div className="mb-1 flex items-baseline justify-between px-2">
-              <h2 className="text-base font-bold tracking-tight text-[var(--color-ink)]">Due today</h2>
+          <section>
+            <div className="mb-1.5 flex items-baseline justify-between px-4">
+              <h2 className="text-sm font-semibold text-[var(--color-muted)]">Due today</h2>
               <span className="text-xs font-medium text-[var(--color-muted)]">{dueTasks.length}</span>
             </div>
-            <div>
+            <div className="ui-card p-2">
               {dueTasks.map((task) => (
                 <div key={task.id} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-[var(--color-paper-2)]">
                   <button
@@ -217,12 +217,12 @@ const Overview = ({ onNavigate }) => {
 
         {/* Habits: one-tap pills */}
         {habitItems.length > 0 && (
-          <section className="ui-card p-4">
-            <div className="mb-2.5 flex items-baseline justify-between px-2">
-              <h2 className="text-base font-bold tracking-tight text-[var(--color-ink)]">Habits</h2>
+          <section>
+            <div className="mb-1.5 flex items-baseline justify-between px-4">
+              <h2 className="text-sm font-semibold text-[var(--color-muted)]">Habits</h2>
               <span className="text-xs font-medium text-[var(--color-muted)]">{habitsDone} of {habitItems.length}</span>
             </div>
-            <div className="flex flex-wrap gap-2 px-2 pb-1">
+            <div className="ui-card flex flex-wrap gap-2 p-3">
               {habitItems.map((habit) => (
                 <button
                   key={habit.id}

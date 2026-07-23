@@ -65,15 +65,15 @@ button {
 
 .app-brand__mark {
   display: grid;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex: 0 0 auto;
   place-items: center;
-  border: var(--rule-hair) solid var(--color-rule);
+  border: 0;
   border-radius: var(--radius-control);
-  background: var(--color-card);
+  background: transparent;
   color: var(--color-accent);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .app-brand__copy {
@@ -118,16 +118,29 @@ button {
   display: none;
   min-height: 2.75rem;
   align-items: center;
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-neutral);
-  padding-inline: var(--space-md);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  padding-inline: var(--space-sm);
   font-family: var(--font-body);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
+}
+
+/* Header controls are quiet ghosts — no boxes in the chrome. */
+.app-header .ui-icon-button,
+.app-profile-control > :where(button, div) > button {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-muted);
+}
+
+.app-header .ui-icon-button:focus-visible {
+  outline: var(--rule-fine) solid var(--color-focus);
+  outline-offset: var(--space-2xs);
 }
 
 .app-profile-control > :where(button, div) {
@@ -135,13 +148,63 @@ button {
   min-height: 2.75rem;
 }
 
+/* Desktop pill nav — hidden on mobile, where the tab dock takes over. */
 .app-primary-nav {
+  display: none;
+}
+
+/* Mobile tab dock: one floating rounded bar, 5 slots, no borders. */
+.app-tabbar {
   position: fixed;
-  inset: auto var(--space-xs) max(var(--space-xs), env(safe-area-inset-bottom));
+  inset: auto var(--space-sm) max(var(--space-sm), env(safe-area-inset-bottom));
   z-index: var(--z-sticky);
   display: flex;
-  justify-content: center;
-  pointer-events: none;
+  max-width: 30rem;
+  align-items: stretch;
+  justify-content: space-between;
+  margin-inline: auto;
+  padding: var(--space-2xs);
+  border-radius: var(--radius-sheet);
+  background: color-mix(in oklch, var(--color-card-raised) 88%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-floating);
+}
+
+.app-tabbar__item {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-muted);
+  padding: var(--space-xs) var(--space-2xs);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1;
+  transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
+}
+
+.app-tabbar__item.is-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.app-tabbar__item:focus-visible {
+  outline: var(--rule-fine) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.app-tabbar__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-primary-nav__control {
@@ -419,8 +482,15 @@ button {
   .app-primary-nav {
     position: sticky;
     inset: var(--space-sm) auto auto;
+    display: flex;
+    justify-content: center;
     margin-inline: auto;
     margin-block-end: var(--space-lg);
+    pointer-events: none;
+  }
+
+  .app-tabbar {
+    display: none;
   }
 
   .app-primary-nav__control {

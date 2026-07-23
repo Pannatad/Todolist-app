@@ -1,9 +1,9 @@
 /* Hallmark · component system: calm secretary · states: default · hover · focus · active · disabled · loading · error · success */
 .ui-card {
   min-width: 0;
-  border: var(--rule-hair) solid var(--color-rule);
+  border: 0;
   border-radius: var(--radius-card);
-  background: var(--color-card);
+  background: var(--color-card-raised);
   color: var(--color-ink);
   box-shadow: var(--shadow-card);
 }
