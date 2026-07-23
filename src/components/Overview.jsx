@@ -210,7 +210,7 @@ const Overview = ({ onNavigate }) => {
                   className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 ${
                     habit.completed
                       ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                      : 'border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink)] shadow-[var(--shadow-card)] hover:border-[var(--color-accent)]'
+                      : 'bg-[color-mix(in_srgb,var(--color-accent)_7%,var(--color-card-raised))] text-[var(--color-ink)] shadow-[var(--shadow-card)] hover:bg-[var(--color-accent-soft)]'
                   }`}
                 >
                   {habit.completed && <Check size={14} aria-hidden="true" />}

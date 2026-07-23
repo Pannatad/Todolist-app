@@ -26,7 +26,10 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
 
   if (!entry) {
     return (
-      <section className="py-2">
+      <section
+        className="-mx-3 rounded-3xl px-3 py-4"
+        style={{ background: 'radial-gradient(130% 150% at 8% 0%, color-mix(in srgb, var(--color-accent) 10%, transparent) 0%, transparent 62%)' }}
+      >
         <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Free</p>
         <h2 className="mt-1 text-3xl font-bold leading-tight tracking-tight text-[var(--color-ink)]">Nothing scheduled</h2>
         <button
@@ -49,7 +52,8 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
 
   return (
     <section
-      className="cursor-pointer select-none py-2"
+      className="-mx-3 cursor-pointer select-none rounded-3xl px-3 py-4"
+      style={{ background: `radial-gradient(130% 150% at 8% 0%, color-mix(in srgb, ${color} 13%, transparent) 0%, transparent 62%)` }}
       onClick={() => onOpen(entry.item)}
       role="button"
       tabIndex={0}

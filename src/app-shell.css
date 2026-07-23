@@ -36,10 +36,14 @@ button {
 
 .app-shell {
   min-height: 100dvh;
-  /* Soft accent aura at the top so pages have atmosphere instead of flat gray. */
+  /* Planner-paper canvas: a faint grid under a soft accent aura.
+   * The grid uses ink at low alpha, so it adapts to light and dark. */
   background:
-    radial-gradient(120% 30rem at 50% 0, color-mix(in oklch, var(--color-accent) 7%, transparent), transparent 72%),
+    linear-gradient(color-mix(in srgb, var(--color-ink) 3.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 3.5%, transparent) 1px, transparent 1px),
+    radial-gradient(120% 30rem at 50% 0, color-mix(in oklch, var(--color-accent) 8%, transparent), transparent 72%),
     var(--color-paper);
+  background-size: 1.5rem 1.5rem, 1.5rem 1.5rem, auto, auto;
   color: var(--color-ink);
 }
 

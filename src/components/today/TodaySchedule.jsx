@@ -22,15 +22,20 @@ const BlockRow = ({ entry, isNow, isPast, onOpen }) => {
       onClick={() => onOpen(entry.item)}
       className={`group flex w-full items-start gap-0 py-2.5 text-left focus:outline-none ${isPast ? 'opacity-40' : ''}`}
     >
-      <span className="w-16 shrink-0 pt-0.5 text-right text-xs font-semibold tabular-nums text-[var(--color-muted)]">
+      <span
+        className="w-16 shrink-0 pt-0.5 text-right text-xs font-semibold tabular-nums"
+        style={{ color: isPast ? 'var(--color-muted)' : `color-mix(in oklch, ${color} 65%, var(--color-ink))` }}
+      >
         {timeLabel(entry.start)}
       </span>
       <span className="relative z-10 flex w-10 shrink-0 justify-center pt-1">
         <span
-          className={isNow ? 'h-3.5 w-3.5 rounded-full ring-4' : 'h-2.5 w-2.5 rounded-full'}
+          className={isNow ? 'h-3.5 w-3.5 rounded-full' : 'h-2.5 w-2.5 rounded-full'}
           style={{
             backgroundColor: color,
-            ...(isNow ? { '--tw-ring-color': `color-mix(in srgb, ${color} 25%, transparent)` } : null)
+            boxShadow: isNow
+              ? `0 0 0 5px color-mix(in srgb, ${color} 22%, transparent), 0 2px 10px color-mix(in srgb, ${color} 45%, transparent)`
+              : `0 0 0 4px color-mix(in srgb, ${color} 14%, transparent)`
           }}
           aria-hidden="true"
         />
