@@ -363,7 +363,8 @@ function App() {
                     }}
                   />
                   <ChatSidebar />
-                  <FloatingChatButton />
+                  {/* Today has its own docked ask-bar; the floating button would be redundant there. */}
+                  {activeTab !== 'today' && <FloatingChatButton />}
                 </Suspense>
               </div>
             </ChatProvider>
