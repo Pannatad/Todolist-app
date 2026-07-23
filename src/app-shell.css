@@ -36,7 +36,10 @@ button {
 
 .app-shell {
   min-height: 100dvh;
-  background: var(--color-paper);
+  /* Soft accent aura at the top so pages have atmosphere instead of flat gray. */
+  background:
+    radial-gradient(120% 30rem at 50% 0, color-mix(in oklch, var(--color-accent) 7%, transparent), transparent 72%),
+    var(--color-paper);
   color: var(--color-ink);
 }
 

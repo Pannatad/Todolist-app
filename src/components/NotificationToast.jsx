@@ -11,12 +11,14 @@ const NOTIFICATION_ICONS = {
     'conflict-warning': Zap
 };
 
-const NOTIFICATION_COLORS = {
-    'event-reminder': 'from-blue-500 to-indigo-600',
-    'deadline-alert': 'from-amber-500 to-orange-600',
-    'habit-nudge': 'from-emerald-500 to-teal-600',
-    'habit-backfill': 'from-amber-500 to-lime-600',
-    'conflict-warning': 'from-red-500 to-rose-600'
+// Accent hue per type, used for the icon chip only — the card itself stays
+// a calm raised surface in the app's design language.
+const NOTIFICATION_TINTS = {
+    'event-reminder': '#6366f1',
+    'deadline-alert': '#f59e0b',
+    'habit-nudge': '#10b981',
+    'habit-backfill': '#f59e0b',
+    'conflict-warning': '#ef4444'
 };
 
 const NotificationToast = ({ onAction }) => {
@@ -61,67 +63,51 @@ const NotificationToast = ({ onAction }) => {
     };
 
     return (
-        <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
+        <div className="pointer-events-none fixed left-4 right-4 top-4 z-[9999] flex flex-col items-center gap-2 sm:left-auto sm:items-end">
             <AnimatePresence>
                 {notifications.map((notification) => {
                     const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
-                    const colorClass = NOTIFICATION_COLORS[notification.type] || 'from-gray-500 to-gray-600';
+                    const tint = NOTIFICATION_TINTS[notification.type] || 'var(--color-accent)';
 
                     return (
                         <Motion.div
                             key={notification.id}
-                            initial={{ opacity: 0, x: 100, scale: 0.9 }}
-                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                            exit={{ opacity: 0, x: 100, scale: 0.9 }}
-                            className="pointer-events-auto"
+                            initial={{ opacity: 0, y: -12, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="pointer-events-auto w-full sm:w-[22rem]"
                         >
-                            <div className={`bg-gradient-to-r ${colorClass} rounded-2xl shadow-2xl p-4 min-w-[320px] max-w-[400px] text-white`}>
-                                {/* Header */}
-                                <div className="flex items-start justify-between gap-3 mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white/20 rounded-xl">
-                                            <Icon className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-lg">{notification.icon}</span>
-                                                <h4 className="font-bold">{notification.title}</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => dismiss(notification.id)}
-                                        className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-
-                                {/* Message */}
-                                <p className="text-white/90 text-sm mb-3 ml-12">
-                                    {notification.message}
-                                </p>
-
-                                {/* Action Button */}
-                                {notification.action && (
-                                    <div className="ml-12">
+                            <div className="ui-card flex items-start gap-3 p-3.5">
+                                <span
+                                    className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl"
+                                    style={{
+                                        background: `color-mix(in srgb, ${tint} 14%, transparent)`,
+                                        color: `color-mix(in oklch, ${tint} 70%, var(--color-ink))`
+                                    }}
+                                >
+                                    <Icon size={16} aria-hidden="true" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-[var(--color-ink)]">{notification.title}</p>
+                                    <p className="mt-0.5 text-xs leading-5 text-[var(--color-muted)]">{notification.message}</p>
+                                    {notification.action && (
                                         <button
                                             onClick={() => handleAction(notification)}
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+                                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-accent)]"
                                         >
                                             {notification.action}
-                                            <ArrowRight className="w-4 h-4" />
+                                            <ArrowRight size={13} aria-hidden="true" />
                                         </button>
-                                    </div>
-                                )}
-
-                                {/* Progress bar for auto-dismiss */}
-                                <Motion.div
-                                    className="absolute bottom-0 left-0 h-1 bg-white/30 rounded-b-2xl"
-                                    initial={{ width: '100%' }}
-                                    animate={{ width: '0%' }}
-                                    transition={{ duration: 8, ease: 'linear' }}
-                                />
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => dismiss(notification.id)}
+                                    className="shrink-0 rounded-lg p-1 text-[var(--color-muted)] transition-colors hover:bg-[var(--color-paper-2)]"
+                                    aria-label="Dismiss notification"
+                                >
+                                    <X size={15} aria-hidden="true" />
+                                </button>
                             </div>
                         </Motion.div>
                     );

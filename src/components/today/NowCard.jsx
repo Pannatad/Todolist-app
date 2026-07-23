@@ -45,34 +45,38 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
   const color = entry.item.color || 'var(--color-accent)';
   const progress = isNow ? Math.min(1, Math.max(0, (now - entry.start) / (entry.end - entry.start))) : 0;
   const followUp = isNow ? next : null;
+  // The hero takes on the event's color: tinted surface, strong accent text.
+  const tinted = `color-mix(in srgb, ${color} 12%, var(--color-card-raised))`;
+  const strong = `color-mix(in oklch, ${color} 72%, var(--color-ink))`;
+  const soft = `color-mix(in srgb, ${color} 22%, transparent)`;
 
   return (
     <Motion.section
       layout
       className="ui-card cursor-pointer select-none p-5 transition-shadow hover:shadow-md"
+      style={{ background: tinted }}
       onClick={() => onOpen(entry.item)}
       role="button"
       tabIndex={0}
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(entry.item); } }}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: strong }}>
           {isNow ? 'Now' : 'Up next'} · {timeLabel(entry.start)}–{timeLabel(entry.end)}
         </p>
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-muted)]">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: soft, color: strong }}>
           {entry.item.category || 'Other'}
         </span>
       </div>
 
-      <div className="mt-1.5 flex items-center justify-between gap-3">
-        <h2 className="min-w-0 truncate text-xl font-bold tracking-tight text-[var(--color-ink)]">{entry.item.title}</h2>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <h2 className="min-w-0 text-2xl font-bold leading-tight tracking-tight text-[var(--color-ink)] line-clamp-2">{entry.item.title}</h2>
         <ChevronRight size={18} className="shrink-0 text-[var(--color-muted)]" aria-hidden="true" />
       </div>
 
       {isNow ? (
-        <div className="mt-3">
-          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-paper-2)]">
+        <div className="mt-3.5">
+          <div className="h-1.5 overflow-hidden rounded-full" style={{ background: soft }}>
             <Motion.div
               className="h-full rounded-full"
               style={{ backgroundColor: color }}
@@ -81,14 +85,14 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
               transition={{ duration: 0.6, ease: 'easeOut' }}
             />
           </div>
-          <p className="mt-1.5 text-xs font-medium text-[var(--color-muted)]">{remainingLabel(entry.end - now)} left</p>
+          <p className="mt-1.5 text-xs font-semibold" style={{ color: strong }}>{remainingLabel(entry.end - now)} left</p>
         </div>
       ) : (
-        <p className="mt-1.5 text-xs font-medium text-[var(--color-muted)]">in {remainingLabel(entry.start - now)}</p>
+        <p className="mt-1.5 text-xs font-semibold" style={{ color: strong }}>in {remainingLabel(entry.start - now)}</p>
       )}
 
       {followUp && (
-        <p className="mt-3 border-t border-[var(--color-rule)] pt-2.5 text-sm text-[var(--color-muted)]">
+        <p className="mt-3.5 border-t pt-3 text-sm text-[var(--color-muted)]" style={{ borderColor: soft }}>
           Then <span className="font-semibold text-[var(--color-ink)]">{followUp.item.title}</span> · {timeLabel(followUp.start)}
         </p>
       )}

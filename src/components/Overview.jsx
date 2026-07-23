@@ -100,7 +100,6 @@ const Overview = ({ onNavigate }) => {
   const firstName = profile?.nickname || profile?.name || user?.email?.split('@')[0] || 'there';
   const blocksLeft = entries.filter((entry) => entry.end > now).length;
   const summaryLine = [
-    now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }),
     blocksLeft ? `${blocksLeft} ${blocksLeft === 1 ? 'block' : 'blocks'} left` : null,
     dueTasks.length ? `${dueTasks.length} due` : null,
   ].filter(Boolean).join(' · ');
@@ -123,8 +122,11 @@ const Overview = ({ onNavigate }) => {
         {/* Header: greeting + one factual line, ritual & brief kept small */}
         <header className="flex items-start justify-between gap-3 px-1 pt-1">
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold tracking-tight text-[var(--color-ink)] sm:text-xl">{greeting}, {firstName}</h1>
-            <p className="mt-0.5 text-sm font-medium text-[var(--color-muted)]">{summaryLine}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)]">
+              {now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+            </p>
+            <h1 className="mt-0.5 truncate text-xl font-bold tracking-tight text-[var(--color-ink)] sm:text-2xl">{greeting}, {firstName}</h1>
+            {summaryLine && <p className="mt-0.5 text-sm font-medium text-[var(--color-muted)]">{summaryLine}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
