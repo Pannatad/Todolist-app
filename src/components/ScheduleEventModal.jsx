@@ -35,6 +35,7 @@ const RECURRENCE_OPTIONS = [
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CATEGORY_OPTIONS = ['Work', 'Study', 'Personal', 'Health', 'Errands', 'Social', 'Other'];
+const EMPTY_DEFAULTS = {};
 
 const formatOccurrenceLabel = (dateString) => {
     if (!dateString) return '';
@@ -42,7 +43,17 @@ const formatOccurrenceLabel = (dateString) => {
     return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) => {
+const ScheduleEventModal = ({
+    isOpen,
+    onClose,
+    onSave,
+    onDelete,
+    event,
+    selectedDate,
+    defaults = EMPTY_DEFAULTS,
+    itemKind = 'event',
+    parentItemId = null
+}) => {
     const [formData, setFormData] = useState({
         title: '',
         date: '',
@@ -99,10 +110,16 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
         } else if (selectedDate) {
             setFormData(prev => ({
                 ...prev,
-                date: toLocalDateKey(selectedDate)
+                date: toLocalDateKey(selectedDate),
+                startTime: defaults.startTime || prev.startTime,
+                duration: defaults.duration || prev.duration,
+                title: defaults.title || '',
+                color: defaults.color || prev.color,
+                category: defaults.category || prev.category,
+                notes: defaults.notes || ''
             }));
         }
-    }, [event, selectedDate, isOpen, editScope, canCustomizeDay]);
+    }, [event, selectedDate, isOpen, editScope, canCustomizeDay, defaults]);
 
     // Default to "just this day" when opening an occurrence of a recurring event,
     // so a quick rename never silently rewrites the whole series.
@@ -147,7 +164,9 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
                     recurrenceInterval: formData.recurrenceInterval,
                     recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
                     recurrenceEndDate: formData.recurrenceEndDate || null,
-                    notes: formData.notes
+                    notes: formData.notes,
+                    itemKind: event?.itemKind || event?.item_kind || itemKind,
+                    parentItemId: event?.parentItemId || event?.parent_item_id || parentItemId
                 });
             }
             onClose();
@@ -203,7 +222,11 @@ const ScheduleEventModal = ({ isOpen, onClose, onSave, onDelete, event, selected
     if (!isOpen) return null;
 
     return (
-        <Sheet open={isOpen} onClose={onClose} title={event ? 'Edit event' : 'New event'}>
+        <Sheet
+            open={isOpen}
+            onClose={onClose}
+            title={event ? 'Edit event' : itemKind === 'flexible_shell' ? 'New flexible shell' : parentItemId ? 'New nested event' : 'New event'}
+        >
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Edit scope for recurring occurrences */}
                         {canCustomizeDay && (

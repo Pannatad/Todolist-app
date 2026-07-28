@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { createTemplatesRepo } from '../data/templatesRepo';
-import { sanitizeTemplateBlocks } from '../services/agentScheduleActions';
+import { normalizeTemplateRecord, sanitizeMagicTemplateBlocks, TEMPLATE_SCHEMA_VERSION } from '../services/magicSchedule';
 
 const ScheduleTemplateContext = createContext();
 
@@ -23,25 +23,41 @@ export const ScheduleTemplateProvider = ({ children }) => {
     useEffect(() => {
         let cancelled = false;
         repo.list()
-            .then((data) => { if (!cancelled) setTemplates(data); })
+            .then((data) => { if (!cancelled) setTemplates(data.map(normalizeTemplateRecord)); })
             .catch((error) => console.error('Failed to load schedule templates:', error));
         return () => { cancelled = true; };
     }, [repo]);
 
-    const saveTemplate = useCallback(async ({ name, blocks }) => {
+    const saveTemplate = useCallback(async ({ id, name, blocks }) => {
         const cleanName = String(name || '').trim();
-        const cleanBlocks = sanitizeTemplateBlocks(blocks);
+        const cleanBlocks = sanitizeMagicTemplateBlocks(blocks);
         if (!cleanName) throw new Error('Template needs a name.');
         if (!cleanBlocks.length) throw new Error('Template needs at least one block with a HH:MM start time.');
 
-        const existing = templates.find((template) => template.name.toLowerCase() === cleanName.toLowerCase());
+        const existing = templates.find((template) => (
+            (id && String(template.id) === String(id))
+            || template.name.toLowerCase() === cleanName.toLowerCase()
+        ));
         if (existing) {
-            const updated = await repo.update(existing.id, { name: cleanName, blocks: cleanBlocks });
-            setTemplates((prev) => prev.map((template) => template.id === existing.id ? { ...template, ...updated } : template));
+            const updates = {
+                name: cleanName,
+                blocks: cleanBlocks,
+                schemaVersion: TEMPLATE_SCHEMA_VERSION,
+                version: Number(existing.version || 1) + 1
+            };
+            const updated = normalizeTemplateRecord(await repo.update(existing.id, updates));
+            setTemplates((prev) => prev.map((template) => template.id === existing.id ? updated : template));
             return updated;
         }
 
-        const created = await repo.create({ id: userId ? undefined : Date.now(), name: cleanName, blocks: cleanBlocks, created_at: new Date().toISOString() });
+        const created = normalizeTemplateRecord(await repo.create({
+            id: userId ? undefined : crypto.randomUUID(),
+            name: cleanName,
+            blocks: cleanBlocks,
+            schemaVersion: TEMPLATE_SCHEMA_VERSION,
+            version: 1,
+            created_at: new Date().toISOString()
+        }));
         setTemplates((prev) => [...prev, created]);
         return created;
     }, [repo, templates, userId]);

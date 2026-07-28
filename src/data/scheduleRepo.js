@@ -21,6 +21,7 @@ const writeLocalItems = (items) => {
 
 const buildInsertPayloads = (item) => {
     const fullPayload = {
+        id: item.id,
         user_id: item.user_id,
         title: item.title,
         start_time: item.start_time,
@@ -34,7 +35,13 @@ const buildInsertPayloads = (item) => {
         recurrence_days_of_week: item.recurrence_days_of_week,
         recurrence_end_date: item.recurrence_end_date,
         recurrence_exceptions: item.recurrence_exceptions,
-        recurrence_overrides: item.recurrence_overrides
+        recurrence_overrides: item.recurrence_overrides,
+        item_kind: item.item_kind,
+        parent_item_id: item.parent_item_id,
+        source_template_id: item.source_template_id,
+        source_template_version: item.source_template_version,
+        template_block_id: item.template_block_id,
+        template_application_id: item.template_application_id
     };
 
     const legacyPayload = {
@@ -46,7 +53,7 @@ const buildInsertPayloads = (item) => {
         created_at: item.created_at
     };
 
-    return [fullPayload, legacyPayload, {
+    return [withDefinedValues(fullPayload), legacyPayload, {
         user_id: item.user_id,
         title: item.title,
         start_time: item.start_time,
@@ -68,7 +75,13 @@ const buildUpdatePayloads = (updates) => {
             recurrence_days_of_week: updates.recurrence_days_of_week,
             recurrence_end_date: updates.recurrence_end_date,
             recurrence_exceptions: updates.recurrence_exceptions,
-            recurrence_overrides: updates.recurrence_overrides
+            recurrence_overrides: updates.recurrence_overrides,
+            item_kind: updates.item_kind,
+            parent_item_id: updates.parent_item_id,
+            source_template_id: updates.source_template_id,
+            source_template_version: updates.source_template_version,
+            template_block_id: updates.template_block_id,
+            template_application_id: updates.template_application_id
         }),
         withDefinedValues({
             title: updates.title,
@@ -87,8 +100,9 @@ const buildUpdatePayloads = (updates) => {
 const createLocalRepo = () => ({
     list: async () => readLocalItems(),
     create: async (item) => {
-        writeLocalItems([...readLocalItems(), item]);
-        return item;
+        const localItem = { ...item, id: item.id || crypto.randomUUID() };
+        writeLocalItems([...readLocalItems(), localItem]);
+        return localItem;
     },
     update: async (id, updates) => {
         const items = readLocalItems();
@@ -101,6 +115,11 @@ const createLocalRepo = () => ({
         const removed = items.find((item) => item.id === id) || null;
         writeLocalItems(items.filter((item) => item.id !== id));
         return removed;
+    },
+    createMany: async (items) => {
+        const created = items.map((item) => ({ ...item, id: item.id || crypto.randomUUID() }));
+        writeLocalItems([...readLocalItems(), ...created]);
+        return created;
     }
 });
 
@@ -120,6 +139,12 @@ const createSupabaseRepo = (userId) => ({
             console.warn('Schedule insert attempt failed, trying fallback payload...', error);
         }
         throw new Error(lastError?.message || 'Failed to save schedule item to cloud.');
+    },
+    createMany: async (items) => {
+        const payloads = items.map((item) => buildInsertPayloads(item)[0]);
+        const { data, error } = await supabase.from('schedule_items').insert(payloads).select();
+        if (error) throw new Error(error.message || 'Failed to save schedule items to cloud.');
+        return data || [];
     },
     update: async (id, updates) => {
         let lastError = null;

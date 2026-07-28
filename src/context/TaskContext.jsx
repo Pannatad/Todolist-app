@@ -15,7 +15,13 @@ const formatScheduleItems = (items = []) => (
         ...item,
         startTime: item.start_time,
         recurrenceExceptions: item.recurrence_exceptions || [],
-        recurrenceOverrides: item.recurrence_overrides || {}
+        recurrenceOverrides: item.recurrence_overrides || {},
+        itemKind: item.item_kind || 'event',
+        parentItemId: item.parent_item_id || null,
+        sourceTemplateId: item.source_template_id || null,
+        sourceTemplateVersion: item.source_template_version || null,
+        templateBlockId: item.template_block_id || null,
+        templateApplicationId: item.template_application_id || null
     }))
 );
 
@@ -285,7 +291,7 @@ export const TaskProvider = ({ children }) => {
     const addScheduleItem = async (itemData) => {
         const newItem = {
             ...itemData,
-            id: user ? undefined : Date.now(),
+            id: itemData.id || (user ? undefined : crypto.randomUUID()),
             user_id: user?.id,
             created_at: new Date().toISOString(),
             start_time: itemData.startTime,
@@ -299,12 +305,25 @@ export const TaskProvider = ({ children }) => {
             recurrenceExceptions: itemData.recurrenceExceptions || [],
             recurrence_overrides: itemData.recurrenceOverrides || {},
             recurrenceOverrides: itemData.recurrenceOverrides || {},
+            item_kind: itemData.itemKind || 'event',
+            itemKind: itemData.itemKind || 'event',
+            parent_item_id: itemData.parentItemId || null,
+            parentItemId: itemData.parentItemId || null,
+            source_template_id: itemData.sourceTemplateId || null,
+            sourceTemplateId: itemData.sourceTemplateId || null,
+            source_template_version: itemData.sourceTemplateVersion || null,
+            sourceTemplateVersion: itemData.sourceTemplateVersion || null,
+            template_block_id: itemData.templateBlockId || null,
+            templateBlockId: itemData.templateBlockId || null,
+            template_application_id: itemData.templateApplicationId || null,
+            templateApplicationId: itemData.templateApplicationId || null,
             color: itemData.color || '#6366f1',
             notes: itemData.notes || null
         };
 
         const tempId = Date.now();
-        setScheduleItems(prev => [...prev, { ...newItem, id: user ? tempId : newItem.id }]);
+        const optimisticId = user ? tempId : newItem.id;
+        setScheduleItems(prev => [...prev, { ...newItem, id: optimisticId }]);
 
         try {
             const insertedRow = await scheduleRepo.create(newItem);
@@ -318,12 +337,18 @@ export const TaskProvider = ({ children }) => {
                     recurrenceDaysOfWeek: insertedRow.recurrence_days_of_week,
                     recurrenceEndDate: insertedRow.recurrence_end_date,
                     recurrenceExceptions: insertedRow.recurrence_exceptions || [],
-                    recurrenceOverrides: insertedRow.recurrence_overrides || {}
+                    recurrenceOverrides: insertedRow.recurrence_overrides || {},
+                    itemKind: insertedRow.item_kind || 'event',
+                    parentItemId: insertedRow.parent_item_id || null,
+                    sourceTemplateId: insertedRow.source_template_id || null,
+                    sourceTemplateVersion: insertedRow.source_template_version || null,
+                    templateBlockId: insertedRow.template_block_id || null,
+                    templateApplicationId: insertedRow.template_application_id || null
                 } : i));
             }
             return user ? insertedRow : newItem;
         } catch (error) {
-            setScheduleItems(prev => prev.filter(i => i.id !== tempId));
+            setScheduleItems(prev => prev.filter(i => i.id !== optimisticId));
             console.error('Error adding schedule item:', error);
             throw error;
         }
@@ -344,6 +369,12 @@ export const TaskProvider = ({ children }) => {
         if (updates.recurrenceEndDate !== undefined) processedUpdates.recurrence_end_date = updates.recurrenceEndDate;
         if (updates.recurrenceExceptions !== undefined) processedUpdates.recurrence_exceptions = updates.recurrenceExceptions;
         if (updates.recurrenceOverrides !== undefined) processedUpdates.recurrence_overrides = updates.recurrenceOverrides;
+        if (updates.itemKind !== undefined) processedUpdates.item_kind = updates.itemKind;
+        if (updates.parentItemId !== undefined) processedUpdates.parent_item_id = updates.parentItemId;
+        if (updates.sourceTemplateId !== undefined) processedUpdates.source_template_id = updates.sourceTemplateId;
+        if (updates.sourceTemplateVersion !== undefined) processedUpdates.source_template_version = updates.sourceTemplateVersion;
+        if (updates.templateBlockId !== undefined) processedUpdates.template_block_id = updates.templateBlockId;
+        if (updates.templateApplicationId !== undefined) processedUpdates.template_application_id = updates.templateApplicationId;
 
         setScheduleItems(prev => prev.map(i => i.id === id ? { ...i, ...processedUpdates } : i));
 
@@ -359,7 +390,13 @@ export const TaskProvider = ({ children }) => {
                     recurrenceDaysOfWeek: updatedRow.recurrence_days_of_week || [],
                     recurrenceEndDate: updatedRow.recurrence_end_date,
                     recurrenceExceptions: updatedRow.recurrence_exceptions || [],
-                    recurrenceOverrides: updatedRow.recurrence_overrides || {}
+                    recurrenceOverrides: updatedRow.recurrence_overrides || {},
+                    itemKind: updatedRow.item_kind || 'event',
+                    parentItemId: updatedRow.parent_item_id || null,
+                    sourceTemplateId: updatedRow.source_template_id || null,
+                    sourceTemplateVersion: updatedRow.source_template_version || null,
+                    templateBlockId: updatedRow.template_block_id || null,
+                    templateApplicationId: updatedRow.template_application_id || null
                 } : i));
             }
         } catch (error) {
@@ -396,6 +433,24 @@ export const TaskProvider = ({ children }) => {
         return existingItem;
     };
 
+    const restoreScheduleItem = async (item) => addScheduleItem({
+        ...item,
+        id: item.id,
+        startTime: item.startTime || item.start_time,
+        recurrenceType: item.recurrenceType || item.recurrence_type,
+        recurrenceInterval: item.recurrenceInterval || item.recurrence_interval,
+        recurrenceDaysOfWeek: item.recurrenceDaysOfWeek || item.recurrence_days_of_week,
+        recurrenceEndDate: item.recurrenceEndDate || item.recurrence_end_date,
+        recurrenceExceptions: item.recurrenceExceptions || item.recurrence_exceptions,
+        recurrenceOverrides: item.recurrenceOverrides || item.recurrence_overrides,
+        itemKind: item.itemKind || item.item_kind,
+        parentItemId: item.parentItemId || item.parent_item_id,
+        sourceTemplateId: item.sourceTemplateId || item.source_template_id,
+        sourceTemplateVersion: item.sourceTemplateVersion || item.source_template_version,
+        templateBlockId: item.templateBlockId || item.template_block_id,
+        templateApplicationId: item.templateApplicationId || item.template_application_id
+    });
+
     const value = {
         tasks,
         scheduleItems,
@@ -406,7 +461,8 @@ export const TaskProvider = ({ children }) => {
         restoreTask,
         addScheduleItem,
         updateScheduleItem,
-        deleteScheduleItem
+        deleteScheduleItem,
+        restoreScheduleItem
     };
 
     return (

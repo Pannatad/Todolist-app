@@ -45,14 +45,25 @@ const createSupabaseRepo = (userId) => ({
     },
     create: async (template) => {
         const { data, error } = await supabase.from('schedule_templates')
-            .insert([{ user_id: userId, name: template.name, blocks: template.blocks }])
+            .insert([{
+                user_id: userId,
+                name: template.name,
+                blocks: template.blocks,
+                schema_version: template.schemaVersion || 2,
+                version: template.version || 1
+            }])
             .select().single();
         if (error) throw new Error(error.message || 'Failed to save template to cloud.');
         return data;
     },
     update: async (id, updates) => {
         const { data, error } = await supabase.from('schedule_templates')
-            .update({ name: updates.name, blocks: updates.blocks })
+            .update({
+                name: updates.name,
+                blocks: updates.blocks,
+                schema_version: updates.schemaVersion || 2,
+                version: updates.version
+            })
             .eq('id', id).select().maybeSingle();
         if (error || !data) throw new Error(error?.message || 'Template could not be updated.');
         return data;

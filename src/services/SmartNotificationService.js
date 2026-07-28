@@ -123,6 +123,7 @@ class SmartNotificationService {
 
         // Show upcoming events
         const upcomingEvents = (scheduleItems || []).filter(e => {
+            if (e.parentItemId || e.parent_item_id) return false;
             const timeValue = e.startTime || e.start_time;
             if (!timeValue) return false;
             const eventDate = new Date(timeValue);
@@ -238,6 +239,9 @@ class SmartNotificationService {
         const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
 
         scheduleItems.forEach(event => {
+            // Flexible shells own reminders. Nested children become reminder-enabled
+            // automatically when they are detached and no longer have a parent id.
+            if (event.parentItemId || event.parent_item_id) return;
             const timeValue = event.startTime || event.start_time;
             if (!timeValue) return; // Skip items without a valid time
             const eventStart = new Date(timeValue);
@@ -444,6 +448,11 @@ class SmartNotificationService {
             for (let j = i + 1; j < todayEvents.length; j++) {
                 const a = todayEvents[i];
                 const b = todayEvents[j];
+                const aParent = a.parentItemId || a.parent_item_id;
+                const bParent = b.parentItemId || b.parent_item_id;
+                if (String(aParent || '') === String(b.id) || String(bParent || '') === String(a.id)) {
+                    continue;
+                }
 
                 const aStart = new Date(a.startTime || a.start_time);
                 const aEnd = new Date(aStart.getTime() + (a.duration || 60) * 60 * 1000);

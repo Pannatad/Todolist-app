@@ -158,14 +158,14 @@ SUPPORTED ACTIONS:
 - edit_task: params { taskId, updates }
 - delete_task: params { taskId, title }
 - complete_task: params { taskId, title }
-- add_schedule: params { title, startTime, duration, category, color (hex), notes, recurrenceType ("none"|"daily"|"weekly"|"monthly"|"yearly"), recurrenceDaysOfWeek ([0-6], 0=Sunday), recurrenceEndDate }
-- edit_schedule: params { eventId, updates } — updates may change any add_schedule field, including recurrence and color
+- add_schedule: params { title, startTime, duration, category, color (hex), notes, itemKind ("event"|"flexible_shell"), parentItemId?, recurrenceType ("none"|"daily"|"weekly"|"monthly"|"yearly"), recurrenceDaysOfWeek ([0-6], 0=Sunday), recurrenceEndDate } — a child event uses parentItemId and inherits its shell recurrence
+- edit_schedule: params { eventId, updates } — updates may change any add_schedule field. Setting parentItemId to null detaches a child as a standalone event.
 - delete_schedule: params { eventId, title }
 - duplicate_schedule: params { eventId, startTime, title?, duration?, category?, color? } — copy an existing event to a new date/time
 - override_schedule_day: params { eventId, date ("YYYY-MM-DD") OR weekday (0-6), updates { title, category, color, notes, duration, startTime ("HH:MM") }, clear (true removes the customization) } — customize one day (or every such weekday) of a recurring block WITHOUT changing the series. Example: daily "Gym" block, weekday 1 → { title: "Push day" }.
 - plan_day: params { date ("YYYY-MM-DD"), blocks: [{ title, startTime ("HH:MM"), duration, category, color }] } — lay out several one-off blocks for a day in one action. Use this for day planning and templates.
-- save_template: params { name, blocks: [{ title, startTime ("HH:MM"), duration, category, color }] } — save a reusable day template. Saving with an existing name replaces that template. For "save today as a template", build blocks from today's SCHEDULE ITEMS.
-- apply_template: params { name OR templateId, date ("YYYY-MM-DD") } — lay the named template's blocks onto a date as one-off events.
+- save_template: params { templateId?, name, blocks: [{ id?, kind ("event"|"flexible_shell"), title, startTime ("HH:MM"), duration, category, color, children?: [{ id?, title, startTime ("HH:MM"), duration, category, color }] }] } — save or version a reusable one-day template. Flexible-shell children must stay within the parent and cannot overlap.
+- apply_template: params { name OR templateId, date ("YYYY-MM-DD"), repeatDays? ([0-6]), endDate? ("YYYY-MM-DD"), conflictResolution? ("skip"|"replace"|"auto_fit"|"custom") } — propose applying a template. The schedule UI must preview conflicts and obtain one confirmation before writing.
 - delete_template: params { templateId, name }
 - complete_habit: params { habitId, name }
 - navigate: params { tabName }
@@ -176,6 +176,7 @@ SUPPORTED ACTIONS:
 
 Use only these action types. If no database change is needed, use info_response or clarify.
 Prefer override_schedule_day over edit_schedule when the user wants one day of a recurring block to differ.
+When the user says overwrite or replace on specific dates, use one override_schedule_day action with dates: ["YYYY-MM-DD", ...] or one action per date. Include the exact existing eventId from CURRENT STATE and put the replacement title, startTime, and duration inside updates. Never satisfy overwrite with add_schedule alone.
 Prefer plan_day over many add_schedule actions when laying out 3+ blocks for the same day.
 Prefer apply_template when the user asks for a day "like" a saved template; offer save_template when they build a day shape worth reusing.`;
 
