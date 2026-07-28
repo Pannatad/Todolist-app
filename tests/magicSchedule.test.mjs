@@ -74,6 +74,24 @@ test('flexible shells keep gaps but drop children outside or overlapping the par
     assert.deepEqual(shell.children.map((child) => child.id), ['a', 'b']);
 });
 
+test('template application generates a database-safe UUID for cloud persistence', () => {
+    const [payload] = buildTemplateSchedulePayloads({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        version: 1,
+        name: 'Colored day',
+        blocks: [{
+            id: 'focus',
+            title: 'Focus',
+            startTime: '09:00',
+            duration: 60,
+            color: '#ec4899'
+        }]
+    }, { date: '2026-07-27' });
+
+    assert.match(payload.templateApplicationId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    assert.equal(payload.color, '#ec4899');
+});
+
 test('template application links child events to the shell and inherits recurrence', () => {
     const payloads = buildTemplateSchedulePayloads({
         id: 'template-1',

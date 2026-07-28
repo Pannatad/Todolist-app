@@ -140,7 +140,7 @@ export const buildTemplateSchedulePayloads = (templateInput, options = {}) => {
     const startDate = new Date(`${options.date || toLocalDateKey(new Date())}T12:00:00`);
     const repeatDays = Array.from(new Set(options.repeatDays || [])).sort();
     const firstDate = firstSelectedDate(startDate, repeatDays);
-    const applicationId = options.applicationId || createScheduleId('application');
+    const applicationId = options.applicationId || globalThis.crypto.randomUUID();
     const recurrence = repeatDays.length
         ? {
             recurrenceType: 'weekly',
