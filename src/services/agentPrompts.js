@@ -40,12 +40,11 @@ const formatDate = (value) => new Date(value).toLocaleDateString();
 const taskLine = (task) => {
     const status = isTaskCompleted(task) ? 'done' : 'pending';
     const due = task.deadline ? `, due: ${formatDate(task.deadline)}` : '';
-    const difficulty = task.difficulty ? `, difficulty: ${task.difficulty}` : '';
     const estimate = task.estimatedTime || task.estimated_time
         ? `, est: ${task.estimatedTime || task.estimated_time} min`
         : '';
 
-    return `- [ID: ${task.id}] "${task.title}" (${status}${due}${difficulty}${estimate})`;
+    return `- [ID: ${task.id}] "${task.title}" (${status}${due}${estimate})`;
 };
 
 const scheduleLine = (event, now = new Date()) => {
@@ -132,7 +131,7 @@ Be warm, brief, and exact — like a great assistant, not a chatbot. Never pad a
 // EDIT HERE: High-level skills the agent should attempt before falling back to generic advice.
 export const AGENT_CAPABILITIES_PROMPT = `AGENT CAPABILITIES:
 - Answer focused questions about tasks, schedule, habits, projects, goals, and memory.
-- Prioritize tasks using urgency, deadline, difficulty, estimated time, user energy, and schedule constraints.
+- Prioritize tasks using overdue state, deadline proximity, estimated time, user energy, and schedule constraints.
 - Create realistic day plans with focus blocks, breaks, buffer time, and habit slots.
 - Detect schedule pressure, conflicts, overloaded days, overdue work, and tasks without enough time.
 - Suggest next actions for projects and learning paths, including small task breakdowns.
@@ -154,13 +153,13 @@ Always respond with ONLY valid JSON, no markdown:
 }
 
 SUPPORTED ACTIONS:
-- add_task: params { title, deadline, difficulty, subject, estimatedTime }
+- add_task: params { title, deadline, subject, estimatedTime }
 - edit_task: params { taskId, updates }
 - delete_task: params { taskId, title }
 - complete_task: params { taskId, title }
 - add_schedule: params { title, startTime, duration, category, color (hex), notes, itemKind ("event"|"flexible_shell"), parentItemId?, recurrenceType ("none"|"daily"|"weekly"|"monthly"|"yearly"), recurrenceDaysOfWeek ([0-6], 0=Sunday), recurrenceEndDate } — a child event uses parentItemId and inherits its shell recurrence
 - edit_schedule: params { eventId, updates } — updates may change any add_schedule field. Setting parentItemId to null detaches a child as a standalone event.
-- delete_schedule: params { eventId, title }
+- delete_schedule: params { eventId?, title?, date?, dates?, all? } — remove a schedule block; when date/dates are provided for a recurring block, remove only those occurrences and preserve the series. A date without an eventId/title means remove all schedule blocks on that date.
 - duplicate_schedule: params { eventId, startTime, title?, duration?, category?, color? } — copy an existing event to a new date/time
 - override_schedule_day: params { eventId, date ("YYYY-MM-DD") OR weekday (0-6), updates { title, category, color, notes, duration, startTime ("HH:MM") }, clear (true removes the customization) } — customize one day (or every such weekday) of a recurring block WITHOUT changing the series. Example: daily "Gym" block, weekday 1 → { title: "Push day" }.
 - plan_day: params { date ("YYYY-MM-DD"), blocks: [{ title, startTime ("HH:MM"), duration, category, color }] } — lay out several one-off blocks for a day in one action. Use this for day planning and templates.
@@ -177,6 +176,7 @@ SUPPORTED ACTIONS:
 Use only these action types. If no database change is needed, use info_response or clarify.
 Prefer override_schedule_day over edit_schedule when the user wants one day of a recurring block to differ.
 When the user says overwrite or replace on specific dates, use one override_schedule_day action with dates: ["YYYY-MM-DD", ...] or one action per date. Include the exact existing eventId from CURRENT STATE and put the replacement title, startTime, and duration inside updates. Never satisfy overwrite with add_schedule alone.
+When the user says remove, delete, clear, or cancel a schedule, always use delete_schedule. Never implement removal by using edit_schedule or changing the title/status to "Cancelled" or "Canceled". For "remove my schedule tomorrow" (without a specific block), use delete_schedule with the resolved date and no title/id so every schedule block on that date is removed; recurring blocks must keep their series and receive an occurrence exception.
 Prefer plan_day over many add_schedule actions when laying out 3+ blocks for the same day.
 Prefer apply_template when the user asks for a day "like" a saved template; offer save_template when they build a day shape worth reusing.`;
 
@@ -185,7 +185,7 @@ export const AGENT_RULES_PROMPT = `CORE RULES:
 1. For add_schedule, startTime must include a full date: YYYY-MM-DDTHH:MM:SS. Use the user's local timezone context.
 2. Only use edit_schedule or edit_task when an existing item ID is available from the provided state.
 3. If modifying an unconfirmed pending action, propose a replacement add_schedule or add_task with all original unchanged fields preserved.
-4. Destructive actions must identify the exact taskId or eventId.
+4. Destructive actions must identify the exact taskId or eventId, except a date-scoped delete_schedule may intentionally omit both to clear every schedule block on that date.
 5. For ambiguous requests, ask one clear clarifying question and include 2-4 useful suggestions.
 6. For info requests, answer directly. Do not navigate unless the user explicitly asks to go somewhere.
 7. Stay focused on the user's actual ask. Do not dump every data section unless they ask for an overview.

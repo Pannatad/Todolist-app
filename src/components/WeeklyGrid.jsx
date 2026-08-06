@@ -4,22 +4,6 @@ import { CalendarDays, Check, ChevronLeft, ChevronRight, Lock } from 'lucide-rea
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 
-const COLOR_CONFIGS = {
-    slate: { border: 'border-slate-200', active: 'bg-slate-500', idle: 'bg-slate-50' },
-    rose: { border: 'border-rose-200', active: 'bg-rose-500', idle: 'bg-rose-50' },
-    purple: { border: 'border-purple-200', active: 'bg-purple-500', idle: 'bg-purple-50' },
-    pink: { border: 'border-pink-200', active: 'bg-pink-500', idle: 'bg-pink-50' },
-    indigo: { border: 'border-indigo-200', active: 'bg-indigo-500', idle: 'bg-indigo-50' },
-    blue: { border: 'border-blue-200', active: 'bg-blue-500', idle: 'bg-blue-50' },
-    teal: { border: 'border-teal-200', active: 'bg-teal-500', idle: 'bg-teal-50' },
-    cyan: { border: 'border-cyan-200', active: 'bg-cyan-500', idle: 'bg-cyan-50' },
-    lime: { border: 'border-lime-200', active: 'bg-lime-500', idle: 'bg-lime-50' },
-    amber: { border: 'border-amber-200', active: 'bg-amber-500', idle: 'bg-amber-50' },
-    emerald: { border: 'border-emerald-200', active: 'bg-emerald-500', idle: 'bg-emerald-50' },
-};
-
-const INDEX_COLORS = ['slate', 'rose', 'purple', 'pink', 'indigo', 'blue', 'teal', 'cyan', 'lime', 'amber'];
-
 const WeeklyGrid = () => {
     const [weekOffset, setWeekOffset] = useState(0);
     const { habits, logHabit, getHabitLog, canLogHabitDate } = useHabit();
@@ -54,76 +38,74 @@ const WeeklyGrid = () => {
     };
 
     return (
-        <div className="space-y-4">
-            <section className={`relative overflow-hidden rounded-[28px] bg-[var(--color-card)] p-4 sm:p-5`}>
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 text-[var(--color-muted)]">
-                            <span className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-rule)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+        <div className="habit-weekly">
+            <section className="habit-weekly__toolbar">
+                <div className="habit-weekly__toolbar-copy">
+                    <div className="habit-weekly__label">
+                        <span className="habit-weekly__icon">
                                 <CalendarDays size={16} strokeWidth={2.7} />
-                            </span>
-                            <span className="app-eyebrow">Weekly view</span>
-                        </div>
+                        </span>
+                        <span className="app-eyebrow">Weekly view</span>
+                    </div>
                         <h2 className="app-section-title mt-2">{formatDateRange()}</h2>
-                    </div>
+                </div>
 
-                    <div className="relative z-10 flex items-center gap-2">
+                <div className="habit-weekly__controls">
+                    <button
+                        onClick={() => setWeekOffset((prev) => prev - 1)}
+                        className="habit-weekly__nav"
+                        aria-label="Previous week"
+                    >
+                        <ChevronLeft size={16} strokeWidth={2.7} />
+                    </button>
+                    {weekOffset !== 0 && (
                         <button
-                            onClick={() => setWeekOffset((prev) => prev - 1)}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]`}
+                            onClick={() => setWeekOffset(0)}
+                            className="habit-weekly__today"
                         >
-                            <ChevronLeft size={16} strokeWidth={2.7} />
+                            This week
                         </button>
-                        {weekOffset !== 0 && (
-                            <button
-                                onClick={() => setWeekOffset(0)}
-                                className={`rounded-lg border border-[var(--color-rule)] bg-[var(--color-card)] px-3 py-2 text-sm font-semibold text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]`}
-                            >
-                                This week
-                            </button>
-                        )}
-                        <button
-                            onClick={() => setWeekOffset((prev) => prev + 1)}
-                            disabled={weekOffset >= 0}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)] disabled:opacity-40`}
-                        >
-                            <ChevronRight size={16} strokeWidth={2.7} />
-                        </button>
-                    </div>
+                    )}
+                    <button
+                        onClick={() => setWeekOffset((prev) => prev + 1)}
+                        disabled={weekOffset >= 0}
+                        className="habit-weekly__nav"
+                        aria-label="Next week"
+                    >
+                        <ChevronRight size={16} strokeWidth={2.7} />
+                    </button>
                 </div>
             </section>
 
-            <section className={`overflow-hidden rounded-[28px] bg-[var(--color-card)]`}>
-                <div className="grid grid-cols-8 border-b border-[var(--color-rule)] bg-[var(--color-paper-2)]">
-                    <div className="app-eyebrow p-3">Habit</div>
+            <section className="habit-weekly__table-wrap">
+                <div className={`habit-weekly__table${habits.length === 0 ? ' is-empty' : ''}`}>
+                    <div className="habit-weekly__head-row">
+                        <div className="habit-weekly__habit-head">Habit</div>
                     {weekDates.map((date) => (
-                        <div key={date.toISOString()} className={`border-l border-[var(--color-rule)] p-3 text-center ${isToday(date) ? 'bg-[var(--color-success-soft)]' : ''}`}>
-                            <div className="text-xs font-medium text-[var(--color-muted)]">
+                        <div key={date.toISOString()} className={`habit-weekly__day-head${isToday(date) ? ' is-today' : ''}`}>
+                            <div className="habit-weekly__day-name">
                                 {date.toLocaleDateString('en-US', { weekday: 'short' })}
                             </div>
-                            <div className={`mt-1 text-sm font-semibold ${isToday(date) ? 'text-[var(--color-success)]' : 'text-[var(--color-ink)]'}`}>
+                            <div className="habit-weekly__day-number">
                                 {date.getDate()}
                             </div>
                         </div>
                     ))}
-                </div>
+                    </div>
 
                 {habits.length === 0 ? (
-                    <div className="p-10 text-center text-sm font-semibold text-[var(--color-muted)]">No habits created yet.</div>
+                    <div className="habit-weekly__empty">No habits created yet.</div>
                 ) : (
-                    habits.map((habit, habitIndex) => {
-                        const colorKey = habit.color || INDEX_COLORS[habitIndex % INDEX_COLORS.length];
-                        const color = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.teal;
-
+                    habits.map((habit) => {
                         return (
-                            <div key={habit.id} className="grid grid-cols-8 border-b border-[var(--color-rule)] last:border-b-0">
-                                <div className="flex items-center gap-3 p-3">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper-2)]`}>
-                                        <span className="text-base">{habit.icon}</span>
+                            <div key={habit.id} className="habit-weekly__row">
+                                <div className="habit-weekly__habit-cell">
+                                    <div className="habit-weekly__habit-icon">
+                                        <span>{habit.icon}</span>
                                     </div>
-                                    <div className="min-w-0">
-                                        <div className="truncate text-sm font-semibold text-[var(--color-ink)]">{habit.name}</div>
-                                        <div className="text-xs font-semibold text-[var(--color-muted)]">{habit.frequency === 'daily' ? 'Daily' : 'Custom schedule'}</div>
+                                    <div className="habit-weekly__habit-copy">
+                                        <div className="habit-weekly__habit-name">{habit.name}</div>
+                                        <div className="habit-weekly__habit-frequency">{habit.frequency === 'daily' ? 'Daily' : 'Custom schedule'}</div>
                                     </div>
                                 </div>
 
@@ -134,7 +116,7 @@ const WeeklyGrid = () => {
                                     const isEditable = canLogHabitDate(date);
 
                                     return (
-                                        <div key={`${habit.id}-${date.toISOString()}`} className={`flex items-center justify-center border-l border-[var(--color-rule)] p-2 ${isToday(date) ? 'bg-[var(--color-success-soft)]/60' : ''}`}>
+                                        <div key={`${habit.id}-${date.toISOString()}`} className={`habit-weekly__cell${isToday(date) ? ' is-today' : ''}`}>
                                             {isScheduled ? (
                                                 <Motion.button
                                                     whileHover={isEditable ? { scale: 1.04 } : undefined}
@@ -151,13 +133,7 @@ const WeeklyGrid = () => {
                                                     }}
                                                     disabled={!isEditable}
                                                     title={isEditable ? undefined : 'Only today and yesterday can be edited.'}
-                                                    className={`flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-rule)] transition-all disabled:cursor-not-allowed ${
-                                                        isCompleted
-                                                            ? `${color.active} text-white `
-                                                            : isEditable
-                                                                ? 'bg-[var(--color-card-raised)] text-[var(--color-muted)] hover:bg-[var(--color-accent-soft)]'
-                                                                : 'bg-[var(--color-paper-2)] text-[var(--color-rule-2)]'
-                                                    }`}
+                                                    className={`habit-weekly__cell-button${isCompleted ? ' is-completed' : ''}${!isEditable ? ' is-locked' : ''}`}
                                                 >
                                                     {isCompleted
                                                         ? <Check size={15} strokeWidth={3} />
@@ -166,7 +142,7 @@ const WeeklyGrid = () => {
                                                             : <Lock size={13} />}
                                                 </Motion.button>
                                             ) : (
-                                                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-xs font-black text-[var(--color-rule-2)]">
+                                                <div className="habit-weekly__cell-button is-unscheduled">
                                                     -
                                                 </div>
                                             )}
@@ -177,6 +153,7 @@ const WeeklyGrid = () => {
                         );
                     })
                 )}
+                </div>
             </section>
         </div>
     );

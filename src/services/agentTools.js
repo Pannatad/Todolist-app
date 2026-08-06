@@ -1,16 +1,10 @@
-import { isTaskCompleted } from '../utils/taskState';
-import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { isTaskCompleted } from '../utils/taskState.js';
+import { toLocalDateKey } from '../utils/scheduleOccurrences.js';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DEFAULT_DAY_END_HOUR = 22;
 const DEFAULT_MIN_SLOT_MINUTES = 25;
-
-const DIFFICULTY_SCORE = {
-    easy: 1,
-    medium: 2,
-    hard: 3
-};
 
 const parseDate = (value) => {
     if (!value) return null;
@@ -93,7 +87,6 @@ export const prioritizeTasks = (context = {}, options = {}) => {
         .map((task) => {
             const deadline = getTaskDeadline(task);
             const estimate = getTaskEstimate(task);
-            const difficulty = String(task.difficulty || 'medium').toLowerCase();
             const hoursUntilDue = deadline ? (deadline - now) / HOUR : null;
             const overdue = hoursUntilDue != null && hoursUntilDue < 0;
             const dueToday = deadline ? isToday(deadline, now) : false;
@@ -105,7 +98,6 @@ export const prioritizeTasks = (context = {}, options = {}) => {
             else if (hoursUntilDue != null && hoursUntilDue <= 24) score += 65;
             else if (hoursUntilDue != null && hoursUntilDue <= 72) score += 40;
 
-            score += (DIFFICULTY_SCORE[difficulty] || 2) * 8;
             if (estimate && estimate <= 30) score += 6;
             if (!deadline) score -= 8;
             if (!estimate) score -= 3;
@@ -124,8 +116,7 @@ export const prioritizeTasks = (context = {}, options = {}) => {
                 score,
                 reason,
                 deadline,
-                estimate,
-                difficulty: task.difficulty || 'medium'
+                estimate
             };
         })
         .sort((left, right) => right.score - left.score)
@@ -354,7 +345,7 @@ export const formatAgentToolInsights = (context = {}) => {
 
     return `COMPUTED AGENT INSIGHTS:
 Priority candidates:
-${lineList(insights.priorities, (task, index) => `${index + 1}. "${task.title}" - ${task.reason}, ${task.difficulty}, ${task.estimate ? `${task.estimate} min` : 'no estimate'}`)}
+${lineList(insights.priorities, (task, index) => `${index + 1}. "${task.title}" - ${task.reason}, ${task.estimate ? `${task.estimate} min` : 'no estimate'}`)}
 
 Workload today:
 - ${insights.workload.tasksDueToday} task(s) due today

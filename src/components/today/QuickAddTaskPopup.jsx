@@ -30,8 +30,8 @@ const QuickAddTaskPopup = ({ addTask, isOpen, onClose, buttonRef, popupStyle }) 
   };
   const submit = async (event) => {
     event.preventDefault(); if (!input.trim() || isProcessing) return; setIsProcessing(true);
-    try { const parsed = await parseTaskInput(input); addTask({ title: parsed.title || input, difficulty: parsed.difficulty || 'easy', deadline: parsed.deadline, subject: parsed.subject || "Today's Plan", estimatedTime: parsed.estimatedTime }); }
-    catch { addTask({ title: input, difficulty: 'easy', subject: "Today's Plan" }); }
+    try { const parsed = await parseTaskInput(input); addTask({ title: parsed.title || input, deadline: parsed.deadline, subject: parsed.subject || "Today's Plan", estimatedTime: parsed.estimatedTime }); }
+    catch { addTask({ title: input, subject: "Today's Plan" }); }
     finally { setInput(''); setIsProcessing(false); onClose(); }
   };
   if (!isOpen) return null;

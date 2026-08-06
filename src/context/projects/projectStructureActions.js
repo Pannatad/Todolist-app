@@ -4,6 +4,7 @@ import {
     cloneColumns,
     DEFAULT_COLUMNS,
     getPhaseColumns,
+    normalizeProjectTask,
     normalizePhases,
 } from '../projectUtils';
 
@@ -14,7 +15,7 @@ export const createProjectStructureActions = ({ projects, projectsRepo, setProje
         const projectPhases = normalizePhases(project.phases, projectColumns, incomingTasks);
         const projectTasks = Array.isArray(project.tasks)
             ? project.tasks.map((task) => ({
-                ...task,
+                ...normalizeProjectTask(task),
                 id: task.id || crypto.randomUUID(),
                 phaseId: task.phaseId || projectPhases[0].id,
                 columnId: task.columnId || getPhaseColumns({ ...project, phases: projectPhases, columns: projectColumns }, task.phaseId || projectPhases[0].id)[0]?.id || projectColumns[0].id
@@ -82,7 +83,7 @@ export const createProjectStructureActions = ({ projects, projectsRepo, setProje
                         deadline: data.deadline || null,
                         phases: normalizePhases(data.phases, cloneColumns(data.columns), data.tasks),
                         columns: cloneColumns(data.columns),
-                        tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...t, id: t.id || crypto.randomUUID() })) : []
+                        tasks: Array.isArray(data.tasks) ? data.tasks.map(t => ({ ...normalizeProjectTask(t), id: t.id || crypto.randomUUID() })) : []
                     };
                     setProjects(prev => prev.map(p => p.id === tempId ? { ...p, ...formattedData } : p));
                     return formattedData;
@@ -110,7 +111,8 @@ export const createProjectStructureActions = ({ projects, projectsRepo, setProje
     };
 
     const updateProject = async (id, updates) => {
-        const fullUpdates = { ...updates, updated_at: new Date().toISOString() };
+        const safeUpdates = updates.tasks === undefined ? updates : { ...updates, tasks: updates.tasks.map(normalizeProjectTask) };
+        const fullUpdates = { ...safeUpdates, updated_at: new Date().toISOString() };
         setProjects(prev => prev.map(p => p.id === id ? { ...p, ...fullUpdates } : p));
 
         if (!user) {
@@ -132,7 +134,7 @@ export const createProjectStructureActions = ({ projects, projectsRepo, setProje
             if (updates.isPinned !== undefined) dbUpdates.is_pinned = updates.isPinned;
             if (updates.phases !== undefined) dbUpdates.phases = updates.phases;
             if (updates.columns !== undefined) dbUpdates.columns = updates.columns;
-            if (updates.tasks !== undefined) dbUpdates.tasks = updates.tasks;
+            if (safeUpdates.tasks !== undefined) dbUpdates.tasks = safeUpdates.tasks;
             if (updates.isAIGenerated !== undefined) dbUpdates.is_ai_generated = updates.isAIGenerated;
             // Note: 'tags' is excluded as it's not in the Supabase schema
             dbUpdates.updated_at = fullUpdates.updated_at;
@@ -298,4 +300,3 @@ export const createProjectStructureActions = ({ projects, projectsRepo, setProje
         updateProject,
     };
 };
-

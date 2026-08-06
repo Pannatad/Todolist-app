@@ -4,7 +4,7 @@ import { buttonPressProps, formatMinutes, getRitualItemEstimate } from './dailyR
 
 const RitualChoice = ({ item, selected, onToggle }) => {
     const deadline = item.kind === 'task' && item.task.deadline ? new Date(item.task.deadline) : null;
-    const label = item.kind === 'habit' ? 'habit' : (item.task.difficulty || 'task');
+    const label = item.kind === 'habit' ? 'habit' : 'task';
 
     return (
         <button

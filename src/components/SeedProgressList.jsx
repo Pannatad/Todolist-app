@@ -95,7 +95,7 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
     if (!seeds?.length) return null;
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm sm:p-5">
+        <section className="seed-progress rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm sm:p-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Long progress</div>
@@ -108,7 +108,7 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                 </div>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="seed-progress__items mt-4 space-y-3">
                 {seeds.map(({ habit, insight }) => {
                     const stageKey = insight.ended ? 'ended' : insight.stage || 'seed';
                     const StageIcon = stageIcons[stageKey] || Sprout;
@@ -137,7 +137,7 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                     const currentStreak = insight.currentRecoveryStreak || 0;
 
                     return (
-                        <div key={habit.id} className="rounded-[18px] border border-slate-200 bg-slate-50 p-3">
+                        <div key={habit.id} className="seed-progress__item rounded-[18px] border border-slate-200 bg-slate-50 p-3">
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                                 <div className="min-w-0 lg:w-64">
                                     <div className="flex min-w-0 items-center gap-2">
@@ -156,14 +156,13 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                                                     return (
                                                         <span
                                                             key={milestone.days}
-                                                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                                                                unlocked
-                                                                    ? 'border-amber-200 bg-amber-100 text-amber-700'
-                                                                    : 'border-slate-200 bg-white text-slate-400'
-                                                            }`}
+                                                            title={`${milestone.days}-day ${milestone.label} milestone${unlocked ? ', unlocked' : ', locked'}`}
+                                                            aria-label={`${milestone.days}-day ${milestone.label} milestone${unlocked ? ', unlocked' : ', locked'}`}
+                                                            role="img"
+                                                            className={`seed-progress__milestone inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${unlocked ? 'is-unlocked' : ''}`}
                                                         >
                                                             <Award size={10} />
-                                                            {milestone.days} {milestone.label}
+                                                            {milestone.days}
                                                         </span>
                                                     );
                                                 })}
@@ -172,18 +171,18 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                                     </div>
                                 </div>
 
-                                <div className="flex shrink-0 gap-2">
-                                    <div className="flex h-14 w-16 flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-amber-700 shadow-sm">
-                                        <div className="text-2xl font-bold leading-none">{insight.elapsedDays}</div>
-                                        <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-600">passed</div>
+                                <div className="seed-progress__stats">
+                                    <div className="seed-progress__stat seed-progress__stat--passed">
+                                        <div className="seed-progress__stat-value">{insight.elapsedDays}</div>
+                                        <div className="seed-progress__stat-label">Passed</div>
                                     </div>
-                                    <div className="flex h-14 w-16 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-white text-emerald-700 shadow-sm">
-                                        <div className="text-2xl font-bold leading-none">{insight.completedDays}</div>
-                                        <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-600">done</div>
+                                    <div className="seed-progress__stat seed-progress__stat--done">
+                                        <div className="seed-progress__stat-value">{insight.completedDays}</div>
+                                        <div className="seed-progress__stat-label">Done</div>
                                     </div>
-                                    <div className="flex h-14 w-16 flex-col items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 shadow-sm">
-                                        <div className="text-2xl font-bold leading-none">{currentStreak}</div>
-                                        <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-orange-600">streak</div>
+                                    <div className="seed-progress__stat seed-progress__stat--streak">
+                                        <div className="seed-progress__stat-value">{currentStreak}</div>
+                                        <div className="seed-progress__stat-label">Streak</div>
                                     </div>
                                 </div>
 

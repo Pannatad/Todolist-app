@@ -10,7 +10,6 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
         title: '',
         description: '',
         priority: 'Medium',
-        difficulty: 'Medium',
         subtasks: []
     });
     const [newSubtask, setNewSubtask] = useState('');
@@ -25,7 +24,6 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                     title: initialData.title || '',
                     description: initialData.description || '',
                     priority: initialData.priority || 'Medium',
-                    difficulty: initialData.difficulty || 'Medium',
                     subtasks: initialData.subtasks || []
                 });
             } else {
@@ -33,7 +31,6 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                     title: '',
                     description: '',
                     priority: 'Medium',
-                    difficulty: 'Medium',
                     subtasks: []
                 });
             }
@@ -116,7 +113,6 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
         await addToGarden({
             title: formData.title,
             description: formData.description,
-            difficulty: formData.difficulty.toLowerCase(),
             subject: 'Project Task', // Or maybe the project name if we passed it
             estimatedTime: 30 // Default or if we had it
         });
@@ -163,7 +159,7 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
+                    <div>
                         <div>
                             <label className="block text-sm font-semibold text-sage-700 dark:text-bone-200 mb-2">Priority</label>
                             <select
@@ -177,18 +173,6 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
                             </select>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold text-sage-700 dark:text-bone-200 mb-2">Difficulty</label>
-                            <select
-                                value={formData.difficulty}
-                                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                                className="w-full px-5 py-3 rounded-xl bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 focus:ring-2 focus:ring-sage-500 dark:focus:ring-magma-500 text-sage-900 dark:text-bone-100 text-base"
-                            >
-                                <option value="Easy">Easy</option>
-                                <option value="Medium">Medium</option>
-                                <option value="Hard">Hard</option>
-                            </select>
-                        </div>
                     </div>
 
                     {/* Subtasks Section */}

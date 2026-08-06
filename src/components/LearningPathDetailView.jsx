@@ -1,6 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion as Motion } from 'framer-motion';
-import { Check, ChevronRight, GripVertical, Play, Star, Trash2, Zap } from 'lucide-react';
+import {
+    BookCheck,
+    BookOpen,
+    Check,
+    ChevronRight,
+    Clock,
+    Dumbbell,
+    GripVertical,
+    Lock,
+    Play,
+    Star,
+    Target,
+    Trash2,
+    Zap,
+} from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import { COLOR_OPTIONS } from './LearningPathModal';
 import LearningPathDetailContent from './LearningPathDetailContent';

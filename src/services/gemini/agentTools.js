@@ -94,7 +94,7 @@ export const generateMorningBriefing = async (context) => {
                 : profile?.workingHours || '9am-5pm'}
             
             PENDING TASKS (${pendingTasks.length}):
-            ${pendingTasks.slice(0, 5).map(t => `- "${t.title}" (${t.difficulty || 'medium'}${t.deadline ? ', due: ' + new Date(t.deadline).toLocaleDateString() : ''})`).join('\n') || 'No tasks'}
+            ${pendingTasks.slice(0, 5).map(t => `- "${t.title}" (${t.deadline ? 'due: ' + new Date(t.deadline).toLocaleDateString() : 'no deadline'})`).join('\n') || 'No tasks'}
             
             TODAY'S SCHEDULE:
             ${todaySchedule.slice(0, 5).map(s => `- ${s.title} at ${new Date(s.startTime || s.start_time).toLocaleTimeString()}`).join('\n') || 'Nothing scheduled'}

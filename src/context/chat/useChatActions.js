@@ -3,9 +3,10 @@ import { canHandleLocally, generateLocalResponse } from '../../services/localAge
 import { sendChatMessage } from '../../services/ConversationService';
 import { extractInsightsFromExchange } from '../../services/InsightExtractionService';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
-import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload, resolveTemplate, sanitizeTemplateBlocks } from '../../services/agentScheduleActions';
+import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildScheduleAssistantMutationPlan, buildSchedulePayload, normalizeScheduleAssistantActions, resolveTemplate, sanitizeTemplateBlocks } from '../../services/agentScheduleActions';
 import { log } from '../../utils/log.js';
 import { attachmentMetadata } from '../../services/chatAttachments.js';
+import { sanitizeTaskUpdates } from '../../utils/taskState.js';
 
 const ACTIONS_REQUIRING_CONFIRMATION = [
     'add_task',
@@ -138,8 +139,11 @@ export const useChatActions = ({
 
             // Process the response
             // Extract the actual message content from info_response or clarify actions
-            const infoAction = plan.actions?.find(a => a.type === 'info_response' || a.type === 'clarify');
-            const planActions = Array.isArray(plan.actions) ? plan.actions : [];
+            const planActions = normalizeScheduleAssistantActions(
+                Array.isArray(plan.actions) ? plan.actions : [],
+                text
+            );
+            const infoAction = planActions.find(a => a.type === 'info_response' || a.type === 'clarify');
             const executableActions = planActions.filter(action =>
                 !DISPLAY_ONLY_ACTIONS.includes(action.type)
             );
@@ -298,7 +302,6 @@ export const useChatActions = ({
                     case 'add_task':
                         await addTask({
                             title: action.params.title,
-                            difficulty: action.params.difficulty || 'easy',
                             deadline: action.params.deadline,
                             subject: action.params.subject,
                             estimatedTime: action.params.estimatedTime
@@ -306,7 +309,7 @@ export const useChatActions = ({
                         break;
                     case 'edit_task':
                         if (action.params.taskId && action.params.updates) {
-                            await updateTask(action.params.taskId, action.params.updates);
+                            await updateTask(action.params.taskId, sanitizeTaskUpdates(action.params.updates));
                         }
                         break;
                     case 'delete_task':
@@ -454,11 +457,18 @@ export const useChatActions = ({
                             }
                         }
                         break;
-                    case 'delete_schedule':
-                        if (action.params.eventId) {
-                            await deleteScheduleItem(action.params.eventId);
+                    case 'delete_schedule': {
+                        const deletePlan = buildScheduleAssistantMutationPlan([action], scheduleItems || []);
+                        if (deletePlan.unresolved.length || !deletePlan.steps.length) {
+                            throw new Error(deletePlan.unresolved[0]?.reason || 'The schedule block to delete could not be found.');
+                        }
+                        for (const step of deletePlan.steps) {
+                            if (step.type === 'delete') {
+                                await deleteScheduleItem(step.item.id, step.options);
+                            }
                         }
                         break;
+                    }
                     case 'complete_habit':
                         if (action.params.habitId) {
                             const today = toLocalDateKey(new Date());

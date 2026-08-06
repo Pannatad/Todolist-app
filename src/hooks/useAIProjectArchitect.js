@@ -17,26 +17,26 @@ export const useAIProjectArchitect = () => {
 
         if (isWebsite) {
             tasks = [
-                { title: 'Define Requirements', description: 'List core features and user stories', priority: 'High', difficulty: 'Medium', columnId: 'c-1' },
-                { title: 'Design System', description: 'Choose colors, typography, and components', priority: 'Medium', difficulty: 'Hard', columnId: 'c-1' },
-                { title: 'Setup Environment', description: 'Install dependencies and configure build tools', priority: 'High', difficulty: 'Easy', columnId: 'c-1' },
-                { title: 'Database Schema', description: 'Design data models', priority: 'High', difficulty: 'Hard', columnId: 'c-1' },
-                { title: 'Frontend Implementation', description: 'Build UI components', priority: 'Medium', difficulty: 'Hard', columnId: 'c-1' }
+                { title: 'Define Requirements', description: 'List core features and user stories', priority: 'High', columnId: 'c-1' },
+                { title: 'Design System', description: 'Choose colors, typography, and components', priority: 'Medium', columnId: 'c-1' },
+                { title: 'Setup Environment', description: 'Install dependencies and configure build tools', priority: 'High', columnId: 'c-1' },
+                { title: 'Database Schema', description: 'Design data models', priority: 'High', columnId: 'c-1' },
+                { title: 'Frontend Implementation', description: 'Build UI components', priority: 'Medium', columnId: 'c-1' }
             ];
         } else if (isMarketing) {
             tasks = [
-                { title: 'Market Research', description: 'Analyze competitors and target audience', priority: 'High', difficulty: 'Medium', columnId: 'c-1' },
-                { title: 'Content Strategy', description: 'Plan blog posts and social media content', priority: 'Medium', difficulty: 'Medium', columnId: 'c-1' },
-                { title: 'Ad Creatives', description: 'Design banners and ad copy', priority: 'Medium', difficulty: 'Easy', columnId: 'c-1' },
-                { title: 'Launch Campaign', description: 'Execute the marketing plan', priority: 'High', difficulty: 'Hard', columnId: 'c-1' }
+                { title: 'Market Research', description: 'Analyze competitors and target audience', priority: 'High', columnId: 'c-1' },
+                { title: 'Content Strategy', description: 'Plan blog posts and social media content', priority: 'Medium', columnId: 'c-1' },
+                { title: 'Ad Creatives', description: 'Design banners and ad copy', priority: 'Medium', columnId: 'c-1' },
+                { title: 'Launch Campaign', description: 'Execute the marketing plan', priority: 'High', columnId: 'c-1' }
             ];
         } else {
             // Generic
             tasks = [
-                { title: 'Initial Research', description: 'Gather necessary information', priority: 'High', difficulty: 'Medium', columnId: 'c-1' },
-                { title: 'Planning Phase', description: 'Outline steps and resources', priority: 'High', difficulty: 'Medium', columnId: 'c-1' },
-                { title: 'Execution', description: 'Start working on core tasks', priority: 'Medium', difficulty: 'Hard', columnId: 'c-1' },
-                { title: 'Review', description: 'Evaluate results and iterate', priority: 'Low', difficulty: 'Easy', columnId: 'c-1' }
+                { title: 'Initial Research', description: 'Gather necessary information', priority: 'High', columnId: 'c-1' },
+                { title: 'Planning Phase', description: 'Outline steps and resources', priority: 'High', columnId: 'c-1' },
+                { title: 'Execution', description: 'Start working on core tasks', priority: 'Medium', columnId: 'c-1' },
+                { title: 'Review', description: 'Evaluate results and iterate', priority: 'Low', columnId: 'c-1' }
             ];
         }
 

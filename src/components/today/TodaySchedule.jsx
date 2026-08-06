@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Check, ChevronDown, Circle } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 const timeLabel = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -59,73 +59,31 @@ const BlockRow = ({ entry, isNow, isPast, onOpen }) => {
   );
 };
 
-/* A task deadline living on the same thread: the marker is the complete button. */
-const TaskRow = ({ task, deadline, isOverdue, onComplete, onOpenTask }) => (
-  <div className="flex w-full items-start gap-0 py-2.5">
-    <span className="w-16 shrink-0 pt-0.5 text-right text-xs font-semibold tabular-nums text-[var(--color-muted)]">
-      {timeLabel(deadline)}
-    </span>
-    <span className="relative z-10 flex w-10 shrink-0 justify-center pt-0.5">
-      <button
-        type="button"
-        onClick={() => onComplete(task.id)}
-        aria-label={`Complete "${task.title}"`}
-        className="group -m-1 p-1 text-[var(--color-muted)] transition-transform active:scale-90"
-      >
-        <Circle size={17} className="group-hover:hidden" />
-        <Check size={17} className="hidden text-[var(--color-accent)] group-hover:block" />
-      </button>
-    </span>
-    <button type="button" onClick={() => onOpenTask(task)} className="min-w-0 flex-1 text-left">
-      <span className="flex items-baseline justify-between gap-3">
-        <span className="truncate text-[0.95rem] font-semibold text-[var(--color-ink)]">{task.title}</span>
-        <span className={`shrink-0 text-xs font-bold ${isOverdue ? 'text-[var(--color-error)]' : 'text-[var(--color-muted)]'}`}>
-          {isOverdue ? 'Overdue' : 'Due'}
-        </span>
-      </span>
-      {task.subject && <span className="mt-0.5 block truncate text-xs text-[var(--color-muted)]">{task.subject}</span>}
-    </button>
-  </div>
-);
-
 /**
- * The whole day as one continuous thread: schedule blocks and task deadlines
- * merged onto a single timeline. No cards — the line is the structure.
+ * The whole day as one continuous thread of schedule blocks.
+ * Tasks due today live in their own section below so they are not duplicated.
  */
-const TodaySchedule = ({ entries, dueTasks = [], now, onOpen, onCompleteTask, onOpenTask }) => {
+const TodaySchedule = ({ entries, now, onOpen }) => {
   const [showEarlier, setShowEarlier] = useState(false);
 
   const items = [
     ...entries.map((entry) => ({ kind: 'block', at: entry.start, end: entry.end, entry })),
-    ...dueTasks.map((task) => {
-      const deadline = new Date(task.deadline);
-      return { kind: 'task', at: deadline, end: deadline, task };
-    }),
   ].sort((left, right) => left.at - right.at);
 
-  const past = items.filter((item) => item.kind === 'block' && item.end <= now);
-  const ahead = items.filter((item) => !(item.kind === 'block' && item.end <= now));
-  const blocksLeft = ahead.filter((item) => item.kind === 'block').length;
+  const past = items.filter((item) => item.end <= now);
+  const ahead = items.filter((item) => item.end > now);
+  const blocksLeft = ahead.length;
   const remainingMinutes = ahead.reduce((sum, item) => (
-    item.kind === 'block' ? sum + Math.max(0, Math.round((item.end - Math.max(item.at, now)) / 60000)) : sum
+    sum + Math.max(0, Math.round((item.end - Math.max(item.at, now)) / 60000))
   ), 0);
 
-  const renderItem = (item, index) => item.kind === 'block' ? (
+  const renderItem = (item, index) => (
     <BlockRow
       key={item.entry.item.id || `block-${index}`}
       entry={item.entry}
       isNow={now >= item.at && now < item.end}
       isPast={item.end <= now}
       onOpen={onOpen}
-    />
-  ) : (
-    <TaskRow
-      key={`task-${item.task.id}`}
-      task={item.task}
-      deadline={item.at}
-      isOverdue={item.at < now}
-      onComplete={onCompleteTask}
-      onOpenTask={onOpenTask}
     />
   );
 

@@ -27,9 +27,6 @@ export const normalizeTaskSubtasks = (subtasks) => {
         .filter(subtask => subtask && typeof subtask === 'object')
         .map((subtask, index) => {
             const estimate = Number(subtask.estimatedTime ?? subtask.estimated_time ?? 0);
-            const difficulty = ['easy', 'medium', 'hard'].includes(subtask.difficulty)
-                ? subtask.difficulty
-                : 'easy';
             const nestedSubtasks = normalizeTaskSubtasks(subtask.subtasks);
             const nestedEstimate = nestedSubtasks.reduce((total, nestedSubtask) => total + nestedSubtask.estimatedTime, 0);
 
@@ -40,7 +37,6 @@ export const normalizeTaskSubtasks = (subtasks) => {
                 estimatedTime: nestedSubtasks.length > 0
                     ? nestedEstimate
                     : Number.isFinite(estimate) && estimate > 0 ? estimate : 0,
-                difficulty,
                 subtasks: nestedSubtasks,
             };
         })
@@ -50,6 +46,17 @@ export const normalizeTaskSubtasks = (subtasks) => {
 export const getTaskChunkEstimate = (task) => (
     normalizeTaskSubtasks(task?.subtasks).reduce((total, subtask) => total + subtask.estimatedTime, 0)
 );
+
+export const sanitizeTaskUpdates = (updates = {}) => {
+    const { difficulty: _legacyDifficulty, ...safeUpdates } = updates;
+    return safeUpdates;
+};
+
+export const calculateCompletionReward = (task, completedAt = new Date()) => {
+    let reward = 10;
+    if (!task?.deadline) return reward;
+    return completedAt <= new Date(task.deadline) ? reward + 10 : Math.max(0, reward - 5);
+};
 
 export const normalizeTaskRecord = (task) => {
     if (!task) return task;
@@ -68,8 +75,10 @@ export const normalizeTaskRecord = (task) => {
         normalizedStatus = 'growing';
     }
 
+    const { difficulty: _legacyDifficulty, ...taskWithoutDifficulty } = task;
+
     return {
-        ...task,
+        ...taskWithoutDifficulty,
         status: normalizedStatus,
         completed,
         completedAt: completed ? completedAt : null,

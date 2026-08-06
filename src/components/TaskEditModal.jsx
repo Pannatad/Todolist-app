@@ -12,7 +12,6 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
         time: '09:00',
         duration: 30,
         subject: '',
-        difficulty: 'easy',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,7 +23,6 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
             time: toTimeInputValue(task.deadline),
             duration: Number(task.estimatedTime ?? task.estimated_time ?? task.duration ?? 30) || 30,
             subject: task.subject || '',
-            difficulty: task.difficulty || 'easy',
         });
         setIsSubmitting(false);
     }, [isOpen, task]);
@@ -47,7 +45,6 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
                 estimatedTime: Number(formData.duration) || 0,
                 estimated_time: Number(formData.duration) || 0,
                 subject: formData.subject.trim() || null,
-                difficulty: formData.difficulty,
             });
             onClose();
         } catch (error) {
@@ -98,7 +95,7 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div>
                             <div>
                                 <label className="mb-1 block text-sm font-bold text-slate-600">
                                     <Calendar size={14} className="mr-1 inline" /> Date
@@ -136,18 +133,6 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
                                     />
                                     <span className="text-sm font-semibold text-slate-500">min</span>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-sm font-bold text-slate-600">Difficulty</label>
-                                <select
-                                    value={formData.difficulty}
-                                    onChange={(event) => setFormData({ ...formData, difficulty: event.target.value })}
-                                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                >
-                                    <option value="easy">Easy</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="hard">Hard</option>
-                                </select>
                             </div>
                         </div>
 
@@ -205,4 +190,3 @@ const TaskEditModal = ({ task, isOpen, onClose, onDelete, onSave }) => {
 };
 
 export default TaskEditModal;
-

@@ -194,7 +194,6 @@ const WorkTreeTask = ({
                     )}
                     <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
                         <span className="rounded-md bg-white/70 px-2 py-1 text-slate-600 dark:bg-white/10 dark:text-bone-200">{task.priority || 'Medium'}</span>
-                        <span className="rounded-md bg-white/70 px-2 py-1 text-slate-600 dark:bg-white/10 dark:text-bone-200">{task.difficulty || 'Medium'}</span>
                     </div>
                 </button>
             </div>
@@ -244,4 +243,3 @@ const WorkTreeTask = ({
 
 
 export { NameDialog, SegmentButton, WorkTree };
-

@@ -166,32 +166,12 @@ class PatternLearningService {
     }
 
     /**
-     * Analyze task preferences (difficulty, subjects, duration)
+     * Analyze task preferences (subjects and duration)
      */
     analyzeTaskPreferences(tasks) {
         if (!tasks?.length || tasks.length < 5) return null;
 
         const insights = [];
-
-        // Analyze preferred difficulty
-        const difficultyCounts = {};
-        tasks.forEach(t => {
-            if (t.difficulty) {
-                difficultyCounts[t.difficulty] = (difficultyCounts[t.difficulty] || 0) + 1;
-            }
-        });
-
-        const topDifficulty = Object.entries(difficultyCounts)
-            .sort((a, b) => b[1] - a[1])[0];
-
-        if (topDifficulty) {
-            insights.push({
-                type: 'preference',
-                category: 'task_difficulty',
-                content: `Tends to create ${topDifficulty[0]} difficulty tasks`,
-                confidence: Math.min(0.7, topDifficulty[1] / tasks.length)
-            });
-        }
 
         // Analyze top subjects
         const subjectCounts = {};

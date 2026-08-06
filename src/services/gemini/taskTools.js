@@ -1,31 +1,6 @@
 import { fileToGenerativePart, genAI, MODEL_NAME, model } from './geminiShared';
 import { log } from '../../utils/log.js';
 
-export const suggestDifficulty = async (taskTitle) => {
-    log('Suggesting difficulty for:', taskTitle);
-
-    try {
-        const prompt = `Analyze the difficulty of this task: "${taskTitle}". 
-        Reply with ONLY one word: "easy", "medium", or "hard". 
-        Consider time, effort, and complexity.`;
-
-        log('Sending prompt to Gemini');
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text().trim().toLowerCase();
-        log('Gemini response:', text);
-
-        if (['easy', 'medium', 'hard'].includes(text)) {
-            return text;
-        }
-        return 'medium'; // Default fallback
-    } catch (error) {
-        console.error("Error suggesting difficulty:", error);
-        console.error("Error details:", JSON.stringify(error, null, 2));
-        return 'easy'; // Fallback on error
-    }
-};
-
 /**
  * Breaks down a complex task into subtasks.
  * @param {string} taskTitle - The main task title.

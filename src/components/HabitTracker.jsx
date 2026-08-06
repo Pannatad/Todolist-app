@@ -13,12 +13,12 @@ const HabitTracker = () => {
     ];
 
     return (
-        <div className="habit-screen relative isolate mx-auto w-full max-w-6xl space-y-5 pb-24 text-left">
-            <section className="habit-screen__header">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="habit-screen mx-auto w-full max-w-6xl pb-24 text-left">
+            <section className="habit-screen__header habit-toolbar">
+                <div className="habit-toolbar__copy">
                     <div className="min-w-0">
                         <h1 className="app-page-title">Habits</h1>
-                        <p className="mt-1 max-w-xl text-sm leading-6 text-slate-600 dark:text-bone-200/70">
+                        <p className="habit-toolbar__description">
                             Check today’s routines or step back to review the week.
                         </p>
                     </div>
@@ -33,10 +33,7 @@ const HabitTracker = () => {
                 </div>
             </section>
 
-            <div
-                key={activeView}
-                className="habit-screen__content"
-            >
+            <div key={activeView} className="habit-screen__content">
                 {activeView === 'today' && <TodayHabits />}
                 {activeView === 'weekly' && <WeeklyGrid />}
             </div>

@@ -7,7 +7,7 @@ export const generateDailySchedule = async (tasks) => {
     }
 
     try {
-        const tasksList = tasks.map(t => `- ${t.title} (Diff: ${t.difficulty}, Due: ${t.deadline || 'None'}, Est: ${t.estimatedTime || 'Unknown'}m)`).join('\n');
+        const tasksList = tasks.map(t => `- ${t.title} (Due: ${t.deadline || 'None'}, Est: ${t.estimatedTime || 'Unknown'}m)`).join('\n');
         const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         const prompt = `
@@ -19,7 +19,7 @@ export const generateDailySchedule = async (tasks) => {
             
             Create a realistic, optimized schedule for the rest of the day to help the user be productive.
             Rules:
-            1. Prioritize tasks with deadlines and high difficulty.
+            1. Prioritize overdue tasks and the nearest deadlines.
             2. Mix deep work with quick wins.
             3. Include breaks.
             4. If tasks have estimated times, use them. Otherwise, estimate reasonable durations (30-90 mins).
@@ -108,6 +108,5 @@ export const parseScheduleImage = async (file) => {
 /**
  * Parses natural language task input and extracts metadata.
  * @param {string} input - Raw user input (e.g., "English task, due at today 11.59, estimate 20 mins to do").
- * @returns {Promise<Object>} - { title, difficulty, deadline, subject, estimatedTime }
+ * @returns {Promise<Object>} - { title, deadline, subject, estimatedTime }
  */
-

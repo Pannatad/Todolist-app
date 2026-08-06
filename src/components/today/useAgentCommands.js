@@ -3,7 +3,7 @@ import { routeAgentCommand } from '../../services/aiClient';
 import { cacheResponse, canHandleLocally, generateCacheKey, generateLocalResponse, getCachedResponse } from '../../services/localAgentHandler';
 import { isTaskActive } from '../../utils/taskState';
 import { toLocalDateKey, getScheduleItemsForDate } from '../../utils/scheduleOccurrences';
-import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildSchedulePayload, resolveTemplate, sanitizeTemplateBlocks } from '../../services/agentScheduleActions';
+import { buildDuplicatePayload, buildOverrideUpdates, buildPlanDayPayloads, buildScheduleAssistantMutationPlan, buildSchedulePayload, normalizeScheduleAssistantActions, resolveTemplate, sanitizeTemplateBlocks } from '../../services/agentScheduleActions';
 import { log } from '../../utils/log';
 
 export const useAgentCommands = ({ addScheduleItem, addTask, completeTask, dailyHighlights, deleteScheduleItem, deleteTask, deleteTemplate, getMemorySummary, getProfileSummary, getRecentInteractions, goals, habits, logHabit, logInteraction, onNavigate, profile, projects, saveTemplate, scheduleItems, scheduleTemplates, tasks, updateScheduleItem, updateTask, user }) => {
@@ -19,13 +19,14 @@ export const useAgentCommands = ({ addScheduleItem, addTask, completeTask, daily
       const context = {
         userProfile: { name: profile.nickname || profile.name || user?.email?.split('@')[0] || 'User', role: profile.role, workingHours: profile.workingHours, focusStyle: profile.focusStyle, goals: profile.goals, summary: getProfileSummary() },
         recentTasks: tasks?.filter(isTaskActive).slice(0, 15) || [],
-        tasksDueToday: tasks?.filter((task) => isTaskActive(task) && task.deadline && new Date(task.deadline).toDateString() === new Date().toDateString()).map((task) => ({ title: task.title, deadline: task.deadline, difficulty: task.difficulty })) || [],
+        tasksDueToday: tasks?.filter((task) => isTaskActive(task) && task.deadline && new Date(task.deadline).toDateString() === new Date().toDateString()).map((task) => ({ title: task.title, deadline: task.deadline })) || [],
         recentSchedule: getScheduleItemsForDate(scheduleItems || [], new Date()), allScheduleItems: scheduleItems || [], scheduleTemplates: scheduleTemplates || [], projects: projects?.map((project) => ({ id: project.id, title: project.title, status: project.status, progress: project.progress, category: project.category, phases: project.phases?.map((phase) => ({ name: phase.name, deadline: phase.deadline })), taskCount: project.tasks?.length || 0, tasksInProgress: project.tasks?.filter((task) => task.columnId === 'c-2')?.length || 0, tasksDone: project.tasks?.filter((task) => task.columnId === 'c-4')?.length || 0 })) || [],
         habits: habits?.map((habit) => ({ id: habit.id, name: habit.name, frequency: habit.frequency, streak: habit.streak || 0, completedToday: habit.completedToday === true })) || [], visionGoals: Array.isArray(goals) ? goals.slice(0, 10) : [], dailyHighlights: Array.isArray(dailyHighlights) ? dailyHighlights.slice(0, 5) : [], memorySummary: getMemorySummary(profile), recentInteractions: getRecentInteractions(5), conversationHistory: clarifyConversation.length ? clarifyConversation.map((item) => `User: ${item.input}\nAgent: ${item.response}`).join('\n') : null,
       };
       const localType = canHandleLocally(input);
       let plan = localType ? generateLocalResponse(localType, context) : getCachedResponse(generateCacheKey(input));
       if (!plan) { plan = await routeAgentCommand(input, context); cacheResponse(generateCacheKey(input), plan); }
+      if (plan?.actions) plan = { ...plan, actions: normalizeScheduleAssistantActions(plan.actions, input) };
       const clarify = plan.actions?.find((action) => action.type === 'clarify');
       if (clarify) setClarifyConversation((value) => [...value, { input, response: clarify.params.question }]); else setClarifyConversation([]);
       setAgentPlan(plan); setShowAgentModal(true);
@@ -36,13 +37,21 @@ export const useAgentCommands = ({ addScheduleItem, addTask, completeTask, daily
     try {
       for (const action of plan.actions) {
         const { params = {}, type } = action; if (type === 'clarify') continue;
-        if (type === 'add_task') await addTask({ title: params.title, difficulty: params.difficulty || 'easy', deadline: params.deadline, subject: params.subject, estimatedTime: params.estimatedTime });
+        if (type === 'add_task') await addTask({ title: params.title, deadline: params.deadline, subject: params.subject, estimatedTime: params.estimatedTime });
         if (type === 'edit_task' && params.taskId && params.updates) await updateTask(params.taskId, params.updates);
         if (type === 'delete_task' && params.taskId) await deleteTask(params.taskId);
         if (type === 'complete_task' && params.taskId) await completeTask(params.taskId);
         if (type === 'add_schedule') await addScheduleItem(buildSchedulePayload(params));
         if (type === 'edit_schedule' && params.eventId && params.updates) await updateScheduleItem(params.eventId, params.updates);
-        if (type === 'delete_schedule' && params.eventId) await deleteScheduleItem(params.eventId);
+        if (type === 'delete_schedule') {
+          const deletePlan = buildScheduleAssistantMutationPlan([action], scheduleItems || []);
+          if (deletePlan.unresolved.length || !deletePlan.steps.length) {
+            throw new Error(deletePlan.unresolved[0]?.reason || 'The schedule block to delete could not be found.');
+          }
+          for (const step of deletePlan.steps) {
+            if (step.type === 'delete') await deleteScheduleItem(step.item.id, step.options);
+          }
+        }
         if (type === 'duplicate_schedule' && params.eventId && params.startTime) {
           const source = scheduleItems?.find((item) => item.id === params.eventId);
           if (source) await addScheduleItem(buildDuplicatePayload(source, params));

@@ -43,11 +43,11 @@ import {
 import {
     buildScheduleAssistantMutationPlan,
     isScheduleAssistantWriteAction,
+    normalizeScheduleAssistantActions,
     resolveTemplate
 } from '../../services/agentScheduleActions';
 import { getScheduleItemsForDate, toLocalDateKey, upsertOverride } from '../../utils/scheduleOccurrences';
 import { hasExceededDragThreshold } from '../../utils/pointerGestures';
-import { isTaskActive } from '../../utils/taskState';
 import { useScheduleTransactions } from '../../hooks/useScheduleTransactions';
 import { toast } from '../../ui/Toast';
 import { Sheet } from '../../ui';
@@ -87,12 +87,6 @@ const rangeLabel = (item) => {
     const start = itemStart(item);
     const end = new Date(start.getTime() + itemDuration(item) * 60000);
     return `${timeLabel(start)} – ${timeLabel(end)}`;
-};
-
-const isTimedTask = (task) => {
-    if (!task.deadline || !isTaskActive(task)) return false;
-    const date = new Date(task.deadline);
-    return date.getHours() !== 0 || date.getMinutes() !== 0;
 };
 
 const useMobileTimeline = () => {
@@ -162,6 +156,7 @@ const MagicSchedule = ({
     const [modal, setModal] = useState(null);
     const [templateEditor, setTemplateEditor] = useState(null);
     const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+    const [applyMode, setApplyMode] = useState('once');
     const [repeatDays, setRepeatDays] = useState([]);
     const [repeatEndDate, setRepeatEndDate] = useState('');
     const [review, setReview] = useState(null);
@@ -274,22 +269,12 @@ const MagicSchedule = ({
 
     const itemsForDate = useCallback((date) => {
         const dateKey = toLocalDateKey(date);
-        const schedule = getScheduleItemsForDate(events, date).map((item) => ({
+        return getScheduleItemsForDate(events, date).map((item) => ({
             ...item,
             _type: 'schedule',
             _dateKey: dateKey
         }));
-        const timedTasks = tasks
-            .filter((task) => isTimedTask(task) && toLocalDateKey(task.deadline) === dateKey)
-            .map((task) => ({
-                ...task,
-                _type: 'task',
-                _dateKey: dateKey,
-                displayTime: task.deadline,
-                duration: task.estimatedTime || task.estimated_time || 60
-            }));
-        return [...schedule, ...timedTasks].sort((left, right) => itemStart(left) - itemStart(right));
-    }, [events, tasks]);
+    }, [events]);
 
     const selectedChildren = useMemo(() => {
         if (!selectedItem || itemKind(selectedItem) !== SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) return [];
@@ -359,7 +344,7 @@ const MagicSchedule = ({
     };
 
     const deleteSelected = async (mode = 'event') => {
-        if (!selectedItem || selectedItem._type === 'task') return;
+        if (!selectedItem) return;
         const steps = [];
         if (itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) {
             if (mode === 'delete_children') {
@@ -378,32 +363,41 @@ const MagicSchedule = ({
         setSelectedItem(null);
     };
 
-    const beginApplyTemplate = (template = selectedTemplate) => {
+    const beginApplyTemplate = (template = selectedTemplate, options = {}) => {
         if (!template) return;
+        const mode = options.mode || applyMode;
+        const applicationDateKey = options.date || selectedDateKey;
+        const activeRepeatDays = mode === 'repeat' ? repeatDays : [];
+        const requestedRepeatDays = mode === 'repeat' && Array.isArray(options.repeatDays)
+            ? options.repeatDays
+            : activeRepeatDays;
+        const activeEndDate = options.endDate !== undefined ? options.endDate : repeatEndDate;
         const proposals = buildTemplateSchedulePayloads(template, {
-            date: selectedDateKey,
-            repeatDays,
-            endDate: repeatEndDate || null
+            date: applicationDateKey,
+            repeatDays: requestedRepeatDays,
+            endDate: mode === 'repeat' ? (activeEndDate || null) : null
         });
-        const reviewEndDate = repeatEndDate || (repeatDays.length ? undefined : selectedDateKey);
+        const reviewEndDate = mode === 'repeat' && requestedRepeatDays.length
+            ? (activeEndDate || undefined)
+            : applicationDateKey;
         const conflicts = detectScheduleConflicts({
             proposedItems: proposals,
             scheduleItems: events,
             tasks,
-            startDate: selectedDateKey,
+            startDate: applicationDateKey,
             endDate: reviewEndDate
         });
         const autoFitProposals = autoFitTemplateItems(proposals, conflicts, 15, {
             scheduleItems: events,
             tasks,
-            startDate: selectedDateKey,
+            startDate: applicationDateKey,
             endDate: reviewEndDate
         });
         const autoFitConflicts = detectScheduleConflicts({
             proposedItems: autoFitProposals,
             scheduleItems: events,
             tasks,
-            startDate: selectedDateKey,
+            startDate: applicationDateKey,
             endDate: reviewEndDate
         });
         setReview({
@@ -475,7 +469,7 @@ const MagicSchedule = ({
                 }))
             };
             if (!template.blocks.length) throw new Error('No schedule blocks were found in that image.');
-            beginApplyTemplate(template);
+            beginApplyTemplate(template, { mode: 'once' });
         } catch (error) {
             toast(error.message || 'Could not read that schedule image.', { tone: 'error' });
         } finally {
@@ -543,7 +537,10 @@ const MagicSchedule = ({
             }, selectedAIProvider, {
                 enableThinking: selectedAIProvider === 'local' && localThinkingEnabled
             });
-            const actions = Array.isArray(response.actions) ? response.actions : [];
+            const actions = normalizeScheduleAssistantActions(
+                Array.isArray(response.actions) ? response.actions : [],
+                prompt
+            );
             const rejected = actions.filter((action) => !isScheduleAssistantWriteAction(action.type)
                 && !['info_response', 'clarify', 'analyze', 'navigate'].includes(action.type));
             const allowed = actions.filter((action) => isScheduleAssistantWriteAction(action.type));
@@ -572,9 +569,16 @@ const MagicSchedule = ({
                 const template = resolveTemplate(templates, params);
                 if (template) {
                     setSelectedTemplateId(template.id);
-                    setSelectedDate(new Date(`${params.date || selectedDateKey}T12:00:00`));
+                    const applicationDate = params.date || selectedDateKey;
+                    const requestedRepeatDays = Array.isArray(params.repeatDays) ? params.repeatDays : [];
+                    setSelectedDate(new Date(`${applicationDate}T12:00:00`));
                     setPendingAssistantActions(null);
-                    beginApplyTemplate(template);
+                    beginApplyTemplate(template, {
+                        date: applicationDate,
+                        mode: requestedRepeatDays.length ? 'repeat' : 'once',
+                        repeatDays: requestedRepeatDays,
+                        endDate: params.endDate || null
+                    });
                     return;
                 }
             }
@@ -656,7 +660,7 @@ const MagicSchedule = ({
                 return;
             }
             const item = current.item;
-            if (!item || item._type === 'task') return;
+            if (!item) return;
             const targetDateKey = toLocalDateKey(current.currentDate);
             const currentDateKey = item._occurrenceDate || item._dateKey || toLocalDateKey(itemStart(item));
             const targetStartMinutes = current.mode === 'resize' ? current.startMinutes : current.currentMinutes;
@@ -717,7 +721,6 @@ const MagicSchedule = ({
         let height = Math.max(24, (itemDuration(item) / 60) * HOUR_HEIGHT);
         const shell = itemKind(item) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL;
         const nested = Boolean(parentId(item));
-        const task = item._type === 'task';
         const lane = overlapLayout[String(item.id)] || { laneIndex: 0, laneCount: 1 };
         if (nested) {
             const parent = itemsForDate(date).find((candidate) => String(candidate.id) === String(parentId(item)));
@@ -735,13 +738,13 @@ const MagicSchedule = ({
             <button
                 key={`${item._type}-${item.id}-${item._dateKey}`}
                 type="button"
-                className={`magic-event ${shell ? 'is-shell' : ''} ${nested ? 'is-nested' : ''} ${task ? 'is-task' : ''} ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
+                className={`magic-event ${shell ? 'is-shell' : ''} ${nested ? 'is-nested' : ''} ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
                 style={{
                     top,
                     height,
                     '--event-lane-left': `${(lane.laneIndex / lane.laneCount) * 100}%`,
                     '--event-lane-width': `${100 / lane.laneCount}%`,
-                    '--event-color': item.color || (task ? '#f59e0b' : '#6366f1')
+                    '--event-color': item.color || '#6366f1'
                 }}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -751,7 +754,7 @@ const MagicSchedule = ({
                     setMobileInspectorOpen(true);
                 }}
                 onPointerDown={(event) => {
-                    if (task || event.target.closest('.magic-event__resize')) return;
+                    if (event.target.closest('.magic-event__resize')) return;
                     event.stopPropagation();
                     event.currentTarget.setPointerCapture?.(event.pointerId);
                     setDrag({
@@ -765,32 +768,32 @@ const MagicSchedule = ({
                         moved: false
                     });
                 }}
-                aria-label={`${task ? 'Timed task' : shell ? 'Flexible shell' : nested ? 'Nested event' : 'Event'} ${item.title}, ${rangeLabel(item)}`}
+                aria-label={`${shell ? 'Flexible shell' : nested ? 'Nested event' : 'Event'} ${item.title}, ${rangeLabel(item)}`}
             >
-                <span className="magic-event__title">{item.title}</span>
+                <span className="magic-event__header">
+                    <span className="magic-event__mark" aria-hidden="true" />
+                    <span className="magic-event__title">{item.title}</span>
+                </span>
                 {height >= 42 && <span className="magic-event__time">{rangeLabel(item)}</span>}
                 {shell && <span className="magic-event__badge">Flexible</span>}
                 {nested && <span className="magic-event__badge">Nested</span>}
-                {task && <span className="magic-event__badge">Task · protected</span>}
-                {!task && (
-                    <span
-                        className="magic-event__resize"
-                        onPointerDown={(event) => {
-                            event.stopPropagation();
-                            setDrag({
-                                mode: 'resize',
-                                item,
-                                startMinutes: minutes,
-                                currentMinutes: minutes + itemDuration(item),
-                                currentDate: date,
-                                originX: event.clientX,
-                                originY: event.clientY,
-                                moved: false
-                            });
-                        }}
-                        aria-hidden="true"
-                    />
-                )}
+                <span
+                    className="magic-event__resize"
+                    onPointerDown={(event) => {
+                        event.stopPropagation();
+                        setDrag({
+                            mode: 'resize',
+                            item,
+                            startMinutes: minutes,
+                            currentMinutes: minutes + itemDuration(item),
+                            currentDate: date,
+                            originX: event.clientX,
+                            originY: event.clientY,
+                            moved: false
+                        });
+                    }}
+                    aria-hidden="true"
+                />
             </button>
         );
     };
@@ -889,6 +892,9 @@ const MagicSchedule = ({
                         className={`magic-template-card ${String(selectedTemplateId) === String(template.id) ? 'is-selected' : ''}`}
                         onClick={() => {
                             setSelectedTemplateId(template.id);
+                            setApplyMode('once');
+                            setRepeatDays([]);
+                            setRepeatEndDate('');
                             setShowApplyOptions(true);
                         }}
                     >
@@ -913,23 +919,50 @@ const MagicSchedule = ({
                         <strong>Apply {selectedTemplate.name}</strong>
                         <span>Starts on {selectedDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                     </div>
-                    <div className="magic-repeat-days" aria-label="Repeat weekdays">
-                        {DAYS.map((day, index) => (
-                            <button
-                                type="button"
-                                key={`${day}-${index}`}
-                                className={repeatDays.includes(index) ? 'is-selected' : ''}
-                                onClick={() => setRepeatDays((days) => days.includes(index) ? days.filter((value) => value !== index) : [...days, index].sort())}
-                                aria-label={`Repeat on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index]}`}
-                            >
-                                {day}
-                            </button>
-                        ))}
+                    <div className="magic-apply-mode" aria-label="Template application mode">
+                        <button
+                            type="button"
+                            className={applyMode === 'once' ? 'is-selected' : ''}
+                            onClick={() => {
+                                setApplyMode('once');
+                                setRepeatDays([]);
+                                setRepeatEndDate('');
+                            }}
+                        >
+                            <CalendarDays size={15} /> This day
+                        </button>
+                        <button
+                            type="button"
+                            className={applyMode === 'repeat' ? 'is-selected' : ''}
+                            onClick={() => {
+                                setApplyMode('repeat');
+                                setRepeatDays((days) => days.length ? days : [selectedDate.getDay()]);
+                            }}
+                        >
+                            <Repeat2 size={15} /> Repeat
+                        </button>
                     </div>
-                    <label>
-                        End
-                        <input type="date" value={repeatEndDate} disabled={!repeatDays.length} onChange={(event) => setRepeatEndDate(event.target.value)} />
-                    </label>
+                    {applyMode === 'repeat' && (
+                        <>
+                            <div className="magic-repeat-days" aria-label="Repeat weekdays">
+                                {DAYS.map((day, index) => (
+                                    <button
+                                        type="button"
+                                        key={`${day}-${index}`}
+                                        className={repeatDays.includes(index) ? 'is-selected' : ''}
+                                        onClick={() => setRepeatDays((days) => days.includes(index) ? days.filter((value) => value !== index) : [...days, index].sort())}
+                                        aria-label={`Repeat on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index]}`}
+                                    >
+                                        {day}
+                                    </button>
+                                ))}
+                            </div>
+                            <label>
+                                End
+                                <input type="date" value={repeatEndDate} disabled={!repeatDays.length} onChange={(event) => setRepeatEndDate(event.target.value)} />
+                            </label>
+                        </>
+                    )}
                     <button type="button" className="magic-secondary-button" onClick={() => setTemplateEditor(selectedTemplate)}><Pencil size={15} /> Edit</button>
                     <button type="button" className="magic-primary-button" onClick={() => beginApplyTemplate()}><WandSparkles size={16} /> Preview apply</button>
                 </section>
@@ -1081,7 +1114,7 @@ const MagicSchedule = ({
                     ) : selectedItem ? (
                         <div className="magic-inspector__content">
                             <span className="magic-inspector__type">
-                                {selectedItem._type === 'task' ? 'Protected timed task' : itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? 'Flexible shell' : parentId(selectedItem) ? 'Nested event' : 'Schedule event'}
+                                {itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? 'Flexible shell' : parentId(selectedItem) ? 'Nested event' : 'Schedule event'}
                             </span>
                             <h3>{selectedItem.title}</h3>
                             <div className="magic-inspector__time"><Clock3 size={16} /> {rangeLabel(selectedItem)}</div>
@@ -1108,35 +1141,33 @@ const MagicSchedule = ({
                                     ))}
                                 </div>
                             )}
-                            {selectedItem._type !== 'task' && (
-                                <div className="magic-inspector__actions">
-                                    <button type="button" onClick={() => setModal({ event: selectedItem, selectedDate, defaults: {} })}><Pencil size={16} /> Edit details</button>
-                                    {itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL && (
-                                        <button type="button" onClick={() => {
-                                            const start = itemStart(selectedItem);
-                                            openQuickAdd(selectedDate, start.getHours() * 60 + start.getMinutes(), 60, {
-                                                parentItemId: selectedItem.id,
-                                                parent: selectedItem
-                                            });
-                                        }}><Plus size={16} /> Add nested event</button>
-                                    )}
-                                    {parentId(selectedItem) && (
-                                        <button type="button" onClick={() => transactions.runBatch([{
-                                            type: 'update',
-                                            id: selectedItem.id,
-                                            updates: { parentItemId: null },
-                                            before: selectedItem
-                                        }], `Detached ${selectedItem.title}`)}><Unlink size={16} /> Detach from shell</button>
-                                    )}
-                                </div>
-                            )}
+                            <div className="magic-inspector__actions">
+                                <button type="button" onClick={() => setModal({ event: selectedItem, selectedDate, defaults: {} })}><Pencil size={16} /> Edit details</button>
+                                {itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL && (
+                                    <button type="button" onClick={() => {
+                                        const start = itemStart(selectedItem);
+                                        openQuickAdd(selectedDate, start.getHours() * 60 + start.getMinutes(), 60, {
+                                            parentItemId: selectedItem.id,
+                                            parent: selectedItem
+                                        });
+                                    }}><Plus size={16} /> Add nested event</button>
+                                )}
+                                {parentId(selectedItem) && (
+                                    <button type="button" onClick={() => transactions.runBatch([{
+                                        type: 'update',
+                                        id: selectedItem.id,
+                                        updates: { parentItemId: null },
+                                        before: selectedItem
+                                    }], `Detached ${selectedItem.title}`)}><Unlink size={16} /> Detach from shell</button>
+                                )}
+                            </div>
                             {itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? (
                                 <div className="magic-danger-zone">
                                     <strong>Delete shell</strong>
                                     <button type="button" onClick={() => deleteSelected('detach_children')}><Unlink size={15} /> Detach children, delete shell</button>
                                     <button type="button" onClick={() => deleteSelected('delete_children')}><Trash2 size={15} /> Delete shell and children</button>
                                 </div>
-                            ) : selectedItem._type !== 'task' && (
+                            ) : (
                                 <button type="button" className="magic-delete-button" onClick={() => deleteSelected()}><Trash2 size={15} /> Delete event</button>
                             )}
                         </div>

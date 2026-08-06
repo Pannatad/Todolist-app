@@ -11,17 +11,17 @@ const HabitNotesModal = ({ isOpen, onClose, habit, entries = [] }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                className="habit-notes-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
                 onClick={onClose}
             >
                 <Motion.div
                     initial={{ scale: 0.96, opacity: 0, y: 12 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.96, opacity: 0, y: 12 }}
-                    className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+                    className="habit-notes-modal__surface flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
                     onClick={(event) => event.stopPropagation()}
                 >
-                    <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
+                    <div className="habit-notes-modal__header flex items-start justify-between border-b border-slate-200 px-5 py-4">
                         <div>
                             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Habit notes</div>
                             <h2 className="mt-1 text-xl font-semibold text-slate-900">{habit.icon} {habit.name}</h2>
@@ -35,9 +35,9 @@ const HabitNotesModal = ({ isOpen, onClose, habit, entries = [] }) => {
                         </button>
                     </div>
 
-                    <div className="flex-1 space-y-3 overflow-y-auto px-5 py-5">
+                    <div className="habit-notes-modal__body flex-1 space-y-3 overflow-y-auto px-5 py-5">
                         {entries.length === 0 ? (
-                            <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
+                            <div className="habit-notes-modal__empty rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
                                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
                                     <FileText size={18} />
                                 </div>
@@ -46,7 +46,7 @@ const HabitNotesModal = ({ isOpen, onClose, habit, entries = [] }) => {
                             </div>
                         ) : (
                             entries.map((entry) => (
-                                <div key={`${entry.habit_id}-${entry.date}`} className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+                                <div key={`${entry.habit_id}-${entry.date}`} className="habit-notes-modal__entry rounded-[20px] border border-slate-200 bg-slate-50 p-4">
                                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 font-medium text-slate-700">
                                             <CalendarDays size={12} />

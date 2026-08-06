@@ -5,6 +5,7 @@ import {
     DEFAULT_COLUMNS,
     DEFAULT_PHASES,
     getPhaseColumns,
+    normalizeProjectTask,
 } from '../projectUtils';
 
 export const createProjectTaskActions = ({ projects, projectsRepo, setProjects, user }) => {
@@ -12,8 +13,9 @@ export const createProjectTaskActions = ({ projects, projectsRepo, setProjects, 
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
 
+        const taskWithoutDifficulty = normalizeProjectTask(task);
         const newTask = {
-            ...task,
+            ...taskWithoutDifficulty,
             id: crypto.randomUUID(),
             created_at: new Date().toISOString(),
             phaseId: task.phaseId || project?.phases?.[0]?.id || DEFAULT_PHASES[0].id,
@@ -54,7 +56,11 @@ export const createProjectTaskActions = ({ projects, projectsRepo, setProjects, 
         if (!project) return;
 
         // Compute updated tasks BEFORE updating state
-        const updatedTasks = project.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
+        const safeUpdates = normalizeProjectTask(updates);
+        const updatedTasks = project.tasks.map(t => {
+            const taskWithoutDifficulty = normalizeProjectTask(t);
+            return t.id === taskId ? { ...taskWithoutDifficulty, ...safeUpdates } : taskWithoutDifficulty;
+        });
         const progress = calculateProgress(updatedTasks, project);
 
         setProjects(prev => prev.map(p => {
@@ -403,4 +409,3 @@ export const createProjectTaskActions = ({ projects, projectsRepo, setProjects, 
         updateTask,
     };
 };
-

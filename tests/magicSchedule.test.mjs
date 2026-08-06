@@ -13,7 +13,8 @@ import {
 } from '../src/services/magicSchedule.js';
 import {
     buildScheduleAssistantMutationPlan,
-    isScheduleAssistantWriteAction
+    isScheduleAssistantWriteAction,
+    normalizeScheduleAssistantActions
 } from '../src/services/agentScheduleActions.js';
 import { hasExceededDragThreshold } from '../src/utils/pointerGestures.js';
 
@@ -90,6 +91,19 @@ test('template application generates a database-safe UUID for cloud persistence'
 
     assert.match(payload.templateApplicationId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     assert.equal(payload.color, '#ec4899');
+});
+
+test('template application without repeat days stays a one-day schedule', () => {
+    const [payload] = buildTemplateSchedulePayloads({
+        id: 'template',
+        version: 1,
+        name: 'One day',
+        blocks: [{ id: 'focus', title: 'Focus', startTime: '09:00', duration: 60 }]
+    }, { date: '2026-07-27', repeatDays: [] });
+
+    assert.equal(payload.recurrenceType, undefined);
+    assert.equal(payload.recurrenceDaysOfWeek, undefined);
+    assert.equal(new Date(payload.startTime).getDate(), 27);
 });
 
 test('template application links child events to the shell and inherits recurrence', () => {
@@ -388,6 +402,82 @@ test('assistant overwrite can resolve an existing block by title when the model 
     assert.equal(plan.unresolved.length, 0);
     assert.equal(plan.steps[0].id, 42);
     assert.equal(plan.steps[0].updates.recurrenceOverrides['2026-07-28'].title, 'Tutoring');
+});
+
+test('assistant delete by date removes recurring occurrences without renaming the series', () => {
+    const items = [
+        {
+            id: 'morning',
+            title: 'Deep work',
+            start_time: localIso('2026-07-27', '09:00'),
+            duration: 180,
+            recurrence_type: 'weekly',
+            recurrence_days_of_week: [1, 2, 3, 4, 5]
+        },
+        {
+            id: 'afternoon',
+            title: 'Light work',
+            start_time: localIso('2026-07-27', '13:00'),
+            duration: 120,
+            recurrence_type: 'weekly',
+            recurrence_days_of_week: [1, 2, 3, 4, 5]
+        }
+    ];
+    const plan = buildScheduleAssistantMutationPlan([{
+        type: 'delete_schedule',
+        params: { date: '2026-07-28' }
+    }], items);
+
+    assert.equal(plan.unresolved.length, 0);
+    assert.equal(plan.steps.length, 2);
+    assert.ok(plan.steps.every((step) => step.type === 'delete'));
+    assert.deepEqual(
+        plan.steps.map((step) => step.options),
+        [{ occurrenceDate: '2026-07-28' }, { occurrenceDate: '2026-07-28' }]
+    );
+    assert.deepEqual(plan.steps.map((step) => step.item.title), ['Deep work', 'Light work']);
+});
+
+test('assistant delete can target one recurring block on one date', () => {
+    const series = {
+        id: 'light-work',
+        title: 'Light work',
+        start_time: localIso('2026-07-27', '13:00'),
+        duration: 120,
+        recurrence_type: 'weekly',
+        recurrence_days_of_week: [1, 2, 3, 4, 5]
+    };
+    const plan = buildScheduleAssistantMutationPlan([{
+        type: 'delete_schedule',
+        params: { title: 'Light work', date: '2026-07-28' }
+    }], [series]);
+
+    assert.equal(plan.unresolved.length, 0);
+    assert.equal(plan.steps.length, 1);
+    assert.equal(plan.steps[0].item.id, 'light-work');
+    assert.deepEqual(plan.steps[0].options, { occurrenceDate: '2026-07-28' });
+});
+
+test('assistant removal never turns a schedule into a Cancelled title', () => {
+    const [action] = normalizeScheduleAssistantActions([{
+        type: 'edit_schedule',
+        params: { eventId: 'series-1', updates: { title: 'Cancelled' } },
+        explanation: 'Cancel the schedule'
+    }], 'remove my schedule for tomorrow');
+
+    assert.equal(action.type, 'delete_schedule');
+    assert.equal(action.params.eventId, 'series-1');
+    assert.match(action.params.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(action.params.updates, undefined);
+});
+
+test('assistant delete normalizes relative date words before resolving occurrences', () => {
+    const [action] = normalizeScheduleAssistantActions([{
+        type: 'delete_schedule',
+        params: {}
+    }], 'remove every schedule tomorrow');
+
+    assert.match(action.params.date, /^\d{4}-\d{2}-\d{2}$/);
 });
 
 test('assistant mutations fail closed instead of reporting success for an unknown target', () => {

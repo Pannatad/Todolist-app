@@ -27,8 +27,11 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
   if (!entry) {
     return (
       <section
-        className="-mx-3 rounded-3xl px-3 py-4"
-        style={{ background: 'radial-gradient(130% 150% at 8% 0%, color-mix(in srgb, var(--color-accent) 10%, transparent) 0%, transparent 62%)' }}
+        className="-mx-3 rounded-3xl border px-4 py-5"
+        style={{
+          background: 'linear-gradient(135deg, color-mix(in oklch, var(--color-accent) 13%, var(--color-card-raised)), var(--color-card-raised) 74%)',
+          borderColor: 'color-mix(in oklch, var(--color-accent) 30%, var(--color-rule))',
+        }}
       >
         <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Free</p>
         <h2 className="mt-1 text-3xl font-bold leading-tight tracking-tight text-[var(--color-ink)]">Nothing scheduled</h2>
@@ -52,8 +55,11 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
 
   return (
     <section
-      className="-mx-3 cursor-pointer select-none rounded-3xl px-3 py-4"
-      style={{ background: `radial-gradient(130% 150% at 8% 0%, color-mix(in srgb, ${color} 13%, transparent) 0%, transparent 62%)` }}
+      className="-mx-3 cursor-pointer select-none rounded-3xl border px-4 py-5"
+      style={{
+        background: `linear-gradient(135deg, color-mix(in oklch, ${color} 13%, var(--color-card-raised)), var(--color-card-raised) 74%)`,
+        borderColor: `color-mix(in oklch, ${color} 30%, var(--color-rule))`,
+      }}
       onClick={() => onOpen(entry.item)}
       role="button"
       tabIndex={0}

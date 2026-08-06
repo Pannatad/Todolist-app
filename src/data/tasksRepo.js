@@ -19,6 +19,8 @@ const toDbTask = (task) => {
     delete dbTask.estimatedTime;
     delete dbTask.completed;
     delete dbTask.completedAt;
+    // Compatibility only: older schemas may require this column. App records strip it.
+    dbTask.difficulty = 'easy';
     return dbTask;
 };
 
@@ -26,7 +28,6 @@ const toDbUpdates = (updates, task) => {
     const dbUpdates = {};
     if (updates.title !== undefined) dbUpdates.title = task.title;
     if (updates.description !== undefined) dbUpdates.description = task.description;
-    if (updates.difficulty !== undefined) dbUpdates.difficulty = task.difficulty;
     if (updates.subject !== undefined) dbUpdates.subject = task.subject;
     if (updates.deadline !== undefined) dbUpdates.deadline = task.deadline;
     if (updates.archived !== undefined) dbUpdates.archived = task.archived;

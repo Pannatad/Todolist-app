@@ -6,6 +6,7 @@ import './index.css'
 import './ui/ui.css'
 import './app-shell.css'
 import App from './App.jsx'
+import './editable-focus.css'
 import { AppProviders } from './context/AppProviders'
 
 // Global Error Handler for debugging

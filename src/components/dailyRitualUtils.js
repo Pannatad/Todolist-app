@@ -56,14 +56,7 @@ const getTaskEstimate = (task) => {
         return Math.min(120, Math.max(25, explicitEstimate));
     }
 
-    switch (String(task.difficulty || '').toLowerCase()) {
-        case 'hard':
-            return 90;
-        case 'medium':
-            return 60;
-        default:
-            return 35;
-    }
+    return 35;
 };
 
 const getHabitEstimate = (habit) => {
@@ -84,8 +77,7 @@ const sortTasksForRitual = (left, right) => {
     const rightDeadline = right.deadline ? new Date(right.deadline).getTime() : Number.POSITIVE_INFINITY;
     if (leftDeadline !== rightDeadline) return leftDeadline - rightDeadline;
 
-    const difficultyRank = { hard: 0, medium: 1, easy: 2 };
-    return (difficultyRank[left.difficulty] ?? 3) - (difficultyRank[right.difficulty] ?? 3);
+    return 0;
 };
 
 const makeTaskCandidate = (task) => ({

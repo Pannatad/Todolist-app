@@ -2,6 +2,7 @@ import {
     getScheduleItemsForDate,
     isRecurringScheduleItem,
     upsertOverride,
+    toLocalDateKey,
     weekdayOverrideKey
 } from '../utils/scheduleOccurrences.js';
 import { sanitizeMagicTemplateBlocks } from './magicSchedule.js';
@@ -94,6 +95,70 @@ const actionTargetTitles = (params = {}) => [
     params.title
 ].map(normalizedTitle).filter(Boolean);
 
+const localDateAfterDays = (days) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return toLocalDateKey(date);
+};
+
+const inferredRequestDate = (requestText = '') => {
+    const text = String(requestText).toLowerCase();
+    if (/\btomorrow\b/.test(text)) return localDateAfterDays(1);
+    if (/\b(today|tonight)\b/.test(text)) return localDateAfterDays(0);
+    return null;
+};
+
+const cancellationTitle = (value) => ['cancelled', 'canceled'].includes(normalizedTitle(value));
+
+// Some local models still express a removal as an edit that renames the block
+// "Cancelled". Convert that narrow, unambiguous mistake before it reaches the
+// schedule executor. Intentional renames remain edits unless the request itself
+// contains a removal/cancellation verb.
+export const normalizeScheduleAssistantActions = (actions = [], requestText = '') => {
+    const removalIntent = /\b(remove|delete|clear|cancel|cancellation)\b/i.test(String(requestText));
+    if (!removalIntent) return actions;
+
+    const fallbackDate = inferredRequestDate(requestText);
+    const resolveDate = (value) => {
+        const normalized = normalizedTitle(value);
+        if (normalized === 'tomorrow') return localDateAfterDays(1);
+        if (normalized === 'today' || normalized === 'tonight') return localDateAfterDays(0);
+        return value;
+    };
+    return actions.map((action) => {
+        if (action?.type === 'delete_schedule') {
+            const params = action.params || {};
+            return {
+                ...action,
+                params: {
+                    ...params,
+                    date: resolveDate(params.date) || ((!params.dates || !params.dates.length) ? fallbackDate : undefined),
+                    dates: Array.isArray(params.dates) ? params.dates.map(resolveDate) : params.dates
+                }
+            };
+        }
+        if (action?.type !== 'edit_schedule') return action;
+        const params = action.params || {};
+        const updates = params.updates || {};
+        const title = updates.title ?? params.title;
+        if (!cancellationTitle(title)) return action;
+
+        const existingTitle = params.existingTitle || params.targetTitle || params.originalTitle || params.eventTitle;
+        return {
+            ...action,
+            type: 'delete_schedule',
+            params: {
+                ...params,
+                title: cancellationTitle(params.title) ? existingTitle : (existingTitle || params.title),
+                date: resolveDate(params.date) || fallbackDate || undefined,
+                dates: Array.isArray(params.dates) ? params.dates.map(resolveDate) : params.dates,
+                updates: undefined
+            },
+            explanation: 'Remove the schedule block instead of renaming it.'
+        };
+    });
+};
+
 export const resolveScheduleAssistantTarget = (items = [], params = {}) => {
     if (params.eventId != null) {
         const byId = items.find((item) => String(item.id) === String(params.eventId));
@@ -161,6 +226,51 @@ const expandedScopes = (params = {}) => {
         return params.weekdays.map((weekday) => ({ ...params, weekday, weekdays: undefined }));
     }
     return [params];
+};
+
+// Resolve delete requests separately from edits. A request such as "remove my
+// schedule tomorrow" has no single event id, so it means all occurrences on
+// that date. When a recurring item is targeted, keep the series and remove
+// only the requested occurrence.
+export const resolveScheduleAssistantDeleteTargets = (items = [], params = {}) => {
+    const targets = [];
+    const unresolved = [];
+    const seen = new Set();
+
+    expandedScopes(params).forEach((scope) => {
+        const hasIdentity = scope.eventId != null || actionTargetTitles(scope).length > 0;
+        let candidates = [];
+
+        if (hasIdentity) {
+            const target = resolveScheduleAssistantTarget(items, scope);
+            if (target) candidates = [target];
+        } else if (scope.date) {
+            // No title/id + a date is an intentional "clear this day" request.
+            candidates = getScheduleItemsForDate(items, scope.date);
+        }
+
+        if (!candidates.length) {
+            unresolved.push({
+                scope,
+                reason: scope.date
+                    ? 'No schedule blocks were found for that date.'
+                    : 'The schedule block to delete could not be found.'
+            });
+            return;
+        }
+
+        candidates.forEach((item) => {
+            const occurrenceDate = scope.date && isRecurringScheduleItem(item)
+                ? scope.date
+                : undefined;
+            const key = `${String(item.id)}:${occurrenceDate || 'series'}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            targets.push({ item, options: occurrenceDate ? { occurrenceDate } : undefined });
+        });
+    });
+
+    return { targets, unresolved };
 };
 
 export const buildScheduleAssistantMutationPlan = (actions = [], items = []) => {
@@ -245,19 +355,11 @@ export const buildScheduleAssistantMutationPlan = (actions = [], items = []) => 
             });
         }
         if (action.type === 'delete_schedule') {
-            expandedScopes(params).forEach((scope) => {
-                const existing = findProjectedTarget(scope);
-                if (!existing) {
-                    unresolved.push({ action, reason: 'The schedule block to delete could not be found.' });
-                    return;
-                }
-                steps.push({
-                    type: 'delete',
-                    item: existing,
-                    options: scope.date && isRecurringScheduleItem(existing)
-                        ? { occurrenceDate: scope.date }
-                        : undefined
-                });
+            const resolution = resolveScheduleAssistantDeleteTargets([...projected.values()], params);
+            resolution.unresolved.forEach(({ reason }) => unresolved.push({ action, reason }));
+            resolution.targets.forEach(({ item, options }) => {
+                const existing = projected.get(String(item.id)) || item;
+                steps.push({ type: 'delete', item: existing, options });
             });
         }
         if (action.type === 'duplicate_schedule') {

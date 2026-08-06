@@ -1,5 +1,6 @@
-import { AI_BACKEND_AVAILABLE, fileToGenerativePart, genAI, MODEL_NAME } from './geminiShared';
+import { AI_BACKEND_AVAILABLE, fileToGenerativePart, genAI, MODEL_NAME } from './geminiShared.js';
 import { log } from '../../utils/log.js';
+import { sanitizeActivitySuggestions, sanitizeParsedTask, sanitizeParsedTasks } from '../../utils/taskParsing.js';
 
 export const parseTaskInput = async (input) => {
     log('parseTaskInput called with input:', input);
@@ -7,7 +8,6 @@ export const parseTaskInput = async (input) => {
         console.warn("⚠️ Gemini API Key is missing.");
         return {
             title: input,
-            difficulty: 'easy',
             deadline: null,
             subject: null,
             estimatedTime: null
@@ -37,23 +37,21 @@ export const parseTaskInput = async (input) => {
             
             Extract the following information:
             1. **title**: The cleaned task description (without metadata like due dates, subjects, etc.)
-            2. **difficulty**: 'easy', 'medium', or 'hard' (infer from context, default to 'easy' if unclear)
-            3. **deadline**: ISO 8601 datetime string (e.g., "2025-11-25T23:59:00") or null. Parse relative dates like "today", "tomorrow", "tonight", and specific times like "11.59", "3pm", etc.
-            4. **subject**: The subject/category (e.g., "English", "Math", "Work") or null
-            5. **estimatedTime**: Estimated time in minutes (number) or null
+            2. **deadline**: ISO 8601 datetime string (e.g., "2025-11-25T23:59:00") or null. Parse relative dates like "today", "tomorrow", "tonight", and specific times like "11.59", "3pm", etc.
+            3. **subject**: The subject/category (e.g., "English", "Math", "Work") or null
+            4. **estimatedTime**: Estimated time in minutes (number) or null
             
             Rules:
             - "today" or "tonight" means today at 11:59 PM at Thailand time
             - "tomorrow" means tomorrow at 11:59 PM
             - If time is specified (e.g., "11.59", "3pm"), use it for the deadline
             - If only date is mentioned without time, default to 11:59 PM
-            - If input is just a simple task with no metadata, return defaults (difficulty='easy', everything else null)
+            - If input is just a simple task with no metadata, return null for optional fields
             - Clean the title to remove metadata mentions
             
             Reply with ONLY a JSON object in this exact format (no markdown, no extra text):
             {
                 "title": "cleaned task title",
-                "difficulty": "easy|medium|hard",
                 "deadline": "ISO datetime string or null",
                 "subject": "subject name or null",
                 "estimatedTime": number or null
@@ -78,13 +76,7 @@ export const parseTaskInput = async (input) => {
         log('Parsed JSON:', parsed);
 
         // Validate and sanitize the response
-        const result_object = {
-            title: parsed.title || input,
-            difficulty: ['easy', 'medium', 'hard'].includes(parsed.difficulty) ? parsed.difficulty : 'easy',
-            deadline: parsed.deadline || null,
-            subject: parsed.subject || null,
-            estimatedTime: parsed.estimatedTime ? parseInt(parsed.estimatedTime) : null
-        };
+        const result_object = sanitizeParsedTask(parsed, input);
 
         log('Returning result:', result_object);
         return result_object;
@@ -96,7 +88,6 @@ export const parseTaskInput = async (input) => {
         // Fallback to original input with defaults
         return {
             title: input,
-            difficulty: 'easy',
             deadline: null,
             subject: null,
             estimatedTime: null
@@ -229,7 +220,7 @@ export const getSmartSuggestions = async (tasks, timeOfDay) => {
             text = text.replace(/```json/g, '').replace(/```/g, '');
         }
 
-        return JSON.parse(text);
+        return sanitizeActivitySuggestions(JSON.parse(text));
     } catch (error) {
         console.error("Error getting smart suggestions:", error);
         return [];
@@ -270,19 +261,17 @@ export const parseTaskImage = async (file) => {
             Extract all tasks found in the image.
             For each task, extract:
             1. **title**: The task description.
-            2. **difficulty**: 'easy', 'medium', or 'hard' (infer from context/complexity).
-            3. **deadline**: ISO 8601 datetime string (e.g., "2025-11-25T23:59:00") or null. 
+            2. **deadline**: ISO 8601 datetime string (e.g., "2025-11-25T23:59:00") or null.
                - Parse relative dates like "today", "tomorrow", "tonight".
                - "today" or "tonight" means today at 11:59 PM.
                - "tomorrow" means tomorrow at 11:59 PM.
-            4. **subject**: Category/Subject (e.g., "Work", "Personal", "Study") or null.
-            5. **estimatedTime**: Estimated time in minutes (number) or null.
+            3. **subject**: Category/Subject (e.g., "Work", "Personal", "Study") or null.
+            4. **estimatedTime**: Estimated time in minutes (number) or null.
 
             Reply with a JSON array of objects:
             [
                 {
                     "title": "Task Title",
-                    "difficulty": "easy",
                     "deadline": "2025-12-01T12:00:00",
                     "subject": "Personal",
                     "estimatedTime": 30
@@ -303,7 +292,7 @@ export const parseTaskImage = async (file) => {
             text = text.replace(/```json/g, '').replace(/```/g, '');
         }
 
-        return JSON.parse(text);
+        return sanitizeParsedTasks(JSON.parse(text));
     } catch (error) {
         console.error("Error parsing task image:", error);
         return [];
@@ -379,4 +368,3 @@ export const parseScheduleCommand = async (transcript) => {
  * @param {Object} context - Optional context about current state (tasks, schedule, user profile).
  * @returns {Promise<Object>} - { actions: [...], summary: "..." }
  */
-

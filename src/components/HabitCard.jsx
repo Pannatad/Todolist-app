@@ -1,121 +1,8 @@
-/* eslint-disable no-unused-vars, react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Clock, Edit2, FileText, Flame, Hash, Lock, Sprout, Trash2 } from 'lucide-react';
-import { SEED_HEALTH_META, SEED_STAGE_META } from '../constants/habitSeeds';
-const COLOR_CONFIGS = {
-    slate: {
-        surface: 'from-slate-50 via-white to-slate-100',
-        iconBg: 'bg-slate-100',
-        softText: 'text-slate-500',
-        actionBg: 'bg-slate-600 hover:bg-slate-700',
-        progressBg: 'bg-slate-100',
-        progressFill: 'bg-slate-600',
-        dot: 'bg-slate-600',
-        dotEmpty: 'bg-slate-200',
-    },
-    rose: {
-        surface: 'from-rose-50 via-white to-pink-50',
-        iconBg: 'bg-rose-100',
-        softText: 'text-rose-500',
-        actionBg: 'bg-rose-500 hover:bg-rose-600',
-        progressBg: 'bg-rose-100',
-        progressFill: 'bg-rose-500',
-        dot: 'bg-rose-500',
-        dotEmpty: 'bg-rose-200',
-    },
-    purple: {
-        surface: 'from-purple-50 via-white to-indigo-50',
-        iconBg: 'bg-purple-100',
-        softText: 'text-purple-500',
-        actionBg: 'bg-purple-500 hover:bg-purple-600',
-        progressBg: 'bg-purple-100',
-        progressFill: 'bg-purple-500',
-        dot: 'bg-purple-500',
-        dotEmpty: 'bg-purple-200',
-    },
-    pink: {
-        surface: 'from-pink-50 via-white to-rose-50',
-        iconBg: 'bg-pink-100',
-        softText: 'text-pink-500',
-        actionBg: 'bg-pink-500 hover:bg-pink-600',
-        progressBg: 'bg-pink-100',
-        progressFill: 'bg-pink-500',
-        dot: 'bg-pink-500',
-        dotEmpty: 'bg-pink-200',
-    },
-    indigo: {
-        surface: 'from-indigo-50 via-white to-blue-50',
-        iconBg: 'bg-indigo-100',
-        softText: 'text-indigo-500',
-        actionBg: 'bg-indigo-500 hover:bg-indigo-600',
-        progressBg: 'bg-indigo-100',
-        progressFill: 'bg-indigo-500',
-        dot: 'bg-indigo-500',
-        dotEmpty: 'bg-indigo-200',
-    },
-    blue: {
-        surface: 'from-blue-50 via-white to-sky-50',
-        iconBg: 'bg-blue-100',
-        softText: 'text-blue-500',
-        actionBg: 'bg-blue-500 hover:bg-blue-600',
-        progressBg: 'bg-blue-100',
-        progressFill: 'bg-blue-500',
-        dot: 'bg-blue-500',
-        dotEmpty: 'bg-blue-200',
-    },
-    teal: {
-        surface: 'from-teal-50 via-white to-cyan-50',
-        iconBg: 'bg-teal-100',
-        softText: 'text-teal-500',
-        actionBg: 'bg-teal-500 hover:bg-teal-600',
-        progressBg: 'bg-teal-100',
-        progressFill: 'bg-teal-500',
-        dot: 'bg-teal-500',
-        dotEmpty: 'bg-teal-200',
-    },
-    cyan: {
-        surface: 'from-cyan-50 via-white to-sky-50',
-        iconBg: 'bg-cyan-100',
-        softText: 'text-cyan-500',
-        actionBg: 'bg-cyan-500 hover:bg-cyan-600',
-        progressBg: 'bg-cyan-100',
-        progressFill: 'bg-cyan-500',
-        dot: 'bg-cyan-500',
-        dotEmpty: 'bg-cyan-200',
-    },
-    lime: {
-        surface: 'from-lime-50 via-white to-emerald-50',
-        iconBg: 'bg-lime-100',
-        softText: 'text-lime-500',
-        actionBg: 'bg-lime-500 hover:bg-lime-600',
-        progressBg: 'bg-lime-100',
-        progressFill: 'bg-lime-500',
-        dot: 'bg-lime-500',
-        dotEmpty: 'bg-lime-200',
-    },
-    amber: {
-        surface: 'from-amber-50 via-white to-orange-50',
-        iconBg: 'bg-amber-100',
-        softText: 'text-amber-500',
-        actionBg: 'bg-amber-500 hover:bg-amber-600',
-        progressBg: 'bg-amber-100',
-        progressFill: 'bg-amber-500',
-        dot: 'bg-amber-500',
-        dotEmpty: 'bg-amber-200',
-    },
-    emerald: {
-        surface: 'from-emerald-50 via-white to-green-50',
-        iconBg: 'bg-emerald-100',
-        softText: 'text-emerald-500',
-        actionBg: 'bg-emerald-500 hover:bg-emerald-600',
-        progressBg: 'bg-emerald-100',
-        progressFill: 'bg-emerald-500',
-        dot: 'bg-emerald-500',
-        dotEmpty: 'bg-emerald-200',
-    },
-};
-const INDEX_COLORS = ['slate', 'rose', 'purple', 'pink', 'indigo', 'blue', 'teal', 'cyan', 'lime', 'amber'];
+import { AnimatePresence, motion as Motion } from 'framer-motion';
+import { Check, Circle, Clock, Edit2, FileText, Flame, Lock, Trash2 } from 'lucide-react';
+
 const formatTime12h = (timeStr) => {
     if (!timeStr) return null;
     const [hours, minutes] = timeStr.split(':');
@@ -124,6 +11,7 @@ const formatTime12h = (timeStr) => {
     const hour12 = hour % 12 || 12;
     return `${hour12}:${minutes} ${ampm}`;
 };
+
 const getFrequencyLabel = (habit) => {
     if (habit.frequency === 'daily') return 'Daily';
     if (habit.schedule_days?.length) {
@@ -132,13 +20,26 @@ const getFrequencyLabel = (habit) => {
     }
     return 'Custom';
 };
-const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, onEdit, onDelete, streak, seedInsight, compact = false, index = 0, disabled = false, disabledReason = '' }) => {
+
+const HabitCard = ({
+    habit,
+    log,
+    onLog,
+    onSaveNote,
+    noteCount = 0,
+    onViewNotes,
+    onEdit,
+    onDelete,
+    streak,
+    seedInsight,
+    compact = false,
+    disabled = false,
+    disabledReason = '',
+}) => {
     const [justCompleted, setJustCompleted] = useState(false);
     const [localDuration, setLocalDuration] = useState(null);
     const [isEditingNote, setIsEditingNote] = useState(false);
     const [noteDraft, setNoteDraft] = useState(log?.notes || '');
-    const colorKey = habit.color || INDEX_COLORS[index % INDEX_COLORS.length];
-    const color = COLOR_CONFIGS[colorKey] || COLOR_CONFIGS.teal;
     const actualValue = log?.value || 0;
     const currentValue = localDuration !== null ? localDuration : actualValue;
     const isCompleted = log?.completed || false;
@@ -147,20 +48,17 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
         ? (isCompleted ? 100 : 0)
         : Math.min((currentValue / habit.target) * 100, 100);
     const currentStreak = streak?.current || 0;
-    const seedStageMeta = habit.is_seed
-        ? (SEED_STAGE_META[seedInsight?.stage || 'seed'] || SEED_STAGE_META.seed)
-        : null;
-    const seedHealthMeta = habit.is_seed
-        ? (SEED_HEALTH_META[seedInsight?.health || 'healthy'] || SEED_HEALTH_META.healthy)
-        : null;
     const seedEnded = Boolean(seedInsight?.ended);
+
+    useEffect(() => {
+        setNoteDraft(log?.notes || '');
+    }, [log?.notes]);
+
     const pulseCompletion = () => {
         setJustCompleted(true);
         setTimeout(() => setJustCompleted(false), 1000);
     };
-    useEffect(() => {
-        setNoteDraft(log?.notes || '');
-    }, [log?.notes]);
+
     const handleIncrement = (event) => {
         event?.stopPropagation();
         if (disabled) return;
@@ -173,302 +71,209 @@ const HabitCard = ({ habit, log, onLog, onSaveNote, noteCount = 0, onViewNotes, 
         if (nextValue >= habit.target && !isCompleted) pulseCompletion();
         onLog(habit.id, nextValue, nextValue >= habit.target);
     };
+
     const handleDurationChange = (event) => {
         event.stopPropagation();
         if (disabled) return;
         const parsedValue = parseInt(event.target.value, 10);
         setLocalDuration(Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : 0);
     };
+
     const handleDurationCommit = (event) => {
-        event.stopPropagation();
-        if (disabled) return;
-        if (localDuration === null) return;
+        event?.stopPropagation();
+        if (disabled || localDuration === null) return;
         if (localDuration >= habit.target && actualValue < habit.target) pulseCompletion();
         onLog(habit.id, localDuration, localDuration >= habit.target);
         setLocalDuration(null);
     };
+
     const handleSaveNote = () => {
         if (disabled) return;
         onSaveNote?.(habit.id, noteDraft.trim());
         setIsEditingNote(false);
     };
+
     if (compact) {
         return (
-            <motion.button
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.94 }}
+            <Motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={handleIncrement}
                 disabled={disabled}
-                className={`h-10 w-10 rounded-2xl border border-[var(--color-rule)]  transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isCompleted
-                    ? `${color.actionBg} text-white`
-                    : 'bg-[var(--color-card-raised)] text-[var(--color-muted)]'
-                    }`}
+                aria-label={isCompleted ? `Undo ${habit.name}` : `Complete ${habit.name}`}
+                className={`habit-compact-control${isCompleted ? ' is-completed' : ''}`}
             >
-                {isCompleted ? <Check size={16} className="mx-auto" strokeWidth={3} /> : <span className="text-xs">+</span>}
-            </motion.button>
+                {isCompleted ? <Check size={16} strokeWidth={3} /> : <span>+</span>}
+            </Motion.button>
         );
     }
+
     return (
-        <motion.article
-            className="group relative overflow-hidden rounded-[24px] border border-[var(--color-rule)] bg-[var(--color-card)]"
+        <Motion.article
+            className={`habit-row${isCompleted ? ' is-completed' : ''}${disabled ? ' is-disabled' : ''}`}
+            data-habit-color={habit.color || 'slate'}
         >
             <AnimatePresence>
                 {justCompleted && (
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-[var(--color-success-soft)]/40"
+                        className="habit-row__completion"
+                        aria-hidden="true"
                     />
                 )}
             </AnimatePresence>
-            <div className="relative z-10 p-4">
-                <div className="flex items-start gap-3">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-xl `}>
-                        {habit.icon}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className={`truncate text-base font-black text-[var(--color-ink)] ${isCompleted ? 'line-through opacity-60' : ''}`}>
-                                        {habit.name}
-                                    </h3>
-                                    {habit.is_seed && seedStageMeta && (
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-success)]/40 bg-[var(--color-success-soft)] px-2.5 py-1 text-[11px] font-black text-[var(--color-success)]">
-                                            <Sprout size={12} />
-                                            {seedStageMeta.label}
-                                        </span>
-                                    )}
-                                    {habit.is_seed && seedHealthMeta && (
-                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${seedHealthMeta.badge}`}>
-                                            {seedHealthMeta.label}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--color-muted)]">
-                                    <span>{getFrequencyLabel(habit)}</span>
-                                    {habit.reminder_time && (
-                                        <span className={color.softText}>{formatTime12h(habit.reminder_time)}</span>
-                                    )}
-                                    {currentStreak > 0 && (
-                                        <span className="inline-flex items-center gap-1 font-medium text-[var(--color-warning)]">
-                                            <Flame size={14} strokeWidth={2.7} />
-                                            {currentStreak} day streak
-                                        </span>
-                                    )}
-                                    {disabled && (
-                                        <span className="inline-flex items-center gap-1 font-medium text-[var(--color-muted)]" title={disabledReason}>
-                                            <Lock size={13} strokeWidth={2.7} />
-                                            {seedEnded ? 'Seed ended' : 'Read-only'}
-                                        </span>
-                                    )}
-                                    {habit.is_seed && seedInsight && (
-                                        <span className={`font-medium ${seedEnded ? 'text-[var(--color-muted)]' : 'text-[var(--color-success)]'}`}>
-                                            {seedEnded ? 'Replant needed' : `Step ${seedInsight.elapsedDays} of ${seedInsight.durationDays}`}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                                {habit.type === 'check' && (
-                                    <motion.button
-                                        whileTap={{ scale: 0.92 }}
-                                        onClick={handleIncrement}
-                                        disabled={disabled}
-                                        title={disabled ? disabledReason : undefined}
-                                        className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-all disabled:cursor-not-allowed disabled:opacity-55 ${isCompleted
-                                            ? 'border-[var(--color-success)] bg-[var(--color-success)] text-white'
-                                            : 'border-[var(--color-rule-2)] bg-[var(--color-card-raised)] text-[var(--color-muted)] hover:border-[var(--color-success)] hover:text-[var(--color-success)]'
-                                            }`}
-                                    >
-                                        <Check size={18} strokeWidth={3} />
-                                    </motion.button>
-                                )}
-                                {habit.type === 'count' && (
-                                    <motion.button
-                                        whileTap={{ scale: 0.96 }}
-                                        onClick={handleIncrement}
-                                        disabled={disabled}
-                                        title={disabled ? disabledReason : undefined}
-                                        className={`rounded-full border border-[var(--color-rule)] px-3.5 py-2.5 text-sm font-black text-white  disabled:cursor-not-allowed disabled:opacity-55 ${color.actionBg}`}
-                                    >
-                                        Log Progress
-                                    </motion.button>
-                                )}
-                                {habit.type === 'duration' && (
-                                    <div className="w-32 rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] p-2.5">
-                                        <div className="mb-2 flex items-center justify-between text-xs text-[var(--color-muted)]">
-                                            <span>Minutes</span>
-                                            <span>{currentValue}/{habit.target}</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max={habit.target}
-                                            value={currentValue}
-                                            onChange={handleDurationChange}
-                                            onMouseUp={handleDurationCommit}
-                                            onTouchEnd={handleDurationCommit}
-                                            disabled={disabled}
-                                            title={disabled ? disabledReason : undefined}
-                                            className="w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-55"
-                                            style={{ accentColor: '#14B8A6' }}
-                                            onClick={(event) => event.stopPropagation()}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+
+            <div className="habit-row__main">
+                <div className="habit-row__mark">
+                    {habit.type === 'duration' ? (
+                        <span className="habit-row__type-icon" title="Duration habit">
+                            <Clock size={17} aria-hidden="true" />
+                        </span>
+                    ) : (
+                        <Motion.button
+                            whileTap={{ scale: 0.92 }}
+                            onClick={handleIncrement}
+                            disabled={disabled}
+                            title={disabled ? disabledReason : undefined}
+                            aria-label={isCompleted ? `Undo ${habit.name}` : `Log ${habit.name}`}
+                            className={`habit-row__check${isCompleted ? ' is-completed' : ''}`}
+                        >
+                            {isCompleted ? <Check size={17} strokeWidth={3} /> : <Circle size={19} strokeWidth={1.8} />}
+                        </Motion.button>
+                    )}
+                </div>
+
+                <div className="habit-row__body">
+                    <div className="habit-row__heading">
+                        <div className="habit-row__title-line">
+                            <span className="habit-row__icon" aria-hidden="true">{habit.icon}</span>
+                            <h3 className={isCompleted ? 'is-completed' : ''}>{habit.name}</h3>
                         </div>
-                        {!habit.is_seed && (
-                            <div className="mt-3 rounded-[18px] border border-[var(--color-rule)] bg-[var(--color-card-raised)] p-3">
-                                {habit.type === 'check' && (
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-sm font-black text-[var(--color-ink)]">Daily check-in</div>
-                                            <div className="mt-1 text-xs text-[var(--color-muted)]">
-                                                {isCompleted ? 'Completed for this day.' : 'Tap the check button when done.'}
-                                            </div>
-                                        </div>
-                                        <div className={`rounded-full border border-[var(--color-rule)] px-3 py-1 text-xs font-black ${isCompleted ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]' : 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)]'}`}>
-                                            {isCompleted ? 'Done' : 'Pending'}
-                                        </div>
+                        <div className="habit-row__meta">
+                            <span>{getFrequencyLabel(habit)}</span>
+                            {habit.reminder_time && <span>{formatTime12h(habit.reminder_time)}</span>}
+                            {currentStreak > 0 && (
+                                <span className="habit-row__streak">
+                                    <Flame size={13} strokeWidth={2.5} aria-hidden="true" />
+                                    {currentStreak} day streak
+                                </span>
+                            )}
+                            {disabled && (
+                                <span title={disabledReason}>
+                                    <Lock size={12} aria-hidden="true" />
+                                    {seedEnded ? 'Seed ended' : 'Read-only'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {habit.type !== 'check' && (
+                        <div className="habit-row__progress">
+                            {habit.type === 'count' && (
+                                <div className="habit-progress-line">
+                                    <div className="habit-progress-line__bar" aria-hidden="true">
+                                        <span style={{ width: `${progress}%` }} />
                                     </div>
-                                )}
-                                {habit.type === 'count' && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-sm font-black text-[var(--color-ink)]">Count progress</div>
-                                            <div className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-ink-2)]">
-                                                <Hash size={14} />
-                                                {currentValue}/{habit.target}
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {Array.from({ length: Math.min(habit.target, 12) }).map((_, dotIndex) => (
-                                                <div
-                                                    key={dotIndex}
-                                                    className={`h-4 w-4 rounded-full border border-[var(--color-rule)] transition-all ${dotIndex < currentValue ? color.dot : 'bg-[var(--color-rule)]'}`}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {habit.type === 'duration' && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                    <div className="inline-flex items-center gap-2 text-sm font-black text-[var(--color-ink-2)]">
-                                                <Clock size={15} strokeWidth={2.7} />
-                                                Focus duration
-                                            </div>
-                                            <div className="text-sm font-semibold text-[var(--color-ink-2)]">{currentValue}/{habit.target} min</div>
-                                        </div>
-                                        <div className={`h-3 overflow-hidden rounded-full border border-[var(--color-rule)] bg-[var(--color-paper-2)]`}>
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${progress}%` }}
-                                                transition={{ duration: 0.6, ease: 'easeOut' }}
-                                                className={`h-full rounded-full ${color.progressFill}`}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        <div className="mt-3 rounded-[18px] border border-[var(--color-rule)] bg-[var(--color-card-raised)] p-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="inline-flex items-center gap-2 text-sm font-black text-[var(--color-ink-2)]">
-                                    <FileText size={14} strokeWidth={2.7} />
-                                    Notes
+                                    <span className="habit-progress-line__value">{currentValue}/{habit.target}</span>
                                 </div>
-                                {!isEditingNote && (
-                                    <button
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            if (disabled) return;
-                                            setIsEditingNote(true);
-                                        }}
+                            )}
+                            {habit.type === 'duration' && (
+                                <div className="habit-duration-line">
+                                    <input
+                                        id={`habit-duration-${habit.id}`}
+                                        type="range"
+                                        min="0"
+                                        max={habit.target}
+                                        value={currentValue}
+                                        onChange={handleDurationChange}
+                                        onMouseUp={handleDurationCommit}
+                                        onTouchEnd={handleDurationCommit}
+                                        onBlur={handleDurationCommit}
                                         disabled={disabled}
                                         title={disabled ? disabledReason : undefined}
-                                        className="rounded-full border border-[var(--color-rule)] bg-[var(--color-paper-2)] px-2.5 py-1 text-xs font-black text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-paper-3)] hover:text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {noteText ? 'Edit' : 'Add note'}
-                                    </button>
-                                )}
-                            </div>
-                            {isEditingNote ? (
-                                <div className="mt-3 space-y-2">
-                                    <textarea
-                                        value={noteDraft}
-                                        onChange={(event) => setNoteDraft(event.target.value)}
-                                        onClick={(event) => event.stopPropagation()}
-                                        disabled={disabled}
-                                        rows={2}
-                                        placeholder={habit.type === 'duration'
-                                            ? 'e.g. Woke up at 6:20 AM'
-                                            : 'e.g. Walking, running 2 km, weight training'}
-                                        className="w-full rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        aria-label={`${habit.name} duration`}
                                     />
-                                    <div className="flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setNoteDraft(noteText);
-                                                setIsEditingNote(false);
-                                            }}
-                                            className="rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-1.5 text-xs font-black text-[var(--color-ink-2)] transition-colors hover:bg-[var(--color-paper-2)]"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                handleSaveNote();
-                                            }}
-                                            disabled={disabled}
-                                            className="rounded-full border border-[var(--color-rule)] bg-[var(--color-accent)] px-3 py-1.5 text-xs font-black text-[var(--color-accent-ink)] transition-colors hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            Save
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="mt-2 space-y-2">
-                                    <div className="text-sm font-medium text-[var(--color-muted)]">
-                                        {noteText || 'No note for this day.'}
-                                    </div>
-                                    {onViewNotes && (
-                                        <button
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onViewNotes();
-                                            }}
-                                            className="text-xs font-black text-[var(--color-muted)] transition-colors hover:text-[var(--color-ink)]"
-                                        >
-                                            {noteCount > 0 ? `View note history (${noteCount})` : 'Open note history'}
-                                        </button>
-                                    )}
+                                    <span className="habit-progress-line__value">{currentValue}/{habit.target} min</span>
                                 </div>
                             )}
                         </div>
-                        <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-rule)] pt-3">
-                            <button
-                                onClick={(event) => { event.stopPropagation(); onEdit?.(habit); }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-muted)] transition-colors hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
-                            >
-                                <Edit2 size={14} />
-                            </button>
-                            <button
-                                onClick={(event) => { event.stopPropagation(); onDelete?.(habit.id); }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-muted)] transition-colors hover:bg-[var(--color-error-soft)] hover:text-[var(--color-error)]"
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
+                    )}
+
+                    <div className="habit-row__notes">
+                        {isEditingNote ? (
+                            <div className="habit-note-editor">
+                                <textarea
+                                    value={noteDraft}
+                                    onChange={(event) => setNoteDraft(event.target.value)}
+                                    onClick={(event) => event.stopPropagation()}
+                                    disabled={disabled}
+                                    rows={2}
+                                    placeholder={habit.type === 'duration' ? 'e.g. Woke up at 6:20 AM' : 'e.g. Walking, running 2 km, weight training'}
+                                />
+                                <div className="habit-note-editor__actions">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setNoteDraft(noteText);
+                                            setIsEditingNote(false);
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button type="button" onClick={handleSaveNote} disabled={disabled} className="is-primary">
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="habit-row__note-copy">
+                                {noteText && (
+                                    <span className="habit-row__note-text">
+                                        <FileText size={13} aria-hidden="true" />
+                                        {noteText}
+                                    </span>
+                                )}
+                                <div className="habit-row__note-actions">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            if (!disabled) setIsEditingNote(true);
+                                        }}
+                                        disabled={disabled}
+                                        title={disabled ? disabledReason : undefined}
+                                    >
+                                        {noteText ? 'Edit' : 'Add note'}
+                                    </button>
+                                    {onViewNotes && noteCount > 0 && (
+                                        <button type="button" onClick={(event) => { event.stopPropagation(); onViewNotes(); }}>
+                                            History ({noteCount})
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
+
+                <div className="habit-row__actions">
+                    {habit.type === 'count' && (
+                        <button type="button" className="habit-row__log-button" onClick={handleIncrement} disabled={disabled}>
+                            {isCompleted ? 'Done' : '+1'}
+                        </button>
+                    )}
+                    <button type="button" onClick={(event) => { event.stopPropagation(); onEdit?.(habit); }} aria-label={`Edit ${habit.name}`} title="Edit habit">
+                        <Edit2 size={16} aria-hidden="true" />
+                    </button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); onDelete?.(habit.id); }} aria-label={`Delete ${habit.name}`} title="Delete habit" className="is-danger">
+                        <Trash2 size={16} aria-hidden="true" />
+                    </button>
+                </div>
             </div>
-        </motion.article>
+        </Motion.article>
     );
 };
+
 export default HabitCard;

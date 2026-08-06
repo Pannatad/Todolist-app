@@ -64,7 +64,7 @@ const useQuickAdd = ({ input, setInput }) => {
                 await addScheduleItem({ title, startTime: start.toISOString(), duration, category: 'Other' });
                 toast(`Added “${title}” · ${startTime}–${endTime}`);
             } else {
-                await addTask({ title, difficulty: 'easy', deadline: `${date}T${taskTime || '23:59'}` });
+                await addTask({ title, deadline: `${date}T${taskTime || '23:59'}` });
                 toast(`Task “${title}” due ${date} ${taskTime}`);
             }
             setInput('');

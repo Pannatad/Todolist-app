@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
-import { normalizeTaskRecord } from '../utils/taskState';
+import { calculateCompletionReward, normalizeTaskRecord, sanitizeTaskUpdates } from '../utils/taskState';
 import { toast } from '../ui/Toast';
 import { log } from '../utils/log.js';
 import { createScheduleRepo } from '../data/scheduleRepo';
@@ -150,7 +150,7 @@ export const TaskProvider = ({ children }) => {
     }, [refreshScheduleItems, user]);
 
     // Task Handlers
-    const addTask = async ({ title, difficulty, deadline, subject, estimatedTime, description, subtasks = [] }) => {
+    const addTask = async ({ title, deadline, subject, estimatedTime, description, subtasks = [] }) => {
         // Convert local deadline string to UTC ISO string for storage
         const isoDeadline = deadline ? new Date(deadline).toISOString() : null;
         log("🕒 Timezone Debug:", {
@@ -163,8 +163,7 @@ export const TaskProvider = ({ children }) => {
             id: user ? undefined : Date.now(),
             title,
             description: description || null,
-            difficulty,
-            subject: subject || 'other',
+            subject: subject || null,
             deadline: isoDeadline,
             estimated_time: estimatedTime,
             estimatedTime: estimatedTime,
@@ -209,21 +208,7 @@ export const TaskProvider = ({ children }) => {
             newStatus = 'harvested';
             completedAt = new Date().toISOString();
 
-            switch (task.difficulty) {
-                case 'hard': reward = 30; break;
-                case 'medium': reward = 20; break;
-                case 'easy': default: reward = 10; break;
-            }
-
-            if (task.deadline) {
-                const now = new Date();
-                const deadlineDate = new Date(task.deadline);
-                if (now <= deadlineDate) {
-                    reward += 10;
-                } else {
-                    reward = Math.max(0, reward - 5);
-                }
-            }
+            reward = calculateCompletionReward(task, new Date(completedAt));
         }
 
         const updates = { status: newStatus, completed_at: completedAt };
@@ -257,7 +242,7 @@ export const TaskProvider = ({ children }) => {
 
     const updateTask = async (id, updates) => {
         // Handle deadline conversion if present in updates
-        const processedUpdates = { ...updates };
+        const processedUpdates = sanitizeTaskUpdates(updates);
         if (processedUpdates.deadline) {
             processedUpdates.deadline = new Date(processedUpdates.deadline).toISOString();
         }

@@ -81,12 +81,32 @@ const getDefaultLocalProjects = () => ([
         phases: DEFAULT_PHASES,
         columns: DEFAULT_COLUMNS,
         tasks: [
-            { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', difficulty: 'Hard', columnId: 'c-1', phaseId: 'phase-1' },
-            { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', difficulty: 'Easy', columnId: 'c-1', phaseId: 'phase-1' },
-            { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', difficulty: 'Medium', columnId: 'c-1', phaseId: 'phase-1' }
+            { id: 't1', title: 'Design Mockups', description: 'Create Figma designs', priority: 'High', columnId: 'c-1', phaseId: 'phase-1' },
+            { id: 't2', title: 'Setup Repo', description: 'Initialize Git repository', priority: 'Medium', columnId: 'c-1', phaseId: 'phase-1' },
+            { id: 't3', title: 'Write Content', description: 'Draft copy for homepage', priority: 'Low', columnId: 'c-1', phaseId: 'phase-1' }
         ]
     }
 ]);
+
+const stripSubtaskDifficulty = (subtask = {}) => {
+    const { difficulty: _legacyDifficulty, ...subtaskWithoutDifficulty } = subtask;
+    return {
+        ...subtaskWithoutDifficulty,
+        ...(Array.isArray(subtask.subtasks)
+            ? { subtasks: subtask.subtasks.map(stripSubtaskDifficulty) }
+            : {})
+    };
+};
+
+const normalizeProjectTask = (task = {}) => {
+    const { difficulty: _legacyDifficulty, ...taskWithoutDifficulty } = task;
+    return {
+        ...taskWithoutDifficulty,
+        ...(Array.isArray(task.subtasks)
+            ? { subtasks: task.subtasks.map(stripSubtaskDifficulty) }
+            : {})
+    };
+};
 
 const normalizeProjectRecord = (project) => {
     const projectColumns = cloneColumns(project?.columns);
@@ -117,8 +137,9 @@ const normalizeProjectRecord = (project) => {
                 const phaseId = task.phaseId || phases[0].id;
                 const phaseColumns = getPhaseColumns({ ...project, phases, columns: projectColumns }, phaseId);
 
+                const taskWithoutDifficulty = normalizeProjectTask(task);
                 return {
-                    ...task,
+                    ...taskWithoutDifficulty,
                     id: task.id || crypto.randomUUID(),
                     phaseId,
                     columnId: task.columnId || phaseColumns[0]?.id || DEFAULT_COLUMNS[0].id
@@ -152,7 +173,7 @@ export {
     getDoneColumn,
     getPhaseColumns,
     normalizePhases,
+    normalizeProjectTask,
     normalizeProjectRecord,
     readLocalProjects,
 };
-

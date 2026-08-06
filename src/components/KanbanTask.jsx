@@ -33,16 +33,6 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
         }
     };
 
-    // Difficulty Badge Styles - colored badges
-    const getDifficultyStyle = (d) => {
-        switch (d?.toLowerCase()) {
-            case 'easy': return 'bg-cyan-400 text-white';
-            case 'medium': return 'bg-emerald-500 text-white';
-            case 'hard': return 'bg-red-500 text-white';
-            default: return 'bg-indigo-500 text-white';
-        }
-    };
-
     const handleCardClick = (e) => {
         if (!e.target.closest('.drag-handle') && !e.target.closest('.delete-button')) {
             onEdit && onEdit(task);
@@ -117,14 +107,6 @@ export const KanbanTask = ({ task, onEdit, onDelete, isDone }) => {
                 </div>
             )}
 
-            <div className="flex gap-2 items-center mt-auto">
-                {/* Difficulty Badge */}
-                {task.difficulty && (
-                    <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${getDifficultyStyle(task.difficulty)}`}>
-                        {task.difficulty}
-                    </span>
-                )}
-            </div>
         </div>
     );
 };

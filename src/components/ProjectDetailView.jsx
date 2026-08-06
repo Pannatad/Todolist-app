@@ -19,7 +19,6 @@ import { useProject } from '../context/ProjectContext';
 import { confirmAction } from '../utils/confirm';
 import { NameDialog, SegmentButton, WorkTree } from './projectDetailParts';
 import {
-    difficultyOrder,
     getDoneColumn,
     getPhaseColumns,
     getPhaseProgress,
@@ -56,8 +55,6 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
             let result = 0;
             if (sortBy === 'priority') {
                 result = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
-            } else if (sortBy === 'difficulty') {
-                result = (difficultyOrder[b.difficulty] || 0) - (difficultyOrder[a.difficulty] || 0);
             }
 
             return sortDirection === 'asc' ? -result : result;
@@ -254,7 +251,6 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                     <div className="ml-auto flex items-center gap-2 overflow-x-auto">
                         <SegmentButton active={sortBy === 'manual'} onClick={() => setSortBy('manual')}>Manual</SegmentButton>
                         <SegmentButton active={sortBy === 'priority'} onClick={() => setSortBy('priority')}>Priority</SegmentButton>
-                        <SegmentButton active={sortBy === 'difficulty'} onClick={() => setSortBy('difficulty')}>Difficulty</SegmentButton>
                         {sortBy !== 'manual' && (
                             <button
                                 onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}

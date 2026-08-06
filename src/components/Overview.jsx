@@ -20,7 +20,10 @@ import DailyRitualModal from './DailyRitualModal';
 import MagicBox from './MagicBox';
 import NowCard from './today/NowCard';
 import TodaySchedule from './today/TodaySchedule';
+import TodayDueTasks from './today/TodayDueTasks';
 import { useAgentCommands } from './today/useAgentCommands';
+
+const todaySectionClass = 'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] p-4 sm:p-5';
 
 const Overview = ({ onNavigate }) => {
   const { tasks, addTask, updateTask, deleteTask, completeTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
@@ -75,6 +78,14 @@ const Overview = ({ onNavigate }) => {
       .sort((left, right) => new Date(left.deadline) - new Date(right.deadline))
       .slice(0, 6)
   ), [activeTasks, todayEnd]);
+  const tasksDueToday = useMemo(() => (
+    activeTasks
+      .filter((task) => {
+        const deadline = task.deadline ? new Date(task.deadline) : null;
+        return deadline && !Number.isNaN(deadline.getTime()) && toLocalDateKey(deadline) === todayKey;
+      })
+      .sort((left, right) => new Date(left.deadline) - new Date(right.deadline))
+  ), [activeTasks, todayKey]);
 
   const suggestions = useMemo(
     () => buildAssistantSuggestions({ scheduleToday: todaySchedule, tasks, habitItems, now }),
@@ -181,21 +192,22 @@ const Overview = ({ onNavigate }) => {
           </div>
         )}
 
-        {/* The day as one thread: blocks and task deadlines together */}
-        <div className="mt-8">
+        {/* The day as one thread of scheduled blocks */}
+        <div className={`mt-8 ${todaySectionClass}`}>
           <TodaySchedule
             entries={entries}
-            dueTasks={dueTasks}
             now={now}
             onOpen={openSchedule}
-            onCompleteTask={completeTask}
-            onOpenTask={openTask}
           />
         </div>
 
+        {tasksDueToday.length > 0 && <div className={`mt-8 ${todaySectionClass}`}>
+          <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
+        </div>}
+
         {/* Habits: loose chips, no container */}
         {habitItems.length > 0 && (
-          <div className="mt-8">
+          <div className={`mt-8 ${todaySectionClass}`}>
             <div className="mb-2 flex items-baseline justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Habits</h2>
               <span className="text-xs font-medium text-[var(--color-muted)]">{habitsDone} of {habitItems.length}</span>

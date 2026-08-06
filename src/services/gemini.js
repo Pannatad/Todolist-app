@@ -1,4 +1,4 @@
-export { analyzeFile, breakDownTask, getPersonalizedAdvice, getTaskTips, suggestDifficulty } from './gemini/taskTools';
+export { analyzeFile, breakDownTask, getPersonalizedAdvice, getTaskTips } from './gemini/taskTools';
 export { generateDailySchedule, parseScheduleImage } from './gemini/scheduleTools';
 export {
     getSmartSuggestions,

@@ -1,5 +1,4 @@
 const priorityOrder = { High: 3, Medium: 2, Low: 1 };
-const difficultyOrder = { Hard: 3, Medium: 2, Easy: 1 };
 
 const DEFAULT_COLUMNS = [
     { id: 'c-1', title: 'Work tree 1' }
@@ -38,7 +37,6 @@ const getPhaseProgress = (project, phaseId) => {
 
 export {
     DEFAULT_COLUMNS,
-    difficultyOrder,
     getDoneColumn,
     getPhaseColumns,
     getPhaseProgress,
@@ -47,4 +45,3 @@ export {
     isTaskDone,
     priorityOrder,
 };
-
