@@ -55,8 +55,11 @@ import { Sheet } from '../../ui';
 import { confirmAction } from '../../utils/confirm';
 import './magic-schedule.css';
 
-const START_HOUR = 6;
-const END_HOUR = 22;
+// Keep the planning surface focused on the user's useful daytime window.
+// Events outside it remain in the data and can still be edited through the
+// inspector; the canvas simply avoids making the assistant unnecessarily tall.
+const START_HOUR = 8;
+const END_HOUR = 20;
 const HOUR_HEIGHT = 72;
 const DAY_MINUTES = (END_HOUR - START_HOUR) * 60;
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -1086,7 +1089,7 @@ const MagicSchedule = ({
                         <div className="magic-assistant">
                             <div className="magic-assistant__header">
                                 <div className="magic-assistant__identity">
-                                    <span className="magic-assistant__avatar"><Sparkles size={15} /></span>
+                                        <span className="magic-assistant__avatar"><CalendarDays size={15} /></span>
                                     <div>
                                         <strong>Schedule assistant</strong>
                                         <span>Draft changes, then confirm</span>
@@ -1097,7 +1100,7 @@ const MagicSchedule = ({
                             <div className="magic-assistant__messages">
                                 {!assistantMessages.length && (
                                     <div className="magic-assistant__welcome">
-                                        <Sparkles size={22} />
+                                        <CalendarDays size={22} />
                                         <strong>What should we shape?</strong>
                                         <span>Choose an optional hint below, then describe the change in your own words.</span>
                                     </div>
@@ -1230,7 +1233,7 @@ const MagicSchedule = ({
                             <CalendarDays size={24} />
                             <strong>Select a block</strong>
                             <span>Inspect an event, resize it from the canvas, or click an empty time to add.</span>
-                            <div className="magic-quiet-suggestion"><Sparkles size={15} /> {quietSuggestion}</div>
+                            <div className="magic-quiet-suggestion"><CircleHelp size={15} /> {quietSuggestion}</div>
                         </div>
                     )}
                 </aside>

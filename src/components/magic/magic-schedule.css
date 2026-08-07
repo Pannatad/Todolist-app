@@ -448,7 +448,7 @@
   --day-width: 10rem;
   display: grid;
   grid-template-columns: 4rem repeat(var(--day-count), minmax(var(--day-width), 1fr));
-  grid-template-rows: 3.65rem calc((16) * 72px);
+  grid-template-rows: 3.65rem calc((12) * 72px);
   min-width: calc(4rem + var(--day-count) * var(--day-width));
 }
 
@@ -523,7 +523,7 @@
 .magic-day-column {
   position: relative;
   grid-row: 2;
-  min-height: calc(16 * 72px);
+  min-height: calc(12 * 72px);
   border-left: 1px solid var(--magic-line);
   background: var(--color-card-raised);
   touch-action: none;
@@ -1830,7 +1830,7 @@
 
   .magic-canvas {
     grid-template-columns: 3.5rem minmax(16rem, 1fr);
-    grid-template-rows: 0 calc((16) * 72px);
+    grid-template-rows: 0 calc((12) * 72px);
     min-width: 0;
   }
 
