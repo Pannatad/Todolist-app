@@ -328,6 +328,7 @@ export const buildAgentStateMessage = (userMessage, context = {}, { actionMode =
         dailyHighlights = [],
         activeSubject = null,
         pendingActions = null,
+        scheduleIntent = null,
         conversationHistory = null
     } = context;
     const { now, todayDate, timezoneString } = formatDateTimeContext();
@@ -340,6 +341,9 @@ Timezone: ${timezoneString}
 ${buildPendingActionsSection(pendingActions)}
 
 ${buildActiveSubjectSection(activeSubject)}
+
+${scheduleIntent ? `USER-SELECTED SCHEDULE INTENT: ${String(scheduleIntent).toUpperCase()}
+Treat this as an optional hint about the user's desired action. Follow it when it matches the message; the user's actual words always take priority.` : ''}
 
 TASKS (${recentTasks.length} active, ${tasksDueToday.length} due today):
 ${recentTasks.slice(0, 15).map(taskLine).join('\n') || 'No active tasks'}

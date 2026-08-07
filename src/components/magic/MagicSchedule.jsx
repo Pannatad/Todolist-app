@@ -4,6 +4,7 @@ import {
     CalendarDays,
     ChevronLeft,
     ChevronRight,
+    CircleHelp,
     Clock3,
     LayoutTemplate,
     Loader2,
@@ -59,6 +60,12 @@ const END_HOUR = 22;
 const HOUR_HEIGHT = 72;
 const DAY_MINUTES = (END_HOUR - START_HOUR) * 60;
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const SCHEDULE_ASSISTANT_INTENTS = [
+    { id: 'add', label: 'Add', icon: Plus, hint: 'Create a new block or template' },
+    { id: 'delete', label: 'Delete', icon: Trash2, hint: 'Remove an existing block' },
+    { id: 'modify', label: 'Modify', icon: Pencil, hint: 'Move, resize, or rename a block' },
+    { id: 'ask', label: 'Ask', icon: CircleHelp, hint: 'Get schedule advice or an explanation' }
+];
 const mondayFor = (input) => {
     const date = new Date(input);
     date.setHours(12, 0, 0, 0);
@@ -166,6 +173,7 @@ const MagicSchedule = ({
     const [assistantOpen, setAssistantOpen] = useState(false);
     const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
     const [assistantInput, setAssistantInput] = useState('');
+    const [assistantIntent, setAssistantIntent] = useState(null);
     const [assistantMessages, setAssistantMessages] = useState([]);
     const [assistantBusy, setAssistantBusy] = useState(false);
     const [pendingAssistantActions, setPendingAssistantActions] = useState(null);
@@ -533,6 +541,7 @@ const MagicSchedule = ({
                 recentSchedule: events,
                 scheduleTemplates: templates,
                 pendingActions: pendingAssistantActions,
+                scheduleIntent: assistantIntent,
                 scheduleScope: 'Read tasks, habits, projects, deadlines and preferences. Only write schedule items or schedule templates.'
             }, selectedAIProvider, {
                 enableThinking: selectedAIProvider === 'local' && localThinkingEnabled
@@ -1072,18 +1081,31 @@ const MagicSchedule = ({
                     </div>
                     {assistantOpen ? (
                         <div className="magic-assistant">
+                            <div className="magic-assistant__header">
+                                <div className="magic-assistant__identity">
+                                    <span className="magic-assistant__avatar"><Sparkles size={15} /></span>
+                                    <div>
+                                        <strong>Schedule assistant</strong>
+                                        <span>Plans with you · previews before saving</span>
+                                    </div>
+                                </div>
+                                <span className="magic-assistant__status"><i /> Ready</span>
+                            </div>
                             <div className="magic-assistant__messages">
                                 {!assistantMessages.length && (
                                     <div className="magic-assistant__welcome">
                                         <Sparkles size={22} />
-                                        <strong>Shape your schedule in one message.</strong>
-                                        <span>Try “Plan tomorrow from my Deep Work template, but protect my 3 PM task.”</span>
+                                        <strong>What should we shape?</strong>
+                                        <span>Choose an optional hint below, then describe the change in your own words.</span>
                                     </div>
                                 )}
                                 {assistantMessages.map((message, index) => (
-                                    <div key={`${message.role}-${index}`} className={`magic-assistant__message is-${message.role}`}>{message.content}</div>
+                                    <div key={`${message.role}-${index}`} className={`magic-assistant__message is-${message.role}`}>
+                                        <span className="magic-assistant__message-role">{message.role === 'user' ? 'You' : 'Schedule assistant'}</span>
+                                        <span className="magic-assistant__message-content">{message.content}</span>
+                                    </div>
                                 ))}
-                                {assistantBusy && <div className="magic-assistant__thinking"><Loader2 size={15} className="animate-spin" /> Thinking through your calendar…</div>}
+                                {assistantBusy && <div className="magic-assistant__thinking"><span className="magic-assistant__thinking-dots"><i /><i /><i /></span> Reviewing your calendar…</div>}
                             </div>
                             {pendingAssistantActions && (
                                 <div className="magic-assistant__preview">
@@ -1095,6 +1117,27 @@ const MagicSchedule = ({
                                     </div>
                                 </div>
                             )}
+                            <div className="magic-assistant__intents" aria-label="Optional schedule action hint">
+                                <span>Optional hint</span>
+                                <div>
+                                    {SCHEDULE_ASSISTANT_INTENTS.map(({ id, label, hint }) => (
+                                        <button
+                                            type="button"
+                                            key={id}
+                                            className={assistantIntent === id ? 'is-selected' : ''}
+                                            aria-pressed={assistantIntent === id}
+                                            title={hint}
+                                            onClick={() => setAssistantIntent((current) => current === id ? null : id)}
+                                        >
+                                            {id === 'add' && <Plus size={14} />}
+                                            {id === 'delete' && <Trash2 size={14} />}
+                                            {id === 'modify' && <Pencil size={14} />}
+                                            {id === 'ask' && <CircleHelp size={14} />}
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div className="magic-assistant__composer">
                                 <textarea
                                     value={assistantInput}
@@ -1105,7 +1148,15 @@ const MagicSchedule = ({
                                             sendAssistantMessage();
                                         }
                                     }}
-                                    placeholder="Ask, plan, move, or create…"
+                                    placeholder={assistantIntent === 'add'
+                                        ? 'What would you like to add?'
+                                        : assistantIntent === 'delete'
+                                            ? 'Which schedule block should be removed?'
+                                            : assistantIntent === 'modify'
+                                                ? 'What should change?'
+                                                : assistantIntent === 'ask'
+                                                    ? 'Ask about your schedule…'
+                                                    : 'Describe a schedule change…'}
                                     rows={2}
                                 />
                                 <button type="button" onClick={sendAssistantMessage} disabled={!assistantInput.trim() || assistantBusy} aria-label="Send to schedule assistant"><Send size={17} /></button>
