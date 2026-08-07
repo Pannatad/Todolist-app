@@ -1102,7 +1102,6 @@ const MagicSchedule = ({
                                     <div className="magic-assistant__welcome">
                                         <CalendarDays size={22} />
                                         <strong>What should we shape?</strong>
-                                        <span>Choose an optional hint below, then describe the change in your own words.</span>
                                     </div>
                                 )}
                                 {assistantMessages.map((message, index) => (
