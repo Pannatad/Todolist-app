@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Sparkles } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { SegmentedControl } from '../ui';
 import WeeklyPlan from './WeeklyPlan';
 import MagicSchedule from './magic/MagicSchedule';
@@ -26,7 +26,7 @@ const Schedule = ({
                 <SegmentedControl
                     items={[
                         { id: 'week', label: 'Weekly Plan', icon: CalendarDays },
-                        { id: 'magic', label: 'Magic Schedule', icon: Sparkles }
+                        { id: 'magic', label: 'Magic Schedule', icon: CalendarDays }
                     ]}
                     value={viewMode}
                     onChange={setViewMode}

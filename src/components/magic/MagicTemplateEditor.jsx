@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Bot, CalendarDays, Plus, Trash2 } from 'lucide-react';
 import { Sheet } from '../../ui';
 import {
     createScheduleId,
@@ -267,7 +267,7 @@ const MagicTemplateEditor = ({
                             setBlocks(currentDayBlocks);
                         }}
                     >
-                        <Sparkles size={15} /> Use current day
+                        <CalendarDays size={15} /> Use current day
                     </button>
                     <button type="button" onClick={onAskAI}><Bot size={15} /> Ask AI</button>
                 </div>

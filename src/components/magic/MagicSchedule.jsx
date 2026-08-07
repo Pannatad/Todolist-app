@@ -15,12 +15,10 @@ import {
     Redo2,
     Repeat2,
     Send,
-    Sparkles,
     Trash2,
     Undo2,
     Unlink,
     Upload,
-    WandSparkles,
     X
 } from 'lucide-react';
 import ScheduleEventModal from '../ScheduleEventModal';
@@ -857,7 +855,7 @@ const MagicSchedule = ({
         <div className="magic-schedule">
             <header className="magic-header">
                 <div>
-                    <span className="magic-eyebrow"><Sparkles size={15} /> Magic Schedule</span>
+                    <span className="magic-eyebrow">Magic Schedule</span>
                     <h2>{mobile ? selectedDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : formatRange(weekDates)}</h2>
                     <p>Click, drag, resize—or ask the schedule assistant.</p>
                 </div>
@@ -979,7 +977,7 @@ const MagicSchedule = ({
                         </>
                     )}
                     <button type="button" className="magic-secondary-button" onClick={() => setTemplateEditor(selectedTemplate)}><Pencil size={15} /> Edit</button>
-                    <button type="button" className="magic-primary-button" onClick={() => beginApplyTemplate()}><WandSparkles size={16} /> Preview apply</button>
+                    <button type="button" className="magic-primary-button" onClick={() => beginApplyTemplate()}><CalendarDays size={16} /> Preview apply</button>
                 </section>
             )}
 
