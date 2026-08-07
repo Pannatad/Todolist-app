@@ -754,8 +754,31 @@
 }
 
 .magic-inspector__tabs button.is-selected {
+  position: relative;
+  border-radius: 0;
   color: var(--magic-purple);
-  box-shadow: inset 0 -2px 0 var(--magic-purple);
+  box-shadow: none;
+}
+
+.magic-inspector__tabs button.is-selected::after {
+  position: absolute;
+  right: .8rem;
+  bottom: 0;
+  left: .8rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--magic-purple);
+  content: "";
+}
+
+.magic-inspector__tabs button:focus {
+  outline: none;
+}
+
+.magic-inspector__tabs button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--magic-purple) 65%, var(--color-rule));
+  outline-offset: -3px;
+  border-radius: .35rem;
 }
 
 .magic-inspector__content,
