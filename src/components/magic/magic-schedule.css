@@ -754,8 +754,8 @@
 }
 
 .magic-inspector__tabs button.is-selected {
-  background: var(--magic-purple-soft);
   color: var(--magic-purple);
+  box-shadow: inset 0 -2px 0 var(--magic-purple);
 }
 
 .magic-inspector__content,
@@ -965,7 +965,7 @@
   display: grid;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-  background: var(--color-card-raised);
+  background: var(--color-card);
 }
 
 .magic-assistant__header {
@@ -974,7 +974,7 @@
   justify-content: space-between;
   gap: .7rem;
   border-bottom: 1px solid var(--color-rule);
-  padding: .8rem .9rem;
+  padding: .9rem 1rem;
 }
 
 .magic-assistant__identity {
@@ -986,12 +986,13 @@
 
 .magic-assistant__avatar {
   display: grid;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: .65rem;
-  background: var(--magic-purple-soft);
+  border: 1px solid var(--color-rule);
+  border-radius: .5rem;
+  background: var(--color-paper-2);
   color: var(--magic-purple);
 }
 
@@ -1003,14 +1004,14 @@
 
 .magic-assistant__identity strong {
   color: var(--color-ink);
-  font-size: .84rem;
-  font-weight: 750;
+  font-size: .88rem;
+  font-weight: 700;
 }
 
 .magic-assistant__identity span:not(.magic-assistant__avatar) {
   overflow: hidden;
   color: var(--color-muted);
-  font-size: .68rem;
+  font-size: .7rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1020,17 +1021,17 @@
   flex: 0 0 auto;
   align-items: center;
   gap: .3rem;
-  border-radius: 999px;
-  background: var(--color-success-soft);
+  border-radius: .35rem;
+  background: transparent;
   color: var(--color-success);
-  padding: .25rem .45rem;
-  font-size: .63rem;
-  font-weight: 700;
+  padding: .15rem 0;
+  font-size: .68rem;
+  font-weight: 650;
 }
 
 .magic-assistant__status i {
-  width: .38rem;
-  height: .38rem;
+  width: .35rem;
+  height: .35rem;
   border-radius: 50%;
   background: currentcolor;
 }
@@ -1039,32 +1040,32 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: .7rem;
+  gap: 1rem;
   overflow-y: auto;
-  background: color-mix(in srgb, var(--color-paper-2) 48%, var(--color-card-raised));
-  padding: 1rem .9rem;
+  background: var(--color-paper);
+  padding: 1rem;
 }
 
 .magic-assistant__welcome {
   display: grid;
   gap: .45rem;
-  max-width: 17rem;
+  max-width: 18rem;
   margin: auto;
   color: var(--color-muted);
-  font-size: .8rem;
+  font-size: .82rem;
   line-height: 1.5;
   text-align: center;
 }
 
 .magic-assistant__welcome svg {
   margin: 0 auto;
-  color: var(--magic-purple);
+  color: var(--color-muted);
 }
 
 .magic-assistant__welcome strong {
   color: var(--color-ink);
-  font-size: .98rem;
-  font-weight: 750;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .magic-assistant__message {
@@ -1072,33 +1073,35 @@
   max-width: 94%;
   gap: .28rem;
   border: 1px solid var(--color-rule);
-  border-radius: .95rem;
-  padding: .7rem .8rem;
-  font-size: .86rem;
+  border-radius: .75rem;
+  padding: .72rem .82rem;
+  font-size: .9rem;
   line-height: 1.5;
 }
 
 .magic-assistant__message-role {
   color: var(--color-muted);
-  font-size: .64rem;
-  font-weight: 700;
+  font-size: .68rem;
+  font-weight: 650;
 }
 
 .magic-assistant__message.is-user {
   align-self: flex-end;
-  border-color: var(--magic-purple);
-  background: var(--magic-purple);
-  color: white;
+  border-color: color-mix(in srgb, var(--magic-purple) 28%, var(--color-rule));
+  background: var(--magic-purple-soft);
+  color: var(--color-ink);
 }
 
 .magic-assistant__message.is-user .magic-assistant__message-role {
-  color: color-mix(in srgb, white 78%, var(--magic-purple));
+  color: var(--magic-purple);
 }
 
 .magic-assistant__message.is-assistant {
   align-self: flex-start;
-  background: var(--color-card-raised);
+  border-color: transparent;
+  background: transparent;
   color: var(--color-ink-2);
+  padding-left: 0;
 }
 
 .magic-assistant__thinking {
@@ -1107,8 +1110,8 @@
   gap: .5rem;
   align-self: flex-start;
   border: 1px solid var(--color-rule);
-  border-radius: .8rem;
-  background: var(--color-card-raised);
+  border-radius: .65rem;
+  background: var(--color-paper-2);
   color: var(--color-muted);
   padding: .55rem .7rem;
   font-size: .75rem;
@@ -1130,8 +1133,8 @@
   display: grid;
   gap: .35rem;
   border-top: 1px solid var(--color-rule);
-  background: var(--magic-purple-soft);
-  padding: .8rem;
+  background: var(--color-paper-2);
+  padding: .8rem 1rem;
   font-size: .78rem;
 }
 
@@ -1151,9 +1154,9 @@
 }
 
 .magic-assistant__preview button {
-  border: 0;
+  border: 1px solid var(--color-rule);
   border-radius: .55rem;
-  background: var(--color-card-raised);
+  background: var(--color-card);
   color: var(--color-ink);
   padding: .45rem .6rem;
   font-size: .68rem;
@@ -1169,14 +1172,14 @@
   display: grid;
   gap: .35rem;
   border-top: 1px solid var(--color-rule);
-  padding: .55rem .7rem .35rem;
+  padding: .7rem 1rem .4rem;
 }
 
 .magic-assistant__intents > span {
   flex: 0 0 auto;
   color: var(--color-muted);
-  font-size: .66rem;
-  font-weight: 650;
+  font-size: .7rem;
+  font-weight: 600;
 }
 
 .magic-assistant__intents > div {
@@ -1192,12 +1195,12 @@
   align-items: center;
   gap: .25rem;
   border: 1px solid var(--color-rule);
-  border-radius: .65rem;
-  background: var(--color-card-raised);
+  border-radius: .55rem;
+  background: var(--color-card);
   color: var(--color-muted);
   padding: .35rem .5rem;
-  font-size: .7rem;
-  font-weight: 700;
+  font-size: .74rem;
+  font-weight: 650;
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
@@ -1207,7 +1210,7 @@
 }
 
 .magic-assistant__intents button.is-selected {
-  border-color: var(--magic-purple);
+  border-color: color-mix(in srgb, var(--magic-purple) 55%, var(--color-rule));
   background: var(--magic-purple-soft);
   color: var(--magic-purple);
 }
@@ -1224,18 +1227,18 @@
   grid-template-columns: 1fr auto;
   gap: .45rem;
   border-top: 1px solid var(--color-rule);
-  padding: .7rem;
+  padding: .8rem 1rem 1rem;
 }
 
 .magic-assistant__composer textarea {
   resize: none;
   border: 1px solid var(--color-rule);
-  border-radius: .7rem;
-  background: var(--color-paper-2);
+  border-radius: .6rem;
+  background: var(--color-card);
   color: var(--color-ink);
   min-height: 4.2rem;
   padding: .7rem .75rem;
-  font-size: .86rem;
+  font-size: .9rem;
   line-height: 1.45;
   outline: none;
 }
@@ -1244,7 +1247,7 @@
   width: 2.75rem;
   min-height: 2.75rem;
   border: 0;
-  border-radius: .7rem;
+  border-radius: .6rem;
   background: var(--magic-purple);
   color: white;
 }

@@ -554,10 +554,13 @@ const MagicSchedule = ({
                 && !['info_response', 'clarify', 'analyze', 'navigate'].includes(action.type));
             const allowed = actions.filter((action) => isScheduleAssistantWriteAction(action.type));
             const info = actions.find((action) => ['info_response', 'clarify', 'analyze'].includes(action.type));
+            const intentRequiresWrite = ['add', 'delete', 'modify'].includes(assistantIntent);
             const content = rejected.length
                 ? `I can read that context, but this assistant only changes schedules and templates. ${response.summary || ''}`.trim()
                 : allowed.length
                     ? `I prepared ${allowed.length} schedule change${allowed.length === 1 ? '' : 's'}. Review the preview below; nothing has changed yet.`
+                    : intentRequiresWrite
+                        ? 'I could not identify a safe schedule change from that message. Include the block name and time, then try again.'
                     : info?.params?.message || info?.params?.question || response.summary || 'Here is the schedule change I suggest.';
             setAssistantMessages((messages) => [...messages, { role: 'assistant', content }]);
             setPendingAssistantActions(allowed.length ? allowed : null);
@@ -1086,7 +1089,7 @@ const MagicSchedule = ({
                                     <span className="magic-assistant__avatar"><Sparkles size={15} /></span>
                                     <div>
                                         <strong>Schedule assistant</strong>
-                                        <span>Plans with you · previews before saving</span>
+                                        <span>Draft changes, then confirm</span>
                                     </div>
                                 </div>
                                 <span className="magic-assistant__status"><i /> Ready</span>
@@ -1118,7 +1121,7 @@ const MagicSchedule = ({
                                 </div>
                             )}
                             <div className="magic-assistant__intents" aria-label="Optional schedule action hint">
-                                <span>Optional hint</span>
+                                <span>Action (optional)</span>
                                 <div>
                                     {SCHEDULE_ASSISTANT_INTENTS.map(({ id, label, hint }) => (
                                         <button

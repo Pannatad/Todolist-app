@@ -343,7 +343,8 @@ ${buildPendingActionsSection(pendingActions)}
 ${buildActiveSubjectSection(activeSubject)}
 
 ${scheduleIntent ? `USER-SELECTED SCHEDULE INTENT: ${String(scheduleIntent).toUpperCase()}
-Treat this as an optional hint about the user's desired action. Follow it when it matches the message; the user's actual words always take priority.` : ''}
+Treat this as an optional hint about the user's desired action. Follow it when it matches the message; the user's actual words always take priority.
+When the selected intent is ADD, DELETE, or MODIFY, return the matching structured schedule action even if the message is shorthand and does not repeat the action verb. Never claim that a schedule was saved unless you return the corresponding action for the UI to preview.` : ''}
 
 TASKS (${recentTasks.length} active, ${tasksDueToday.length} due today):
 ${recentTasks.slice(0, 15).map(taskLine).join('\n') || 'No active tasks'}

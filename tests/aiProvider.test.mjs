@@ -100,6 +100,13 @@ test('explicit app mutations use action mode', () => {
   assert.equal(shouldUseAgentActionMode('Make it 60 minutes.', { hasPendingAction: true }), true);
 });
 
+test('schedule intent chips route shorthand messages into action mode', () => {
+  assert.equal(shouldUseAgentActionMode('tutoring prep: 5-5:30 pm', { scheduleIntent: 'add' }), true);
+  assert.equal(shouldUseAgentActionMode('the morning block', { scheduleIntent: 'delete' }), true);
+  assert.equal(shouldUseAgentActionMode('make it shorter', { scheduleIntent: 'modify' }), true);
+  assert.equal(shouldUseAgentActionMode('what should I do this afternoon?', { scheduleIntent: 'ask' }), false);
+});
+
 test('scheduling verbs beyond the basics use action mode', () => {
   // Previously fell into conversation mode and silently did nothing.
   assert.equal(shouldUseAgentActionMode('Duplicate my gym session to tomorrow.'), true);

@@ -307,7 +307,8 @@ export const sendChatMessage = async (
 
     try {
         const actionMode = shouldUseAgentActionMode(userMessage, {
-            hasPendingAction: Array.isArray(context?.pendingActions) && context.pendingActions.length > 0
+            hasPendingAction: Array.isArray(context?.pendingActions) && context.pendingActions.length > 0,
+            scheduleIntent: context?.scheduleIntent
         });
 
         // Create/update chat session

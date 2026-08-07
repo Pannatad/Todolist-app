@@ -70,9 +70,21 @@ const CONVERT_TO_ACTIONS = /^\s*(?:please\s+)?(?:turn|convert)\b.*\b(?:tasks?|sc
 const REFINE_PENDING_ACTION = /^\s*(?:please\s+)?(?:make|change|move|rename|reschedule|set|use|duplicate|repeat)\b/i;
 const APP_CONTEXT_REFERENCE = /\b(?:my\s+day|my\s+week|this\s+week|next\s+week|tasks?|schedule|calendar|agenda|events?|blocks?|meetings?|appointments?|reminders?|templates?|routines?|sessions?|habits?|projects?|goals?|highlights?|priorit(?:y|ies|ize)|deadline|overdue|free\s+(?:time|slots?)|today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i;
 
-export const shouldUseAgentActionMode = (message, { hasPendingAction = false } = {}) => {
+export const shouldUseAgentActionMode = (message, {
+    hasPendingAction = false,
+    scheduleIntent = null
+} = {}) => {
     const text = String(message || '').trim();
     if (!text) return false;
+
+    // The schedule assistant exposes an optional intent picker. A selected
+    // write intent is itself an explicit request for a structured schedule
+    // action, even when the message is shorthand (for example, "tutoring prep:
+    // 5–5:30 pm"). Without this, the normal conversation router can return
+    // prose that sounds successful but never reaches the schedule executor.
+    if (['add', 'delete', 'modify'].includes(String(scheduleIntent || '').toLowerCase())) {
+        return true;
+    }
 
     if (DIRECT_APP_ACTION.test(text)) return true;
     if (CONVERT_TO_ACTIONS.test(text)) return true;
