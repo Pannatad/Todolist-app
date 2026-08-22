@@ -6,6 +6,7 @@ import HabitCard from './HabitCard';
 import HabitModal from './HabitModal';
 import HabitNotesModal from './HabitNotesModal';
 import SeedProgressList from './SeedProgressList';
+import { getCurrentTimeValue } from './habitValueUtils';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import { confirmAction } from '../utils/confirm';
@@ -117,9 +118,13 @@ const TodayHabits = () => {
         });
     };
     const getCompletionValue = (habit) => (
-        habit.type === 'count' || habit.type === 'duration'
-            ? (habit.target || 1)
-            : 1
+        habit.type === 'time'
+            ? getCurrentTimeValue()
+            : habit.type === 'score'
+                ? 3
+            : habit.type === 'count' || habit.type === 'duration'
+                ? (habit.target || 1)
+                : 1
     );
     const handleBackfillDone = async (habit) => {
         await logHabit(habit.id, yesterdayStr, getCompletionValue(habit), true);

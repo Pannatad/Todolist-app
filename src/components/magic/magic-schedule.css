@@ -1463,6 +1463,239 @@
   font-size: .75rem;
 }
 
+/* One-time day composer */
+.magic-day-craft-sheet {
+  width: min(100% - 2rem, 68rem);
+}
+
+.magic-day-craft-sheet .ui-sheet__surface {
+  max-height: min(94dvh, 70rem);
+}
+
+.magic-day-craft {
+  display: grid;
+  gap: 1rem;
+}
+
+.magic-day-craft__date-row,
+.magic-day-craft__date,
+.magic-day-craft__source,
+.magic-day-craft__footer {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+}
+
+.magic-day-craft__date-row {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-rule);
+  padding-bottom: .85rem;
+}
+
+.magic-day-craft__date {
+  color: var(--color-ink-2);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.magic-day-craft__date svg {
+  color: var(--magic-purple);
+}
+
+.magic-day-craft__date input,
+.magic-day-craft__source input,
+.magic-day-craft__source select {
+  min-height: 2.35rem;
+  border: 1px solid var(--color-rule);
+  border-radius: .65rem;
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  padding: .35rem .55rem;
+  font-size: .76rem;
+}
+
+.magic-day-craft__one-time {
+  border-radius: 999px;
+  background: var(--magic-purple-soft);
+  color: var(--magic-purple);
+  padding: .35rem .55rem;
+  font-size: .67rem;
+  font-weight: 750;
+}
+
+.magic-day-craft__layout {
+  display: grid;
+  grid-template-columns: minmax(15rem, .8fr) minmax(0, 1.25fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.magic-day-craft__preview,
+.magic-day-craft__composer {
+  min-width: 0;
+  border: 1px solid var(--color-rule);
+  border-radius: 1rem;
+  background: var(--color-card);
+  padding: .9rem;
+}
+
+.magic-day-craft__preview {
+  display: grid;
+  gap: .85rem;
+  align-content: start;
+  background: color-mix(in srgb, var(--magic-purple) 2.5%, var(--color-card));
+}
+
+.magic-day-craft__section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.magic-day-craft__section-heading > div {
+  display: grid;
+  gap: .22rem;
+  min-width: 0;
+}
+
+.magic-day-craft__section-heading strong {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: .95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.magic-day-craft__section-heading > span:last-child {
+  flex: 0 0 auto;
+  color: var(--magic-purple);
+  font-size: .7rem;
+  font-weight: 750;
+}
+
+.magic-day-craft__section-label {
+  color: var(--color-muted);
+  font-size: .68rem;
+  font-weight: 650;
+}
+
+.magic-day-craft__preview-note,
+.magic-day-craft__assistant p {
+  color: var(--color-muted);
+  font-size: .72rem;
+  line-height: 1.45;
+}
+
+.magic-day-craft__composer {
+  display: grid;
+  gap: .8rem;
+}
+
+.magic-day-craft__starter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .3rem;
+  border-bottom: 1px solid var(--color-rule);
+  padding-bottom: .8rem;
+}
+
+.magic-day-craft__starter button {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  border: 1px solid var(--color-rule);
+  border-radius: .65rem;
+  background: var(--color-card);
+  color: var(--color-muted);
+  padding: .35rem .45rem;
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.magic-day-craft__starter button:hover,
+.magic-day-craft__starter button.is-selected {
+  border-color: color-mix(in srgb, var(--magic-purple) 48%, var(--color-rule));
+  background: var(--magic-purple-soft);
+  color: var(--magic-purple);
+}
+
+.magic-day-craft__source {
+  align-items: flex-end;
+  flex-wrap: wrap;
+  border-radius: .75rem;
+  background: var(--color-paper-2);
+  padding: .65rem;
+}
+
+.magic-day-craft__source label {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: .25rem;
+  color: var(--color-muted);
+  font-size: .67rem;
+  font-weight: 700;
+}
+
+.magic-day-craft__source .magic-secondary-button {
+  min-height: 2.35rem;
+}
+
+.magic-day-craft__assistant {
+  display: grid;
+  gap: .5rem;
+  border-radius: .75rem;
+  background: var(--color-paper-2);
+  padding: .65rem;
+}
+
+.magic-day-craft__assistant textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  border: 1px solid var(--color-rule);
+  border-radius: .65rem;
+  background: var(--color-card);
+  color: var(--color-ink);
+  padding: .65rem;
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.magic-day-craft__assistant .magic-primary-button {
+  justify-self: start;
+  min-height: 2.35rem;
+  box-shadow: none;
+}
+
+.magic-day-craft__assistant p {
+  margin: 0;
+}
+
+.magic-day-craft__block-list {
+  display: grid;
+  gap: .65rem;
+  max-height: 35rem;
+  overflow-y: auto;
+  padding: .1rem .15rem .1rem 0;
+}
+
+.magic-day-craft__footer {
+  position: sticky;
+  bottom: 0;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-rule);
+  background: var(--color-card-raised);
+  padding-top: .8rem;
+}
+
+.magic-day-craft__footer > span {
+  margin-right: auto;
+  color: var(--color-muted);
+  font-size: .74rem;
+}
+
 /* Conflict review */
 .magic-conflict-sheet {
   width: min(100% - 2rem, 43rem);
@@ -1957,6 +2190,45 @@
 
   .magic-template-child input:nth-child(3) {
     grid-column: 1 / 3;
+  }
+
+  .magic-day-craft__date-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .magic-day-craft__date {
+    flex-wrap: wrap;
+  }
+
+  .magic-day-craft__one-time {
+    align-self: flex-start;
+  }
+
+  .magic-day-craft__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .magic-day-craft__starter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .magic-day-craft__source {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .magic-day-craft__source .magic-secondary-button {
+    width: 100%;
+  }
+
+  .magic-day-craft__block-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .magic-day-craft__footer {
+    flex-wrap: wrap;
   }
 
   .magic-conflict-list > div {

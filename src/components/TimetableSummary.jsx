@@ -163,7 +163,7 @@ const TimetableSummary = () => {
         <Motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+            className="learning-timetable bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
         >
             {/* Header */}
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">

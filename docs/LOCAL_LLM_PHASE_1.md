@@ -1,5 +1,9 @@
 # Local LLM workflow: LM Studio + Gemma 4 26B A4B QAT
 
+> This file is the short, repository-specific quick start. For the reusable
+> architecture, implementation process, operations notes, and validation
+> checklist, start with [the local-LLM documentation index](./local-llm/README.md).
+
 ## Architecture
 
 The Agent can use `Gemma Local` instead of Gemini. The browser and phone never

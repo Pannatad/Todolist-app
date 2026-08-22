@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { createHabitsRepo } from '../data/habitsRepo';
+import { toast } from '../ui/Toast';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
 import {
     buildCompletedDatesByHabit,
@@ -178,6 +179,13 @@ export const HabitProvider = ({ children }) => {
         } catch (error) {
             console.error('Error adding habit:', error);
             setStoredHabits((prev) => prev.filter((habit) => habit.id !== tempId));
+            const isTypeConstraintError = error?.code === '23514' || /habits_type_check|violates check constraint|type check/i.test(error?.message || '');
+            toast(
+                isTypeConstraintError
+                    ? 'Time habits need the latest Supabase migration. Apply 0015_supabase_habit_value.sql and try again.'
+                    : 'Could not save this habit. Please try again.',
+                { tone: 'error' },
+            );
         }
 
         return normalizeHabit(newHabit);

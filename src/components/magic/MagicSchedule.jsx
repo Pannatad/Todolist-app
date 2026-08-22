@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import ScheduleEventModal from '../ScheduleEventModal';
 import MagicTemplateEditor, { TimelinePreview } from './MagicTemplateEditor';
+import MagicDayCraftEditor from './MagicDayCraftEditor';
 import MagicConflictSheet from './MagicConflictSheet';
 import { useScheduleTemplates } from '../../context/ScheduleTemplateContext';
 import { useChatContext } from '../../context/ChatContext';
@@ -30,11 +31,13 @@ import { sendChatMessage } from '../../services/ConversationService';
 import { parseScheduleCommand, parseScheduleImage } from '../../services/aiClient';
 import {
     autoFitTemplateItems,
+    buildDayPlanSchedulePayloads,
     buildFutureTemplateUpdateSteps,
     buildTemplateSchedulePayloads,
     createScheduleId,
     detectScheduleConflicts,
     getScheduleOverlapLayout,
+    occurrencesToMagicTemplateBlocks,
     removeConflictingProposals,
     SCHEDULE_ITEM_KINDS,
     timeFromMinutes
@@ -84,6 +87,13 @@ const formatRange = (dates) => {
         : `${first.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${last.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`;
 };
 
+const formatDayLabel = (dateKey) => new Date(`${dateKey}T12:00:00`).toLocaleDateString([], {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+});
+
 const itemStart = (item) => new Date(item.displayTime || item.startTime || item.start_time || item.deadline);
 const itemDuration = (item) => Number(item.duration || item.estimatedTime || item.estimated_time || 60);
 const itemKind = (item) => item.itemKind || item.item_kind || SCHEDULE_ITEM_KINDS.EVENT;
@@ -110,44 +120,6 @@ const useMobileTimeline = () => {
     return mobile;
 };
 
-const occurrenceToTemplateBlocksV2 = (occurrences) => {
-    const childrenByParent = new Map();
-    occurrences.forEach((item) => {
-        const linkedParent = parentId(item);
-        if (!linkedParent) return;
-        const entries = childrenByParent.get(String(linkedParent)) || [];
-        entries.push(item);
-        childrenByParent.set(String(linkedParent), entries);
-    });
-    return occurrences
-        .filter((item) => !parentId(item))
-        .map((item) => {
-            const start = itemStart(item);
-            return {
-                id: item.templateBlockId || item.template_block_id || createScheduleId('block'),
-                kind: itemKind(item),
-                title: item.title,
-                startTime: start.toTimeString().slice(0, 5),
-                duration: itemDuration(item),
-                category: item.category || 'Other',
-                color: item.color || '#6366f1',
-                notes: item.notes || '',
-                children: (childrenByParent.get(String(item.id)) || []).map((child) => {
-                    const childStart = itemStart(child);
-                    return {
-                        id: child.templateBlockId || child.template_block_id || createScheduleId('child'),
-                        title: child.title,
-                        startTime: childStart.toTimeString().slice(0, 5),
-                        duration: itemDuration(child),
-                        category: child.category || 'Other',
-                        color: child.color || '#6366f1',
-                        notes: child.notes || ''
-                    };
-                })
-            };
-        });
-};
-
 const MagicSchedule = ({
     events = [],
     tasks = [],
@@ -163,6 +135,7 @@ const MagicSchedule = ({
     const [selectedItem, setSelectedItem] = useState(null);
     const [modal, setModal] = useState(null);
     const [templateEditor, setTemplateEditor] = useState(null);
+    const [craftEditor, setCraftEditor] = useState(null);
     const [selectedTemplateId, setSelectedTemplateId] = useState(null);
     const [applyMode, setApplyMode] = useState('once');
     const [repeatDays, setRepeatDays] = useState([]);
@@ -274,7 +247,7 @@ const MagicSchedule = ({
     ]);
 
     const daySchedule = useMemo(() => getScheduleItemsForDate(events, selectedDate), [events, selectedDate]);
-    const currentDayBlocks = useMemo(() => occurrenceToTemplateBlocksV2(daySchedule), [daySchedule]);
+    const currentDayBlocks = useMemo(() => occurrencesToMagicTemplateBlocks(daySchedule), [daySchedule]);
 
     const itemsForDate = useCallback((date) => {
         const dateKey = toLocalDateKey(date);
@@ -295,6 +268,13 @@ const MagicSchedule = ({
         next.setDate(next.getDate() + amount * 7);
         setAnchorDate(next);
         setSelectedDate(mondayFor(next));
+    };
+
+    const focusDate = (value) => {
+        const date = value instanceof Date ? new Date(value) : new Date(`${value}T12:00:00`);
+        if (Number.isNaN(date.getTime())) return;
+        setAnchorDate(date);
+        setSelectedDate(date);
     };
 
     const shiftMobileDay = (amount) => {
@@ -418,7 +398,46 @@ const MagicSchedule = ({
         });
     };
 
-    const applyReviewedTemplate = async (resolution) => {
+    const beginCraftDayReview = ({ dateKey, blocks }) => {
+        const proposals = buildDayPlanSchedulePayloads({ date: dateKey, blocks });
+        if (!proposals.length) {
+            toast('Add at least one complete schedule block before reviewing.', { tone: 'error' });
+            return;
+        }
+        const conflicts = detectScheduleConflicts({
+            proposedItems: proposals,
+            scheduleItems: events,
+            tasks,
+            startDate: dateKey,
+            endDate: dateKey
+        });
+        const autoFitProposals = autoFitTemplateItems(proposals, conflicts, 15, {
+            scheduleItems: events,
+            tasks,
+            startDate: dateKey,
+            endDate: dateKey
+        });
+        const autoFitConflicts = detectScheduleConflicts({
+            proposedItems: autoFitProposals,
+            scheduleItems: events,
+            tasks,
+            startDate: dateKey,
+            endDate: dateKey
+        });
+        setReview({
+            variant: 'day',
+            planLabel: formatDayLabel(dateKey),
+            dateKey,
+            draftBlocks: blocks,
+            proposals,
+            conflicts,
+            autoFitProposals,
+            autoFitConflicts
+        });
+        setCraftEditor(null);
+    };
+
+    const applyReviewedPlan = async (resolution) => {
         if (!review) return;
         let proposals = review.proposals;
         const steps = [];
@@ -446,13 +465,20 @@ const MagicSchedule = ({
             });
         }
         proposals.forEach((payload) => steps.push({ type: 'create', payload }));
+        const isDayPlan = review.variant === 'day';
+        const planLabel = review.planLabel || review.template?.name || 'schedule plan';
         try {
-            await transactions.runBatch(steps, `Applied ${review.template.name}`);
-            toast(`Applied “${review.template.name}”.`, { tone: 'success' });
+            if (!steps.length) {
+                throw new Error('No schedule blocks remain after resolving the conflicts.');
+            }
+            await transactions.runBatch(steps, isDayPlan ? `Crafted ${planLabel}` : `Applied ${planLabel}`);
+            toast(isDayPlan ? `Crafted ${planLabel}.` : `Applied “${planLabel}”.`, { tone: 'success' });
             setReview(null);
             setShowApplyOptions(false);
+            setCraftEditor(null);
+            if (isDayPlan) focusDate(review.dateKey);
         } catch (error) {
-            toast(error.message || 'Could not apply this template. No partial changes were kept.', { tone: 'error' });
+            toast(error.message || `Could not apply this ${isDayPlan ? 'day plan' : 'template'}. No partial changes were kept.`, { tone: 'error' });
         }
     };
 
@@ -851,6 +877,36 @@ const MagicSchedule = ({
         });
     };
 
+    const closeReview = () => {
+        if (review?.variant === 'day') {
+            setCraftEditor({
+                initialDate: review.dateKey,
+                initialBlocks: review.draftBlocks || []
+            });
+        }
+        setReview(null);
+    };
+
+    const handleCustomMerge = (request) => {
+        if (!review) return;
+        const conflictDetails = (review.conflicts || []).map((conflict) => (
+            `${conflict.dateKey}: ${conflict.proposed.item.title} overlaps ${conflict.existing.item.title}`
+        )).join('; ');
+        if (review.variant === 'day') {
+            setReview(null);
+            setCraftEditor({
+                initialDate: review.dateKey,
+                initialBlocks: review.draftBlocks || [],
+                initialAssistantPrompt: `Resolve these schedule conflicts for ${review.dateKey}: ${conflictDetails}. Keep the plan one-time and use this rule: ${request}`
+            });
+            return;
+        }
+        const templateName = review.template?.name || 'the selected template';
+        setReview(null);
+        setAssistantOpen(true);
+        setAssistantInput(`Apply “${templateName}” on ${selectedDateKey}. Conflicts: ${conflictDetails}. Resolve them with this rule: ${request}`);
+    };
+
     return (
         <div className="magic-schedule">
             <header className="magic-header">
@@ -882,6 +938,7 @@ const MagicSchedule = ({
                         {showAddMenu && (
                             <div className="magic-add-menu">
                                 <button type="button" onClick={() => { openQuickAdd(selectedDate, 9 * 60); setShowAddMenu(false); }}><Clock3 size={16} /> New event</button>
+                                <button type="button" onClick={() => { setCraftEditor({ initialDate: selectedDate }); setShowAddMenu(false); }}><CalendarDays size={16} /> Craft a day</button>
                                 <button type="button" onClick={() => { openQuickAdd(selectedDate, 9 * 60, 180, { itemKind: SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL }); setShowAddMenu(false); }}><LayoutTemplate size={16} /> Flexible shell</button>
                                 <button type="button" onClick={() => fileInputRef.current?.click()}><Upload size={16} /> Import image / camera</button>
                                 <button type="button" onClick={handleVoice}><Mic size={16} /> {isListening ? 'Listening…' : 'Voice schedule'}</button>
@@ -1257,6 +1314,18 @@ const MagicSchedule = ({
                 parentItemId={modal?.parentItemId}
             />
 
+            <MagicDayCraftEditor
+                open={Boolean(craftEditor)}
+                onClose={() => setCraftEditor(null)}
+                onPreview={beginCraftDayReview}
+                initialDate={craftEditor?.initialDate || selectedDate}
+                initialBlocks={craftEditor?.initialBlocks}
+                initialAssistantPrompt={craftEditor?.initialAssistantPrompt || ''}
+                events={events}
+                tasks={tasks}
+                templates={templates}
+            />
+
             <MagicTemplateEditor
                 open={Boolean(templateEditor)}
                 onClose={() => setTemplateEditor(null)}
@@ -1272,23 +1341,17 @@ const MagicSchedule = ({
 
             <MagicConflictSheet
                 open={Boolean(review)}
-                onClose={() => setReview(null)}
+                onClose={closeReview}
                 template={review?.template}
+                planLabel={review?.planLabel}
+                variant={review?.variant || 'template'}
                 proposals={review?.proposals}
                 conflicts={review?.conflicts}
                 autoFitProposals={review?.autoFitProposals}
                 autoFitConflicts={review?.autoFitConflicts}
                 busy={transactions.isRunning}
-                onConfirm={applyReviewedTemplate}
-                onCustomMerge={(request) => {
-                    const conflictDetails = (review?.conflicts || []).map((conflict) => (
-                        `${conflict.dateKey}: ${conflict.proposed.item.title} overlaps ${conflict.existing.item.title}`
-                    )).join('; ');
-                    const templateName = review?.template?.name || 'the selected template';
-                    setReview(null);
-                    setAssistantOpen(true);
-                    setAssistantInput(`Apply “${templateName}” on ${selectedDateKey}. Conflicts: ${conflictDetails}. Resolve them with this rule: ${request}`);
-                }}
+                onConfirm={applyReviewedPlan}
+                onCustomMerge={handleCustomMerge}
             />
 
             <Sheet

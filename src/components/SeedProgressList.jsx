@@ -1,6 +1,8 @@
 import React from 'react';
 import { AlertTriangle, Award, Check, CheckCircle2, Circle, CircleX, Flower2, Leaf, Sprout } from 'lucide-react';
 import { SEED_HEALTH_META, SEED_STAGE_META } from '../constants/habitSeeds';
+import { formatShortTimeValue } from './habitValueUtils';
+import { SCORE_MAX } from './habitModalUtils';
 
 const boxStyles = {
     completed: 'border-emerald-300 bg-emerald-100 text-emerald-700',
@@ -29,6 +31,50 @@ const getEntryIcon = (entry) => {
     if (entry.status === 'missed' || entry.status === 'rotting') return <span className="text-xs font-bold">!</span>;
     if (entry.status === 'today') return <Sprout size={13} strokeWidth={2.5} />;
     return <Circle size={10} strokeWidth={2.4} />;
+};
+
+const getDayOfMonth = (date) => {
+    const day = String(date || '').split('-')[2];
+    return day ? Number(day) : '';
+};
+
+const isNeutralEntry = (entry) => ['future', 'future-free', 'free'].includes(entry.status);
+const isStatusOnlyEntry = (entry) => ['completed', 'missed', 'warning', 'final-warning', 'ended', 'dead', 'rotting', 'today'].includes(entry.status);
+
+const SeedTimelineCell = ({ entry, isScoreHabit, isTimeHabit }) => {
+    const preservesValueStyle = (isScoreHabit || isTimeHabit) && !['missed', 'warning', 'final-warning', 'ended', 'dead', 'rotting'].includes(entry.status);
+    const showStatusOnly = !isScoreHabit && !isTimeHabit && isStatusOnlyEntry(entry);
+    const scoreValue = Number(entry.value) || 0;
+    const dayOfMonth = getDayOfMonth(entry.date);
+    const label = isScoreHabit
+        ? `${entry.date}: ${scoreValue ? `score ${scoreValue} of ${SCORE_MAX}` : 'score not logged'}`
+        : isTimeHabit
+            ? `${entry.date}: ${entry.completed ? formatShortTimeValue(entry.value) : 'time not logged'}`
+        : `${entry.date}: ${entry.status}`;
+
+    return (
+        <div
+            title={label}
+            aria-label={label}
+            role="img"
+            className={`seed-progress__timeline-cell relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs transition-colors ${isScoreHabit && preservesValueStyle ? 'is-score' : ''}${isTimeHabit ? ' is-time' : ''}${isTimeHabit && preservesValueStyle ? ' is-time-value' : ''} ${getEntryStyle(entry)}`}
+        >
+            <span className="seed-progress__timeline-value">
+                {isScoreHabit
+                    ? (scoreValue || '–')
+                    : isTimeHabit
+                        ? (entry.completed ? formatShortTimeValue(entry.value) : '–')
+                        : showStatusOnly
+                            ? getEntryIcon(entry)
+                        : dayOfMonth}
+            </span>
+            {!isScoreHabit && !isTimeHabit && !showStatusOnly && !isNeutralEntry(entry) && (
+                <span className="seed-progress__timeline-status" aria-hidden="true">
+                    {getEntryIcon(entry)}
+                </span>
+            )}
+        </div>
+    );
 };
 
 const stageIcons = {
@@ -94,6 +140,9 @@ const milestones = [
 const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false, onQuickCheck, onQuickMiss }) => {
     if (!seeds?.length) return null;
 
+    const hasScoreSeed = seeds.some(({ habit }) => habit.type === 'score');
+    const hasTimeSeed = seeds.some(({ habit }) => habit.type === 'time');
+
     return (
         <section className="seed-progress rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm sm:p-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -105,6 +154,8 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                     <span className="inline-flex items-center gap-1"><Check size={12} className="text-emerald-600" /> done</span>
                     <span className="inline-flex items-center gap-1"><span className="font-bold text-red-600">!</span> missed</span>
                     <span className="inline-flex items-center gap-1"><Circle size={10} /> upcoming</span>
+                    {hasScoreSeed && <span className="inline-flex items-center gap-1"><span className="seed-progress__score-key">1–5</span> score</span>}
+                    {hasTimeSeed && <span className="inline-flex items-center gap-1"><span className="seed-progress__time-key">6:20</span> time</span>}
                 </div>
             </div>
 
@@ -121,6 +172,7 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                         : null;
                     const canQuickCheck = Boolean(
                         onQuickCheck &&
+                        habit.type !== 'time' &&
                         canCheckSelectedDate &&
                         selectedEntry &&
                         selectedEntry.status !== 'completed' &&
@@ -188,19 +240,8 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
 
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap gap-1.5">
-                                        {scheduledEntries.map((entry, index) => (
-                                            <div
-                                                key={entry.date}
-                                                title={`Step ${index + 1}: ${entry.status}`}
-                                                className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs transition-colors ${getEntryStyle(entry)}`}
-                                            >
-                                                {getEntryIcon(entry)}
-                                                {entry.status === 'completed' && (
-                                                    <span className="absolute bottom-0.5 right-0.5 text-[7px] font-bold leading-none opacity-70">
-                                                        {entry.completionNumber || index + 1}
-                                                    </span>
-                                                )}
-                                            </div>
+                                        {scheduledEntries.map((entry) => (
+                                            <SeedTimelineCell key={entry.date} entry={entry} isScoreHabit={habit.type === 'score'} isTimeHabit={habit.type === 'time'} />
                                         ))}
                                     </div>
                                 </div>
@@ -240,6 +281,8 @@ const SeedProgressList = ({ seeds, selectedDateStr, canCheckSelectedDate = false
                                                     ? 'This seed ended. Replant to restart.'
                                                     : !selectedEntry
                                                         ? 'This seed is not scheduled for the selected day.'
+                                                        : habit.type === 'time'
+                                                            ? 'Choose the wake-up time in the habit card.'
                                                         : !canCheckSelectedDate
                                                             ? 'Only today and yesterday can be edited.'
                                                             : ['missed', 'warning', 'final-warning', 'ended', 'dead', 'rotting'].includes(selectedEntry.status)

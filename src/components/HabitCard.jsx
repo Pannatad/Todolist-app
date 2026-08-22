@@ -1,7 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Check, Circle, Clock, Edit2, FileText, Flame, Lock, Trash2 } from 'lucide-react';
+import { Check, Circle, Clock, Edit2, FileText, Flame, Lock, Star, Trash2 } from 'lucide-react';
+import { formatTimeValue, getCurrentTimeValue, timeInputToValue, timeValueToInput } from './habitValueUtils';
+import { SCORE_MAX } from './habitModalUtils';
 
 const formatTime12h = (timeStr) => {
     if (!timeStr) return null;
@@ -40,13 +42,13 @@ const HabitCard = ({
     const [localDuration, setLocalDuration] = useState(null);
     const [isEditingNote, setIsEditingNote] = useState(false);
     const [noteDraft, setNoteDraft] = useState(log?.notes || '');
-    const actualValue = log?.value || 0;
+    const actualValue = log?.value ?? 0;
     const currentValue = localDuration !== null ? localDuration : actualValue;
     const isCompleted = log?.completed || false;
     const noteText = log?.notes || '';
     const progress = habit.type === 'check'
         ? (isCompleted ? 100 : 0)
-        : Math.min((currentValue / habit.target) * 100, 100);
+        : Math.min((currentValue / (habit.type === 'score' ? SCORE_MAX : habit.target)) * 100, 100);
     const currentStreak = streak?.current || 0;
     const seedEnded = Boolean(seedInsight?.ended);
 
@@ -67,6 +69,16 @@ const HabitCard = ({
             onLog(habit.id, isCompleted ? 0 : 1, !isCompleted);
             return;
         }
+        if (habit.type === 'score') {
+            if (!isCompleted) pulseCompletion();
+            onLog(habit.id, isCompleted ? 0 : 3, !isCompleted);
+            return;
+        }
+        if (habit.type === 'time') {
+            if (!isCompleted) pulseCompletion();
+            onLog(habit.id, isCompleted ? 0 : getCurrentTimeValue(), !isCompleted);
+            return;
+        }
         const nextValue = Math.min(currentValue + 1, habit.target);
         if (nextValue >= habit.target && !isCompleted) pulseCompletion();
         onLog(habit.id, nextValue, nextValue >= habit.target);
@@ -85,6 +97,32 @@ const HabitCard = ({
         if (localDuration >= habit.target && actualValue < habit.target) pulseCompletion();
         onLog(habit.id, localDuration, localDuration >= habit.target);
         setLocalDuration(null);
+    };
+
+    const handleScoreChange = (score, event) => {
+        event?.stopPropagation();
+        if (disabled) return;
+        if (score === currentValue && isCompleted) {
+            onLog(habit.id, 0, false);
+            return;
+        }
+        if (!isCompleted) pulseCompletion();
+        onLog(habit.id, score, true);
+    };
+
+    const handleTimeChange = (event) => {
+        event.stopPropagation();
+        if (disabled) return;
+        const timeValue = timeInputToValue(event.target.value);
+        if (timeValue === null) return;
+        if (!isCompleted) pulseCompletion();
+        onLog(habit.id, timeValue, true);
+    };
+
+    const clearTime = (event) => {
+        event.stopPropagation();
+        if (disabled) return;
+        onLog(habit.id, 0, false);
     };
 
     const handleSaveNote = () => {
@@ -126,9 +164,13 @@ const HabitCard = ({
 
             <div className="habit-row__main">
                 <div className="habit-row__mark">
-                    {habit.type === 'duration' ? (
-                        <span className="habit-row__type-icon" title="Duration habit">
+                    {habit.type === 'duration' || habit.type === 'time' ? (
+                        <span className="habit-row__type-icon" title={habit.type === 'time' ? 'Time habit' : 'Duration habit'}>
                             <Clock size={17} aria-hidden="true" />
+                        </span>
+                    ) : habit.type === 'score' ? (
+                        <span className="habit-row__type-icon" title="Score habit">
+                            <Star size={17} aria-hidden="true" />
                         </span>
                     ) : (
                         <Motion.button
@@ -195,6 +237,45 @@ const HabitCard = ({
                                         aria-label={`${habit.name} duration`}
                                     />
                                     <span className="habit-progress-line__value">{currentValue}/{habit.target} min</span>
+                                </div>
+                            )}
+                            {habit.type === 'score' && (
+                                <div className="habit-score-picker" role="group" aria-label={`Rate ${habit.name} from 1 to ${SCORE_MAX}`}>
+                                    {Array.from({ length: SCORE_MAX }, (_, index) => index + 1).map((score) => (
+                                        <button
+                                            key={score}
+                                            type="button"
+                                            onClick={(event) => handleScoreChange(score, event)}
+                                            disabled={disabled}
+                                            aria-label={`Score ${score} out of ${SCORE_MAX}`}
+                                            aria-pressed={currentValue === score}
+                                            className={`habit-score-picker__option${currentValue === score ? ' is-selected' : ''}`}
+                                        >
+                                            {score}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {habit.type === 'time' && (
+                                <div className="habit-time-line">
+                                    <label htmlFor={`habit-time-${habit.id}`}>Wake-up time</label>
+                                    <input
+                                        id={`habit-time-${habit.id}`}
+                                        type="time"
+                                        value={isCompleted ? timeValueToInput(currentValue) : ''}
+                                        onChange={handleTimeChange}
+                                        onClick={(event) => event.stopPropagation()}
+                                        disabled={disabled}
+                                        aria-label={`${habit.name} time`}
+                                    />
+                                    {isCompleted && (
+                                        <span className="habit-time-line__value">{formatTimeValue(currentValue)}</span>
+                                    )}
+                                    {isCompleted && (
+                                        <button type="button" onClick={clearTime} disabled={disabled}>
+                                            Clear
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>

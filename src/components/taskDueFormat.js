@@ -20,3 +20,13 @@ export const formatTaskDueRelative = (value, now = new Date()) => {
         : `${Math.max(1, Math.ceil(magnitude / HOUR_MS))}h`;
     return difference < 0 ? `Overdue by ${amount}` : `${amount} left`;
 };
+
+export const getTaskDueState = (value, completed = false, now = new Date()) => {
+    if (!value || completed) return { isDueToday: false, isOverdue: false };
+    const due = new Date(value);
+    if (Number.isNaN(due.getTime())) return { isDueToday: false, isOverdue: false };
+    return {
+        isDueToday: due.toDateString() === now.toDateString(),
+        isOverdue: due < now,
+    };
+};

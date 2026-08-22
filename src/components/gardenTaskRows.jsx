@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
-import { Check, ChevronDown, Circle, GripVertical, MoreHorizontal, Play, Sparkles, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Circle, GripVertical, MoreHorizontal, Play, Sparkles, Trash2 } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { getTaskChunkEstimate, normalizeTaskSubtasks } from '../utils/taskState';
-import { formatTaskDueAbsolute, formatTaskDueRelative } from './taskDueFormat';
+import { formatTaskDueAbsolute, formatTaskDueRelative, getTaskDueState } from './taskDueFormat';
 
 const formatEstimate = (minutes) => {
     if (!minutes) return 'No estimate';
@@ -48,17 +48,18 @@ const TaskListRow = ({ task, isCompleted = false, isSelected = false, onComplete
     const [menuOpen, setMenuOpen] = useState(false);
     const color = getColorForSubject(task.subject);
     const category = task.subject || 'Uncategorized';
+    const dueState = getTaskDueState(task.deadline, isCompleted);
     const absoluteDue = formatTaskDueAbsolute(task.deadline, isCompleted);
     const dueLabel = showRelativeDue ? formatTaskDueRelative(task.deadline) : absoluteDue;
-    return <div className={`task-list-row ${isSelected ? 'is-selected' : ''} ${isCompleted ? 'is-completed' : ''}`}>
+    return <div className={`task-list-row ${isSelected ? 'is-selected' : ''} ${isCompleted ? 'is-completed' : ''} ${dueState.isDueToday ? 'is-due-today' : ''} ${dueState.isOverdue ? 'is-overdue' : ''}`}>
         <button type="button" className="task-complete-button" onClick={() => isCompleted ? onRestore(task.id) : onComplete(task.id)} aria-label={isCompleted ? `Restore ${task.title}` : `Complete ${task.title}`}>{isCompleted ? <Check size={18} /> : <Circle size={18} />}</button>
         <button type="button" className="task-row-content" onClick={() => !isCompleted && onSelect(task.id)}>
             <span className="task-row-primary">
-                <span className="task-row-title">{task.title || 'Untitled task'}</span>
+                <span className="task-row-title"><span className="task-row-title-text">{task.title || 'Untitled task'}</span>{dueState.isOverdue && <span className="task-row-warning" role="img" aria-label="Overdue" title="Overdue"><AlertCircle size={14} aria-hidden="true" /></span>}</span>
                 <span className="task-row-meta"><span className="task-row-category" title={category}><i style={{ backgroundColor: color.color }} />{category}</span><span>{formatEstimate(getTaskChunkEstimate(task))}</span></span>
             </span>
         </button>
-        <button type="button" className="task-row-due" onClick={(event) => { event.stopPropagation(); onToggleDueMode(); }} disabled={!task.deadline} aria-label={task.deadline ? `${dueLabel}. Show ${showRelativeDue ? 'absolute due date' : 'time remaining'}` : 'No due date'} title={task.deadline ? `Show ${showRelativeDue ? 'absolute due date' : 'time remaining'}` : 'No due date'}>{dueLabel}</button>
+        <button type="button" className="task-row-due" onClick={(event) => { event.stopPropagation(); onToggleDueMode(); }} disabled={!task.deadline} aria-label={task.deadline ? `${dueState.isOverdue ? 'Overdue. ' : ''}${dueLabel}. Show ${showRelativeDue ? 'absolute due date' : 'time remaining'}` : 'No due date'} title={task.deadline ? `Show ${showRelativeDue ? 'absolute due date' : 'time remaining'}` : 'No due date'}>{dueLabel}</button>
         <div className="task-overflow">
             <button type="button" className="task-overflow-trigger" onClick={() => setMenuOpen((open) => !open)} aria-label={`Actions for ${task.title}`} aria-expanded={menuOpen}><MoreHorizontal size={19} /></button>
             {menuOpen && <div className="task-overflow-menu" aria-label={`Actions for ${task.title}`}>

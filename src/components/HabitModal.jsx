@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DEFAULT_SEED_DURATION_DAYS } from '../constants/habitSeeds';
 import { toast } from '../ui/Toast';
 import HabitModalForm from './HabitModalForm';
-import { getInitialFormState, TIME_OF_DAY_OPTIONS } from './habitModalUtils';
+import { getInitialFormState, SCORE_MAX, TIME_OF_DAY_OPTIONS } from './habitModalUtils';
 
 const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
     const initialState = getInitialFormState(habit);
@@ -82,7 +82,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
             name: name.trim(),
             icon,
             type,
-            target: type === 'check' ? 1 : parseInt(target, 10) || 1,
+            target: type === 'check' || type === 'time' ? 1 : type === 'score' ? SCORE_MAX : parseInt(target, 10) || 1,
             frequency,
             schedule_days: frequency === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : scheduleDays,
             time_of_day: timeOfDay,

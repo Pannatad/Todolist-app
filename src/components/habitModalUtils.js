@@ -36,6 +36,7 @@ const DAYS = [
 ];
 
 const SEED_DURATION_OPTIONS = [14, 30, 60];
+const SCORE_MAX = 5;
 
 const getInitialFormState = (habit) => ({
     name: habit?.name || '',
@@ -54,9 +55,9 @@ const getInitialFormState = (habit) => ({
     seedWhy: habit?.seed_why || '',
 });
 
-const labelClass = 'text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]';
-const surfaceClass = 'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)]';
-const inputClass = 'w-full rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] px-4 py-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]';
+const labelClass = 'habit-form__label';
+const surfaceClass = 'habit-form__surface';
+const inputClass = 'habit-form__input';
 
 export {
     COLOR_OPTIONS,
@@ -66,7 +67,7 @@ export {
     inputClass,
     labelClass,
     SEED_DURATION_OPTIONS,
+    SCORE_MAX,
     surfaceClass,
     TIME_OF_DAY_OPTIONS,
 };
-

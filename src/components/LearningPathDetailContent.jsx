@@ -74,10 +74,10 @@ const LearningPathDetailContent = ({ view }) => {
     } = view;
 
     return (
-        <div className="space-y-6">
+        <div className="learning-detail-content space-y-6">
             {/* Header */}
-            <div className="rounded-3xl overflow-hidden shadow-lg border border-gray-100">
-                <div className={`bg-gradient-to-r ${colorConfig.gradient} p-6 sm:p-8 relative overflow-hidden`}>
+            <div className="learning-detail__hero rounded-3xl overflow-hidden shadow-lg border border-gray-100">
+                <div className={`learning-detail__hero-surface bg-gradient-to-r ${colorConfig.gradient} p-6 sm:p-8 relative overflow-hidden`}>
                     <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-2xl -ml-8 -mb-8" />
 
@@ -168,7 +168,7 @@ const LearningPathDetailContent = ({ view }) => {
             </div>
 
             {/* Topics Checklist */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="learning-detail__topics bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 {/* List Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-2">

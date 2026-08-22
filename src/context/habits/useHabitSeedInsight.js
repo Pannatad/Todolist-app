@@ -103,6 +103,7 @@ export const useHabitSeedInsight = ({ habitLogs, storedHabits }) => (
                 date: toLocalDateKey(date),
                 scheduled,
                 completed,
+                value: Number(log?.value) || 0,
                 isToday,
                 isFuture,
                 status,

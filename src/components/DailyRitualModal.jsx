@@ -5,6 +5,7 @@ import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurr
 import { isTaskActive } from '../utils/taskState';
 import RitualChoice from './RitualChoice';
 import RitualNavigation from './RitualNavigation';
+import { getCurrentTimeValue } from './habitValueUtils';
 import {
     buildPlanBlocks,
     buttonPressProps,
@@ -327,7 +328,12 @@ const DailyRitualModal = ({
                                                     <button
                                                         key={habit.id}
                                                         type="button"
-                                                        {...buttonPressProps(() => logHabit?.(habit.id, todayKey, habit.type === 'count' || habit.type === 'duration' ? (habit.target || 1) : 1, true))}
+                                                        {...buttonPressProps(() => logHabit?.(
+                                                            habit.id,
+                                                            todayKey,
+                                                            habit.type === 'time' ? getCurrentTimeValue() : habit.type === 'score' ? 3 : habit.type === 'count' || habit.type === 'duration' ? (habit.target || 1) : 1,
+                                                            true,
+                                                        ))}
                                                         className="flex w-full items-center justify-between gap-2 rounded-xl bg-[var(--color-card-raised)] px-3 py-2 text-left text-sm font-medium text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]"
                                                     >
                                                         <span className="truncate">{habit.name}</span>

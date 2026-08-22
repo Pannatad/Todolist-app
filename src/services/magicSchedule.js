@@ -120,6 +120,54 @@ export const normalizeTemplateRecord = (template = {}) => ({
     blocks: sanitizeMagicTemplateBlocks(template.blocks)
 });
 
+const occurrenceStart = (item) => new Date(item?.displayTime || item?.startTime || item?.start_time || item?.deadline);
+const occurrenceDuration = (item) => Number(item?.duration || item?.estimatedTime || item?.estimated_time || 60);
+const occurrenceKind = (item) => item?.itemKind || item?.item_kind || SCHEDULE_ITEM_KINDS.EVENT;
+const occurrenceParentId = (item) => item?.parentItemId || item?.parent_item_id || null;
+
+export const occurrencesToMagicTemplateBlocks = (occurrences = []) => {
+    const childrenByParent = new Map();
+    occurrences.forEach((item) => {
+        const linkedParent = occurrenceParentId(item);
+        if (!linkedParent) return;
+        const entries = childrenByParent.get(String(linkedParent)) || [];
+        entries.push(item);
+        childrenByParent.set(String(linkedParent), entries);
+    });
+
+    return sanitizeMagicTemplateBlocks(
+        occurrences
+            .filter((item) => !occurrenceParentId(item))
+            .map((item) => {
+                const start = occurrenceStart(item);
+                if (Number.isNaN(start.getTime())) return null;
+                return {
+                    id: item.templateBlockId || item.template_block_id || createScheduleId('block'),
+                    kind: occurrenceKind(item),
+                    title: item.title,
+                    startTime: start.toTimeString().slice(0, 5),
+                    duration: occurrenceDuration(item),
+                    category: item.category || DEFAULT_CATEGORY,
+                    color: item.color || DEFAULT_COLOR,
+                    notes: item.notes || '',
+                    children: (childrenByParent.get(String(item.id)) || []).map((child) => {
+                        const childStart = occurrenceStart(child);
+                        return {
+                            id: child.templateBlockId || child.template_block_id || createScheduleId('child'),
+                            title: child.title,
+                            startTime: childStart.toTimeString().slice(0, 5),
+                            duration: occurrenceDuration(child),
+                            category: child.category || DEFAULT_CATEGORY,
+                            color: child.color || DEFAULT_COLOR,
+                            notes: child.notes || ''
+                        };
+                    })
+                };
+            })
+            .filter(Boolean)
+    );
+};
+
 const dateAtTime = (dateKey, time) => {
     const date = new Date(`${dateKey}T${time}:00`);
     return Number.isNaN(date.getTime()) ? null : date;
@@ -190,6 +238,46 @@ export const buildTemplateSchedulePayloads = (templateInput, options = {}) => {
                 templateBlockId: child.id,
                 templateApplicationId: applicationId,
                 ...recurrence
+            });
+        });
+    });
+
+    return payloads;
+};
+
+export const buildDayPlanSchedulePayloads = ({ date, blocks = [] } = {}) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return [];
+    const cleanBlocks = sanitizeMagicTemplateBlocks(blocks);
+    const payloads = [];
+
+    cleanBlocks.forEach((block) => {
+        const start = dateAtTime(date, block.startTime);
+        if (!start) return;
+        const clientKey = createScheduleId('proposed');
+        payloads.push({
+            clientKey,
+            title: block.title,
+            startTime: start.toISOString(),
+            duration: block.duration,
+            category: block.category,
+            color: block.color,
+            notes: block.notes,
+            itemKind: block.kind
+        });
+
+        block.children.forEach((child) => {
+            const childStart = dateAtTime(date, child.startTime);
+            if (!childStart) return;
+            payloads.push({
+                clientKey: createScheduleId('proposed-child'),
+                parentClientKey: clientKey,
+                title: child.title,
+                startTime: childStart.toISOString(),
+                duration: child.duration,
+                category: child.category,
+                color: child.color,
+                notes: child.notes,
+                itemKind: SCHEDULE_ITEM_KINDS.EVENT
             });
         });
     });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion as Motion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 
 const timeLabel = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -27,18 +28,14 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
   if (!entry) {
     return (
       <section
-        className="-mx-3 rounded-3xl border px-4 py-5"
-        style={{
-          background: 'linear-gradient(135deg, color-mix(in oklch, var(--color-accent) 13%, var(--color-card-raised)), var(--color-card-raised) 74%)',
-          borderColor: 'color-mix(in oklch, var(--color-accent) 30%, var(--color-rule))',
-        }}
+        className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] px-5 py-5 sm:px-6"
       >
-        <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Free</p>
-        <h2 className="mt-1 text-3xl font-bold leading-tight tracking-tight text-[var(--color-ink)]">Nothing scheduled</h2>
+        <p className="text-[13px] font-semibold text-[var(--color-muted)]">Your schedule is clear</p>
+        <h2 className="mt-1 text-xl font-bold leading-tight tracking-tight text-[var(--color-ink)] sm:text-[22px]">Nothing scheduled next</h2>
         <button
           type="button"
           onClick={onPlanDay}
-          className="mt-4 inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-[var(--color-accent-ink)] transition-transform active:scale-95"
+          className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[var(--color-accent)] px-4 text-sm font-semibold text-[var(--color-accent-ink)] transition-[transform,opacity] hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus)] focus-visible:ring-offset-2 active:scale-[0.98]"
         >
           Plan my day
         </button>
@@ -51,31 +48,36 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
   const progress = isNow ? Math.min(1, Math.max(0, (now - entry.start) / (entry.end - entry.start))) : 0;
   const followUp = isNow ? next : null;
   const strong = `color-mix(in oklch, ${color} 72%, var(--color-ink))`;
-  const soft = `color-mix(in srgb, ${color} 18%, transparent)`;
+  const soft = `color-mix(in srgb, ${color} 16%, transparent)`;
 
   return (
-    <section
-      className="-mx-3 cursor-pointer select-none rounded-3xl border px-4 py-5"
+    <button
+      type="button"
+      className="group w-full select-none rounded-2xl border bg-[var(--color-card)] px-5 py-5 text-left transition-colors hover:bg-[var(--color-card-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus)] focus-visible:ring-offset-2 sm:px-6"
       style={{
-        background: `linear-gradient(135deg, color-mix(in oklch, ${color} 13%, var(--color-card-raised)), var(--color-card-raised) 74%)`,
-        borderColor: `color-mix(in oklch, ${color} 30%, var(--color-rule))`,
+        borderColor: `color-mix(in oklch, ${color} 24%, var(--color-rule))`,
       }}
       onClick={() => onOpen(entry.item)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(entry.item); } }}
     >
-      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: strong }}>
-        {isNow ? 'Now' : 'Up next'} · {timeLabel(entry.start)}–{timeLabel(entry.end)}
-        <span className="ml-2 font-semibold normal-case tracking-normal text-[var(--color-muted)]">{entry.item.category || 'Other'}</span>
-      </p>
+      <div className="flex items-center justify-between gap-4">
+        <p className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-[var(--color-muted)]">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+          <span className="shrink-0" style={{ color: strong }}>{isNow ? 'Now' : 'Up next'}</span>
+          <span aria-hidden="true">·</span>
+          <span className="truncate tabular-nums">{timeLabel(entry.start)}–{timeLabel(entry.end)}</span>
+        </p>
+        <span className="shrink-0 text-xs font-medium text-[var(--color-muted)]">{entry.item.category || 'Other'}</span>
+      </div>
 
-      <h2 className="mt-1.5 text-3xl font-bold leading-tight tracking-tight text-[var(--color-ink)] line-clamp-2 sm:text-4xl">
-        {entry.item.title}
-      </h2>
+      <div className="mt-3 flex items-end justify-between gap-4">
+        <h2 className="min-w-0 line-clamp-2 text-[28px] font-bold leading-[1.12] tracking-tight text-[var(--color-ink)]">
+          {entry.item.title}
+        </h2>
+        <ChevronRight size={20} className="mb-1 shrink-0 text-[var(--color-muted)] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+      </div>
 
       {isNow ? (
-        <div className="mt-4 max-w-md">
+        <div className="mt-4">
           <div className="h-1 overflow-hidden rounded-full" style={{ background: soft }}>
             <Motion.div
               className="h-full rounded-full"
@@ -85,10 +87,10 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
               transition={{ duration: 0.6, ease: 'easeOut' }}
             />
           </div>
-          <p className="mt-1.5 text-sm font-semibold" style={{ color: strong }}>{remainingLabel(entry.end - now)} left</p>
+          <p className="mt-2 text-[13px] font-semibold" style={{ color: strong }}>{remainingLabel(entry.end - now)} left</p>
         </div>
       ) : (
-        <p className="mt-2 text-sm font-semibold" style={{ color: strong }}>in {remainingLabel(entry.start - now)}</p>
+        <p className="mt-2 text-[13px] font-semibold" style={{ color: strong }}>Starts in {remainingLabel(entry.start - now)}</p>
       )}
 
       {followUp && (
@@ -96,7 +98,7 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
           Then <span className="font-semibold text-[var(--color-ink)]">{followUp.item.title}</span> · {timeLabel(followUp.start)}
         </p>
       )}
-    </section>
+    </button>
   );
 };
 

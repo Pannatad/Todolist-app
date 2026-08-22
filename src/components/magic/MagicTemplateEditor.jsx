@@ -36,7 +36,7 @@ const blankChild = (parent) => ({
     notes: ''
 });
 
-const TimelinePreview = ({ blocks }) => {
+const TimelinePreview = ({ blocks, ariaLabel = 'Template day preview' }) => {
     const previewBlocks = blocks.flatMap((block) => [
         { ...block, previewKey: block.id, previewKind: block.kind },
         ...(block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL
@@ -49,7 +49,7 @@ const TimelinePreview = ({ blocks }) => {
     ]);
 
     return (
-        <div className="magic-template-preview" aria-label="Template day preview">
+        <div className="magic-template-preview" aria-label={ariaLabel}>
             <div className="magic-template-preview__hours">
                 {PREVIEW_HOURS.map((hour) => <span key={hour}>{hour}</span>)}
             </div>
@@ -298,5 +298,5 @@ const MagicTemplateEditor = ({
     );
 };
 
-export { TimelinePreview };
+export { TimelinePreview, BlockEditor };
 export default MagicTemplateEditor;

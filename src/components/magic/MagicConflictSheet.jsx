@@ -24,11 +24,11 @@ const proposalGeometry = (proposal) => {
     };
 };
 
-const FinalTimelinePreview = ({ proposals, label, warning }) => (
+const FinalTimelinePreview = ({ proposals, label, warning, variant = 'template' }) => (
     <section className="magic-final-timeline" aria-label={`${label} timeline preview`}>
         <div className="magic-final-timeline__heading">
             <div>
-                <strong>Final template placement</strong>
+                <strong>Final {variant === 'day' ? 'day' : 'template'} placement</strong>
                 <span>{label}</span>
             </div>
             <span>{proposals.length} block{proposals.length === 1 ? '' : 's'}</span>
@@ -65,7 +65,7 @@ const FinalTimelinePreview = ({ proposals, label, warning }) => (
             })}
         </div>
         {proposals.length > 10 && <span className="magic-final-timeline__more">+{proposals.length - 10} more linked blocks</span>}
-        {!proposals.length && <div className="magic-final-timeline__empty">No template blocks will be added with this choice.</div>}
+        {!proposals.length && <div className="magic-final-timeline__empty">No {variant === 'day' ? 'day plan' : 'template'} blocks will be added with this choice.</div>}
     </section>
 );
 
@@ -73,6 +73,8 @@ const MagicConflictSheet = ({
     open,
     onClose,
     template,
+    planLabel,
+    variant = 'template',
     proposals = [],
     conflicts = [],
     autoFitProposals = [],
@@ -83,6 +85,9 @@ const MagicConflictSheet = ({
 }) => {
     const [resolution, setResolution] = useState('skip');
     const [customRequest, setCustomRequest] = useState('');
+    const displayName = planLabel || template?.name || 'Schedule plan';
+    const displayType = variant === 'day' ? 'day plan' : 'template';
+    const scheduleType = variant === 'day' ? 'one-time schedule' : 'schedule';
     const hasTaskConflict = conflicts.some((conflict) => conflict.existing.source === 'task');
     const finalProposals = useMemo(() => {
         if (!conflicts.length || resolution === 'replace') return proposals;
@@ -95,8 +100,8 @@ const MagicConflictSheet = ({
         return proposals;
     }, [autoFitProposals, conflicts, proposals, resolution]);
     const resolutionLabel = {
-        skip: 'Keep existing · overlapping template blocks are removed',
-        replace: 'Replace schedule conflicts · template times stay fixed',
+        skip: `Keep existing · overlapping ${displayType} blocks are removed`,
+        replace: `Replace schedule conflicts · ${displayType} times stay fixed`,
         auto_fit: 'Auto-fit · moved to the next available time',
         custom: 'Custom merge · the assistant will prepare another preview'
     }[resolution];
@@ -133,8 +138,8 @@ const MagicConflictSheet = ({
         <Sheet
             open={open}
             onClose={closeReview}
-            title={conflicts.length ? 'Review schedule conflicts' : 'Review template application'}
-            description={`“${template?.name || 'Template'}” will add ${proposals.length} schedule block${proposals.length === 1 ? '' : 's'}.`}
+            title={conflicts.length ? 'Review schedule conflicts' : `Review ${displayType}`}
+            description={`“${displayName}” will add ${proposals.length} ${scheduleType} block${proposals.length === 1 ? '' : 's'}.`}
             className="magic-conflict-sheet"
         >
             <div className="magic-review">
@@ -196,6 +201,7 @@ const MagicConflictSheet = ({
                         warning={autoFitBlocked
                             ? `${autoFitConflicts.length} conflict${autoFitConflicts.length === 1 ? '' : 's'} could not be fitted safely. Choose another option.`
                             : ''}
+                        variant={variant}
                     />
                 )}
                 {resolution === 'custom' && (
@@ -213,7 +219,7 @@ const MagicConflictSheet = ({
                         disabled={busy || autoFitBlocked || (resolution === 'custom' && !customRequest.trim())}
                         onClick={confirmReview}
                     >
-                        {busy ? 'Applying…' : conflicts.length ? 'Resolve & apply' : 'Confirm application'}
+                        {busy ? 'Applying…' : conflicts.length ? 'Resolve & apply' : variant === 'day' ? 'Craft this day' : 'Confirm application'}
                     </button>
                 </div>
             </div>

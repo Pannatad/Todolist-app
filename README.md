@@ -119,7 +119,8 @@ GEMINI_MODEL=gemini-3.1-flash-lite-preview
 \`\`\`
 
 For the tested local setup, phone-access constraints, and troubleshooting, see
-[Local LLM Phase 1](docs/LOCAL_LLM_PHASE_1.md).
+[Local LLM Phase 1](docs/LOCAL_LLM_PHASE_1.md). For the reusable architecture
+and implementation process, see the [local-LLM documentation index](docs/local-llm/README.md).
 
 4. Run the development server
 \`\`\`bash

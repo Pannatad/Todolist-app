@@ -1,6 +1,66 @@
 import { supabase } from '../services/supabase';
 
 const STORAGE_KEY = 'growth-schedule-guest';
+const SCHEDULE_UNI_KINDS = new Set(['exam', 'quiz', 'event']);
+const WORKSPACES = new Set(['personal', 'university']);
+
+const readWorkspace = (record) => record?.workspace ?? 'personal';
+const readUniKind = (record) => record?.uniKind !== undefined ? record.uniKind : record?.uni_kind;
+const readIsMilestone = (record) => record?.isMilestone !== undefined
+    ? record.isMilestone
+    : record?.is_milestone;
+
+export const normalizeScheduleRecord = (item) => {
+    if (!item) return item;
+
+    const workspace = readWorkspace(item) === 'university' ? 'university' : 'personal';
+    const uniKind = workspace === 'university' && SCHEDULE_UNI_KINDS.has(readUniKind(item))
+        ? readUniKind(item)
+        : null;
+    const isMilestone = readIsMilestone(item) === true;
+
+    return {
+        ...item,
+        startTime: item.startTime ?? item.start_time,
+        recurrenceType: item.recurrenceType ?? item.recurrence_type ?? 'none',
+        recurrenceInterval: item.recurrenceInterval ?? item.recurrence_interval ?? 1,
+        recurrenceDaysOfWeek: item.recurrenceDaysOfWeek ?? item.recurrence_days_of_week ?? [],
+        recurrenceEndDate: item.recurrenceEndDate ?? item.recurrence_end_date ?? null,
+        recurrenceExceptions: item.recurrenceExceptions ?? item.recurrence_exceptions ?? [],
+        recurrenceOverrides: item.recurrenceOverrides ?? item.recurrence_overrides ?? {},
+        itemKind: item.itemKind ?? item.item_kind ?? 'event',
+        parentItemId: item.parentItemId ?? item.parent_item_id ?? null,
+        sourceTemplateId: item.sourceTemplateId ?? item.source_template_id ?? null,
+        sourceTemplateVersion: item.sourceTemplateVersion ?? item.source_template_version ?? null,
+        templateBlockId: item.templateBlockId ?? item.template_block_id ?? null,
+        templateApplicationId: item.templateApplicationId ?? item.template_application_id ?? null,
+        workspace,
+        uniKind,
+        uni_kind: uniKind,
+        isMilestone,
+        is_milestone: isMilestone,
+        completed: item.completed === true || Boolean(item.completed_at || item.completedAt)
+    };
+};
+
+const prepareScheduleRecord = (item) => {
+    const workspace = readWorkspace(item);
+    const uniKind = readUniKind(item) ?? null;
+
+    if (!WORKSPACES.has(workspace)) {
+        throw new Error(`Invalid schedule workspace: ${workspace}`);
+    }
+    if (workspace === 'university' && !SCHEDULE_UNI_KINDS.has(uniKind)) {
+        throw new Error(`Invalid university schedule kind: ${uniKind || 'missing'}`);
+    }
+
+    return normalizeScheduleRecord({
+        ...item,
+        workspace,
+        uniKind: workspace === 'university' ? uniKind : null,
+        isMilestone: readIsMilestone(item) === true
+    });
+};
 
 const withDefinedValues = (payload) => Object.fromEntries(
     Object.entries(payload).filter(([, value]) => value !== undefined)
@@ -20,44 +80,48 @@ const writeLocalItems = (items) => {
 };
 
 const buildInsertPayloads = (item) => {
+    const normalizedItem = prepareScheduleRecord(item);
     const fullPayload = {
-        id: item.id,
-        user_id: item.user_id,
-        title: item.title,
-        start_time: item.start_time,
-        duration: item.duration,
-        category: item.category,
-        created_at: item.created_at,
-        color: item.color,
-        notes: item.notes,
-        recurrence_type: item.recurrence_type,
-        recurrence_interval: item.recurrence_interval,
-        recurrence_days_of_week: item.recurrence_days_of_week,
-        recurrence_end_date: item.recurrence_end_date,
-        recurrence_exceptions: item.recurrence_exceptions,
-        recurrence_overrides: item.recurrence_overrides,
-        item_kind: item.item_kind,
-        parent_item_id: item.parent_item_id,
-        source_template_id: item.source_template_id,
-        source_template_version: item.source_template_version,
-        template_block_id: item.template_block_id,
-        template_application_id: item.template_application_id
+        id: normalizedItem.id,
+        user_id: normalizedItem.user_id,
+        title: normalizedItem.title,
+        start_time: normalizedItem.start_time,
+        duration: normalizedItem.duration,
+        category: normalizedItem.category,
+        created_at: normalizedItem.created_at,
+        color: normalizedItem.color,
+        notes: normalizedItem.notes,
+        recurrence_type: normalizedItem.recurrence_type,
+        recurrence_interval: normalizedItem.recurrence_interval,
+        recurrence_days_of_week: normalizedItem.recurrence_days_of_week,
+        recurrence_end_date: normalizedItem.recurrence_end_date,
+        recurrence_exceptions: normalizedItem.recurrence_exceptions,
+        recurrence_overrides: normalizedItem.recurrence_overrides,
+        item_kind: normalizedItem.item_kind,
+        parent_item_id: normalizedItem.parent_item_id,
+        source_template_id: normalizedItem.source_template_id,
+        source_template_version: normalizedItem.source_template_version,
+        template_block_id: normalizedItem.template_block_id,
+        template_application_id: normalizedItem.template_application_id,
+        workspace: normalizedItem.workspace,
+        uni_kind: normalizedItem.uni_kind,
+        is_milestone: normalizedItem.is_milestone
     };
 
     const legacyPayload = {
-        user_id: item.user_id,
-        title: item.title,
-        start_time: item.start_time,
-        duration: item.duration,
-        category: item.category,
-        created_at: item.created_at
+        user_id: normalizedItem.user_id,
+        title: normalizedItem.title,
+        start_time: normalizedItem.start_time,
+        duration: normalizedItem.duration,
+        category: normalizedItem.category,
+        created_at: normalizedItem.created_at
     };
 
     return [withDefinedValues(fullPayload), legacyPayload, {
-        user_id: item.user_id,
-        title: item.title,
-        start_time: item.start_time,
-        created_at: item.created_at
+        user_id: normalizedItem.user_id,
+        title: normalizedItem.title,
+        start_time: normalizedItem.start_time,
+        created_at: normalizedItem.created_at
     }];
 };
 
@@ -81,7 +145,10 @@ const buildUpdatePayloads = (updates) => {
             source_template_id: updates.source_template_id,
             source_template_version: updates.source_template_version,
             template_block_id: updates.template_block_id,
-            template_application_id: updates.template_application_id
+            template_application_id: updates.template_application_id,
+            workspace: updates.workspace,
+            uni_kind: updates.uni_kind,
+            is_milestone: updates.is_milestone
         }),
         withDefinedValues({
             title: updates.title,
@@ -98,15 +165,17 @@ const buildUpdatePayloads = (updates) => {
 };
 
 const createLocalRepo = () => ({
-    list: async () => readLocalItems(),
+    list: async () => readLocalItems().map(normalizeScheduleRecord),
     create: async (item) => {
-        const localItem = { ...item, id: item.id || crypto.randomUUID() };
+        const localItem = prepareScheduleRecord({ ...item, id: item.id || crypto.randomUUID() });
         writeLocalItems([...readLocalItems(), localItem]);
         return localItem;
     },
     update: async (id, updates) => {
         const items = readLocalItems();
-        const updated = items.map((item) => item.id === id ? { ...item, ...updates } : item);
+        const updated = items.map((item) => item.id === id
+            ? prepareScheduleRecord({ ...item, ...updates })
+            : normalizeScheduleRecord(item));
         writeLocalItems(updated);
         return updated.find((item) => item.id === id) || null;
     },
@@ -117,7 +186,7 @@ const createLocalRepo = () => ({
         return removed;
     },
     createMany: async (items) => {
-        const created = items.map((item) => ({ ...item, id: item.id || crypto.randomUUID() }));
+        const created = items.map((item) => prepareScheduleRecord({ ...item, id: item.id || crypto.randomUUID() }));
         writeLocalItems([...readLocalItems(), ...created]);
         return created;
     }
@@ -128,30 +197,45 @@ const createSupabaseRepo = (userId) => ({
         const { data, error } = await supabase.from('schedule_items')
             .select('*').eq('user_id', userId).order('start_time', { ascending: true });
         if (error) throw error;
-        return data || [];
+        return (data || []).map(normalizeScheduleRecord);
     },
     create: async (item) => {
+        const normalizedItem = prepareScheduleRecord(item);
         let lastError = null;
-        for (const payload of buildInsertPayloads(item)) {
+        const payloads = normalizedItem.workspace === 'university'
+            ? [buildInsertPayloads(normalizedItem)[0]]
+            : buildInsertPayloads(normalizedItem);
+        for (const payload of payloads) {
             const { data, error } = await supabase.from('schedule_items').insert([payload]).select().single();
-            if (data) return data;
+            if (data) return normalizeScheduleRecord(data);
             lastError = error;
             console.warn('Schedule insert attempt failed, trying fallback payload...', error);
         }
         throw new Error(lastError?.message || 'Failed to save schedule item to cloud.');
     },
     createMany: async (items) => {
-        const payloads = items.map((item) => buildInsertPayloads(item)[0]);
+        const normalizedItems = items.map(prepareScheduleRecord);
+        const payloads = normalizedItems.map((item) => buildInsertPayloads(item)[0]);
         const { data, error } = await supabase.from('schedule_items').insert(payloads).select();
         if (error) throw new Error(error.message || 'Failed to save schedule items to cloud.');
-        return data || [];
+        return (data || []).map(normalizeScheduleRecord);
     },
-    update: async (id, updates) => {
+    update: async (id, updates, item) => {
+        const normalizedItem = prepareScheduleRecord({ ...item, ...updates });
+        const normalizedUpdates = {
+            ...updates,
+            workspace: normalizedItem.workspace,
+            uni_kind: normalizedItem.uni_kind,
+            is_milestone: normalizedItem.is_milestone
+        };
         let lastError = null;
-        for (const payload of buildUpdatePayloads(updates)) {
+        const payloads = normalizedItem.workspace === 'university'
+            ? [buildUpdatePayloads(normalizedUpdates)[0]]
+            : buildUpdatePayloads(normalizedUpdates);
+        for (const payload of payloads) {
             const { data, error } = await supabase.from('schedule_items').update(payload)
                 .eq('id', id).select().maybeSingle();
-            if (data) return data;
+            if (data) return normalizeScheduleRecord(data);
             lastError = error;
             console.warn('Schedule update attempt failed, trying fallback payload...', error);
         }
@@ -161,7 +245,7 @@ const createSupabaseRepo = (userId) => ({
         const { data, error } = await supabase.from('schedule_items').delete()
             .eq('id', id).select('id').maybeSingle();
         if (error || !data) throw new Error(error?.message || 'Schedule item could not be deleted from Supabase.');
-        return data;
+        return normalizeScheduleRecord(data);
     }
 });
 

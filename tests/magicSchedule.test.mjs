@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import {
     autoFitTemplateItems,
     buildFutureTemplateUpdateSteps,
+    buildDayPlanSchedulePayloads,
     buildTemplateSchedulePayloads,
     detectScheduleConflicts,
     getScheduleOverlapLayout,
     getTimelinePreviewGeometry,
     normalizeTemplateRecord,
+    occurrencesToMagicTemplateBlocks,
     sanitizeMagicTemplateBlocks,
     SCHEDULE_ITEM_KINDS
 } from '../src/services/magicSchedule.js';
@@ -104,6 +106,52 @@ test('template application without repeat days stays a one-day schedule', () => 
     assert.equal(payload.recurrenceType, undefined);
     assert.equal(payload.recurrenceDaysOfWeek, undefined);
     assert.equal(new Date(payload.startTime).getDate(), 27);
+});
+
+test('crafting a day creates one-time payloads and preserves flexible children', () => {
+    const payloads = buildDayPlanSchedulePayloads({
+        date: '2026-07-27',
+        blocks: [{
+            id: 'shell',
+            kind: SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL,
+            title: 'Deep work',
+            startTime: '09:00',
+            duration: 180,
+            children: [{ id: 'draft', title: 'Draft', startTime: '09:30', duration: 60 }]
+        }]
+    });
+
+    assert.equal(payloads.length, 2);
+    assert.equal(payloads[0].itemKind, SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL);
+    assert.equal(payloads[1].parentClientKey, payloads[0].clientKey);
+    assert.equal(payloads[0].recurrenceType, undefined);
+    assert.equal(payloads[0].sourceTemplateId, undefined);
+    assert.equal(new Date(payloads[0].startTime).getDate(), 27);
+});
+
+test('copying a recurring occurrence flattens it to the displayed day', () => {
+    const blocks = occurrencesToMagicTemplateBlocks([{
+        id: 'series',
+        title: 'Study',
+        start_time: localIso('2026-07-20', '08:30'),
+        displayTime: new Date('2026-07-27T10:00:00'),
+        duration: 90,
+        item_kind: SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL,
+        recurrence_type: 'weekly',
+        children: []
+    }, {
+        id: 'child',
+        title: 'Read',
+        start_time: localIso('2026-07-20', '09:00'),
+        displayTime: new Date('2026-07-27T10:30:00'),
+        duration: 30,
+        parent_item_id: 'series'
+    }]);
+
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].startTime, '10:00');
+    assert.equal(blocks[0].children[0].startTime, '10:30');
+    assert.equal(blocks[0].kind, SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL);
 });
 
 test('template application links child events to the shell and inherits recurrence', () => {

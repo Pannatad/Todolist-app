@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/purity */
 import { useEffect, useMemo, useState } from 'react';
-import { Check, CheckCircle2, Sparkles, Sunrise } from 'lucide-react';
+import { CheckCircle2, Sparkles, Sunrise } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -21,7 +21,9 @@ import MagicBox from './MagicBox';
 import NowCard from './today/NowCard';
 import TodaySchedule from './today/TodaySchedule';
 import TodayDueTasks from './today/TodayDueTasks';
+import TodayHabitsSummary from './today/TodayHabitsSummary';
 import { useAgentCommands } from './today/useAgentCommands';
+import { getCurrentTimeValue } from './habitValueUtils';
 
 const todaySectionClass = 'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] p-4 sm:p-5';
 
@@ -115,7 +117,12 @@ const Overview = ({ onNavigate }) => {
     dueTasks.length ? `${dueTasks.length} due` : null,
   ].filter(Boolean).join(' · ');
 
-  const markHabit = (habit) => logHabit(habit.id, todayKey, habit.type === 'count' || habit.type === 'duration' ? habit.target || 1 : 1, true);
+  const markHabit = (habit) => logHabit(
+    habit.id,
+    todayKey,
+    habit.type === 'time' ? getCurrentTimeValue() : habit.type === 'score' ? 3 : habit.type === 'count' || habit.type === 'duration' ? habit.target || 1 : 1,
+    true,
+  );
   const openTask = (task) => { setSelectedTask(task); setShowTaskModal(true); };
   const openSchedule = (item) => { if (item) { setSelectedScheduleItem(item); setShowScheduleModal(true); } else onNavigate('schedule'); };
   const closeSchedule = () => { setShowScheduleModal(false); setSelectedScheduleItem(null); };
@@ -205,31 +212,10 @@ const Overview = ({ onNavigate }) => {
           <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
         </div>}
 
-        {/* Habits: loose chips, no container */}
+        {/* Habits: compact cards with one-tap completion */}
         {habitItems.length > 0 && (
           <div className={`mt-8 ${todaySectionClass}`}>
-            <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">Habits</h2>
-              <span className="text-xs font-medium text-[var(--color-muted)]">{habitsDone} of {habitItems.length}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {habitItems.map((habit) => (
-                <button
-                  key={habit.id}
-                  type="button"
-                  onClick={() => !habit.completed && markHabit(habit)}
-                  disabled={habit.completed}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 ${
-                    habit.completed
-                      ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                      : 'bg-[color-mix(in_srgb,var(--color-accent)_7%,var(--color-card-raised))] text-[var(--color-ink)] shadow-[var(--shadow-card)] hover:bg-[var(--color-accent-soft)]'
-                  }`}
-                >
-                  {habit.completed && <Check size={14} aria-hidden="true" />}
-                  {habit.name}
-                </button>
-              ))}
-            </div>
+            <TodayHabitsSummary habits={habitItems} completedCount={habitsDone} onComplete={markHabit} />
           </div>
         )}
       </div>

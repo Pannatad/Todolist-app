@@ -407,8 +407,9 @@ const LearningPathDetailView = ({ path, onBack }) => {
     };
 
     return (
-        <LearningPathDetailContent
-            view={{
+        <div className="learning-detail">
+            <LearningPathDetailContent
+                view={{
                 addMenuRef, addResource, addTopicsBatch, canReorderTopics, colorConfig, completedCount,
                 deleteResource, deleteTimeLog, deleteTopic, editingTopic, feedbackMessage, filterCounts,
                 focusTopics, formatTime, getTopicVideoUrl, handleAddTopic, handleEditTopic, handleReorder,
@@ -417,8 +418,9 @@ const LearningPathDetailView = ({ path, onBack }) => {
                 setShowAddMenu, setShowAIGenerator, setShowTimetableEditor, setShowTopicModal, setTopicFilter,
                 setTopicQuery, showAddMenu, showAIGenerator, showTimetableEditor, showTopicModal, timetable,
                 topicFilter, topicLibraryEntries, topicQuery, topicResources, topicTimeLogs, totalTime, visibleTopics,
-            }}
-        />
+                }}
+            />
+        </div>
     );
 };
 

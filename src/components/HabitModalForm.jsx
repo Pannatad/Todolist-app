@@ -1,5 +1,5 @@
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Check, Clock, Hash, Moon, Plus, Sprout, Sun, Sunrise, Sunset, X } from 'lucide-react';
+import { Check, Clock, Hash, Moon, Plus, Sprout, Star, Sun, Sunrise, Sunset, X } from 'lucide-react';
 import { DEFAULT_SEED_DURATION_DAYS } from '../constants/habitSeeds';
 import { Sheet } from '../ui';
 import {
@@ -9,6 +9,7 @@ import {
     inputClass,
     labelClass,
     SEED_DURATION_OPTIONS,
+    SCORE_MAX,
     surfaceClass,
     TIME_OF_DAY_OPTIONS,
 } from './habitModalUtils';
@@ -45,15 +46,15 @@ const HabitModalForm = ({
     toggleDay,
     type,
 }) => (
-        <Sheet open={isOpen} onClose={onClose} title={habit ? 'Edit habit' : 'New habit'}>
-                    <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+        <Sheet open={isOpen} onClose={onClose} title={habit ? 'Edit habit' : 'New habit'} className="habit-sheet">
+                    <form onSubmit={handleSubmit} className="habit-form flex-1 overflow-y-auto">
                         <div className="space-y-2">
                             <label className={labelClass}>Habit Name</label>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-2xl transition-colors hover:bg-[var(--color-paper-3)]"
+                                    className="habit-form__emoji-button flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-2xl transition-colors hover:bg-[var(--color-paper-3)]"
                                 >
                                     {icon}
                                 </button>
@@ -105,9 +106,9 @@ const HabitModalForm = ({
                                         key={option.value}
                                         type="button"
                                         onClick={() => handleTimeOfDayChange(option.value)}
-                                        className={`rounded-2xl border px-2 py-2.5 text-center text-xs font-medium transition-colors ${
+                                        className={`habit-form__choice rounded-2xl border px-2 py-2.5 text-center text-xs font-medium transition-colors ${
                                             timeOfDay === option.value
-                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                ? 'is-selected border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
                                                 : 'border-[var(--color-rule)] bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                         }`}
                                     >
@@ -143,19 +144,25 @@ const HabitModalForm = ({
 
                         <div className="space-y-2">
                             <label className={labelClass}>Type</label>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                                 {[
                                     { value: 'check', label: 'Simple', icon: Check },
                                     { value: 'count', label: 'Count', icon: Hash },
                                     { value: 'duration', label: 'Duration', icon: Clock },
+                                    { value: 'score', label: 'Score', icon: Star },
+                                    { value: 'time', label: 'Time', icon: Clock },
                                 ].map((option) => (
                                     <button
                                         key={option.value}
                                         type="button"
-                                        onClick={() => setType(option.value)}
-                                        className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
+                                        onClick={() => {
+                                            setType(option.value);
+                                            if (option.value === 'score') setTarget(SCORE_MAX);
+                                            if (option.value === 'time') setTarget(1);
+                                        }}
+                                        className={`habit-form__choice flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
                                             type === option.value
-                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                ? 'is-selected border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
                                                 : 'border-[var(--color-rule)] bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                         }`}
                                     >
@@ -166,7 +173,7 @@ const HabitModalForm = ({
                             </div>
                         </div>
 
-                        {type !== 'check' && (
+                        {type !== 'check' && type !== 'score' && (
                             <Motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
@@ -190,11 +197,31 @@ const HabitModalForm = ({
                             </Motion.div>
                         )}
 
+                        {type === 'score' && (
+                            <div className={`${surfaceClass} flex items-center justify-between gap-3`}>
+                                <div>
+                                    <div className="text-sm font-medium text-[var(--color-ink)]">Daily score</div>
+                                    <p className="mt-0.5 text-xs text-[var(--color-muted)]">Choose one number from 1 to {SCORE_MAX} each day.</p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)]">1–{SCORE_MAX}</span>
+                            </div>
+                        )}
+
+                        {type === 'time' && (
+                            <div className={`${surfaceClass} flex items-center justify-between gap-3`}>
+                                <div>
+                                    <div className="text-sm font-medium text-[var(--color-ink)]">Daily time</div>
+                                    <p className="mt-0.5 text-xs text-[var(--color-muted)]">Record a time such as when you wake up.</p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-[var(--color-accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)]">Time</span>
+                            </div>
+                        )}
+
                         <div className={`space-y-3 ${surfaceClass} p-4`}>
                             <button
                                 type="button"
                                 onClick={() => setIsSeed((prev) => !prev)}
-                                className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
+                                className={`habit-form__seed-toggle w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
                                     isSeed
                                         ? 'border-[var(--color-success)] bg-[var(--color-success-soft)]'
                                         : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] hover:bg-[var(--color-paper-2)]'
@@ -238,9 +265,9 @@ const HabitModalForm = ({
                                                         key={days}
                                                         type="button"
                                                         onClick={() => setSeedDurationDays(days)}
-                                                        className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
+                                                        className={`habit-form__choice rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
                                                             seedDurationDays === days
-                                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                                ? 'is-selected border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
                                                                 : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-2)]'
                                                         }`}
                                                     >
@@ -288,9 +315,9 @@ const HabitModalForm = ({
                                         key={option.value}
                                         type="button"
                                         onClick={() => setFrequency(option.value)}
-                                        className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
+                                        className={`habit-form__choice rounded-2xl border px-3 py-3 text-sm font-medium transition-colors ${
                                             frequency === option.value
-                                                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                ? 'is-selected border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
                                                 : 'border-[var(--color-rule)] bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
                                         }`}
                                     >
@@ -314,9 +341,9 @@ const HabitModalForm = ({
                                             type="button"
                                             onClick={() => toggleDay(day.value)}
                                             title={day.full}
-                                            className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold transition-colors ${
+                                            className={`habit-form__choice flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold transition-colors ${
                                                 scheduleDays.includes(day.value)
-                                                    ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                                                    ? 'is-selected border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
                                                     : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-muted)] hover:bg-[var(--color-paper-2)]'
                                             }`}
                                         >
@@ -338,7 +365,7 @@ const HabitModalForm = ({
                                         key={colorOption.name}
                                         type="button"
                                         onClick={() => setColor(colorOption.name)}
-                                        className={`h-10 w-10 rounded-full ${colorOption.swatch} transition-transform ${
+                                        className={`habit-form__color h-10 w-10 rounded-full ${colorOption.swatch} transition-transform ${
                                             color === colorOption.name ? 'scale-110 ring-2 ring-[var(--color-ink)] ring-offset-2 ring-offset-[var(--color-card)]' : 'opacity-70 hover:opacity-100'
                                         }`}
                                     />
@@ -347,7 +374,7 @@ const HabitModalForm = ({
                         </div>
                     </form>
 
-                    <div className="flex gap-3 border-t border-[var(--color-rule)] px-5 py-4">
+                    <div className="habit-form__footer flex gap-3">
                         <button
                             type="button"
                             onClick={onClose}

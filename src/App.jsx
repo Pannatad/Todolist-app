@@ -36,6 +36,7 @@ const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
 const LearningTracker = lazy(() => import('./components/LearningTracker'));
 const Overview = lazy(() => import('./components/Overview'));
 const HabitTracker = lazy(() => import('./components/HabitTracker'));
+const UniBoard = lazy(() => import('./components/uni-board/UniBoard'));
 const NotificationToast = lazy(() => import('./components/NotificationToast'));
 const ChatSidebar = lazy(() => import('./components/ChatSidebar'));
 const FloatingChatButton = lazy(() => import('./components/ChatSidebar').then((module) => ({ default: module.FloatingChatButton })));
@@ -48,6 +49,9 @@ const TAB_ALIASES = {
   ideas: 'projects',
   vision: 'today',
   sleep: 'habits',
+  uni: 'uni-board',
+  university: 'uni-board',
+  uniboard: 'uni-board',
 };
 
 const TabFallback = () => (
@@ -137,6 +141,7 @@ function App() {
     { id: 'today', label: 'Today', icon: SunMedium, controls: 'app-active-workspace' },
     { id: 'plan', label: 'Plan', icon: CalendarDays, controls: 'app-active-workspace' },
     { id: 'tasks', label: 'Tasks', icon: ListTodo, controls: 'app-active-workspace' },
+    { id: 'uni-board', label: 'Uni-board', icon: GraduationCap, controls: 'app-active-workspace' },
     { id: 'habits', label: 'Habits', icon: Repeat2, controls: 'app-active-workspace' },
     { id: 'learning', label: 'Learning', icon: GraduationCap, controls: 'app-active-workspace' },
     { id: 'projects', label: 'Projects', icon: FolderKanban, controls: 'app-active-workspace' },
@@ -245,28 +250,30 @@ function App() {
                     />
                   </nav>
 
-                  {/* Mobile tab dock: 4 main tabs + More (Learning, Projects) */}
+                  {/* Mobile tab dock: Today, Plan, Tasks, Uni, and More. */}
                   <nav className="app-tabbar" aria-label="Primary navigation">
-                    {tabs.filter((tab) => !['learning', 'projects'].includes(tab.id)).map((tab) => {
+                    {tabs.filter((tab) => ['today', 'plan', 'tasks', 'uni-board'].includes(tab.id)).map((tab) => {
                       const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
                       return (
                         <button
                           key={tab.id}
                           type="button"
                           onClick={() => navigateTo(tab.id)}
-                          className={`app-tabbar__item${activeTab === tab.id ? ' is-active' : ''}`}
-                          aria-current={activeTab === tab.id ? 'page' : undefined}
+                          className={`app-tabbar__item${isActive ? ' is-active' : ''}`}
+                          aria-current={isActive ? 'page' : undefined}
                         >
                           <Icon size={19} aria-hidden="true" />
-                          <span className="app-tabbar__label">{tab.label}</span>
+                          <span className="app-tabbar__label">{tab.id === 'uni-board' ? 'Uni' : tab.label}</span>
                         </button>
                       );
                     })}
                     <button
                       type="button"
                       onClick={() => setShowMoreSheet(true)}
-                      className={`app-tabbar__item${['learning', 'projects'].includes(activeTab) ? ' is-active' : ''}`}
+                      className={`app-tabbar__item${['habits', 'learning', 'projects'].includes(activeTab) ? ' is-active' : ''}`}
                       aria-haspopup="dialog"
+                      aria-expanded={showMoreSheet}
                     >
                       <LayoutGrid size={19} aria-hidden="true" />
                       <span className="app-tabbar__label">More</span>
@@ -276,6 +283,7 @@ function App() {
                   <Sheet open={showMoreSheet} onClose={() => setShowMoreSheet(false)} title="More">
                     <div className="space-y-1">
                       {[
+                        { id: 'habits', label: 'Habits', icon: Repeat2, hint: 'Daily routines and progress' },
                         { id: 'learning', label: 'Learning', icon: GraduationCap, hint: 'Paths, topics, timetable' },
                         { id: 'projects', label: 'Projects', icon: FolderKanban, hint: 'Boards and planning' },
                       ].map((entry) => {
@@ -318,6 +326,8 @@ function App() {
                     <div key={activeTab} className={`workspace-view workspace-view--${activeTab}`}>
                       <Suspense fallback={<TabFallback />}>
                         {activeTab === 'today' && <Overview onNavigate={navigateTo} />}
+
+                        {activeTab === 'uni-board' && <UniBoard />}
 
                         {activeTab === 'plan' && (
                           <Schedule

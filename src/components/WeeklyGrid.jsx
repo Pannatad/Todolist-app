@@ -3,6 +3,8 @@ import { motion as Motion } from 'framer-motion';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { useHabit } from '../context/HabitContext';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { formatShortTimeValue, getCurrentTimeValue } from './habitValueUtils';
+import { SCORE_MAX } from './habitModalUtils';
 
 const WeeklyGrid = () => {
     const [weekOffset, setWeekOffset] = useState(0);
@@ -113,6 +115,9 @@ const WeeklyGrid = () => {
                                     const isScheduled = habit.frequency === 'daily' || habit.schedule_days?.includes(date.getDay());
                                     const log = getHabitLog(habit.id, date);
                                     const isCompleted = log?.completed;
+                                    const scoreValue = Number(log?.value) || 0;
+                                    const isScoreHabit = habit.type === 'score';
+                                    const isTimeHabit = habit.type === 'time';
                                     const isEditable = canLogHabitDate(date);
 
                                     return (
@@ -124,7 +129,12 @@ const WeeklyGrid = () => {
                                                     onClick={() => {
                                                         if (!isEditable) return;
 
-                                                        if (habit.type === 'check') {
+                                                        if (isTimeHabit) {
+                                                            handleLog(habit.id, date, isCompleted ? 0 : getCurrentTimeValue(), !isCompleted);
+                                                        } else if (isScoreHabit) {
+                                                            const nextScore = scoreValue >= SCORE_MAX ? 0 : scoreValue + 1;
+                                                            handleLog(habit.id, date, nextScore, nextScore > 0);
+                                                        } else if (habit.type === 'check') {
                                                             handleLog(habit.id, date, isCompleted ? 0 : 1, !isCompleted);
                                                         } else {
                                                             const nextValue = isCompleted ? 0 : habit.target;
@@ -132,10 +142,25 @@ const WeeklyGrid = () => {
                                                         }
                                                     }}
                                                     disabled={!isEditable}
-                                                    title={isEditable ? undefined : 'Only today and yesterday can be edited.'}
-                                                    className={`habit-weekly__cell-button${isCompleted ? ' is-completed' : ''}${!isEditable ? ' is-locked' : ''}`}
+                                                    title={isTimeHabit
+                                                        ? (!isEditable
+                                                            ? 'Only today and yesterday can be edited.'
+                                                            : isCompleted ? `Logged at ${formatShortTimeValue(log?.value)}. Click to clear.` : 'Log the current time.')
+                                                        : isScoreHabit
+                                                            ? (scoreValue ? `Score ${scoreValue} of ${SCORE_MAX}. Click to change.` : `Set a score from 1 to ${SCORE_MAX}.`)
+                                                        : isEditable ? undefined : 'Only today and yesterday can be edited.'}
+                                                    aria-label={isTimeHabit
+                                                        ? `${habit.name}, ${isCompleted ? `logged at ${formatShortTimeValue(log?.value)}` : 'not logged'}`
+                                                        : isScoreHabit
+                                                        ? `${habit.name}, ${scoreValue ? `score ${scoreValue} of ${SCORE_MAX}` : 'not scored'}`
+                                                        : undefined}
+                                                    className={`habit-weekly__cell-button${isCompleted ? ' is-completed' : ''}${isScoreHabit ? ' is-score' : ''}${isTimeHabit ? ' is-time' : ''}${!isEditable ? ' is-locked' : ''}`}
                                                 >
-                                                    {isCompleted
+                                                    {isTimeHabit
+                                                        ? (isCompleted ? formatShortTimeValue(log?.value) : '–')
+                                                        : isScoreHabit
+                                                        ? (scoreValue || '–')
+                                                        : isCompleted
                                                         ? <Check size={15} strokeWidth={3} />
                                                         : isEditable
                                                             ? <span className="text-xs font-black">+</span>

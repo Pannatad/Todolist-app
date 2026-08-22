@@ -3,7 +3,9 @@ import {
     Archive,
     BarChart3,
     BookOpen,
+    CheckCircle2,
     ChevronRight,
+    Clock,
     FolderOpen,
     GraduationCap,
     Minus,
@@ -13,9 +15,9 @@ import {
     Target,
     Zap,
 } from 'lucide-react';
+import { SegmentedControl } from '../ui';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
-import { COLOR_OPTIONS } from './LearningPathModal';
 import SubjectProgressDashboard from './SubjectProgressDashboard';
 import TimetableSummary from './TimetableSummary';
 
@@ -63,69 +65,37 @@ const LearningTrackerContent = ({
     stats,
     topics,
 }) => (
-        <div className="space-y-6">
+        <div className="learning-screen space-y-6">
             {/* Header Section */}
             <Motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="border-b border-slate-200 pb-4 dark:border-white/10"
+                className="learning-header border-b border-slate-200 pb-4 dark:border-white/10"
             >
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-sage-600 dark:text-sage-300">
-                            <GraduationCap size={14} />
-                            Learning
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
-                            <h2 className="text-2xl font-black leading-none text-slate-950 dark:text-bone-100">Learning paths</h2>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-0.5 text-sm font-semibold text-slate-500 dark:text-bone-200/60">
-                                <span>{stats.totalPaths} paths</span>
-                                <span className="h-1 w-1 rounded-full bg-slate-300" />
-                                <span>{stats.inProgress} in progress</span>
-                                <span className="h-1 w-1 rounded-full bg-slate-300" />
-                                <span>{stats.completed} completed</span>
-                                <span className="h-1 w-1 rounded-full bg-slate-300" />
-                                <span>
-                                    {formatTime(stats.studiedTime)} studied
-                                    {stats.plannedTime > 0 ? ` / ${formatTime(stats.plannedTime)} planned` : ''}
-                                </span>
-                            </div>
-                        </div>
+                        <h1 className="app-page-title">Learning</h1>
+                        <p className="learning-header__description">
+                            Keep your subjects focused and know exactly what to study next.
+                        </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm dark:border-white/10 dark:bg-void-800">
-                        <button
-                            onClick={() => setLearningView('paths')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-1.5 transition-all ${
-                                learningView === 'paths'
-                                    ? 'bg-slate-900 text-white dark:bg-bone-100 dark:text-void-950'
-                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-bone-200/70 dark:hover:bg-void-700'
-                            }`}
-                        >
-                            <BookOpen size={15} />
-                            Paths
-                        </button>
-                        <button
-                            onClick={() => setLearningView('dashboard')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-1.5 transition-all ${
-                                learningView === 'dashboard'
-                                    ? 'bg-slate-900 text-white dark:bg-bone-100 dark:text-void-950'
-                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-bone-200/70 dark:hover:bg-void-700'
-                            }`}
-                        >
-                            <BarChart3 size={15} />
-                            Dashboard
-                        </button>
-                    </div>
+                    <SegmentedControl
+                        className="learning-view-switch"
+                        items={[
+                            { id: 'paths', label: 'Paths', icon: BookOpen },
+                            { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+                        ]}
+                        value={learningView}
+                        onChange={setLearningView}
+                        ariaLabel="Learning view"
+                    />
                     <button
                         onClick={() => setShowSettings(!showSettings)}
-                        className={`p-2.5 rounded-lg border transition-all ${
-                            showSettings
-                                ? 'border-slate-300 bg-slate-100 text-slate-900'
-                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-white/10 dark:bg-void-800'
-                        }`}
+                        className={`ui-icon-button learning-settings-trigger${showSettings ? ' is-active' : ''}`}
                         title="Learning Tracker Settings"
+                        type="button"
                     >
                         <Settings size={20} />
                     </button>
@@ -137,18 +107,35 @@ const LearningTrackerContent = ({
                             }
                         }}
                         disabled={!canStart}
-                        className={`px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all
-                            ${canStart
-                                ? 'bg-sage-700 text-white shadow-sm hover:bg-sage-800 active:scale-95 dark:bg-bone-100 dark:text-void-950'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                            }`}
+                        className="learning-primary-button"
+                        type="button"
                     >
                         <Plus size={18} />
-                        New Learning Path
+                        New path
                     </button>
                 </div>
                 </div>
             </Motion.div>
+
+            <section className="learning-summary" aria-label="Learning overview">
+                <div className="learning-summary__lead">
+                    <span className="learning-summary__mark" aria-hidden="true"><GraduationCap size={20} /></span>
+                    <span>
+                        <strong>{stats.inProgress > 0 ? 'Keep your momentum' : 'Your study workspace'}</strong>
+                        <span>
+                            {stats.inProgress > 0
+                                ? `${stats.inProgress} ${stats.inProgress === 1 ? 'path is' : 'paths are'} ready to continue.`
+                                : 'Build one clear path for every subject you want to move forward.'}
+                        </span>
+                    </span>
+                </div>
+                <dl className="learning-summary__stats">
+                    <div><dt><BookOpen size={14} /> Paths</dt><dd>{stats.totalPaths}</dd></div>
+                    <div><dt><Zap size={14} /> In progress</dt><dd>{stats.inProgress}</dd></div>
+                    <div><dt><CheckCircle2 size={14} /> Completed</dt><dd>{stats.completed}</dd></div>
+                    <div><dt><Clock size={14} /> Studied</dt><dd>{formatTime(stats.studiedTime)}</dd></div>
+                </dl>
+            </section>
 
             {/* Settings Panel */}
             <AnimatePresence>
@@ -159,27 +146,27 @@ const LearningTrackerContent = ({
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="bg-white/85 border border-sage-100 rounded-[1.5rem] p-5 shadow-sm mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 dark:border-white/10 dark:bg-void-900/80">
+                        <div className="learning-settings-panel ui-card mb-2 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 className="text-sm font-bold text-gray-800">Concurrent Learning Paths Limit</h3>
-                                <p className="text-xs text-gray-500 mt-1 max-w-lg">
-                                    Set the maximum number of courses you want to focus on at the same time. This encourages completing ongoing paths before starting new ones.
+                                <h3 className="app-section-title text-sm">Focus limit</h3>
+                                <p className="mt-1 max-w-lg text-xs text-gray-500">
+                                    Limit the number of paths you actively study at once.
                                 </p>
                             </div>
-                            <div className="flex items-center gap-3 bg-sage-50 p-1.5 rounded-xl border border-sage-100">
+                            <div className="learning-stepper flex items-center gap-3">
                                 <button
                                     onClick={() => setMaxConcurrentPaths(Math.max(1, maxConcurrentPaths - 1))}
-                                    className="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all text-gray-600 disabled:opacity-50"
+                                    className="ui-icon-button learning-stepper__button"
                                     disabled={maxConcurrentPaths <= 1}
                                 >
                                     <Minus size={16} />
                                 </button>
-                                <span className="w-8 text-center font-bold text-gray-800 text-lg">
+                                <span className="w-8 text-center text-lg font-semibold text-gray-800">
                                     {maxConcurrentPaths}
                                 </span>
                                 <button
                                     onClick={() => setMaxConcurrentPaths(maxConcurrentPaths + 1)}
-                                    className="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all text-gray-600"
+                                    className="ui-icon-button learning-stepper__button"
                                 >
                                     <Plus size={16} />
                                 </button>
@@ -194,12 +181,12 @@ const LearningTrackerContent = ({
                 <Motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl"
+                    className="learning-notice learning-notice--warning flex items-center gap-3"
                 >
-                    <div className="text-2xl">🔒</div>
+                    <div className="learning-notice__icon"><Target size={18} /></div>
                     <div className="flex-1">
-                        <p className="text-sm font-bold text-amber-800">Focus Mode Active</p>
-                        <p className="text-xs text-amber-600">
+                        <p className="text-sm font-semibold">Focus limit reached</p>
+                        <p className="text-xs">
                             You have {activeCount} of {maxConcurrentPaths} courses in progress.
                             Only paths with topics you have actually started count toward this limit.
                         </p>
@@ -228,16 +215,15 @@ const LearningTrackerContent = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
                 >
-                    <div className="flex items-center gap-2 mb-3">
-                        <Zap size={18} className="text-amber-500" />
-                        <h3 className="text-base font-bold text-gray-800">Continue Learning</h3>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                    <div className="learning-section-heading mb-3 flex items-center gap-2">
+                        <Zap size={17} />
+                        <h3 className="app-section-title">Continue learning</h3>
+                        <span className="ui-chip learning-count-chip">
                             {inProgressTopics.length} in progress
                         </span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sage-200">
                         {inProgressTopics.map((topic) => {
-                            const pathColor = COLOR_OPTIONS.find(c => c.name === topic.path?.color) || COLOR_OPTIONS[0];
                             return (
                                 <Motion.button
                                     key={topic.id}
@@ -246,16 +232,17 @@ const LearningTrackerContent = ({
                                     transition={{ duration: 0.2 }}
                                     whileHover={{ y: -2 }}
                                     onClick={() => setCurrentPathId(topic.learning_path_id)}
-                                    className="group flex-shrink-0 min-w-[240px] max-w-[300px] rounded-[1.35rem] border border-amber-100 bg-white/85 p-4 text-left shadow-sm transition-colors hover:border-amber-200 hover:bg-amber-50/40 dark:border-white/10 dark:bg-void-900/80"
+                                    data-learning-color={topic.path?.color || 'purple'}
+                                    className="learning-continue-card group flex-shrink-0 min-w-[240px] max-w-[300px] p-4 text-left"
                                 >
                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${pathColor.gradient} flex items-center justify-center text-sm shadow-sm`}>
+                                        <div className="learning-continue-card__icon flex h-8 w-8 items-center justify-center rounded-lg text-sm">
                                             {topic.path?.icon || '📚'}
                                         </div>
-                                        <span className="text-xs text-gray-400 font-medium truncate">{topic.path?.name}</span>
+                                        <span className="truncate text-xs font-medium">{topic.path?.name}</span>
                                     </div>
-                                    <h4 className="font-semibold text-sm text-gray-800 truncate mb-2">{topic.title}</h4>
-                                    <div className="flex items-center gap-1.5 text-xs text-amber-600 font-semibold group-hover:text-amber-700">
+                                    <h4 className="mb-2 truncate text-sm font-semibold">{topic.title}</h4>
+                                    <div className="learning-continue-card__action flex items-center gap-1.5 text-xs font-semibold">
                                         <span>Continue</span>
                                         <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                                     </div>
@@ -270,7 +257,7 @@ const LearningTrackerContent = ({
             <TimetableSummary />
 
             {/* Search & Filter Bar */}
-            <div className="flex items-center gap-3">
+            <div className="learning-search flex items-center gap-3">
                 <div className="flex-1 relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400" />
                     <input
@@ -278,17 +265,14 @@ const LearningTrackerContent = ({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search learning paths..."
-                        className="w-full rounded-2xl border border-sage-100 bg-white/85 py-3 pl-9 pr-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sage-300 focus:ring-2 focus:ring-sage-100 dark:border-white/10 dark:bg-void-900/80 dark:text-bone-100"
+                        className="learning-input w-full py-3 pl-9 pr-4 text-sm outline-none"
                     />
                 </div>
                 <button
                     onClick={() => setShowArchived(!showArchived)}
-                    className={`p-3 rounded-2xl border transition-all flex items-center gap-2 text-sm shadow-sm
-                        ${showArchived
-                            ? 'bg-sage-100 border-sage-200 text-sage-700'
-                            : 'bg-white border-sage-100 text-slate-400 hover:bg-sage-50 hover:text-sage-700'
-                        }`}
+                    className={`ui-icon-button learning-archive-button${showArchived ? ' is-active' : ''}`}
                     title={showArchived ? 'Showing archived' : 'Show archived'}
+                    type="button"
                 >
                     <Archive size={16} />
                 </button>
@@ -296,45 +280,45 @@ const LearningTrackerContent = ({
 
             {/* Learning Paths — Grouped by Category */}
             {isLoading ? (
-                <div className="text-center py-16">
-                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-500 border-t-transparent mx-auto mb-3" />
-                    <p className="text-gray-400 text-sm">Loading your learning paths...</p>
+                <div className="learning-empty text-center py-16">
+                    <div className="learning-loading-mark mx-auto mb-3" aria-hidden="true" />
+                    <p className="text-sm">Loading your learning paths…</p>
                 </div>
             ) : filteredPaths.length === 0 ? (
                 <Motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-center py-16"
+                    className="learning-empty py-16"
                 >
-                    <div className="text-6xl mb-4">📚</div>
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-bone-100 mb-2">
-                        {searchQuery ? 'No paths found' : showArchived ? 'No archived paths' : 'Start Your Learning Journey'}
-                    </h3>
-                    <p className="text-gray-500 dark:text-bone-200/60 text-sm mb-6 max-w-md mx-auto">
-                        {searchQuery
-                            ? 'Try a different search term'
-                            : 'Create your first learning path to organize and track topics you want to master.'
-                        }
-                    </p>
-                    {!searchQuery && !showArchived && (
-                        <button
-                            onClick={() => {
-                                if (canStart) {
-                                    setEditingPath(null);
-                                    setShowPathModal(true);
-                                }
-                            }}
-                            disabled={!canStart}
-                            className={`px-6 py-3 rounded-2xl font-bold inline-flex items-center gap-2 transition-all
-                                ${canStart
-                                    ? 'bg-sage-700 text-white shadow-sm hover:bg-sage-800 active:scale-95 dark:bg-bone-100 dark:text-void-950'
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                                }`}
-                        >
-                            <Plus size={18} />
-                            Create Learning Path
-                        </button>
-                    )}
+                    <div className="learning-empty__content">
+                        <div className="learning-empty__icon"><BookOpen size={22} /></div>
+                        <div>
+                            <h3 className="app-section-title">
+                                {searchQuery ? 'No paths found' : showArchived ? 'No archived paths' : 'Start with one subject'}
+                            </h3>
+                            <p>
+                                {searchQuery
+                                    ? 'Try a different search term.'
+                                    : 'Add its topics, choose the next step, and keep your study time in one place.'}
+                            </p>
+                        </div>
+                        {!searchQuery && !showArchived && (
+                            <button
+                                onClick={() => {
+                                    if (canStart) {
+                                        setEditingPath(null);
+                                        setShowPathModal(true);
+                                    }
+                                }}
+                                disabled={!canStart}
+                                className="learning-primary-button"
+                                type="button"
+                            >
+                                <Plus size={18} />
+                                Create your first path
+                            </button>
+                        )}
+                    </div>
                 </Motion.div>
             ) : (
                 <div className="space-y-8">
@@ -342,20 +326,19 @@ const LearningTrackerContent = ({
                         <div key={category}>
                             {/* Category Header */}
                             {groupedPaths.length > 1 || category !== 'Uncategorized' ? (
-                                <div className="mb-4 flex items-center gap-2.5">
-                                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-sage-400 to-sky-500" />
+                                <div className="learning-category-header mb-4 flex items-center gap-2.5">
                                     {category === 'Pinned' ? (
                                         <Target size={16} className="text-gray-400" />
                                     ) : (
                                         <FolderOpen size={16} className="text-gray-400" />
                                     )}
-                                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600">{category}</h3>
-                                    <span className="text-xs text-gray-400 font-medium">{catPaths.length}</span>
+                                    <h3 className="text-sm font-semibold">{category}</h3>
+                                    <span className="text-xs font-medium">{catPaths.length}</span>
                                 </div>
                             ) : null}
 
                             {/* Path Cards Grid */}
-                            <Motion.div layout className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <Motion.div layout className="learning-path-grid grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                                 <AnimatePresence>
                                     {catPaths.map((path) => {
                                         const pathTopics = topics.filter(t => t.learning_path_id === path.id);
