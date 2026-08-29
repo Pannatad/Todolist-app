@@ -19,6 +19,7 @@
 | `topic_resources` | Resources attached to learning topics | `LearningContext` |
 | `topic_time_logs` | Learning time entries | `LearningContext` |
 | `idea_boards` | Per-user idea-board nodes | `IdeaBoardContext` |
+| `uni_board_links` | Saved university portals and reference websites | `LinksContext` |
 | `agent_memory_short` | Short-term agent memories | `AgentMemoryContext` |
 | `agent_memory_long` | Long-term agent facts and summaries | `AgentMemoryContext` |
 | `agent_conversations` | Saved chat conversations and messages | `ChatContext` |

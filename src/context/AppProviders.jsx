@@ -6,6 +6,7 @@ import { LearningProvider } from './LearningContext';
 import { UserProfileProvider } from './UserProfileContext';
 import { UserIntelligenceProvider } from './UserIntelligenceContext';
 import { AgentMemoryProvider } from './AgentMemoryContext';
+import { LinksProvider } from './LinksContext';
 
 /**
  * AppProviders wraps the entire app with all context providers
@@ -18,11 +19,13 @@ export const AppProviders = ({ children }) => {
                 <UserIntelligenceProvider>
                     <AgentMemoryProvider>
                         <TaskProvider>
-                            <GoalProvider>
-                                <LearningProvider>
-                                    {children}
-                                </LearningProvider>
-                            </GoalProvider>
+                            <LinksProvider>
+                                <GoalProvider>
+                                    <LearningProvider>
+                                        {children}
+                                    </LearningProvider>
+                                </GoalProvider>
+                            </LinksProvider>
                         </TaskProvider>
                     </AgentMemoryProvider>
                 </UserIntelligenceProvider>

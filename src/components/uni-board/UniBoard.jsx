@@ -7,14 +7,17 @@ import Agenda from './Agenda';
 import ActionPanel from './ActionPanel';
 import { AGENDA_RANGE_OPTIONS } from './constants';
 import DetailsSheet from './DetailsSheet';
+import Links from './Links';
 import MilestoneTimeline from './MilestoneTimeline';
 import QuickAdd from './QuickAdd';
+import { useLinks } from '../../context/LinksContext';
 import './uni-board.css';
 
 const skeletonSections = [1, 2, 3];
 
 const UniBoard = () => {
   const context = useTask();
+  const { links = [], isLoading: isLinksLoading = false } = useLinks();
   const {
     tasks = [],
     scheduleItems = [],
@@ -52,7 +55,7 @@ const UniBoard = () => {
   const outstandingTasks = viewModel?.outstandingTasks || [];
   const assessments = viewModel?.assessments || [];
   const milestones = viewModel?.milestones || [];
-  const hasRecords = agendaGroups.length + outstandingTasks.length + assessments.length + milestones.length > 0;
+  const hasRecords = agendaGroups.length + outstandingTasks.length + assessments.length + milestones.length + links.length > 0;
 
   const handleComplete = async (item) => {
     try {
@@ -95,7 +98,7 @@ const UniBoard = () => {
         </div>
       )}
 
-      {!isLoading && !hasRecords && (
+      {!isLoading && !isLinksLoading && !hasRecords && (
         <p className="uni-board-full-empty">Add your first deadline, exam, or event.</p>
       )}
 
@@ -119,6 +122,8 @@ const UniBoard = () => {
           now={now}
         />
       </div>
+
+      <Links />
 
       <MilestoneTimeline items={milestones} onSelect={setSelectedItem} now={now} />
 
