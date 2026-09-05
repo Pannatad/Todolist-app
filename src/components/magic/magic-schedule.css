@@ -417,7 +417,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 18rem;
   gap: .85rem;
-  min-height: 42rem;
+  height: min(42rem, 68dvh);
+  min-height: 0;
 }
 
 .magic-canvas-card,
@@ -2073,6 +2074,7 @@
 
   .magic-workspace {
     display: block;
+    height: auto;
     min-height: 0;
   }
 

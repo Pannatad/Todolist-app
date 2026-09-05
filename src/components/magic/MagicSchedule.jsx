@@ -125,7 +125,9 @@ const MagicSchedule = ({
     tasks = [],
     onAddEvent,
     onUpdateEvent,
-    onDeleteEvent
+    onDeleteEvent,
+    eyebrow = 'Magic Schedule',
+    description = 'Click, drag, resize—or ask the schedule assistant.'
 }) => {
     const mobile = useMobileTimeline();
     const { templates, saveTemplate, deleteTemplate } = useScheduleTemplates();
@@ -911,9 +913,9 @@ const MagicSchedule = ({
         <div className="magic-schedule">
             <header className="magic-header">
                 <div>
-                    <span className="magic-eyebrow">Magic Schedule</span>
+                    <span className="magic-eyebrow">{eyebrow}</span>
                     <h2>{mobile ? selectedDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : formatRange(weekDates)}</h2>
-                    <p>Click, drag, resize—or ask the schedule assistant.</p>
+                    <p>{description}</p>
                 </div>
                 <div className="magic-header__actions">
                     <button type="button" className="magic-icon-button" onClick={() => navigateWeek(-1)} aria-label="Previous week"><ChevronLeft size={18} /></button>

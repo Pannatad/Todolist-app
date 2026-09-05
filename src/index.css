@@ -743,6 +743,7 @@
 .task-list-row.is-completed { opacity:.66; }
 .task-list-row.is-due-today:not(.is-completed) { background:oklch(96% .035 100); }
 .dark .task-list-row.is-due-today:not(.is-completed) { background:oklch(25% .04 100); }
+.task-list-row.is-overdue:not(.is-completed) { background:var(--color-error-soft); }
 .task-row-warning { display:inline-flex; flex:0 0 auto; align-items:center; margin-left:6px; color:var(--color-error); vertical-align:-2px; }
 .task-complete-button,.task-overflow-trigger,.subtask-icon { width:44px; height:44px; display:grid; place-items:center; border:0; background:transparent; color:var(--color-muted); border-radius:var(--radius-control); }
 .task-row-content { min-width:0; padding:12px 8px; border:0; background:transparent; color:inherit; text-align:left; }
