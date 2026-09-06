@@ -56,13 +56,13 @@ import { Sheet } from '../../ui';
 import { confirmAction } from '../../utils/confirm';
 import './magic-schedule.css';
 
-// Keep the planning surface focused on the user's useful daytime window.
-// Events outside it remain in the data and can still be edited through the
-// inspector; the canvas simply avoids making the assistant unnecessarily tall.
-const START_HOUR = 8;
-const END_HOUR = 20;
+// Keep the planning surface aligned with the full calendar day. The viewport
+// remains compact; the timeline itself is intentionally scrollable.
+const START_HOUR = 0;
+const END_HOUR = 24;
 const HOUR_HEIGHT = 72;
 const DAY_MINUTES = (END_HOUR - START_HOUR) * 60;
+const timelineTimeLabel = (minutes) => minutes === END_HOUR * 60 ? '24:00' : timeFromMinutes(minutes);
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const SCHEDULE_ASSISTANT_INTENTS = [
     { id: 'add', label: 'Add', icon: Plus, hint: 'Create a new block or template' },
@@ -210,14 +210,7 @@ const MagicSchedule = ({
         }
         const viewKey = `${mobile ? 'day' : 'week'}:${visibleDateKeys.join(',')}:${todayKey}`;
         const initialScrollContainer = canvasScrollRef.current;
-        const targetTop = initialScrollContainer
-            ? Math.max(0, currentTimeTop - initialScrollContainer.clientHeight * 0.3)
-            : 0;
-        if (
-            autoScrolledViewRef.current === viewKey
-            && initialScrollContainer
-            && Math.abs(initialScrollContainer.scrollTop - targetTop) < 4
-        ) return undefined;
+        if (autoScrolledViewRef.current === viewKey && initialScrollContainer) return undefined;
         autoScrolledViewRef.current = viewKey;
         let nestedFrame;
         let retryTimeout;
@@ -1085,7 +1078,7 @@ const MagicSchedule = ({
                             ))}
                             <div className="magic-time-axis">
                                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => (
-                                    <span key={index} style={{ top: index * HOUR_HEIGHT }}>{timeFromMinutes((START_HOUR + index) * 60)}</span>
+                                    <span key={index} style={{ top: index * HOUR_HEIGHT }}>{timelineTimeLabel((START_HOUR + index) * 60)}</span>
                                 ))}
                             </div>
                             {visibleDates.map((date) => {
