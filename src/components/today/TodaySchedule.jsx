@@ -4,7 +4,6 @@ import { ChevronDown } from 'lucide-react';
 
 const HOUR_HEIGHT = 52;
 const MIN_TIMELINE_HOURS = 8;
-const MIN_BLOCK_HEIGHT = 46;
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
@@ -75,17 +74,17 @@ const assignLanes = (entries) => {
 
 const Block = ({ entry, isNow, isPast, lane, laneCount, scale, onOpen }) => {
   const color = entry.item.color || 'var(--color-accent)';
-  const minutes = entry.item.duration || 60;
-  const height = Math.max(MIN_BLOCK_HEIGHT, (minutes / 60) * HOUR_HEIGHT);
+  const minutes = Math.max(1, Math.round((entry.end - entry.start) / MINUTE_MS));
+  const height = (minutes / 60) * HOUR_HEIGHT;
   const top = ((entry.start.getTime() - scale.rangeStart.getTime()) / HOUR_MS) * HOUR_HEIGHT;
-  const compact = height < 70;
+  const compact = height < 46;
 
   return (
     <button
       type="button"
       onClick={() => onOpen(entry.item)}
       aria-label={`${entry.item.title}, ${timeLabel(entry.start)} to ${timeLabel(entry.end)}, ${durationLabel(minutes)}`}
-      className="group absolute z-10 overflow-hidden rounded-xl border px-2.5 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+      className={`group absolute z-10 overflow-hidden border px-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${compact ? 'flex items-center rounded-lg py-0' : 'rounded-xl py-2'}`}
       style={{
         top: `${top}px`,
         left: `calc(${(lane / laneCount) * 100}% + ${lane ? 4 : 0}px)`,
@@ -97,16 +96,30 @@ const Block = ({ entry, isNow, isPast, lane, laneCount, scale, onOpen }) => {
           : `color-mix(in srgb, ${color} ${isPast ? 18 : 28}%, var(--color-rule))`,
       }}
     >
-      <span className="flex min-w-0 items-center gap-1.5">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color, opacity: isPast ? 0.55 : 1 }} aria-hidden="true" />
-        <span className={`block min-w-0 truncate text-xs font-semibold ${isPast ? 'text-[var(--color-muted)]' : 'text-[var(--color-ink)]'} ${isNow ? 'font-bold' : ''}`}>
-          {entry.item.title}
+      {compact ? (
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color, opacity: isPast ? 0.55 : 1 }} aria-hidden="true" />
+          <span className={`min-w-0 flex-1 truncate text-xs font-semibold ${isPast ? 'text-[var(--color-muted)]' : 'text-[var(--color-ink)]'} ${isNow ? 'font-bold' : ''}`}>
+            {entry.item.title}
+          </span>
+          <span className="shrink-0 text-[0.68rem] font-medium tabular-nums text-[var(--color-muted)]">
+            {durationLabel(minutes)}
+          </span>
         </span>
-      </span>
-      <span className="mt-1 block truncate text-[0.68rem] font-medium tabular-nums text-[var(--color-muted)]">
-        {compact ? durationLabel(minutes) : `${timeLabel(entry.start)}–${timeLabel(entry.end)}`}
-        {!compact && entry.item.category ? ` · ${entry.item.category}` : ''}
-      </span>
+      ) : (
+        <>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color, opacity: isPast ? 0.55 : 1 }} aria-hidden="true" />
+            <span className={`block min-w-0 truncate text-xs font-semibold ${isPast ? 'text-[var(--color-muted)]' : 'text-[var(--color-ink)]'} ${isNow ? 'font-bold' : ''}`}>
+              {entry.item.title}
+            </span>
+          </span>
+          <span className="mt-1 block truncate text-[0.68rem] font-medium tabular-nums text-[var(--color-muted)]">
+            {timeLabel(entry.start)}–{timeLabel(entry.end)}
+            {entry.item.category ? ` · ${entry.item.category}` : ''}
+          </span>
+        </>
+      )}
     </button>
   );
 };
@@ -174,10 +187,10 @@ const TodaySchedule = ({ entries, now, onOpen }) => {
               {scale.ticks.map((tick, index) => (
                 <div
                   key={tick.toISOString()}
-                  className="pointer-events-none absolute inset-x-0 flex items-center"
+                  className="pointer-events-none absolute inset-x-0 flex h-0 items-center"
                   style={{ top: `${index * HOUR_HEIGHT}px` }}
                 >
-                  <time className="w-14 shrink-0 -translate-y-1/2 text-right text-[0.68rem] font-semibold tabular-nums text-[var(--color-muted)]">
+                  <time className="w-14 shrink-0 text-right text-[0.68rem] font-semibold tabular-nums text-[var(--color-muted)]">
                     {timeLabel(tick)}
                   </time>
                   <span className="ml-3 flex-1 border-t border-[var(--color-rule)]" aria-hidden="true" />
