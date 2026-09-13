@@ -2,6 +2,7 @@ import { getScheduleItemsForDate } from './scheduleOccurrences.js';
 
 const TASK_UNI_KINDS = new Set(['task', 'payment', 'registration', 'meeting', 'report', 'deadline']);
 const SCHEDULE_UNI_KINDS = new Set(['exam', 'quiz', 'event']);
+const AGENDA_SCHEDULE_KINDS = new Set(['exam', 'quiz']);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALL_AGENDA_BASELINE_DAYS = 365;
 
@@ -176,6 +177,7 @@ export const buildUniBoardViewModel = ({
 
     const universityTasks = tasks.filter((task) => isUniversityRecord(task, TASK_UNI_KINDS));
     const universitySchedules = scheduleItems.filter((item) => isUniversityRecord(item, SCHEDULE_UNI_KINDS));
+    const agendaSchedules = universitySchedules.filter((item) => AGENDA_SCHEDULE_KINDS.has(readUniKind(item)));
     const taskItems = universityTasks.map((task) => buildItem(
         'task',
         task,
@@ -183,7 +185,7 @@ export const buildUniBoardViewModel = ({
         parseDate(task.deadline, true) ? localDateKey(parseDate(task.deadline, true)) : null
     ));
     const agendaLength = isAllAgendaDays(agendaDays)
-        ? getAllAgendaDays(today, taskItems, universitySchedules)
+        ? getAllAgendaDays(today, taskItems, agendaSchedules)
         : normalizedDays(agendaDays, 14);
     const agendaEnd = endOfDay(addDays(today, agendaLength - 1));
     const milestoneEnd = endOfDay(addDays(today, milestoneLength - 1));
@@ -199,6 +201,8 @@ export const buildUniBoardViewModel = ({
 
     const incompleteTasks = taskItems.filter((item) => !item.completed);
     const incompleteScheduleItems = scheduleItemsExpanded.filter((item) => !item.completed);
+    const incompleteAgendaScheduleItems = incompleteScheduleItems
+        .filter((item) => AGENDA_SCHEDULE_KINDS.has(item.uniKind));
 
     const nextUp = [...incompleteTasks, ...futureScheduleItems]
         .filter((item) => !item.completed && item.occursAt && item.occursAt >= current)
@@ -220,7 +224,7 @@ export const buildUniBoardViewModel = ({
         const dateKey = itemDateKey(item);
         if (item.occursAt && item.occursAt >= current && item.occursAt <= agendaEnd) addToAgenda(item, dateKey);
     });
-    incompleteScheduleItems
+    incompleteAgendaScheduleItems
         .filter((item) => item.occursAt >= current && item.occursAt <= agendaEnd)
         .forEach((item) => addToAgenda(item, itemDateKey(item)));
 

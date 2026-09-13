@@ -1,4 +1,5 @@
 import { supabase } from '../services/supabase';
+import { classIdOf } from '../components/uni-board/classItems.js';
 
 const STORAGE_KEY = 'growth-schedule-guest';
 const SCHEDULE_UNI_KINDS = new Set(['exam', 'quiz', 'event']);
@@ -35,6 +36,8 @@ export const normalizeScheduleRecord = (item) => {
         templateBlockId: item.templateBlockId ?? item.template_block_id ?? null,
         templateApplicationId: item.templateApplicationId ?? item.template_application_id ?? null,
         workspace,
+        classId: classIdOf(item),
+        class_id: classIdOf(item),
         uniKind,
         uni_kind: uniKind,
         isMilestone,
@@ -82,6 +85,7 @@ const writeLocalItems = (items) => {
 const buildInsertPayloads = (item) => {
     const normalizedItem = prepareScheduleRecord(item);
     const fullPayload = {
+        class_id: classIdOf(normalizedItem) || undefined,
         id: normalizedItem.id,
         user_id: normalizedItem.user_id,
         title: normalizedItem.title,
@@ -128,6 +132,7 @@ const buildInsertPayloads = (item) => {
 const buildUpdatePayloads = (updates) => {
     const payloads = [
         withDefinedValues({
+            class_id: updates.classId !== undefined ? updates.classId : updates.class_id,
             title: updates.title,
             start_time: updates.start_time,
             duration: updates.duration,
@@ -192,9 +197,9 @@ const createLocalRepo = () => ({
     }
 });
 
-const createSupabaseRepo = (userId) => ({
+const createSupabaseRepo = (userId, client) => ({
     list: async () => {
-        const { data, error } = await supabase.from('schedule_items')
+        const { data, error } = await client.from('schedule_items')
             .select('*').eq('user_id', userId).order('start_time', { ascending: true });
         if (error) throw error;
         return (data || []).map(normalizeScheduleRecord);
@@ -206,7 +211,7 @@ const createSupabaseRepo = (userId) => ({
             ? [buildInsertPayloads(normalizedItem)[0]]
             : buildInsertPayloads(normalizedItem);
         for (const payload of payloads) {
-            const { data, error } = await supabase.from('schedule_items').insert([payload]).select().single();
+            const { data, error } = await client.from('schedule_items').insert([payload]).select().single();
             if (data) return normalizeScheduleRecord(data);
             lastError = error;
             console.warn('Schedule insert attempt failed, trying fallback payload...', error);
@@ -216,7 +221,7 @@ const createSupabaseRepo = (userId) => ({
     createMany: async (items) => {
         const normalizedItems = items.map(prepareScheduleRecord);
         const payloads = normalizedItems.map((item) => buildInsertPayloads(item)[0]);
-        const { data, error } = await supabase.from('schedule_items').insert(payloads).select();
+        const { data, error } = await client.from('schedule_items').insert(payloads).select();
         if (error) throw new Error(error.message || 'Failed to save schedule items to cloud.');
         return (data || []).map(normalizeScheduleRecord);
     },
@@ -233,7 +238,7 @@ const createSupabaseRepo = (userId) => ({
             ? [buildUpdatePayloads(normalizedUpdates)[0]]
             : buildUpdatePayloads(normalizedUpdates);
         for (const payload of payloads) {
-            const { data, error } = await supabase.from('schedule_items').update(payload)
+            const { data, error } = await client.from('schedule_items').update(payload)
                 .eq('id', id).select().maybeSingle();
             if (data) return normalizeScheduleRecord(data);
             lastError = error;
@@ -242,7 +247,7 @@ const createSupabaseRepo = (userId) => ({
         throw new Error(lastError?.message || 'Schedule item could not be updated in Supabase.');
     },
     remove: async (id) => {
-        const { data, error } = await supabase.from('schedule_items').delete()
+        const { data, error } = await client.from('schedule_items').delete()
             .eq('id', id).select('id').maybeSingle();
         if (error || !data) throw new Error(error?.message || 'Schedule item could not be deleted from Supabase.');
         return normalizeScheduleRecord(data);
@@ -250,6 +255,6 @@ const createSupabaseRepo = (userId) => ({
 });
 
 // A provider creates this once per user id, so one backend serves its entire session.
-export const createScheduleRepo = (user) => (
-    user?.id ? createSupabaseRepo(user.id) : createLocalRepo()
+export const createScheduleRepo = (user, client = supabase) => (
+    user?.id ? createSupabaseRepo(user.id, client) : createLocalRepo()
 );

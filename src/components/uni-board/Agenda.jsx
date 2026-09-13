@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import SegmentedControl from '../../ui/SegmentedControl';
 import { AGENDA_RANGE_OPTIONS } from './constants';
+import ItemActions from './ItemActions';
 import {
   formatAgendaDate,
   formatDaysRemaining,
@@ -47,7 +48,7 @@ const getNotesText = (item) => {
   return typeof notes === 'string' ? notes.trim() : notes ? String(notes) : '';
 };
 
-export const AgendaItemRow = ({ item, now, onSelect, isNotesOpen, onToggleNotes }) => {
+export const AgendaItemRow = ({ item, now, onSelect, onDelete, isNotesOpen, onToggleNotes }) => {
   const kind = getItemKind(item);
   const notesId = notesIdFor(item.key);
   const notes = getNotesText(item);
@@ -64,6 +65,7 @@ export const AgendaItemRow = ({ item, now, onSelect, isNotesOpen, onToggleNotes 
           <span>{formatShortDate(item.occursAt)} · {itemLabel(item)} · {item.subject || 'University'} · {formatTimeRemaining(item.occursAt, now)}</span>
         </span>
       </button>
+      <ItemActions title={item.title} onEdit={() => onSelect(item)} onDelete={() => onDelete(item)} />
       <button
         type="button"
         className={`uni-board-agenda-row__toggle${isNotesOpen ? ' is-open' : ''}`}
@@ -84,7 +86,7 @@ export const AgendaItemRow = ({ item, now, onSelect, isNotesOpen, onToggleNotes 
   );
 };
 
-const Agenda = ({ groups, onSelect, isLoading, now, range = '14', onRangeChange = () => {} }) => {
+const Agenda = ({ groups, onSelect, onDelete, isLoading, now, range = '14', onRangeChange = () => {} }) => {
   const agendaItemCount = groups.reduce((count, group) => count + group.items.length, 0);
   const [expandedNotes, setExpandedNotes] = useState(() => new Set());
 
@@ -134,6 +136,7 @@ const Agenda = ({ groups, onSelect, isLoading, now, range = '14', onRangeChange 
                     item={item}
                     now={now}
                     onSelect={onSelect}
+                    onDelete={onDelete}
                     isNotesOpen={expandedNotes.has(item.key)}
                     onToggleNotes={toggleNotes}
                   />

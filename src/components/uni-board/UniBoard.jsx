@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CalendarDays, GraduationCap, LayoutDashboard } from 'lucide-react';
+import { AlertCircle, BookOpen, CalendarDays, GraduationCap, LayoutDashboard } from 'lucide-react';
 import { useTask } from '../../context/TaskContext';
 import { buildUniBoardViewModel } from '../../utils/uniBoardItems';
 import { toast } from '../../ui/Toast';
@@ -15,7 +15,10 @@ import MilestoneTimeline from './MilestoneTimeline';
 import QuickAdd from './QuickAdd';
 import { useLinks } from '../../context/LinksContext';
 import { isUniversityScheduleItem, withUniversityScheduleDefaults } from './classSchedule';
+import { confirmAction } from '../../utils/confirm';
 import './uni-board.css';
+import Classes from './Classes';
+import { useClasses } from './useClasses';
 
 const skeletonSections = [1, 2, 3];
 
@@ -36,6 +39,7 @@ const UniBoard = () => {
     loadError = null,
     refreshData = async () => {},
   } = context;
+  const classData = useClasses(scheduleItems, isLoading, updateScheduleItem, refreshData);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionView, setActionView] = useState('tasks');
@@ -78,6 +82,16 @@ const UniBoard = () => {
     }
   };
 
+  const handleDeleteItem = async (item) => {
+    if (!confirmAction(`Delete “${item.title}”? This cannot be undone.`)) return;
+    try {
+      if (item.source === 'schedule') await deleteScheduleItem(item.id);
+      else await deleteTask(item.id);
+    } catch (error) {
+      toast(error?.message || 'Could not delete this university item.', { tone: 'error' });
+    }
+  };
+
   const handleRetry = async () => {
     try {
       await refreshData();
@@ -100,12 +114,12 @@ const UniBoard = () => {
           <p className="uni-board-header__date">{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(now)}</p>
           {view === 'overview' ? (
             <QuickAdd addTask={addTask} addScheduleItem={addScheduleItem} />
-          ) : (
+          ) : view === 'class-schedule' ? (
             <button type="button" className="uni-board-add-trigger" onClick={() => setClassSheetOpen(true)}>
               <CalendarDays size={17} aria-hidden="true" />
               <span>Manage classes</span>
             </button>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -113,6 +127,7 @@ const UniBoard = () => {
         className="uni-board-view-tabs"
         items={[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard, controls: 'uni-board-overview' },
+          { id: 'classes', label: 'Classes', icon: BookOpen, controls: 'uni-board-classes' },
           { id: 'class-schedule', label: 'Class schedule', icon: CalendarDays, controls: 'uni-board-class-schedule' },
         ]}
         value={view}
@@ -138,6 +153,7 @@ const UniBoard = () => {
             <Agenda
               groups={agendaGroups}
               onSelect={setSelectedItem}
+              onDelete={handleDeleteItem}
               isLoading={isLoading}
               now={now}
               range={agendaRange}
@@ -149,6 +165,7 @@ const UniBoard = () => {
               selectedView={actionView}
               onViewChange={setActionView}
               onSelect={setSelectedItem}
+              onDelete={handleDeleteItem}
               onComplete={handleComplete}
               isLoading={isLoading}
               now={now}
@@ -157,8 +174,10 @@ const UniBoard = () => {
 
           <Links />
 
-          <MilestoneTimeline items={milestones} onSelect={setSelectedItem} now={now} />
+          <MilestoneTimeline items={milestones} onSelect={setSelectedItem} onDelete={handleDeleteItem} now={now} />
         </div>
+      ) : view === 'classes' ? (
+        <Classes now={now} key={classData.owner} data={classData} tasks={tasks} addTask={addTask} updateTask={updateTask} deleteTask={deleteTask} />
       ) : (
         <section id="uni-board-class-schedule" className="uni-board-class-schedule" role="tabpanel" aria-label="Class schedule">
           <MagicSchedule
@@ -180,6 +199,7 @@ const UniBoard = () => {
       )}
 
       <DetailsSheet
+        classes={classData.classes}
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         updateTask={updateTask}
@@ -189,12 +209,15 @@ const UniBoard = () => {
       />
 
       <ClassScheduleSheet
+        courses={classData.classes}
         open={classSheetOpen}
         onClose={() => setClassSheetOpen(false)}
         items={classScheduleItems}
         onAdd={addClassScheduleItem}
         onUpdate={updateScheduleItem}
         onDelete={deleteScheduleItem}
+        onRenameClass={classData.renameClass}
+        onDeleteClass={classData.deleteClass}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuthProvider } from './AuthContext';
+import { AuthProvider, useAuth } from './AuthContext';
 import { TaskProvider } from './TaskContext';
 import { GoalProvider } from './GoalContext';
 import { LearningProvider } from './LearningContext';
@@ -7,6 +7,12 @@ import { UserProfileProvider } from './UserProfileContext';
 import { UserIntelligenceProvider } from './UserIntelligenceContext';
 import { AgentMemoryProvider } from './AgentMemoryContext';
 import { LinksProvider } from './LinksContext';
+
+// Remount account-owned task data before a different user can see or link it.
+const AccountTaskProvider = ({ children }) => {
+    const { user } = useAuth();
+    return <TaskProvider key={user?.id || 'guest'}>{children}</TaskProvider>;
+};
 
 /**
  * AppProviders wraps the entire app with all context providers
@@ -18,7 +24,7 @@ export const AppProviders = ({ children }) => {
             <UserProfileProvider>
                 <UserIntelligenceProvider>
                     <AgentMemoryProvider>
-                        <TaskProvider>
+                        <AccountTaskProvider>
                             <LinksProvider>
                                 <GoalProvider>
                                     <LearningProvider>
@@ -26,7 +32,7 @@ export const AppProviders = ({ children }) => {
                                     </LearningProvider>
                                 </GoalProvider>
                             </LinksProvider>
-                        </TaskProvider>
+                        </AccountTaskProvider>
                     </AgentMemoryProvider>
                 </UserIntelligenceProvider>
             </UserProfileProvider>

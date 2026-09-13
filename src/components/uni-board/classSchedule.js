@@ -84,12 +84,13 @@ export const buildClassSchedulePayload = (draft) => ({
 export const groupClassScheduleItems = (items = []) => {
   const groups = new Map();
   items.forEach((item) => {
-    const className = item.category || item.subject || 'University';
-    if (!groups.has(className)) groups.set(className, []);
-    groups.get(className).push(item);
+    const className = String(item.category || item.subject || 'University').trim() || 'University';
+    const key = className.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { name: className, sessions: [] });
+    groups.get(key).sessions.push(item);
   });
-  return [...groups.entries()]
-    .map(([name, sessions]) => ({
+  return [...groups.values()]
+    .map(({ name, sessions }) => ({
       name,
       sessions: [...sessions].sort((left, right) => new Date(left.startTime || left.start_time) - new Date(right.startTime || right.start_time)),
     }))

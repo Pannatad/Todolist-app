@@ -1,4 +1,5 @@
 import { supabase } from '../services/supabase';
+import { classIdOf, classKindOf, CLASS_ITEM_KINDS } from '../components/uni-board/classItems.js';
 
 const STORAGE_KEY = 'growth-tasks-guest';
 const TASK_UNI_KINDS = new Set(['task', 'payment', 'registration', 'meeting', 'report', 'deadline']);
@@ -22,6 +23,10 @@ export const normalizeTaskRecord = (task) => {
     return {
         ...task,
         workspace,
+        classId: classIdOf(task),
+        class_id: classIdOf(task),
+        classItemKind: classKindOf(task),
+        class_item_kind: classKindOf(task),
         uniKind,
         uni_kind: uniKind,
         isMilestone,
@@ -40,6 +45,11 @@ const prepareTaskRecord = (task) => {
         throw new Error(`Invalid university task kind: ${uniKind || 'missing'}`);
     }
 
+    if (classIdOf(task) || classKindOf(task)) {
+        if (workspace !== 'university' || !classIdOf(task) || !CLASS_ITEM_KINDS.some((kind) => kind.value === classKindOf(task))) {
+            throw new Error('Choose a university class and checklist category.');
+        }
+    }
     return normalizeTaskRecord({
         ...task,
         workspace,
@@ -65,6 +75,9 @@ const toDbTask = (task) => {
     delete dbTask.estimatedTime;
     delete dbTask.completed;
     delete dbTask.completedAt;
+    delete dbTask.classId;
+    delete dbTask.classItemKind;
+    if (!dbTask.class_id) { delete dbTask.class_id; delete dbTask.class_item_kind; }
     delete dbTask.uniKind;
     delete dbTask.isMilestone;
     // Compatibility only: older schemas may require this column. App records strip it.
@@ -87,6 +100,8 @@ const toDbUpdates = (updates, task) => {
         dbUpdates.completed_at = task.completed_at;
     }
 
+    if (updates.classId !== undefined || updates.class_id !== undefined) dbUpdates.class_id = classIdOf(task);
+    if (updates.classItemKind !== undefined || updates.class_item_kind !== undefined) dbUpdates.class_item_kind = classKindOf(task);
     const normalizedTask = prepareTaskRecord(task);
     const metadataChanged = updates.workspace !== undefined
         || updates.uniKind !== undefined
@@ -123,16 +138,16 @@ const createLocalRepo = () => ({
     }
 });
 
-const createSupabaseRepo = (userId) => ({
+const createSupabaseRepo = (userId, client) => ({
     list: async () => {
-        const { data, error } = await supabase.from('tasks')
+        const { data, error } = await client.from('tasks')
             .select('*').eq('user_id', userId).order('created_at', { ascending: true });
         if (error) throw error;
         return (data || []).map(normalizeTaskRecord);
     },
     create: async (task) => {
         const dbTask = toDbTask(task);
-        let { data, error } = await supabase.from('tasks').insert([dbTask]).select().single();
+        let { data, error } = await client.from('tasks').insert([dbTask]).select().single();
         if (error && dbTask.workspace !== 'university') {
             console.warn('Insert failed, retrying without newer task fields...', error);
             const legacyTask = { ...dbTask };
@@ -141,7 +156,7 @@ const createSupabaseRepo = (userId) => ({
             delete legacyTask.workspace;
             delete legacyTask.uni_kind;
             delete legacyTask.is_milestone;
-            ({ data, error } = await supabase.from('tasks').insert([legacyTask]).select().single());
+            ({ data, error } = await client.from('tasks').insert([legacyTask]).select().single());
         }
         if (error) throw error;
         return normalizeTaskRecord(data);
@@ -149,7 +164,7 @@ const createSupabaseRepo = (userId) => ({
     update: async (id, updates, task) => {
         const dbUpdates = toDbUpdates(updates, task);
         if (Object.keys(dbUpdates).length === 0) return normalizeTaskRecord(task);
-        let { error } = await supabase.from('tasks').update(dbUpdates).eq('id', id);
+        let { error } = await client.from('tasks').update(dbUpdates).eq('id', id);
         if (error && task.workspace !== 'university' && (dbUpdates.subtasks !== undefined || dbUpdates.focus_sessions !== undefined)) {
             console.warn('Task update with newer fields failed, retrying without them...', error);
             const fallbackUpdates = { ...dbUpdates };
@@ -159,21 +174,21 @@ const createSupabaseRepo = (userId) => ({
             delete fallbackUpdates.uni_kind;
             delete fallbackUpdates.is_milestone;
             if (Object.keys(fallbackUpdates).length > 0) {
-                ({ error } = await supabase.from('tasks').update(fallbackUpdates).eq('id', id));
+                ({ error } = await client.from('tasks').update(fallbackUpdates).eq('id', id));
             }
         }
         if (error) throw error;
         return normalizeTaskRecord(task);
     },
     remove: async (id) => {
-        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        const { error } = await client.from('tasks').delete().eq('id', id);
         if (error) throw error;
         return id;
     }
 });
 
-export const createTasksRepo = (user) => (
-    user?.id ? createSupabaseRepo(user.id) : createLocalRepo()
+export const createTasksRepo = (user, client = supabase) => (
+    user?.id ? createSupabaseRepo(user.id, client) : createLocalRepo()
 );
 
 export const taskUniKinds = TASK_UNI_KINDS;

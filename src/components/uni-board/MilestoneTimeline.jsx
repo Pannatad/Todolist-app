@@ -1,7 +1,8 @@
 import { CalendarDays, Flag } from 'lucide-react';
 import { formatShortDate, formatTimeRemaining, itemLabel } from './formatters';
+import ItemActions from './ItemActions';
 
-const MilestoneTimeline = ({ items, onSelect, now }) => (
+const MilestoneTimeline = ({ items, onSelect, onDelete, now }) => (
   <section className="uni-board-section uni-board-milestones" aria-labelledby="uni-board-milestones-title">
     <div className="uni-board-section-heading">
       <div>
@@ -21,6 +22,7 @@ const MilestoneTimeline = ({ items, onSelect, now }) => (
                 <span>{formatShortDate(item.occursAt)} · {itemLabel(item)} · {item.subject || 'University'} · {formatTimeRemaining(item.occursAt, now)}</span>
               </span>
             </button>
+            <ItemActions title={item.title} onEdit={() => onSelect(item)} onDelete={() => onDelete(item)} />
           </li>
         ))}
       </ol>

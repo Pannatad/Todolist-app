@@ -9,7 +9,6 @@ import {
     LayoutTemplate,
     Loader2,
     Mic,
-    MoreHorizontal,
     Pencil,
     Plus,
     Redo2,
@@ -146,6 +145,7 @@ const MagicSchedule = ({
     const [futureUpdateReview, setFutureUpdateReview] = useState(null);
     const [showApplyOptions, setShowApplyOptions] = useState(false);
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const [deletingTemplateId, setDeletingTemplateId] = useState(null);
     const [assistantOpen, setAssistantOpen] = useState(false);
     const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
     const [assistantInput, setAssistantInput] = useState('');
@@ -185,6 +185,23 @@ const MagicSchedule = ({
     const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
     const currentTimeTop = ((currentTimeMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
     const selectedTemplate = templates.find((template) => String(template.id) === String(selectedTemplateId)) || null;
+
+    const removeTemplate = async (template) => {
+        if (!confirmAction(`Delete template “${template.name}”? This cannot be undone.`)) return;
+        setDeletingTemplateId(template.id);
+        try {
+            await deleteTemplate(template.id);
+            if (String(selectedTemplateId) === String(template.id)) {
+                setSelectedTemplateId(null);
+                setShowApplyOptions(false);
+            }
+            toast(`Deleted template “${template.name}”.`);
+        } catch (error) {
+            toast(error?.message || 'Could not delete this template.', { tone: 'error' });
+        } finally {
+            setDeletingTemplateId(null);
+        }
+    };
 
     useEffect(() => {
         if (!selectedTemplateId && templates[0]) setSelectedTemplateId(templates[0].id);
@@ -809,7 +826,6 @@ const MagicSchedule = ({
                     <span className="magic-event__title">{item.title}</span>
                 </span>
                 {height >= 42 && <span className="magic-event__time">{rangeLabel(item)}</span>}
-                {shell && <span className="magic-event__badge">Flexible</span>}
                 {nested && <span className="magic-event__badge">Nested</span>}
                 <span
                     className="magic-event__resize"
@@ -951,25 +967,32 @@ const MagicSchedule = ({
                     <span>One sheet, one save</span>
                 </button>
                 {templates.map((template) => (
-                    <button
-                        type="button"
+                    <article
                         key={template.id}
                         className={`magic-template-card ${String(selectedTemplateId) === String(template.id) ? 'is-selected' : ''}`}
-                        onClick={() => {
-                            setSelectedTemplateId(template.id);
-                            setApplyMode('once');
-                            setRepeatDays([]);
-                            setRepeatEndDate('');
-                            setShowApplyOptions(true);
-                        }}
                     >
-                        <div className="magic-template-card__top">
-                            <strong>{template.name}</strong>
-                            <MoreHorizontal size={16} />
+                        <button
+                            type="button"
+                            className="magic-template-card__open"
+                            onClick={() => {
+                                setSelectedTemplateId(template.id);
+                                setApplyMode('once');
+                                setRepeatDays([]);
+                                setRepeatEndDate('');
+                                setShowApplyOptions(true);
+                            }}
+                        >
+                            <div className="magic-template-card__top">
+                                <strong>{template.name}</strong>
+                            </div>
+                            <TimelinePreview blocks={template.blocks} />
+                            <span>{template.blocks.length} block{template.blocks.length === 1 ? '' : 's'} · {template.blocks.some((block) => block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) ? 'flexible structure' : 'fixed day'}</span>
+                        </button>
+                        <div className="magic-template-card__actions" aria-label={`Actions for ${template.name}`}>
+                            <button type="button" className="magic-template-card__action" onClick={() => setTemplateEditor(template)} aria-label={`Edit template ${template.name}`} title="Edit template"><Pencil size={15} aria-hidden="true" /></button>
+                            <button type="button" className="magic-template-card__action is-delete" disabled={deletingTemplateId === template.id} onClick={() => removeTemplate(template)} aria-label={`Delete template ${template.name}`} title="Delete template"><Trash2 size={15} aria-hidden="true" /></button>
                         </div>
-                        <TimelinePreview blocks={template.blocks} />
-                        <span>{template.blocks.length} block{template.blocks.length === 1 ? '' : 's'} · {template.blocks.some((block) => block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) ? 'flexible structure' : 'fixed day'}</span>
-                    </button>
+                    </article>
                 ))}
                 {!templates.length && (
                     <div className="magic-template-empty">

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Globe2, Link2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ExternalLink, Globe2, Link2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
 import { confirmAction } from '../../utils/confirm';
 import { useLinks } from '../../context/LinksContext';
 import { getLinkDraftError, getLinkHostname } from './linkUtils';
+import ItemActions from './ItemActions';
 
 const emptyDraft = () => ({
   title: '',
@@ -116,9 +117,10 @@ const LinkEditorSheet = ({ link, isOpen, onClose }) => {
 };
 
 const Links = () => {
-  const { links, isLoading, loadError, refreshLinks } = useLinks();
+  const { links, isLoading, loadError, refreshLinks, deleteLink } = useLinks();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const openNewLink = () => {
     setEditingLink(null);
@@ -140,6 +142,18 @@ const Links = () => {
       await refreshLinks();
     } catch (error) {
       toast(error?.message || 'Could not refresh links.', { tone: 'error' });
+    }
+  };
+
+  const removeLink = async (link) => {
+    if (!confirmAction(`Delete “${link.title}”? This cannot be undone.`)) return;
+    setDeletingId(link.id);
+    try {
+      await deleteLink(link.id);
+    } catch (error) {
+      toast(error?.message || 'Could not delete this link.', { tone: 'error' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -181,9 +195,7 @@ const Links = () => {
                   </span>
                   <ExternalLink size={17} aria-hidden="true" className="uni-board-link-row__external" />
                 </a>
-                <button type="button" className="uni-board-link-row__edit" onClick={() => openEditLink(link)} aria-label={`Edit ${link.title}`}>
-                  <Pencil size={16} aria-hidden="true" />
-                </button>
+                <ItemActions title={link.title} disabled={deletingId === link.id} onEdit={() => openEditLink(link)} onDelete={() => removeLink(link)} />
               </article>
             ))}
           </div>

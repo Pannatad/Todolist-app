@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { calculateCompletionReward, normalizeTaskRecord, sanitizeTaskUpdates } from '../utils/taskState';
 import { toast } from '../ui/Toast';
+import { createClassesRepo } from '../data/classesRepo';
 import { log } from '../utils/log.js';
 import { createScheduleRepo, normalizeScheduleRecord } from '../data/scheduleRepo';
 import { createTasksRepo, normalizeTaskRecord as normalizeTaskPersistenceRecord } from '../data/tasksRepo';
@@ -150,6 +151,8 @@ export const TaskProvider = ({ children }) => {
         estimatedTime,
         description,
         subtasks = [],
+        classId = null,
+        classItemKind = null,
         workspace = 'personal',
         uniKind = null,
         uni_kind: persistedUniKind,
@@ -178,6 +181,8 @@ export const TaskProvider = ({ children }) => {
             estimated_time: estimatedTime,
             estimatedTime: estimatedTime,
             subtasks,
+            classId,
+            classItemKind,
             status: 'growing',
             completed: false,
             completed_at: null,
@@ -227,11 +232,10 @@ export const TaskProvider = ({ children }) => {
 
         const updates = { status: newStatus, completed_at: completedAt };
 
-        setTasks(tasks.map(t =>
+        await tasksRepo.update(id, updates, normalizeTaskRecord({ ...task, ...updates, completedAt }));
+        setTasks(current => current.map(t =>
             t.id === id ? normalizeTaskRecord({ ...t, ...updates, completedAt }) : t
         ));
-
-        await tasksRepo.update(id, updates, normalizeTaskRecord({ ...task, ...updates, completedAt }));
 
         return { reward, task };
     };
@@ -242,21 +246,20 @@ export const TaskProvider = ({ children }) => {
 
         const updates = { status: 'growing', completed_at: null };
 
-        setTasks(tasks.map(t =>
+        await tasksRepo.update(id, updates, normalizeTaskRecord({ ...task, ...updates, completedAt: null, completed: false }));
+        setTasks(current => current.map(t =>
             t.id === id ? normalizeTaskRecord({ ...t, ...updates, completedAt: null, completed: false }) : t
         ));
-
-        await tasksRepo.update(id, updates, normalizeTaskRecord({ ...task, ...updates, completedAt: null, completed: false }));
     };
 
     const deleteTask = async (id) => {
-        setTasks(tasks.filter(t => t.id !== id));
         await tasksRepo.remove(id);
+        setTasks(current => current.filter(t => t.id !== id));
     };
 
     const updateTask = async (id, updates) => {
         const existingTaskForSave = tasks.find(t => t.id === id);
-        if (!existingTaskForSave) return;
+        if (!existingTaskForSave) throw new Error('Task not found.');
 
         // Handle deadline conversion if present in updates
         const processedUpdates = sanitizeTaskUpdates(updates);
@@ -310,6 +313,10 @@ export const TaskProvider = ({ children }) => {
 
     // Schedule Handlers
     const addScheduleItem = async (itemData) => {
+        if (itemData.workspace === 'university') {
+            const course = await createClassesRepo(userId ? { id: userId } : null).ensureClass(itemData.category || itemData.subject || 'University');
+            itemData = { ...itemData, classId: course.id };
+        }
         const startTime = itemData.startTime ?? itemData.start_time;
         const resolvedUniKind = itemData.uniKind ?? itemData.uni_kind ?? null;
         const resolvedIsMilestone = itemData.isMilestone ?? itemData.is_milestone ?? false;
@@ -371,6 +378,11 @@ export const TaskProvider = ({ children }) => {
         const existingItem = scheduleItems.find(item => item.id === id);
         if (!existingItem) {
             throw new Error('Schedule item not found.');
+        }
+
+        if ((updates.workspace ?? existingItem.workspace) === 'university' && (updates.category !== undefined || updates.subject !== undefined)) {
+            const course = await createClassesRepo(userId ? { id: userId } : null).ensureClass(updates.category || updates.subject || 'University');
+            updates = { ...updates, classId: course.id };
         }
 
         // Map camelCase to snake_case for local state

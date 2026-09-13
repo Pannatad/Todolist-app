@@ -155,6 +155,7 @@
 }
 
 .magic-template-card {
+  position: relative;
   display: grid;
   min-height: 8.4rem;
   align-content: start;
@@ -167,6 +168,19 @@
   text-align: left;
   box-shadow: 0 5px 18px rgb(35 38 47 / .045);
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.magic-template-card__open {
+  display: grid;
+  min-width: 0;
+  min-height: 6.7rem;
+  align-content: start;
+  gap: .62rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
 }
 
 .magic-template-card:hover,
@@ -189,7 +203,7 @@
 }
 
 .magic-template-card.is-new span,
-.magic-template-card > span {
+.magic-template-card__open > span {
   color: var(--color-muted);
   font-size: .72rem;
 }
@@ -204,9 +218,51 @@
 
 .magic-template-card__top strong {
   overflow: hidden;
+  padding-right: 4.6rem;
   font-size: .86rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.magic-template-card__actions {
+  position: absolute;
+  top: .45rem;
+  right: .45rem;
+  display: flex;
+  align-items: center;
+}
+
+.magic-template-card__action {
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border: 0;
+  border-radius: .65rem;
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.magic-template-card__action:hover,
+.magic-template-card__action:focus-visible {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
+.magic-template-card__action.is-delete:hover,
+.magic-template-card__action.is-delete:focus-visible {
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+
+.magic-template-card__action:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.magic-template-card__action:disabled {
+  cursor: progress;
+  opacity: .5;
 }
 
 .magic-template-preview {
@@ -2059,7 +2115,7 @@
   }
 
   .magic-template-gallery {
-    grid-auto-columns: 12.5rem;
+    grid-auto-columns: 10.25rem;
   }
 
   .magic-template-preview__labels {

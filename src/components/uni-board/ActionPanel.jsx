@@ -1,8 +1,9 @@
 import { Check, ClipboardList, FileText, GraduationCap, RotateCcw } from 'lucide-react';
 import { SegmentedControl } from '../../ui';
 import { formatDateTime, formatTimeRemaining, itemLabel } from './formatters';
+import ItemActions from './ItemActions';
 
-const ActionPanel = ({ tasks, assessments, selectedView, onViewChange, onSelect, onComplete, isLoading, now }) => {
+const ActionPanel = ({ tasks, assessments, selectedView, onViewChange, onSelect, onDelete, onComplete, isLoading, now }) => {
   const items = selectedView === 'tasks' ? tasks : assessments;
   return (
     <section className={`uni-board-section uni-board-action-panel is-${selectedView}`} aria-labelledby="uni-board-actions-title">
@@ -38,6 +39,7 @@ const ActionPanel = ({ tasks, assessments, selectedView, onViewChange, onSelect,
                   <span>{itemLabel(item)} · {formatDateTime(item.occursAt)} · {formatTimeRemaining(item.occursAt, now)}</span>
                 </span>
               </button>
+              <ItemActions title={item.title} onEdit={() => onSelect(item)} onDelete={() => onDelete(item)} />
             </div>
           )) : <p className="uni-board-quiet-empty">{selectedView === 'tasks' ? 'No outstanding university tasks.' : 'No exams or quizzes to review.'}</p>}
         </div>

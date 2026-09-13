@@ -196,18 +196,21 @@ test('Agenda range lengths include only upcoming dated items in the selected win
     );
 });
 
-test('All Agenda includes future dated tasks and events beyond the default horizon', () => {
+test('All Agenda includes future dated tasks and assessments but excludes class schedule events', () => {
     const now = localDate(2026, 8, 13, 10);
     const model = buildUniBoardViewModel({
         now,
         agendaDays: 'all',
         tasks: [task('far-task', { title: 'Far task', deadline: localDate(2027, 12, 1, 9) })],
-        scheduleItems: [schedule('far-event', { title: 'Far event', startTime: localDate(2027, 12, 2, 10) })],
+        scheduleItems: [
+            schedule('far-event', { title: 'Far class', startTime: localDate(2027, 12, 2, 10) }),
+            schedule('far-exam', { title: 'Far exam', uniKind: 'exam', startTime: localDate(2027, 12, 3, 10) }),
+        ],
     });
 
     assert.deepEqual(
         model.agendaGroups.flatMap((group) => group.items).map((item) => item.title),
-        ['Far task', 'Far event'],
+        ['Far task', 'Far exam'],
     );
 });
 
@@ -224,7 +227,7 @@ test('excludes completed tasks and past scheduled entries from Next up and Agend
     });
 
     assert.deepEqual(itemTitles(model.nextUp), ['Schedule future-event']);
-    assert.deepEqual(itemTitles(model.agendaGroups.flatMap((group) => group.items)), ['Schedule future-event']);
+    assert.deepEqual(itemTitles(model.agendaGroups.flatMap((group) => group.items)), []);
 });
 
 test('keeps overdue tasks out of Agenda and orders Outstanding overdue, future dated, then undated', () => {

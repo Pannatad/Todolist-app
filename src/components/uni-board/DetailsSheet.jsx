@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CLASS_ITEM_KINDS, classIdOf, classKindOf } from './classItems';
 import { Trash2 } from 'lucide-react';
 import { Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
@@ -6,7 +7,7 @@ import { confirmAction } from '../../utils/confirm';
 import { SCHEDULE_KINDS, TASK_KINDS, getKindLabel, getRecordValue } from './constants';
 import { getItemKind, getItemNotes, getItemSubject, toDatetimeLocalValue, toIso } from './formatters';
 
-const DetailsSheet = ({ item, onClose, updateTask, deleteTask, updateScheduleItem, deleteScheduleItem }) => {
+const DetailsSheet = ({ classes = [], item, onClose, updateTask, deleteTask, updateScheduleItem, deleteScheduleItem }) => {
   const [form, setForm] = useState(null);
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -22,6 +23,8 @@ const DetailsSheet = ({ item, onClose, updateTask, deleteTask, updateScheduleIte
     const rawWhen = item.occursAt || getRecordValue(record, 'deadline', 'startTime', 'start_time');
     setForm({
       title: item.title || '',
+      classId: classIdOf(record) || '',
+      classItemKind: classKindOf(record) || 'homework',
       kind,
       when: toDatetimeLocalValue(rawWhen),
       subject: getItemSubject(item),
@@ -52,7 +55,7 @@ const DetailsSheet = ({ item, onClose, updateTask, deleteTask, updateScheduleIte
     }
     setIsSaving(true);
     try {
-      const subject = form.subject.trim() || 'University';
+      const subject = (!schedule && classes.find((course) => course.id === form.classId)?.name) || form.subject.trim() || 'University';
       if (schedule) {
         const result = await updateScheduleItem(item.id, {
           title: form.title.trim(),
@@ -74,7 +77,9 @@ const DetailsSheet = ({ item, onClose, updateTask, deleteTask, updateScheduleIte
           subject,
           description: form.notes.trim() || null,
           workspace: 'university',
-          uniKind: form.kind,
+          uniKind: form.classId ? 'task' : form.kind,
+          classId: form.classId || null,
+          classItemKind: form.classId ? form.classItemKind : null,
           isMilestone: Boolean(form.isMilestone),
         });
         if (result === false) throw new Error('The task could not be updated.');
@@ -106,7 +111,7 @@ const DetailsSheet = ({ item, onClose, updateTask, deleteTask, updateScheduleIte
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Edit university item" description="Changes stay in the original task or schedule family.">
+    <Sheet open={open} onClose={onClose} title="Edit university item" description="Update the title, date, notes, or class.">
       {form && (
         <form className="uni-board-sheet-form" onSubmit={save}>
           {error && <p className="uni-board-inline-error" role="alert">{error}</p>}
@@ -117,19 +122,27 @@ const DetailsSheet = ({ item, onClose, updateTask, deleteTask, updateScheduleIte
           <div className="uni-board-form-grid">
             <label>
               <span>Type</span>
-              <select className="uni-board-input" value={form.kind} onChange={(event) => setField('kind', event.target.value)}>
+              <select className="uni-board-input" value={!schedule && form.classId ? 'task' : form.kind} disabled={!schedule && Boolean(form.classId)} onChange={(event) => setField('kind', event.target.value)}>
                 {kindOptions.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}
               </select>
             </label>
             <label>
               <span>{schedule ? 'Date and time' : 'Due date and time'}</span>
-              <input className="uni-board-input" type="datetime-local" value={form.when} onChange={(event) => setField('when', event.target.value)} required={schedule} />
+              <input className="uni-board-input" type="datetime-local" value={form.when} onInput={(event) => setField('when', event.target.value)} required={schedule} />
             </label>
           </div>
           <label>
             <span>Course or category</span>
             <input className="uni-board-input" value={form.subject} onChange={(event) => setField('subject', event.target.value)} placeholder="University" />
           </label>
+          {!schedule && <div className="uni-board-form-grid">
+            <label><span>Class (optional)</span><select className="uni-board-input" value={form.classId} onChange={(event) => setField('classId', event.target.value)}>
+              <option value="">No class</option>
+              {form.classId && !classes.some((course) => course.id === form.classId) && <option value={form.classId}>{form.subject || 'Current class'}</option>}
+              {classes.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
+            </select></label>
+            {form.classId && <label><span>Checklist category</span><select className="uni-board-input" value={form.classItemKind} onChange={(event) => setField('classItemKind', event.target.value)}>{CLASS_ITEM_KINDS.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}</select></label>}
+          </div>}
           {schedule && (
             <label>
               <span>Duration in minutes</span>

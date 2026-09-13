@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, ChevronRight, Clock3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, ChevronRight, Clock3, Plus, Trash2 } from 'lucide-react';
 import { Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
 import { confirmAction } from '../../utils/confirm';
+import ClassEditor from './ClassEditor';
+import ItemActions from './ItemActions';
 import {
   buildClassSchedulePayload,
   CLASS_SESSION_TYPES,
@@ -25,17 +27,27 @@ const sessionTypeLabel = (item) => {
   return CLASS_SESSION_TYPES.find((type) => title.includes(type.value))?.label || 'Class';
 };
 
-const ClassScheduleSheet = ({ open, onClose, items, onAdd, onUpdate, onDelete }) => {
-  const classes = useMemo(() => groupClassScheduleItems(items), [items]);
+const ClassScheduleSheet = ({ open, onClose, items, courses = [], onAdd, onUpdate, onDelete, onRenameClass, onDeleteClass }) => {
+  const classes = useMemo(() => {
+    const groups = groupClassScheduleItems(items);
+    for (const course of courses) {
+      if (!groups.some((group) => group.name.trim().toLowerCase() === course.name.trim().toLowerCase())) {
+        groups.push({ name: course.name, sessions: [] });
+      }
+    }
+    return groups.sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, courses]);
   const [selectedClass, setSelectedClass] = useState('');
   const [newClassName, setNewClassName] = useState('');
   const [creatingClass, setCreatingClass] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [classEditor, setClassEditor] = useState(null);
   const [draft, setDraft] = useState(() => emptyClassDraft());
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const activeClassName = creatingClass ? newClassName.trim() : selectedClass;
   const activeClass = classes.find((entry) => entry.name === selectedClass);
+  const courseFor = (name) => courses.find((course) => course.name.trim().toLowerCase() === name.trim().toLowerCase());
 
   const resetSession = (className = activeClassName) => {
     setEditingItem(null);
@@ -100,12 +112,12 @@ const ClassScheduleSheet = ({ open, onClose, items, onAdd, onUpdate, onDelete })
     }
   };
 
-  const remove = async () => {
-    if (!editingItem || !confirmAction(`Delete this ${sessionTypeLabel(editingItem).toLowerCase()} schedule?`)) return;
+  const remove = async (item = editingItem) => {
+    if (!item || !confirmAction(`Delete this ${sessionTypeLabel(item).toLowerCase()} schedule?`)) return;
     setIsSaving(true);
     try {
-      await onDelete(editingItem.id);
-      resetSession(activeClassName);
+      await onDelete(item.id);
+      if (editingItem?.id === item.id) resetSession(activeClassName);
     } catch (deleteError) {
       const message = deleteError?.message || 'Could not delete this class schedule.';
       setError(message);
@@ -119,6 +131,7 @@ const ClassScheduleSheet = ({ open, onClose, items, onAdd, onUpdate, onDelete })
     setSelectedClass('');
     setCreatingClass(false);
     setNewClassName('');
+    setClassEditor(null);
     resetSession('');
     onClose();
   };
@@ -132,13 +145,17 @@ const ClassScheduleSheet = ({ open, onClose, items, onAdd, onUpdate, onDelete })
             <button type="button" className="uni-board-secondary-button" onClick={startNewClass}><Plus size={16} aria-hidden="true" /> New</button>
           </div>
           <div className="uni-board-class-list__items">
-            {classes.map((entry) => (
-              <button key={entry.name} type="button" className={`uni-board-class-list__item${selectedClass === entry.name ? ' is-selected' : ''}`} onClick={() => chooseClass(entry.name)}>
-                <span className="uni-board-class-list__book"><BookOpen size={16} aria-hidden="true" /></span>
-                <span className="uni-board-item-copy"><strong>{entry.name}</strong><span>{entry.sessions.length} session{entry.sessions.length === 1 ? '' : 's'}</span></span>
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
-            ))}
+            {classes.map((entry) => {
+              const course = courseFor(entry.name);
+              return <div key={entry.name} className={`uni-board-class-list__row${selectedClass === entry.name ? ' is-selected' : ''}`}>
+                <button type="button" className="uni-board-class-list__item" onClick={() => chooseClass(entry.name)} aria-current={selectedClass === entry.name ? 'true' : undefined}>
+                  <span className="uni-board-class-list__book"><BookOpen size={16} aria-hidden="true" /></span>
+                  <span className="uni-board-item-copy"><strong>{entry.name}</strong><span>{entry.sessions.length} session{entry.sessions.length === 1 ? '' : 's'}</span></span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+                {course && <ItemActions title={entry.name} onEdit={() => setClassEditor({ course, mode: 'edit' })} onDelete={() => setClassEditor({ course, mode: 'delete' })} />}
+              </div>;
+            })}
             {!classes.length && <div className="uni-board-class-list__empty"><BookOpen size={20} aria-hidden="true" /><span>Create your first class to begin.</span></div>}
           </div>
         </section>
@@ -159,20 +176,20 @@ const ClassScheduleSheet = ({ open, onClose, items, onAdd, onUpdate, onDelete })
 
               {!creatingClass && activeClass?.sessions.length > 0 && (
                 <div className="uni-board-class-sessions" aria-label={`${selectedClass} schedules`}>
-                  {activeClass.sessions.map((item) => (
-                    <button key={item.id} type="button" className={editingItem?.id === item.id ? 'is-selected' : ''} onClick={() => startEditing(item)}>
+                  {activeClass.sessions.map((item) => <div key={item.id} className={`uni-board-class-session-row${editingItem?.id === item.id ? ' is-selected' : ''}`}>
+                    <button type="button" className="uni-board-class-session-row__open" onClick={() => startEditing(item)}>
                       <span className="uni-board-class-session__type">{sessionTypeLabel(item)}</span>
                       <span><strong>{dayLabel(item)}</strong><small>{timeLabel(item)} · {item.duration || 60} min{item.notes ? ` · ${item.notes}` : ''}</small></span>
-                      <Pencil size={15} aria-hidden="true" />
                     </button>
-                  ))}
+                    <ItemActions title={`${selectedClass} ${sessionTypeLabel(item)} schedule`} disabled={isSaving} onEdit={() => startEditing(item)} onDelete={() => remove(item)} />
+                  </div>)}
                 </div>
               )}
 
               <form className="uni-board-sheet-form uni-board-class-form" onSubmit={save}>
                 <div className="uni-board-class-form__heading">
                   <div><h3>{editingItem ? `Edit ${sessionTypeLabel(editingItem).toLowerCase()}` : 'Add schedule'}</h3><p>Add each lecture, tutorial, or lab separately.</p></div>
-                  {editingItem && <button type="button" className="uni-board-danger-button" onClick={remove} disabled={isSaving} aria-label="Delete schedule"><Trash2 size={16} aria-hidden="true" /></button>}
+                  {editingItem && <button type="button" className="uni-board-danger-button" onClick={() => remove()} disabled={isSaving} aria-label="Delete schedule"><Trash2 size={16} aria-hidden="true" /></button>}
                 </div>
                 {error && <p className="uni-board-inline-error" role="alert">{error}</p>}
                 <label><span>Category</span><select className="uni-board-input" value={draft.sessionType} onChange={(event) => setField('sessionType', event.target.value)}>{CLASS_SESSION_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></label>
@@ -190,6 +207,23 @@ const ClassScheduleSheet = ({ open, onClose, items, onAdd, onUpdate, onDelete })
           )}
         </section>
       </div>
+      {classEditor && <ClassEditor
+        key={`${classEditor.course.id}-${classEditor.mode}`}
+        course={classEditor.course}
+        mode={classEditor.mode}
+        onClose={() => setClassEditor(null)}
+        onRename={async (id, name) => {
+          const renamed = await onRenameClass(id, name);
+          if (selectedClass === classEditor.course.name) setSelectedClass(renamed.name);
+        }}
+        onDelete={async (id) => {
+          await onDeleteClass(id);
+          if (selectedClass === classEditor.course.name) {
+            setSelectedClass('');
+            resetSession('');
+          }
+        }}
+      />}
     </Sheet>
   );
 };
