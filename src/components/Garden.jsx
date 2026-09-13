@@ -20,8 +20,33 @@ const toTimeInputValue = (value) => {
     return date.toTimeString().slice(0, 5);
 };
 
+const startOfWeek = (value = new Date()) => {
+    const date = new Date(value);
+    date.setHours(0, 0, 0, 0);
+    const day = date.getDay();
+    date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+    return date;
+};
+
+const addDays = (value, amount) => {
+    const date = new Date(value);
+    date.setDate(date.getDate() + amount);
+    return date;
+};
+
+const localDateKey = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [] }) => {
     const [sortBy, setSortBy] = useState('deadline');
+    const [taskView, setTaskView] = useState('week');
+    const [weekStart, setWeekStart] = useState(() => startOfWeek());
     const [selectedSubject, setSelectedSubject] = useState('all');
     const [selectedTaskId, setSelectedTaskId] = useState(() => {
         try {
@@ -310,6 +335,30 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
         return new Date(b.created_at || Number(b.id) || 0) - new Date(a.created_at || Number(a.id) || 0);
     });
 
+    const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+    const weekDayKeys = new Set(weekDays.map(localDateKey));
+    const tasksByDay = weekDays.reduce((groups, day) => {
+        groups[localDateKey(day)] = [];
+        return groups;
+    }, {});
+
+    activeTasks.forEach((task) => {
+        const key = localDateKey(task.deadline);
+        if (key && weekDayKeys.has(key)) tasksByDay[key].push(task);
+    });
+
+    Object.values(tasksByDay).forEach((dayTasks) => {
+        dayTasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+    });
+
+    const unscheduledTasks = activeTasks
+        .filter((task) => !task.deadline)
+        .sort((a, b) => new Date(b.created_at || Number(b.id) || 0) - new Date(a.created_at || Number(a.id) || 0));
+    const weekTaskCount = Object.values(tasksByDay).reduce((total, dayTasks) => total + dayTasks.length, 0);
+
+    const moveWeek = (amount) => setWeekStart((current) => addDays(current, amount * 7));
+    const showCurrentWeek = () => setWeekStart(startOfWeek());
+
     // Get unique subjects
     const uniqueSubjects = [...new Set(tasks.map(t => t.subject).filter(Boolean))];
     return (
@@ -323,9 +372,10 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
                 onUpdateTask, orderedChunks, reorderChunks, saveChunkOrder, selectedChunks,
                 selectedSubject, selectedTask, selectedTaskId, setFocusTask,
                 setNewChunkEstimate, setNewChunkTitle, setSelectedSubject,
-                setSortBy, showRelativeDue, sortedTasks, sortBy,
+                setSortBy, setTaskView, showCurrentWeek, showRelativeDue, sortedTasks, sortBy,
                 saveTaskDetails, taskDraft, toggleChunkExpanded, uniqueSubjects, updateChunk, updateNestedSubtask, updateNestedDraft,
-                updateTaskDraft, visibleChunks, toggleDueMode: () => setShowRelativeDue((shown) => !shown),
+                updateTaskDraft, visibleChunks, taskView, tasksByDay, unscheduledTasks, weekDays, weekStart, weekTaskCount,
+                moveWeek, toggleDueMode: () => setShowRelativeDue((shown) => !shown),
             }}
         />
     );

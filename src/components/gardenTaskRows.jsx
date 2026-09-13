@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
-import { AlertCircle, Check, ChevronDown, Circle, GripVertical, MoreHorizontal, Play, Sparkles, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, Circle, Clock3, GripVertical, MoreHorizontal, Play, Sparkles, Trash2 } from 'lucide-react';
 import { getColorForSubject } from '../constants/subjects';
 import { getTaskChunkEstimate, normalizeTaskSubtasks } from '../utils/taskState';
 import { formatTaskDueAbsolute, formatTaskDueRelative, getTaskDueState } from './taskDueFormat';
@@ -71,4 +71,29 @@ const TaskListRow = ({ task, isCompleted = false, isSelected = false, onComplete
     </div>;
 };
 
-export { ChunkReorderItem, TaskListRow };
+const TaskBoardCard = ({ task, isSelected = false, onComplete, onSelect }) => {
+    const color = getColorForSubject(task.subject);
+    const due = task.deadline ? new Date(task.deadline) : null;
+    const dueState = getTaskDueState(task.deadline);
+    const estimate = formatEstimate(getTaskChunkEstimate(task));
+    const time = !due || Number.isNaN(due.getTime())
+        ? null
+        : due.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    return <article className={`task-board-card ${isSelected ? 'is-selected' : ''} ${dueState.isOverdue ? 'is-overdue' : ''}`}>
+        <button type="button" className="task-board-card__complete" onClick={() => onComplete(task.id)} aria-label={`Complete ${task.title}`}>
+            <Circle size={17} aria-hidden="true" />
+        </button>
+        <button type="button" className="task-board-card__content" onClick={() => onSelect(task.id)} aria-label={`Open ${task.title}`}>
+            <span className="task-board-card__title">{task.title || 'Untitled task'}</span>
+            <span className="task-board-card__meta">
+                {time && <span><Clock3 size={13} aria-hidden="true" />{time}</span>}
+                {estimate !== 'No estimate' && <span>{estimate}</span>}
+            </span>
+            <span className="task-board-card__subject"><i style={{ backgroundColor: color.color }} />{task.subject || 'Uncategorized'}</span>
+            {dueState.isOverdue && <span className="task-board-card__warning"><AlertCircle size={13} aria-hidden="true" />Overdue</span>}
+        </button>
+    </article>;
+};
+
+export { ChunkReorderItem, TaskBoardCard, TaskListRow };

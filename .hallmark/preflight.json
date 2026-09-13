@@ -1,0 +1,9 @@
+{
+  "date": "2026-09-13",
+  "framework": "React 19 with Vite 7 and Tailwind CSS 4",
+  "designSystem": "DESIGN.md",
+  "fontStack": "native system sans",
+  "palette": "locked OKLCH indigo tokens",
+  "motion": "framer-motion installed; restrained product motion",
+  "spacing": "four-point named token scale"
+}
