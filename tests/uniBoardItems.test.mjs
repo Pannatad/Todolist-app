@@ -5,6 +5,7 @@ import { createServer } from 'vite';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { buildUniBoardViewModel } from '../src/utils/uniBoardItems.js';
+import { buildUniversityItemInput } from '../src/components/uni-board/universityItemInput.js';
 import { CalendarDays, ClipboardList, Users } from 'lucide-react';
 import { formatDaysRemaining, formatTimeRemaining, getItemIcon } from '../src/components/uni-board/formatters.js';
 
@@ -196,21 +197,22 @@ test('Agenda range lengths include only upcoming dated items in the selected win
     );
 });
 
-test('All Agenda includes future dated tasks and assessments but excludes class schedule events', () => {
+test('All Agenda includes standalone events and assessments but excludes class schedule events', () => {
     const now = localDate(2026, 8, 13, 10);
     const model = buildUniBoardViewModel({
         now,
         agendaDays: 'all',
         tasks: [task('far-task', { title: 'Far task', deadline: localDate(2027, 12, 1, 9) })],
         scheduleItems: [
-            schedule('far-event', { title: 'Far class', startTime: localDate(2027, 12, 2, 10) }),
+            schedule('far-event', { title: 'Campus talk', startTime: localDate(2027, 12, 2, 10) }),
             schedule('far-exam', { title: 'Far exam', uniKind: 'exam', startTime: localDate(2027, 12, 3, 10) }),
+            schedule('class-session', { title: 'COMP lecture', classId: 'comp', startTime: localDate(2027, 12, 4, 10) }),
         ],
     });
 
     assert.deepEqual(
         model.agendaGroups.flatMap((group) => group.items).map((item) => item.title),
-        ['Far task', 'Far exam'],
+        ['Far task', 'Campus talk', 'Far exam'],
     );
 });
 
@@ -227,7 +229,25 @@ test('excludes completed tasks and past scheduled entries from Next up and Agend
     });
 
     assert.deepEqual(itemTitles(model.nextUp), ['Schedule future-event']);
-    assert.deepEqual(itemTitles(model.agendaGroups.flatMap((group) => group.items)), []);
+    assert.deepEqual(itemTitles(model.agendaGroups.flatMap((group) => group.items)), ['Schedule future-event']);
+});
+
+test('Quick Add routes Event to schedule persistence without class linkage', () => {
+    const input = buildUniversityItemInput({
+        title: 'Guest lecture',
+        kind: 'event',
+        when: '2026-09-14T14:00',
+        course: 'COMP 2011',
+        duration: 90,
+        notes: 'Lecture theatre',
+        isMilestone: false,
+    });
+
+    assert.equal(input.source, 'schedule');
+    assert.equal(input.payload.uniKind, 'event');
+    assert.equal(input.payload.workspace, 'university');
+    assert.equal('classId' in input.payload, false);
+    assert.equal(input.payload.duration, 90);
 });
 
 test('keeps overdue tasks out of Agenda and orders Outstanding overdue, future dated, then undated', () => {

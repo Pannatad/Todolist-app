@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 export const Sheet = ({ open, onClose, title, description, children, className = '' }) => {
   const dialogRef = useRef(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -16,6 +18,8 @@ export const Sheet = ({ open, onClose, title, description, children, className =
     <dialog
       ref={dialogRef}
       className={`ui-sheet ${className}`.trim()}
+      aria-labelledby={titleId}
+      aria-describedby={description ? descriptionId : undefined}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -27,8 +31,8 @@ export const Sheet = ({ open, onClose, title, description, children, className =
       <div className="ui-sheet__surface">
         <header className="ui-sheet__header">
           <div>
-            <h2 className="ui-sheet__title">{title}</h2>
-            {description && <p className="ui-sheet__description">{description}</p>}
+            <h2 id={titleId} className="ui-sheet__title">{title}</h2>
+            {description && <p id={descriptionId} className="ui-sheet__description">{description}</p>}
           </div>
           <button type="button" className="ui-icon-button" onClick={onClose} aria-label={`Close ${title}`}>
             <X size={19} aria-hidden="true" />

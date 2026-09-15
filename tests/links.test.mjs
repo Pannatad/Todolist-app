@@ -8,6 +8,9 @@ test('normalizes safe website URLs and exposes a compact hostname', () => {
     assert.equal(normalizeLinkUrl('https://www.example.edu/library'), 'https://www.example.edu/library');
     assert.equal(normalizeLinkUrl('ftp://example.edu'), '');
     assert.equal(normalizeLinkUrl('javascript:alert(1)'), '');
+    assert.equal(normalizeLinkUrl('not a website'), '');
+    assert.equal(normalizeLinkUrl('example .edu'), '');
+    assert.equal(normalizeLinkUrl('https://not%20a%20website/'), '');
     assert.equal(getLinkHostname('https://www.example.edu/library'), 'example.edu');
     assert.equal(getLinkDraftError({ title: '', url: 'example.edu' }), 'Add a name for this link.');
     assert.equal(getLinkDraftError({ title: 'Library', url: 'not a website' }), 'Enter a valid website URL.');

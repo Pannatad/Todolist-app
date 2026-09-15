@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { createClassesRepo } from '../../data/classesRepo';
-import { discoverClasses } from './classItems';
 
-export function useClasses(scheduleItems, scheduleLoading, updateScheduleItem, refreshData) {
+export function useClasses(scheduleLoading, refreshData) {
   const { user } = useAuth();
   const owner = user?.id || 'guest';
   const repo = useMemo(() => createClassesRepo(user?.id ? { id: user.id } : null), [user?.id]);
@@ -12,14 +11,12 @@ export function useClasses(scheduleItems, scheduleLoading, updateScheduleItem, r
   const generation = useRef(0);
   const [revision, setRevision] = useState(0);
   const retry = useCallback(() => setRevision((value) => value + 1), []);
-  const link = useEffectEvent((item, classId) => updateScheduleItem(item.id, { classId }));
   useEffect(() => {
     if (scheduleLoading || mutating.current) return;
     const started = generation.current;
     let cancelled = false;
     async function load() {
       try {
-        await discoverClasses(scheduleItems, repo, (item, id) => link(item, id), () => !cancelled && started === generation.current);
         const [classes, announcements] = await Promise.all([repo.listClasses(), repo.listAnnouncements()]);
         if (!cancelled && started === generation.current) setState({ owner, classes, announcements, error: null });
       } catch (error) {
@@ -28,7 +25,7 @@ export function useClasses(scheduleItems, scheduleLoading, updateScheduleItem, r
     }
     load();
     return () => { cancelled = true; };
-  }, [repo, owner, scheduleItems, scheduleLoading, revision]);
+  }, [repo, owner, scheduleLoading, revision]);
 
   const addClass = async (name) => {
     const course = await repo.ensureClass(name);
@@ -56,7 +53,7 @@ export function useClasses(scheduleItems, scheduleLoading, updateScheduleItem, r
     generation.current += 1;
     try {
       const result = await action();
-      // Refresh shared tasks and sessions before allowing automatic class discovery.
+      // Refresh shared tasks and sessions before class mutations resume.
       await refreshData();
       return result;
     } finally {

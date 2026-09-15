@@ -2,12 +2,12 @@ import { getScheduleItemsForDate } from './scheduleOccurrences.js';
 
 const TASK_UNI_KINDS = new Set(['task', 'payment', 'registration', 'meeting', 'report', 'deadline']);
 const SCHEDULE_UNI_KINDS = new Set(['exam', 'quiz', 'event']);
-const AGENDA_SCHEDULE_KINDS = new Set(['exam', 'quiz']);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALL_AGENDA_BASELINE_DAYS = 365;
 
 const readWorkspace = (record) => record?.workspace ?? 'personal';
 const readUniKind = (record) => record?.uniKind ?? record?.uni_kind ?? null;
+const readClassId = (record) => record?.classId ?? record?.class_id ?? null;
 const readIsMilestone = (record) => record?.isMilestone ?? record?.is_milestone ?? false;
 const readCompleted = (record) => Boolean(
     record?.completed === true
@@ -20,6 +20,10 @@ const readCompleted = (record) => Boolean(
 
 const isUniversityRecord = (record, allowedKinds) => (
     readWorkspace(record) === 'university' && allowedKinds.has(readUniKind(record))
+);
+
+const isAgendaScheduleRecord = (record) => (
+    readUniKind(record) !== 'event' || !readClassId(record)
 );
 
 const localDate = (year, month, day) => {
@@ -177,7 +181,7 @@ export const buildUniBoardViewModel = ({
 
     const universityTasks = tasks.filter((task) => isUniversityRecord(task, TASK_UNI_KINDS));
     const universitySchedules = scheduleItems.filter((item) => isUniversityRecord(item, SCHEDULE_UNI_KINDS));
-    const agendaSchedules = universitySchedules.filter((item) => AGENDA_SCHEDULE_KINDS.has(readUniKind(item)));
+    const agendaSchedules = universitySchedules.filter(isAgendaScheduleRecord);
     const taskItems = universityTasks.map((task) => buildItem(
         'task',
         task,
@@ -202,7 +206,7 @@ export const buildUniBoardViewModel = ({
     const incompleteTasks = taskItems.filter((item) => !item.completed);
     const incompleteScheduleItems = scheduleItemsExpanded.filter((item) => !item.completed);
     const incompleteAgendaScheduleItems = incompleteScheduleItems
-        .filter((item) => AGENDA_SCHEDULE_KINDS.has(item.uniKind));
+        .filter((item) => isAgendaScheduleRecord(item.record));
 
     const nextUp = [...incompleteTasks, ...futureScheduleItems]
         .filter((item) => !item.completed && item.occursAt && item.occursAt >= current)

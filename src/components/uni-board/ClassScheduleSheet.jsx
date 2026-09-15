@@ -195,12 +195,12 @@ const ClassScheduleSheet = ({ open, onClose, items, courses = [], onAdd, onUpdat
                 <label><span>Category</span><select className="uni-board-input" value={draft.sessionType} onChange={(event) => setField('sessionType', event.target.value)}>{CLASS_SESSION_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></label>
                 <label><span>Room or notes</span><input className="uni-board-input" value={draft.room} onChange={(event) => setField('room', event.target.value)} placeholder="Room 2404" /></label>
                 <div className="uni-board-form-grid">
-                  <label><span>First date</span><input className="uni-board-input" type="date" value={draft.startDate} onChange={(event) => setField('startDate', event.target.value)} required /></label>
-                  <label><span>Start time</span><input className="uni-board-input" type="time" value={draft.startTime} onChange={(event) => setField('startTime', event.target.value)} required /></label>
+                  <label><span>First date</span><input className="uni-board-input" type="date" value={draft.startDate} onInput={(event) => setField('startDate', event.target.value)} required /></label>
+                  <label><span>Start time</span><input className="uni-board-input" type="time" value={draft.startTime} onInput={(event) => setField('startTime', event.target.value)} required /></label>
                 </div>
                 <label><span>Duration in minutes</span><input className="uni-board-input" type="number" min="5" max="720" step="5" value={draft.duration} onChange={(event) => setField('duration', event.target.value)} /></label>
-                <fieldset className="uni-board-class-days"><legend>Repeat every week on</legend><div>{CLASS_WEEKDAYS.map((day) => <button key={day.value} type="button" className={draft.repeatDays.includes(day.value) ? 'is-selected' : ''} aria-pressed={draft.repeatDays.includes(day.value)} title={day.name} onClick={() => toggleDay(day.value)}>{day.label}</button>)}</div></fieldset>
-                <label><span>Repeat until <small>(optional)</small></span><input className="uni-board-input" type="date" min={draft.startDate} value={draft.endDate} onChange={(event) => setField('endDate', event.target.value)} disabled={!draft.repeatDays.length} /></label>
+                <fieldset className="uni-board-class-days"><legend>Repeat every week on</legend><div>{CLASS_WEEKDAYS.map((day) => <button key={day.value} type="button" className={draft.repeatDays.includes(day.value) ? 'is-selected' : ''} aria-label={day.name} aria-pressed={draft.repeatDays.includes(day.value)} title={day.name} onClick={() => toggleDay(day.value)}>{day.label}</button>)}</div></fieldset>
+                <label><span>Repeat until <small>(optional)</small></span><input className="uni-board-input" type="date" min={draft.startDate} value={draft.endDate} onInput={(event) => setField('endDate', event.target.value)} disabled={!draft.repeatDays.length} /></label>
                 <button type="submit" className="uni-board-primary-button uni-board-class-form__submit" disabled={isSaving}><Clock3 size={16} aria-hidden="true" /> {isSaving ? 'Saving…' : editingItem ? 'Save schedule' : 'Add schedule'}</button>
               </form>
             </>

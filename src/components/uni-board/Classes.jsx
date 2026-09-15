@@ -61,7 +61,7 @@ export default function Classes({ data, tasks, addTask, updateTask, deleteTask, 
               <ItemActions title={item.name} onEdit={() => openClassEditor('edit')} onDelete={() => openClassEditor('delete')} />
             </div>;
           })}</div>
-          {!data.classes.length && <p className="uni-classes-empty">Add a class to start tracking your coursework. Scheduled courses appear here automatically.</p>}
+          {!data.classes.length && <p className="uni-classes-empty">Add a class to start tracking its coursework and schedule.</p>}
         </aside>
         <div className="uni-classes-detail">
           {course ? <>

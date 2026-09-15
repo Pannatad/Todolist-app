@@ -4,7 +4,6 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { calculateCompletionReward, normalizeTaskRecord, sanitizeTaskUpdates } from '../utils/taskState';
 import { toast } from '../ui/Toast';
-import { createClassesRepo } from '../data/classesRepo';
 import { log } from '../utils/log.js';
 import { createScheduleRepo, normalizeScheduleRecord } from '../data/scheduleRepo';
 import { createTasksRepo, normalizeTaskRecord as normalizeTaskPersistenceRecord } from '../data/tasksRepo';
@@ -313,10 +312,6 @@ export const TaskProvider = ({ children }) => {
 
     // Schedule Handlers
     const addScheduleItem = async (itemData) => {
-        if (itemData.workspace === 'university') {
-            const course = await createClassesRepo(userId ? { id: userId } : null).ensureClass(itemData.category || itemData.subject || 'University');
-            itemData = { ...itemData, classId: course.id };
-        }
         const startTime = itemData.startTime ?? itemData.start_time;
         const resolvedUniKind = itemData.uniKind ?? itemData.uni_kind ?? null;
         const resolvedIsMilestone = itemData.isMilestone ?? itemData.is_milestone ?? false;
@@ -378,11 +373,6 @@ export const TaskProvider = ({ children }) => {
         const existingItem = scheduleItems.find(item => item.id === id);
         if (!existingItem) {
             throw new Error('Schedule item not found.');
-        }
-
-        if ((updates.workspace ?? existingItem.workspace) === 'university' && (updates.category !== undefined || updates.subject !== undefined)) {
-            const course = await createClassesRepo(userId ? { id: userId } : null).ensureClass(updates.category || updates.subject || 'University');
-            updates = { ...updates, classId: course.id };
         }
 
         // Map camelCase to snake_case for local state

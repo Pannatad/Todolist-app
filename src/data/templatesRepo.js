@@ -36,15 +36,15 @@ const createLocalRepo = () => ({
     }
 });
 
-const createSupabaseRepo = (userId) => ({
+const createSupabaseRepo = (userId, client) => ({
     list: async () => {
-        const { data, error } = await supabase.from('schedule_templates')
+        const { data, error } = await client.from('schedule_templates')
             .select('*').eq('user_id', userId).order('created_at', { ascending: true });
         if (error) throw error;
         return data || [];
     },
     create: async (template) => {
-        const { data, error } = await supabase.from('schedule_templates')
+        const { data, error } = await client.from('schedule_templates')
             .insert([{
                 user_id: userId,
                 name: template.name,
@@ -57,25 +57,25 @@ const createSupabaseRepo = (userId) => ({
         return data;
     },
     update: async (id, updates) => {
-        const { data, error } = await supabase.from('schedule_templates')
+        const { data, error } = await client.from('schedule_templates')
             .update({
                 name: updates.name,
                 blocks: updates.blocks,
                 schema_version: updates.schemaVersion || 2,
                 version: updates.version
             })
-            .eq('id', id).select().maybeSingle();
+            .eq('id', id).eq('user_id', userId).select().maybeSingle();
         if (error || !data) throw new Error(error?.message || 'Template could not be updated.');
         return data;
     },
     remove: async (id) => {
-        const { data, error } = await supabase.from('schedule_templates')
-            .delete().eq('id', id).select('id').maybeSingle();
+        const { data, error } = await client.from('schedule_templates')
+            .delete().eq('id', id).eq('user_id', userId).select('id').maybeSingle();
         if (error || !data) throw new Error(error?.message || 'Template could not be deleted.');
         return data;
     }
 });
 
-export const createTemplatesRepo = (user) => (
-    user?.id ? createSupabaseRepo(user.id) : createLocalRepo()
+export const createTemplatesRepo = (user, client = supabase) => (
+    user?.id ? createSupabaseRepo(user.id, client) : createLocalRepo()
 );

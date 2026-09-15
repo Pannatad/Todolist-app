@@ -1,4 +1,10 @@
+const classIdOf = (item) => item?.classId ?? item?.class_id ?? null;
+const uniKindOf = (item) => item?.uniKind ?? item?.uni_kind ?? null;
+
 export const isUniversityScheduleItem = (item) => item?.workspace === 'university';
+export const isClassScheduleItem = (item) => (
+  isUniversityScheduleItem(item) && uniKindOf(item) === 'event' && Boolean(classIdOf(item))
+);
 
 export const withUniversityScheduleDefaults = (item = {}) => ({
   ...item,

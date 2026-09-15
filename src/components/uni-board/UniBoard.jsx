@@ -14,7 +14,7 @@ import Links from './Links';
 import MilestoneTimeline from './MilestoneTimeline';
 import QuickAdd from './QuickAdd';
 import { useLinks } from '../../context/LinksContext';
-import { isUniversityScheduleItem, withUniversityScheduleDefaults } from './classSchedule';
+import { isClassScheduleItem, withUniversityScheduleDefaults } from './classSchedule';
 import { confirmAction } from '../../utils/confirm';
 import './uni-board.css';
 import Classes from './Classes';
@@ -39,7 +39,7 @@ const UniBoard = () => {
     loadError = null,
     refreshData = async () => {},
   } = context;
-  const classData = useClasses(scheduleItems, isLoading, updateScheduleItem, refreshData);
+  const classData = useClasses(isLoading, refreshData);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionView, setActionView] = useState('tasks');
@@ -67,11 +67,17 @@ const UniBoard = () => {
   const milestones = viewModel?.milestones || [];
   const hasRecords = agendaGroups.length + outstandingTasks.length + assessments.length + milestones.length + links.length > 0;
   const classScheduleItems = useMemo(
-    () => scheduleItems.filter(isUniversityScheduleItem),
+    () => scheduleItems.filter(isClassScheduleItem),
     [scheduleItems],
   );
 
-  const addClassScheduleItem = (item) => addScheduleItem(withUniversityScheduleDefaults(item));
+  const addClassScheduleItem = async (item) => {
+    const normalized = withUniversityScheduleDefaults(item);
+    const className = normalized.category || normalized.subject || 'University';
+    const existingClass = classData.classes.find((course) => course.name.trim().toLowerCase() === className.trim().toLowerCase());
+    const course = existingClass || await classData.addClass(className);
+    return addScheduleItem({ ...normalized, classId: course.id });
+  };
 
   const handleComplete = async (item) => {
     try {

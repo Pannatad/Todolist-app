@@ -210,11 +210,13 @@ const createSupabaseRepo = (userId, client) => ({
         const payloads = normalizedItem.workspace === 'university'
             ? [buildInsertPayloads(normalizedItem)[0]]
             : buildInsertPayloads(normalizedItem);
-        for (const payload of payloads) {
+        for (const [index, payload] of payloads.entries()) {
             const { data, error } = await client.from('schedule_items').insert([payload]).select().single();
             if (data) return normalizeScheduleRecord(data);
             lastError = error;
-            console.warn('Schedule insert attempt failed, trying fallback payload...', error);
+            if (index < payloads.length - 1) {
+                console.warn('Schedule insert attempt failed, trying fallback payload...', error);
+            }
         }
         throw new Error(lastError?.message || 'Failed to save schedule item to cloud.');
     },
@@ -237,18 +239,20 @@ const createSupabaseRepo = (userId, client) => ({
         const payloads = normalizedItem.workspace === 'university'
             ? [buildUpdatePayloads(normalizedUpdates)[0]]
             : buildUpdatePayloads(normalizedUpdates);
-        for (const payload of payloads) {
+        for (const [index, payload] of payloads.entries()) {
             const { data, error } = await client.from('schedule_items').update(payload)
-                .eq('id', id).select().maybeSingle();
+                .eq('id', id).eq('user_id', userId).select().maybeSingle();
             if (data) return normalizeScheduleRecord(data);
             lastError = error;
-            console.warn('Schedule update attempt failed, trying fallback payload...', error);
+            if (index < payloads.length - 1) {
+                console.warn('Schedule update attempt failed, trying fallback payload...', error);
+            }
         }
         throw new Error(lastError?.message || 'Schedule item could not be updated in Supabase.');
     },
     remove: async (id) => {
         const { data, error } = await client.from('schedule_items').delete()
-            .eq('id', id).select('id').maybeSingle();
+            .eq('id', id).eq('user_id', userId).select('id').maybeSingle();
         if (error || !data) throw new Error(error?.message || 'Schedule item could not be deleted from Supabase.');
         return normalizeScheduleRecord(data);
     }

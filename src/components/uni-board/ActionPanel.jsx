@@ -12,7 +12,7 @@ const ActionPanel = ({ tasks, assessments, selectedView, onViewChange, onSelect,
           <p className="uni-board-kicker">Action panel</p>
           <h2 id="uni-board-actions-title">Keep moving</h2>
         </div>
-        <span className="uni-board-count">{items.length}</span>
+        <span className="uni-board-count" aria-label={`${items.length} ${selectedView === 'tasks' ? 'tasks' : 'assessments'}`}>{items.length}</span>
       </div>
       <SegmentedControl
         items={[

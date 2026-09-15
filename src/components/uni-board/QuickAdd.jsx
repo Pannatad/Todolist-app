@@ -3,6 +3,7 @@ import { CalendarClock, ChevronDown, Plus } from 'lucide-react';
 import { Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
 import { ALL_KINDS, getKindLabel, isScheduleKind } from './constants';
+import { buildUniversityItemInput } from './universityItemInput';
 
 const emptyDraft = () => ({
   title: '',
@@ -62,33 +63,14 @@ const QuickAdd = ({ addTask, addScheduleItem }) => {
       return;
     }
 
-    const subject = draft.course.trim() || 'University';
     setIsSaving(true);
     setError('');
 
     try {
-      const result = scheduleKind
-        ? await addScheduleItem({
-          title: draft.title.trim(),
-          startTime: new Date(draft.when).toISOString(),
-          duration: Number(draft.duration) || 60,
-          category: subject,
-          subject,
-          notes: draft.notes.trim() || null,
-          description: draft.notes.trim() || null,
-          workspace: 'university',
-          uniKind: draft.kind,
-          isMilestone: Boolean(draft.isMilestone || draft.kind === 'exam'),
-        })
-        : await addTask({
-          title: draft.title.trim(),
-          deadline: draft.when || null,
-          subject,
-          description: draft.notes.trim() || null,
-          workspace: 'university',
-          uniKind: draft.kind,
-          isMilestone: Boolean(draft.isMilestone),
-        });
+      const input = buildUniversityItemInput(draft);
+      const result = input.source === 'schedule'
+        ? await addScheduleItem(input.payload)
+        : await addTask(input.payload);
 
       if (!result) throw new Error('The item could not be saved.');
       reset();
@@ -140,7 +122,7 @@ const QuickAdd = ({ addTask, addScheduleItem }) => {
         {showWhen && (
           <div className="uni-board-composer__when">
             <label htmlFor="uni-board-when">{scheduleKind ? `${getKindLabel(draft.kind)} date and time` : 'Optional due date and time'}</label>
-            <input id="uni-board-when" className="uni-board-input" type="datetime-local" value={draft.when} onChange={(event) => setField('when', event.target.value)} required={scheduleKind} />
+            <input id="uni-board-when" className="uni-board-input" type="datetime-local" value={draft.when} onInput={(event) => setField('when', event.target.value)} required={scheduleKind} />
             {scheduleKind && <span>Scheduled items need a date and time.</span>}
           </div>
         )}

@@ -164,7 +164,8 @@ const createSupabaseRepo = (userId, client) => ({
     update: async (id, updates, task) => {
         const dbUpdates = toDbUpdates(updates, task);
         if (Object.keys(dbUpdates).length === 0) return normalizeTaskRecord(task);
-        let { error } = await client.from('tasks').update(dbUpdates).eq('id', id);
+        let { data, error } = await client.from('tasks').update(dbUpdates)
+            .eq('id', id).eq('user_id', userId).select('id').maybeSingle();
         if (error && task.workspace !== 'university' && (dbUpdates.subtasks !== undefined || dbUpdates.focus_sessions !== undefined)) {
             console.warn('Task update with newer fields failed, retrying without them...', error);
             const fallbackUpdates = { ...dbUpdates };
@@ -174,15 +175,17 @@ const createSupabaseRepo = (userId, client) => ({
             delete fallbackUpdates.uni_kind;
             delete fallbackUpdates.is_milestone;
             if (Object.keys(fallbackUpdates).length > 0) {
-                ({ error } = await client.from('tasks').update(fallbackUpdates).eq('id', id));
+                ({ data, error } = await client.from('tasks').update(fallbackUpdates)
+                    .eq('id', id).eq('user_id', userId).select('id').maybeSingle());
             }
         }
-        if (error) throw error;
+        if (error || !data) throw new Error(error?.message || 'Task could not be updated.');
         return normalizeTaskRecord(task);
     },
     remove: async (id) => {
-        const { error } = await client.from('tasks').delete().eq('id', id);
-        if (error) throw error;
+        const { data, error } = await client.from('tasks').delete()
+            .eq('id', id).eq('user_id', userId).select('id').maybeSingle();
+        if (error || !data) throw new Error(error?.message || 'Task could not be deleted.');
         return id;
     }
 });

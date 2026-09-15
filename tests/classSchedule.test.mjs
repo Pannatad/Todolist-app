@@ -5,6 +5,7 @@ import {
   classDraftFromItem,
   emptyClassDraft,
   groupClassScheduleItems,
+  isClassScheduleItem,
   isUniversityScheduleItem,
   withUniversityScheduleDefaults,
 } from '../src/components/uni-board/classSchedule.js';
@@ -13,6 +14,9 @@ test('class schedule only includes university schedule items', () => {
   assert.equal(isUniversityScheduleItem({ workspace: 'university' }), true);
   assert.equal(isUniversityScheduleItem({ workspace: 'personal' }), false);
   assert.equal(isUniversityScheduleItem({}), false);
+  assert.equal(isClassScheduleItem({ workspace: 'university', uniKind: 'event', classId: 'comp' }), true);
+  assert.equal(isClassScheduleItem({ workspace: 'university', uniKind: 'event' }), false);
+  assert.equal(isClassScheduleItem({ workspace: 'university', uniKind: 'exam', classId: 'comp' }), false);
 });
 
 test('groups many lecture, tutorial, and lab schedules under one class', () => {

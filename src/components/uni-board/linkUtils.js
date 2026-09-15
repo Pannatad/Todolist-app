@@ -3,12 +3,16 @@ const HTTP_PROTOCOLS = new Set(['http:', 'https:']);
 export const normalizeLinkUrl = (value) => {
   const raw = String(value || '').trim();
   if (!raw) return '';
+  // Browsers may percent-encode spaces in a hostname while Node rejects them.
+  // Reject whitespace explicitly so validation is identical in both runtimes.
+  if (/\s/.test(raw)) return '';
 
   const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
 
   try {
     const url = new URL(candidate);
-    return HTTP_PROTOCOLS.has(url.protocol) ? url.toString() : '';
+    if (!HTTP_PROTOCOLS.has(url.protocol) || !url.hostname || /%/.test(url.hostname)) return '';
+    return url.toString();
   } catch {
     return '';
   }
