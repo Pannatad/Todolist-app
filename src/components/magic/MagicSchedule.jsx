@@ -344,12 +344,19 @@ const MagicSchedule = ({
         }], `Added ${payload.title}`);
     };
 
-    const deleteSelected = async (mode = 'event') => {
+    const deleteSelected = async (mode = 'event', occurrenceOnly = false) => {
         if (!selectedItem) return;
+        const occurrenceDate = selectedItem._occurrenceDate || selectedItem._dateKey || selectedDateKey;
+        const deletionOptions = (item) => occurrenceOnly && recurrenceType(item) !== 'none'
+            ? { occurrenceDate }
+            : undefined;
+        if (!confirmAction(occurrenceOnly
+            ? `Delete only ${formatDayLabel(occurrenceDate)}${mode === 'delete_children' ? ' and its nested activities' : ''}?`
+            : recurrenceType(selectedItem) !== 'none' ? 'Delete the entire recurring event?' : 'Delete this event?')) return;
         const steps = [];
         if (itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) {
             if (mode === 'delete_children') {
-                selectedChildren.forEach((child) => steps.push({ type: 'delete', item: child }));
+                selectedChildren.forEach((child) => steps.push({ type: 'delete', item: child, options: deletionOptions(child) }));
             } else if (mode === 'detach_children') {
                 selectedChildren.forEach((child) => steps.push({
                     type: 'update',
@@ -359,9 +366,13 @@ const MagicSchedule = ({
                 }));
             }
         }
-        steps.push({ type: 'delete', item: selectedItem });
-        await transactions.runBatch(steps, `Deleted ${selectedItem.title}`);
-        setSelectedItem(null);
+        steps.push({ type: 'delete', item: selectedItem, options: deletionOptions(selectedItem) });
+        try {
+            await transactions.runBatch(steps, `Deleted ${occurrenceOnly ? 'occurrence of ' : ''}${selectedItem.title}`);
+            setSelectedItem(null);
+        } catch (error) {
+            toast(error?.message || 'Could not delete this schedule event.', { tone: 'error' });
+        }
     };
 
     const beginApplyTemplate = (template = selectedTemplate, options = {}) => {
@@ -1293,8 +1304,17 @@ const MagicSchedule = ({
                             {itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? (
                                 <div className="magic-danger-zone">
                                     <strong>Delete shell</strong>
+                                    {recurrenceType(selectedItem) !== 'none' && (
+                                        <button type="button" onClick={() => deleteSelected('delete_children', true)}><Trash2 size={15} /> Delete this occurrence and nested activities</button>
+                                    )}
                                     <button type="button" onClick={() => deleteSelected('detach_children')}><Unlink size={15} /> Detach children, delete shell</button>
                                     <button type="button" onClick={() => deleteSelected('delete_children')}><Trash2 size={15} /> Delete shell and children</button>
+                                </div>
+                            ) : recurrenceType(selectedItem) !== 'none' ? (
+                                <div className="magic-danger-zone">
+                                    <strong>Delete event</strong>
+                                    <button type="button" onClick={() => deleteSelected('event', true)}><Trash2 size={15} /> Delete this occurrence</button>
+                                    <button type="button" onClick={() => deleteSelected()}><Trash2 size={15} /> Delete entire series</button>
                                 </div>
                             ) : (
                                 <button type="button" className="magic-delete-button" onClick={() => deleteSelected()}><Trash2 size={15} /> Delete event</button>
@@ -1319,9 +1339,13 @@ const MagicSchedule = ({
                 isOpen={Boolean(modal)}
                 onClose={() => setModal(null)}
                 onSave={saveModal}
-                onDelete={async () => {
+                onDelete={async (_id, options) => {
                     if (!modal?.event) return;
-                    await transactions.runBatch([{ type: 'delete', item: modal.event }], `Deleted ${modal.event.title}`);
+                    await transactions.runBatch([{
+                        type: 'delete',
+                        item: modal.event,
+                        options
+                    }], `Deleted ${options?.occurrenceDate ? 'occurrence of ' : ''}${modal.event.title}`);
                     setModal(null);
                     setSelectedItem(null);
                 }}

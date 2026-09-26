@@ -471,7 +471,7 @@ const ScheduleEventModal = ({
                     </form>
 
                     {/* Footer */}
-                    <div className="flex gap-3 p-4 border-t border-sage-100 dark:border-white/10 bg-sage-50 dark:bg-void-800/50">
+                    <div className="flex flex-wrap gap-3 p-4 border-t border-sage-100 dark:border-white/10 bg-sage-50 dark:bg-void-800/50">
                         {isDayScope && event?._hasOverride && (
                             <button
                                 type="button"
@@ -482,29 +482,32 @@ const ScheduleEventModal = ({
                                 Reset day
                             </button>
                         )}
-                        {event && onDelete && !isDayScope && (
+                        {event && onDelete && canDeleteSingleOccurrence && (
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (canDeleteSingleOccurrence) {
-                                        const deleteSingle = confirmAction(
-                                            `Delete only ${formatOccurrenceLabel(occurrenceDate)}?\n\nClick OK to remove just this occurrence.\nClick Cancel to choose whether to delete the entire recurring event.`
-                                        );
-
-                                        if (deleteSingle) {
-                                            handleDelete({ occurrenceDate });
-                                            return;
-                                        }
+                                    if (confirmAction(`Delete only ${formatOccurrenceLabel(occurrenceDate)}?`)) {
+                                        handleDelete({ occurrenceDate });
                                     }
-
+                                }}
+                                disabled={isSubmitting}
+                                className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
+                            >
+                                Delete this occurrence
+                            </button>
+                        )}
+                        {event && onDelete && (
+                            <button
+                                type="button"
+                                onClick={() => {
                                     if (confirmAction(isRecurringSeries ? 'Delete the entire recurring event?' : 'Delete this event?')) {
                                         handleDelete();
                                     }
                                 }}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
+                                className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
                             >
-                                {canDeleteSingleOccurrence ? 'Delete...' : 'Delete'}
+                                {isRecurringSeries ? 'Delete series' : 'Delete'}
                             </button>
                         )}
                         <div className="flex-1" />
