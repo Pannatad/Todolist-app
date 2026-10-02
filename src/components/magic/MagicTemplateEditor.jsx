@@ -36,49 +36,59 @@ const blankChild = (parent) => ({
     notes: ''
 });
 
-const TimelinePreview = ({ blocks, ariaLabel = 'Template day preview' }) => {
-    const previewBlocks = blocks.flatMap((block) => [
-        { ...block, previewKey: block.id, previewKind: block.kind },
+const TimelinePreview = ({ blocks, existingBlocks = [], hours = PREVIEW_HOURS, ariaLabel = 'Template day preview' }) => {
+    const flattenBlocks = (items, source) => items.flatMap((block) => [
+        { ...block, previewKey: `${source}-${block.id}`, previewKind: block.kind, source },
         ...(block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL
             ? (block.children || []).map((child) => ({
                 ...child,
-                previewKey: `${block.id}-${child.id}`,
-                previewKind: 'nested'
+                previewKey: `${source}-${block.id}-${child.id}`,
+                previewKind: 'nested',
+                source
             }))
             : [])
     ]);
+    const previewBlocks = [
+        ...flattenBlocks(existingBlocks, 'existing'),
+        ...flattenBlocks(blocks, 'draft')
+    ];
+    const hasExisting = existingBlocks.length > 0;
 
     return (
         <div className="magic-template-preview" aria-label={ariaLabel}>
             <div className="magic-template-preview__hours">
-                {PREVIEW_HOURS.map((hour) => <span key={hour}>{hour}</span>)}
+                {hours.map((hour) => <span key={hour}>{hour}</span>)}
             </div>
-            <div className="magic-template-preview__track">
-                {PREVIEW_HOURS.slice(1, -1).map((hour) => (
+            <div className={`magic-template-preview__track ${hasExisting ? 'has-existing' : ''}`}>
+                {hours.slice(1, -1).map((hour) => (
                     <span
                         key={hour}
                         className="magic-template-preview__tick"
-                        style={{ left: `${((hour - PREVIEW_HOURS[0]) / (PREVIEW_HOURS.at(-1) - PREVIEW_HOURS[0])) * 100}%` }}
+                        style={{ left: `${((hour - hours[0]) / (hours.at(-1) - hours[0])) * 100}%` }}
                         aria-hidden="true"
                     />
                 ))}
                 {previewBlocks.map((block) => {
-                    const geometry = getTimelinePreviewGeometry(block);
+                    const geometry = getTimelinePreviewGeometry(block, {
+                        startMinutes: hours[0] * 60,
+                        endMinutes: hours.at(-1) * 60
+                    });
                     if (!geometry) return null;
                     return (
                         <span
                             key={block.previewKey}
-                            className={`magic-template-preview__block ${block.previewKind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? 'is-shell' : ''} ${block.previewKind === 'nested' ? 'is-nested' : ''}`}
+                            className={`magic-template-preview__block ${block.previewKind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? 'is-shell' : ''} ${block.previewKind === 'nested' ? 'is-nested' : ''} ${hasExisting ? `is-${block.source}` : ''}`}
                             style={{
                                 left: `${geometry.left}%`,
                                 width: `${geometry.width}%`,
                                 '--template-block-color': block.color || COLORS[0]
                             }}
-                            title={`${block.previewKind === 'nested' ? 'Nested · ' : ''}${block.startTime} ${block.title || 'Untitled'}`}
+                            title={`${hasExisting ? `${block.source === 'existing' ? 'Existing' : 'Draft'} · ` : ''}${block.previewKind === 'nested' ? 'Nested · ' : ''}${block.startTime} ${block.title || 'Untitled'}`}
                         />
                     );
                 })}
             </div>
+            {hasExisting && <div className="magic-template-preview__legend"><span>Existing schedule</span><span>New draft</span></div>}
             <div className="magic-template-preview__labels" aria-label="Template activities">
                 {previewBlocks.slice(0, 4).map((block) => (
                     <span key={`label-${block.previewKey}`}>

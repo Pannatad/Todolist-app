@@ -113,6 +113,12 @@ const MagicDayCraftEditor = ({
     }, [open, templateId, templates]);
 
     const validBlocks = useMemo(() => sanitizeMagicTemplateBlocks(blocks), [blocks]);
+    const existingBlocks = useMemo(() => occurrencesToMagicTemplateBlocks(
+        getScheduleItemsForDate(events, new Date(`${dateKey}T12:00:00`))
+    ), [events, dateKey]);
+    const sortedBlocks = useMemo(() => [...blocks].sort((first, second) => (
+        (minutesFromTime(first.startTime) ?? Infinity) - (minutesFromTime(second.startTime) ?? Infinity)
+    )), [blocks]);
     const totalMinutes = useMemo(() => validBlocks.reduce((sum, block) => sum + Number(block.duration || 0), 0), [validBlocks]);
     const hasDraft = validBlocks.length > 0;
 
@@ -237,13 +243,15 @@ const MagicDayCraftEditor = ({
                                 <span className="magic-day-craft__section-label">Day at a glance</span>
                                 <strong id="magic-day-craft-preview-title">{formatDate(dateKey)}</strong>
                             </div>
-                            <span>{formatMinutes(totalMinutes)}</span>
+                            <span>{existingBlocks.length} existing · {formatMinutes(totalMinutes)}</span>
                         </div>
-                        <TimelinePreview blocks={validBlocks} ariaLabel="Crafted day timeline preview" />
+                        <TimelinePreview blocks={validBlocks} existingBlocks={existingBlocks} hours={[0, 6, 12, 18, 24]} ariaLabel="Existing schedule and crafted day timeline preview" />
                         <div className="magic-day-craft__preview-note">
                             {validBlocks.length
                                 ? `${validBlocks.length} block${validBlocks.length === 1 ? '' : 's'} ready to review.`
-                                : 'Your finished blocks will appear here.'}
+                                : existingBlocks.length
+                                    ? 'Add a block to plan around your existing schedule.'
+                                    : 'Your finished blocks will appear here.'}
                         </div>
                     </section>
 
@@ -310,7 +318,7 @@ const MagicDayCraftEditor = ({
                         )}
 
                         <div className="magic-day-craft__block-list">
-                            {blocks.map((block) => (
+                            {sortedBlocks.map((block) => (
                                 <BlockEditor
                                     key={block.id}
                                     block={block}
