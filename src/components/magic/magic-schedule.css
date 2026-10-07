@@ -3242,3 +3242,51 @@
     font-size: var(--text-base);
   }
 }
+
+/* Wide Plan sheets: the dialog stays full-window (so it centers); the card
+   inside gets the room these two-column layouts were designed for, instead
+   of the 36rem cap that every other sheet uses. */
+.ui-sheet.magic-day-craft-sheet,
+.ui-sheet.magic-template-sheet,
+.ui-sheet.magic-conflict-sheet {
+  width: 100%;
+}
+
+@media (min-width: 40rem) {
+  .magic-day-craft-sheet .ui-sheet__surface {
+    width: min(100%, 66rem);
+  }
+
+  .magic-template-sheet .ui-sheet__surface {
+    width: min(100%, 58rem);
+  }
+
+  .magic-conflict-sheet .ui-sheet__surface {
+    width: min(100%, 44rem);
+  }
+}
+
+/* Craft a day · roomier two columns */
+@media (min-width: 52rem) {
+  .magic-day-craft__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: var(--space-lg);
+  }
+
+  .magic-day-craft__preview,
+  .magic-day-craft__composer {
+    padding: var(--space-md) var(--space-lg);
+  }
+}
+
+.magic-day-craft__starter button {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.magic-day-craft__starter {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
