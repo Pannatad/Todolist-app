@@ -291,8 +291,8 @@ export const ChatProvider = ({ children }) => {
             id: crypto.randomUUID(),
             role: 'assistant',
             content: allSucceeded
-                ? "✅ Done! Actions completed successfully."
-                : `I couldn't save everything to Supabase.\n${failures.map(f => `- ${f.actionType}: ${f.message}`).join('\n')}`,
+                ? "Done."
+                : `Some changes didn't save.\n${failures.map(f => `- ${f.actionType}: ${f.message}`).join('\n')}`,
             timestamp: new Date().toISOString()
         };
         setMessages(prev => {

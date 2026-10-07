@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/purity */
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Sparkles, Sunrise } from 'lucide-react';
+import { CheckCircle2, ChevronRight, MessageCircle, Sunrise } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -17,15 +17,14 @@ import ScheduleEventModal from './ScheduleEventModal';
 import TaskModal from './TaskModal';
 import AgentConfirmationModal from './AgentConfirmationModal';
 import DailyRitualModal from './DailyRitualModal';
-import MagicBox from './MagicBox';
 import NowCard from './today/NowCard';
 import TodaySchedule from './today/TodaySchedule';
 import TodayDueTasks from './today/TodayDueTasks';
 import TodayHabitsSummary from './today/TodayHabitsSummary';
 import { useAgentCommands } from './today/useAgentCommands';
 import { getCurrentTimeValue } from './habitValueUtils';
-
-const todaySectionClass = 'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] p-4 sm:p-5';
+import { BarButton, PageHeader } from '../ui';
+import './today/today.css';
 
 const Overview = ({ onNavigate }) => {
   const { tasks, addTask, updateTask, deleteTask, completeTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
@@ -47,8 +46,6 @@ const Overview = ({ onNavigate }) => {
   const [ritualCompletedAt, setRitualCompletedAt] = useState(null);
 
   const now = useMemo(() => new Date(nowTick), [nowTick]);
-  const todayStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now]);
-  const todayEnd = useMemo(() => new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + 1), [todayStart]);
   const todayKey = useMemo(() => toLocalDateKey(now), [now]);
 
   const activeTasks = useMemo(() => (tasks || []).filter(isTaskActive), [tasks]);
@@ -74,12 +71,6 @@ const Overview = ({ onNavigate }) => {
   })), [getHabitLog, todayKey, todaysHabits]);
   const habitsDone = habitItems.filter((habit) => habit.completed).length;
 
-  const dueTasks = useMemo(() => (
-    activeTasks
-      .filter((task) => task.deadline && new Date(task.deadline) < todayEnd)
-      .sort((left, right) => new Date(left.deadline) - new Date(right.deadline))
-      .slice(0, 6)
-  ), [activeTasks, todayEnd]);
   const tasksDueToday = useMemo(() => (
     activeTasks
       .filter((task) => {
@@ -109,14 +100,6 @@ const Overview = ({ onNavigate }) => {
     if (tasks?.length || scheduleItems?.length) generatePatternInsights({ tasks, scheduleItems, habits, sleepData: [] });
   }, [generatePatternInsights, habits, scheduleItems, tasks]);
 
-  const greeting = now.getHours() < 12 ? 'Morning' : now.getHours() < 18 ? 'Afternoon' : 'Evening';
-  const firstName = profile?.nickname || profile?.name || user?.email?.split('@')[0] || 'there';
-  const blocksLeft = entries.filter((entry) => entry.end > now).length;
-  const summaryLine = [
-    blocksLeft ? `${blocksLeft} ${blocksLeft === 1 ? 'block' : 'blocks'} left` : null,
-    dueTasks.length ? `${dueTasks.length} due` : null,
-  ].filter(Boolean).join(' · ');
-
   const markHabit = (habit) => logHabit(
     habit.id,
     todayKey,
@@ -125,109 +108,52 @@ const Overview = ({ onNavigate }) => {
   );
   const openTask = (task) => { setSelectedTask(task); setShowTaskModal(true); };
   const openSchedule = (item) => { if (item) { setSelectedScheduleItem(item); setShowScheduleModal(true); } else onNavigate('schedule'); };
-  const closeSchedule = () => { setShowScheduleModal(false); setSelectedScheduleItem(null); };
-  const closeTask = () => { setShowTaskModal(false); setSelectedTask(null); };
+  const closeSchedule = () => { setShowScheduleModal(false); };
+  // Keep the task until the next open so the sheet can animate out with its content.
+  const closeTask = () => { setShowTaskModal(false); };
+
+  const secretary = suggestions.find((suggestion) => suggestion.prompt)
+    || { id: 'brief', message: 'Brief me on today', prompt: 'Summarize my day.' };
+  const dateLabel = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="h-full overflow-y-auto bg-transparent custom-scrollbar">
-      <div className="mx-auto max-w-xl px-3 pb-60 pt-1 sm:px-0 sm:pb-44">
-
-        {/* Header: date eyebrow, greeting, ritual + brief as quiet controls */}
-        <header className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)]">
-              {now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-            </p>
-            <h1 className="mt-0.5 truncate text-xl font-bold tracking-tight text-[var(--color-ink)] sm:text-2xl">{greeting}, {firstName}</h1>
-            {summaryLine && <p className="mt-0.5 text-sm font-medium text-[var(--color-muted)]">{summaryLine}</p>}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => askAgent('Summarize my day.')}
-              className="rounded-full border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3.5 py-2 text-xs font-semibold text-[var(--color-ink)] shadow-[var(--shadow-card)] transition-transform active:scale-95"
-            >
-              Brief
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDailyRitual(true)}
-              title={ritualCompletedAt ? 'Ritual done' : 'Daily ritual'}
-              aria-label={ritualCompletedAt ? 'Ritual done' : 'Start daily ritual'}
-              className={`grid h-9 w-9 place-items-center rounded-full border shadow-[var(--shadow-card)] transition-transform active:scale-95 ${
-                ritualCompletedAt
-                  ? 'border-transparent bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                  : 'border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink)]'
-              }`}
-            >
-              {ritualCompletedAt ? <CheckCircle2 size={17} /> : <Sunrise size={17} />}
-            </button>
-          </div>
-        </header>
-
-        {/* The hero: what matters right now, in large type on the page */}
-        <div className="mt-5">
-          <NowCard
-            current={currentEntry}
-            next={nextEntry}
-            now={now}
-            onOpen={openSchedule}
-            onPlanDay={() => askAgent('Plan my day.')}
+    <div className="today-page">
+      <PageHeader
+        eyebrow={dateLabel}
+        title="Today"
+        actions={(
+          <BarButton
+            icon={ritualCompletedAt ? CheckCircle2 : Sunrise}
+            label={ritualCompletedAt ? 'Daily ritual done' : 'Start daily ritual'}
+            className={ritualCompletedAt ? 'is-active' : ''}
+            onClick={() => setShowDailyRitual(true)}
           />
-        </div>
-
-        {/* Assistant: plain lines, no boxes */}
-        {suggestions.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {suggestions.map((suggestion) => (
-              <p key={suggestion.id} className="flex items-start gap-2 text-sm leading-6 text-[var(--color-muted)]">
-                <Sparkles size={14} className="mt-1 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
-                <span className="min-w-0">
-                  {suggestion.message}
-                  {suggestion.prompt && (
-                    <button
-                      type="button"
-                      onClick={() => askAgent(suggestion.prompt)}
-                      className="ml-2 font-bold text-[var(--color-accent)] transition-transform active:scale-95"
-                    >
-                      Handle
-                    </button>
-                  )}
-                </span>
-              </p>
-            ))}
-          </div>
         )}
+      />
 
-        {/* The day as one thread of scheduled blocks */}
-        <div className={`mt-8 ${todaySectionClass}`}>
-          <TodaySchedule
-            entries={entries}
-            now={now}
-            onOpen={openSchedule}
-          />
-        </div>
+      <NowCard
+        current={currentEntry}
+        next={nextEntry}
+        now={now}
+        onOpen={openSchedule}
+        onPlanDay={() => askAgent('Plan my day.')}
+      />
 
-        {tasksDueToday.length > 0 && <div className={`mt-8 ${todaySectionClass}`}>
-          <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
-        </div>}
+      <button type="button" className="today-secretary" onClick={() => askAgent(secretary.prompt)}>
+        <span className="today-secretary__icon" aria-hidden="true"><MessageCircle size={17} strokeWidth={2.2} /></span>
+        <span className="today-secretary__text">{secretary.message}</span>
+        <ChevronRight size={18} className="today-secretary__chevron" aria-hidden="true" />
+      </button>
 
-        {/* Habits: compact cards with one-tap completion */}
-        {habitItems.length > 0 && (
-          <div className={`mt-8 ${todaySectionClass}`}>
-            <TodayHabitsSummary habits={habitItems} completedCount={habitsDone} onComplete={markHabit} />
-          </div>
-        )}
-      </div>
+      <TodaySchedule entries={entries} now={now} onOpen={openSchedule} />
 
-      {/* Docked composer: the one floating element, like a messenger input */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.9rem+env(safe-area-inset-bottom))] z-40 bg-gradient-to-t from-[var(--color-paper)] via-[color-mix(in_srgb,var(--color-paper)_80%,transparent)] to-transparent px-3 pb-2 pt-8 sm:bottom-0 sm:pb-4">
-        <div className="pointer-events-auto mx-auto max-w-xl">
-          <MagicBox />
-        </div>
-      </div>
+      <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
 
-      <DailyRitualModal isOpen={showDailyRitual} onClose={() => setShowDailyRitual(false)} profile={profile} user={user} tasks={tasks} scheduleItems={scheduleItems} habits={todaysHabits} getHabitLog={getHabitLog} logHabit={logHabit} addScheduleItem={addScheduleItem} onOpenTask={openTask} onNavigate={onNavigate} onAskAgent={(action) => { sendMessage(action); openSidebar(); }} onComplete={setRitualCompletedAt} />
+      {habitItems.length > 0 && (
+        <TodayHabitsSummary habits={habitItems} completedCount={habitsDone} onComplete={markHabit} />
+      )}
+
+      <DailyRitualModal isOpen={showDailyRitual} onClose={() => setShowDailyRitual(false)} profile={profile} tasks={tasks} scheduleItems={scheduleItems} habits={todaysHabits} getHabitLog={getHabitLog} logHabit={logHabit} addScheduleItem={addScheduleItem} onOpenTask={openTask} onNavigate={onNavigate} onAskAgent={(action) => { sendMessage(action); openSidebar(); }} onComplete={setRitualCompletedAt} />
       <ScheduleEventModal isOpen={showScheduleModal} onClose={closeSchedule} onSave={async (data) => { if (selectedScheduleItem?.id) await updateScheduleItem(selectedScheduleItem.id, data); else await addScheduleItem(data); closeSchedule(); }} onDelete={selectedScheduleItem?.id ? async (_id, options) => { await deleteScheduleItem(selectedScheduleItem.id, options); closeSchedule(); } : null} event={selectedScheduleItem} selectedDate={new Date()} />
       <TaskModal key={selectedTask?.id || 'new'} isOpen={showTaskModal} onClose={closeTask} onSave={(data) => { if (selectedTask?.id) updateTask(selectedTask.id, data); else addTask(data); closeTask(); }} initialData={selectedTask} mode={selectedTask ? 'edit' : 'create'} />
       <AgentConfirmationModal isOpen={agent.showAgentModal} onClose={agent.clearAgent} onConfirm={agent.execute} onClarifyResponse={(response) => { agent.clearAgent(); agent.submit(response); }} onEditPrompt={(prompt) => { agent.clearAgent(); agent.setOriginalPrompt(prompt); agent.submit(prompt); }} onNavigate={onNavigate} actionPlan={agent.agentPlan} isExecuting={agent.isExecutingActions} originalPrompt={agent.originalPrompt} />

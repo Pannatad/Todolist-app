@@ -1,9 +1,17 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { useState } from 'react';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import { Sheet } from '../ui';
 
-const EMOJI_OPTIONS = ['📚', '🧠', '💻', '🎨', '🎵', '🌍', '🔬', '📐', '✍️', '🏋️', '🗣️', '📊', '🎯', '🚀', '⚡', '💡', '🔮', '🌟'];
+const SWATCH_HEX = {
+    purple: '#7c3aed',
+    blue: '#0284c7',
+    teal: '#0f766e',
+    emerald: '#059669',
+    amber: '#d97706',
+    pink: '#db2777',
+    red: '#e11d48',
+    indigo: '#4f46e5',
+};
 
 const COLOR_OPTIONS = [
     { name: 'purple', gradient: 'from-violet-500 to-indigo-500', bg: 'bg-violet-500', soft: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
@@ -23,8 +31,6 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
     const [color, setColor] = useState(path?.color || 'purple');
     const [category, setCategory] = useState(path?.category || '');
     const [targetDate, setTargetDate] = useState(path?.target_completion_date || '');
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
 
     // Reset form when path prop changes
     React.useEffect(() => {
@@ -35,8 +41,6 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
             setColor(path?.color || 'purple');
             setCategory(path?.category || '');
             setTargetDate(path?.target_completion_date || '');
-            setShowEmojiPicker(false);
-            setShowCategorySuggestions(false);
         }
     }, [path, isOpen]);
 
@@ -57,191 +61,77 @@ const LearningPathModal = ({ isOpen, onClose, onSave, path = null, existingCateg
         onClose();
     };
 
-    if (!isOpen) return null;
-
-    const selectedGradient = COLOR_OPTIONS.find(c => c.name === color)?.gradient || COLOR_OPTIONS[0].gradient;
-
     return (
-        <AnimatePresence>
-            <Motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-                onClick={onClose}
-            >
-                <Motion.div
-                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                    className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 w-full max-w-md max-h-[90vh] rounded-3xl shadow-2xl border border-white/10 overflow-hidden flex flex-col"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div className={`bg-gradient-to-r ${selectedGradient} p-6 relative overflow-hidden flex-shrink-0`}>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-                        <div className="flex items-center justify-between relative z-10">
-                            <div className="flex items-center gap-3">
-                                <Sparkles className="text-white/80" size={24} />
-                                <h2 className="text-xl font-bold text-white">
-                                    {path ? 'Edit Learning Path' : 'New Learning Path'}
-                                </h2>
-                            </div>
+        <Sheet open={isOpen} onClose={onClose} title={path ? 'Edit Path' : 'New Path'} className="form-sheet">
+            <form onSubmit={handleSubmit} className="form-stack">
+                <div className="form-group">
+                    <label className="form-field">
+                        <span className="sr-only">Path name</span>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Name"
+                            required
+                        />
+                    </label>
+                    <label className="form-field form-field--value">
+                        <span className="form-field__label">Category</span>
+                        <input
+                            type="text"
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
+                            list="learning-path-categories"
+                            placeholder="None"
+                        />
+                        <datalist id="learning-path-categories">
+                            {existingCategories.map((item) => <option key={item} value={item} />)}
+                        </datalist>
+                    </label>
+                    <label className="form-field form-field--value">
+                        <span className="form-field__label">Finish by</span>
+                        <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+                    </label>
+                </div>
+
+                <p className="form-section-label">Color</p>
+                <div className="form-group">
+                    <div className="form-swatches" role="radiogroup" aria-label="Color">
+                        {COLOR_OPTIONS.map((colorOption) => (
                             <button
-                                onClick={onClose}
-                                className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
-                        {/* Name & Icon */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-white/70">Path Name</label>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    className="w-12 h-12 flex items-center justify-center text-2xl bg-white/10 rounded-xl hover:bg-white/20 transition-colors border border-white/10"
-                                >
-                                    {icon}
-                                </button>
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="e.g., Learning AI, Spanish Language"
-                                    className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                                    autoFocus
-                                />
-                            </div>
-                            {/* Emoji Picker */}
-                            <AnimatePresence>
-                                {showEmojiPicker && (
-                                    <Motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="flex flex-wrap gap-2 p-3 bg-white/5 rounded-xl border border-white/10"
-                                    >
-                                        {EMOJI_OPTIONS.map((emoji) => (
-                                            <button
-                                                key={emoji}
-                                                type="button"
-                                                onClick={() => {
-                                                    setIcon(emoji);
-                                                    setShowEmojiPicker(false);
-                                                }}
-                                                className={`w-10 h-10 flex items-center justify-center text-xl rounded-lg hover:bg-white/20 transition-colors ${icon === emoji ? 'bg-white/30 ring-2 ring-purple-400' : 'bg-white/10'}`}
-                                            >
-                                                {emoji}
-                                            </button>
-                                        ))}
-                                    </Motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Description */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-white/70">Description</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                placeholder="What will you learn in this path?"
-                                rows={3}
-                                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
-                            />
-                        </div>
-
-                        {/* Category */}
-                        <div className="space-y-2 relative">
-                            <label className="text-sm font-medium text-white/70">Category</label>
-                            <input
-                                type="text"
-                                value={category}
-                                onChange={(e) => { setCategory(e.target.value); setShowCategorySuggestions(true); }}
-                                onFocus={() => setShowCategorySuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
-                                placeholder="e.g., Programming, Languages, Music"
-                                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                            />
-                            {showCategorySuggestions && existingCategories.length > 0 && (
-                                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-xl overflow-hidden shadow-xl">
-                                    {existingCategories
-                                        .filter(c => c.toLowerCase().includes(category.toLowerCase()))
-                                        .map((cat) => (
-                                            <button
-                                                key={cat}
-                                                type="button"
-                                                onMouseDown={(e) => { e.preventDefault(); setCategory(cat); setShowCategorySuggestions(false); }}
-                                                className="w-full text-left px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 transition-colors"
-                                            >
-                                                {cat}
-                                            </button>
-                                        ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Target Date */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-white/70 flex items-center gap-2">
-                                <CalendarIcon size={14} />
-                                Target Completion Date (Optional)
-                            </label>
-                            <input
-                                type="date"
-                                value={targetDate}
-                                onChange={(e) => setTargetDate(e.target.value)}
-                                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 [color-scheme:dark]"
-                            />
-                        </div>
-
-                        {/* Color Theme */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-white/70">Color Theme</label>
-                            <div className="flex gap-3 flex-wrap">
-                                {COLOR_OPTIONS.map((colorOption) => (
-                                    <button
-                                        key={colorOption.name}
-                                        type="button"
-                                        onClick={() => setColor(colorOption.name)}
-                                        className={`w-10 h-10 rounded-full bg-gradient-to-r ${colorOption.gradient} transition-all ${color === colorOption.name
-                                            ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110'
-                                            : 'opacity-60 hover:opacity-100'
-                                            }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-3 pt-4">
-                            <button
+                                key={colorOption.name}
                                 type="button"
-                                onClick={onClose}
-                                className="flex-1 py-3 rounded-xl font-bold text-white/60 bg-white/10 hover:bg-white/20 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className={`flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r ${selectedGradient} hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2`}
-                            >
-                                <Sparkles size={18} />
-                                {path ? 'Update Path' : 'Create Path'}
-                            </button>
-                        </div>
-                    </form>
-                </Motion.div>
-            </Motion.div>
-        </AnimatePresence>
+                                role="radio"
+                                aria-checked={color === colorOption.name}
+                                aria-label={colorOption.name}
+                                onClick={() => setColor(colorOption.name)}
+                                className={`form-swatch${color === colorOption.name ? ' is-selected' : ''}`}
+                                style={{ '--swatch': SWATCH_HEX[colorOption.name] }}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <p className="form-section-label">Description</p>
+                <div className="form-group">
+                    <label className="form-field form-field--stacked">
+                        <span className="sr-only">Description</span>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="What will you learn?"
+                            rows={3}
+                        />
+                    </label>
+                </div>
+
+                <button type="submit" className="ui-button ui-button--accent form-submit">
+                    {path ? 'Save' : 'Create Path'}
+                </button>
+            </form>
+        </Sheet>
     );
 };
 
 export default LearningPathModal;
-export { COLOR_OPTIONS };
+export { COLOR_OPTIONS, SWATCH_HEX };

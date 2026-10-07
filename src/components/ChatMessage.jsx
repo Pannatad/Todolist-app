@@ -1,10 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-    User,
     Check,
-    X,
-    Clock,
-    Sparkles,
     CalendarPlus,
     CalendarClock,
     ClipboardList,
@@ -16,8 +12,6 @@ import {
     HelpCircle,
     MessageSquare,
     ArrowRight,
-    ChevronDown,
-    ChevronUp,
     SlidersHorizontal,
     FileText,
     Image as ImageIcon
@@ -90,7 +84,7 @@ const ActionCard = ({ action, isCancelled = false, isPending = false, showDetail
         try {
             const date = new Date(isoString);
             if (isNaN(date.getTime())) return null;
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         } catch {
             return null;
         }
@@ -124,61 +118,50 @@ const ActionCard = ({ action, isCancelled = false, isPending = false, showDetail
         ? action.params.suggestions.filter(Boolean).slice(0, 4)
         : [];
 
+    const tint = /red/.test(display.color)
+        ? 'var(--color-error)'
+        : /emerald|green/.test(display.color)
+            ? 'var(--color-success)'
+            : /amber|orange|yellow/.test(display.color)
+                ? 'var(--color-warning)'
+                : 'var(--color-accent)';
+    const scheduleMeta = isScheduleAction ? [scheduleDate, scheduleTime, duration ? `${duration} min` : null].filter(Boolean).join(' · ') : '';
+
     return (
-        <div className={`rounded-lg border p-3 text-sm ${display.color}`}>
-            <div className="flex items-start gap-2">
-                <div className="mt-0.5 rounded-md bg-white/70 p-1">
-                    <Icon size={14} />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold uppercase tracking-wide opacity-75">{display.label}</div>
-                    <div className="mt-0.5 break-words font-medium text-slate-900">{title}</div>
-                    {(isPending || isCancelled || action.explanation) && (
-                        <div className="mt-1 text-xs text-slate-500">
-                            {isPending
-                                ? 'Pending your confirmation.'
-                                : isCancelled
-                                    ? 'Proposal cancelled.'
-                                    : action.explanation}
-                        </div>
-                    )}
-                </div>
+        <div className="agent-action" style={{ '--action-tint': tint }}>
+            <span className="agent-action__icon" aria-hidden="true"><Icon size={15} /></span>
+            <div className="agent-action__body">
+                <span className="agent-action__label">{display.label}</span>
+                <span className="agent-action__title">{title}</span>
+                {scheduleMeta && <span className="agent-action__meta">{scheduleMeta}</span>}
+                {showDetails && action.params?.message && action.type !== 'clarify' && (
+                    <span className="agent-action__meta">{action.params.message}</span>
+                )}
+                {showDetails && (action.type === 'plan_day' || action.type === 'save_template') && Array.isArray(action.params?.blocks) && (
+                    <ul className="agent-action__blocks">
+                        {action.params.blocks.map((block, index) => (
+                            <li key={`${block.startTime}-${index}`}>{block.startTime} · {block.title} ({block.duration || 60} min)</li>
+                        ))}
+                    </ul>
+                )}
+                {!isPending && (isCancelled || action.explanation) && (
+                    <span className="agent-action__meta">{isCancelled ? 'Cancelled' : action.explanation}</span>
+                )}
+                {suggestions.length > 0 && (
+                    <div className="agent-action__suggestions">
+                        {suggestions.map((suggestion) => (
+                            <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => onSendMessage?.(suggestion)}
+                                className="agent-chip"
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
-            {showDetails && action.params && action.type !== 'clarify' && (
-                <div className="mt-2 text-slate-600 text-xs space-y-1">
-                    {action.params.message && <span>{action.params.message}</span>}
-                    {/* Show time and duration for schedule actions */}
-                    {isScheduleAction && (scheduleTime || duration) && (
-                        <div className="flex flex-wrap items-center gap-2 font-medium">
-                            {scheduleDate && <span>{scheduleDate}</span>}
-                            {scheduleTime && <span>{scheduleTime}</span>}
-                            {duration && <span>{duration} min</span>}
-                        </div>
-                    )}
-                    {/* Show the proposed blocks for a full day plan */}
-                    {(action.type === 'plan_day' || action.type === 'save_template') && Array.isArray(action.params.blocks) && (
-                        <div className="space-y-0.5 font-medium">
-                            {action.params.blocks.map((block, index) => (
-                                <div key={`${block.startTime}-${index}`}>{block.startTime} · {block.title} ({block.duration || 60} min)</div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-            {suggestions.length > 0 && (
-                <div className="mt-3 grid gap-1.5">
-                    {suggestions.map((suggestion) => (
-                        <button
-                            key={suggestion}
-                            type="button"
-                            onClick={() => onSendMessage?.(suggestion)}
-                            className="rounded-md border border-white/70 bg-white/75 px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 transition-colors hover:bg-white"
-                        >
-                            {suggestion}
-                        </button>
-                    ))}
-                </div>
-            )}
         </div>
     );
 };
@@ -220,7 +203,8 @@ const ChatMessage = ({
     message,
     onConfirm,
     onCancel,
-    onSendMessage
+    onSendMessage,
+    isLast = false
 }) => {
     const isUser = message.role === 'user';
     const hasActions = message.actions?.some(action => action.type !== 'info_response');
@@ -234,169 +218,89 @@ const ChatMessage = ({
         collapsible && !expanded ? getPreviewText(message.content) : message.content
     ), [collapsible, expanded, message.content]);
 
-    // Format timestamp
-    const formatTime = (timestamp) => {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
+    const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     return (
-        <div
-            className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
-        >
-            {/* Avatar */}
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isUser
-                ? 'bg-slate-900'
-                : 'bg-white border border-slate-200'
-                }`}>
+        <div className={`agent-msg ${isUser ? 'is-user' : 'is-agent'}${message.isError ? ' is-error' : ''}`}>
+            <div className="agent-bubble">
                 {isUser ? (
-                    <User size={16} className="text-white" />
+                    <>
+                        {message.attachment && (
+                            <span className="agent-bubble__attachment">
+                                {message.attachment.kind === 'pdf' ? <FileText size={14} /> : <ImageIcon size={14} />}
+                                <span>{message.attachment.name}</span>
+                            </span>
+                        )}
+                        <p>{message.content}</p>
+                    </>
                 ) : (
-                    <Sparkles size={16} className="text-slate-700" />
+                    <RichTextRenderer text={renderedContent} renderHint={message.renderHint} />
+                )}
+                {collapsible && (
+                    <button type="button" onClick={() => setExpanded((value) => !value)} className="agent-bubble__more">
+                        {expanded ? 'Show Less' : 'Show More'}
+                    </button>
                 )}
             </div>
 
-            {/* Message Content */}
-            <div className={`flex flex-col ${isUser ? 'max-w-[82%] items-end' : 'max-w-[88%] items-start'}`}>
-                {/* Main bubble */}
-                <div className={`rounded-xl px-4 py-3 ${isUser
-                    ? 'bg-slate-900 text-white rounded-br-sm'
-                    : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
-                    } ${message.isError ? 'border-red-200 bg-red-50' : ''}`}>
-                    {isUser ? (
-                        <div>
-                            {message.attachment && (
-                                <div className="mb-2 flex items-center gap-2 rounded-md bg-white/10 px-2 py-1.5 text-xs text-slate-200">
-                                    {message.attachment.kind === 'pdf'
-                                        ? <FileText size={14} />
-                                        : <ImageIcon size={14} />}
-                                    <span className="truncate">{message.attachment.name}</span>
-                                </div>
-                            )}
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                        </div>
-                    ) : (
-                        <div className="text-sm leading-relaxed">
-                            <RichTextRenderer text={renderedContent} renderHint={message.renderHint} />
+            {!isUser && hasActions && (
+                <div className="agent-actions">
+                    {message.actions.filter(a => a.type !== 'info_response').map((action, idx) => (
+                        <ActionCard
+                            key={idx}
+                            action={action}
+                            isCancelled={wasCancelled}
+                            isPending={hasPendingConfirmation}
+                            onSendMessage={onSendMessage}
+                        />
+                    ))}
+
+                    {hasPendingConfirmation && (
+                        <div className="agent-confirm">
+                            <button type="button" onClick={() => onCancel?.(message.id)} className="ui-button">Cancel</button>
+                            <button type="button" onClick={() => onConfirm?.(message.id)} className="ui-button ui-button--accent">
+                                <Check size={16} strokeWidth={2.6} /> Confirm
+                            </button>
                         </div>
                     )}
-                    {collapsible && (
+
+                    {wasExecuted && <p className="agent-note is-success"><Check size={13} strokeWidth={2.6} /> Done</p>}
+                    {wasCancelled && <p className="agent-note">Cancelled</p>}
+                </div>
+            )}
+
+            {!isUser && !message.isError && isLast && (
+                <div className="agent-refine">
+                    {showRefine ? REFINEMENT_ACTIONS.map((action) => (
                         <button
+                            key={action.label}
                             type="button"
-                            onClick={() => setExpanded((value) => !value)}
-                            className="mt-3 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                            onClick={() => {
+                                onSendMessage?.(action.prompt);
+                                setShowRefine(false);
+                            }}
+                            className="agent-chip"
                         >
-                            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                            {expanded ? 'Less' : 'Details'}
+                            {action.label}
+                        </button>
+                    )) : (
+                        <button type="button" onClick={() => setShowRefine(true)} className="agent-chip agent-chip--quiet">
+                            <SlidersHorizontal size={13} /> Refine
                         </button>
                     )}
                 </div>
+            )}
 
-                {/* Action Cards (for assistant messages with actions) */}
-                {!isUser && hasActions && (
-                    <div className="mt-2 space-y-2 w-full">
-                        {message.actions.filter(a => a.type !== 'info_response').map((action, idx) => (
-                            <ActionCard
-                                key={idx}
-                                action={action}
-                                isCancelled={wasCancelled}
-                                isPending={hasPendingConfirmation}
-                                onSendMessage={onSendMessage}
-                            />
-                        ))}
-
-                        {/* Confirmation buttons */}
-                        {hasPendingConfirmation && (
-                            <div className="flex gap-2 mt-2">
-                                <button
-                                    onClick={() => onConfirm?.(message.id)}
-                                    className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                                >
-                                    <Check size={14} />
-                                    Confirm
-                                </button>
-                                <button
-                                    onClick={() => onCancel?.(message.id)}
-                                    className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                                >
-                                    <X size={14} />
-                                    Cancel
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Executed indicator */}
-                        {wasExecuted && (
-                            <div className="flex items-center gap-1.5 text-emerald-600 text-xs mt-1">
-                                <Check size={12} />
-                                <span>Actions completed</span>
-                            </div>
-                        )}
-
-                        {/* Cancelled indicator */}
-                        {wasCancelled && (
-                            <div className="flex items-center gap-1.5 text-slate-500 text-xs mt-1">
-                                <X size={12} />
-                                <span>Cancelled</span>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {!isUser && !message.isError && (
-                    <div className="mt-2 w-full">
-                        <button
-                            type="button"
-                            onClick={() => setShowRefine((value) => !value)}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                        >
-                            <SlidersHorizontal size={13} />
-                            Refine
-                        </button>
-                        {showRefine && (
-                            <div className="mt-2 grid grid-cols-2 gap-1.5">
-                                {REFINEMENT_ACTIONS.map((action) => (
-                                    <button
-                                        key={action.label}
-                                        type="button"
-                                        onClick={() => {
-                                            onSendMessage?.(action.prompt);
-                                            setShowRefine(false);
-                                        }}
-                                        className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                                    >
-                                        {action.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Timestamp */}
-                <div className={`flex items-center gap-1 mt-1 text-xs text-slate-400`}>
-                    <Clock size={10} />
-                    <span>{formatTime(message.timestamp)}</span>
-                </div>
-            </div>
+            {isLast && <time className="agent-time">{formatTime(message.timestamp)}</time>}
         </div>
     );
 };
 
 // Typing indicator component
 export const TypingIndicator = () => (
-    <div
-        className="flex gap-3"
-    >
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center">
-            <Sparkles size={16} className="text-slate-700" />
-        </div>
-        <div className="px-4 py-3 bg-white border border-slate-200 rounded-xl rounded-bl-sm shadow-sm">
-            <div className="flex gap-1">
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:120ms]" />
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:240ms]" />
-            </div>
+    <div className="agent-msg is-agent">
+        <div className="agent-bubble agent-typing" aria-label="Agent is typing">
+            <span /><span /><span />
         </div>
     </div>
 );

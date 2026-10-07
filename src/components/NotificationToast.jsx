@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, AlertTriangle, Clock, Zap, ArrowRight } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Bell, Clock, Zap } from 'lucide-react';
 import smartNotificationService from '../services/SmartNotificationService';
 
 const NOTIFICATION_ICONS = {
@@ -11,25 +10,96 @@ const NOTIFICATION_ICONS = {
     'conflict-warning': Zap
 };
 
-// Accent hue per type, used for the icon chip only — the card itself stays
-// a calm raised surface in the app's design language.
+// Accent per type, used for the small app-icon tile only.
 const NOTIFICATION_TINTS = {
-    'event-reminder': '#6366f1',
-    'deadline-alert': '#f59e0b',
-    'habit-nudge': '#10b981',
-    'habit-backfill': '#f59e0b',
-    'conflict-warning': '#ef4444'
+    'event-reminder': '#5856d6',
+    'deadline-alert': '#ff9500',
+    'habit-nudge': '#34c759',
+    'habit-backfill': '#ff9500',
+    'conflict-warning': '#ff3b30'
+};
+
+const VISIBLE_MS = 8000;
+const LEAVE_MS = 260;
+
+/** One banner: tap to open its action, swipe up (or wait) to dismiss. */
+const Banner = ({ notification, onOpen, onDismiss }) => {
+    const ref = useRef(null);
+    const drag = useRef(null);
+    const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
+    const tint = NOTIFICATION_TINTS[notification.type] || 'var(--color-accent)';
+
+    const startDrag = (event) => {
+        drag.current = { startY: event.clientY, moved: false };
+        try {
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch {
+            // Pointer already released; drag still works without capture.
+        }
+    };
+
+    const moveDrag = (event) => {
+        if (!drag.current || !ref.current) return;
+        const delta = event.clientY - drag.current.startY;
+        if (Math.abs(delta) > 6) drag.current.moved = true;
+        ref.current.style.transform = `translate3d(0, ${delta < 0 ? delta : delta * 0.2}px, 0)`;
+        ref.current.dataset.dragging = 'true';
+    };
+
+    const endDrag = (event) => {
+        const state = drag.current;
+        drag.current = null;
+        if (!state || !ref.current) return;
+        delete ref.current.dataset.dragging;
+        const delta = event.clientY - state.startY;
+        if (delta < -30) {
+            onDismiss(notification.id);
+            return;
+        }
+        ref.current.style.transform = '';
+        if (!state.moved) onOpen(notification);
+    };
+
+    return (
+        <div
+            ref={ref}
+            role="status"
+            className={`ios-banner${notification.leaving ? ' is-leaving' : ''}`}
+            onPointerDown={startDrag}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={() => {
+                drag.current = null;
+                if (ref.current) ref.current.style.transform = '';
+            }}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter') onOpen(notification);
+                if (event.key === 'Escape') onDismiss(notification.id);
+            }}
+            tabIndex={0}
+            aria-label={`${notification.title}. ${notification.message}${notification.action ? `. Press Enter to ${notification.action.toLowerCase()}.` : ''}`}
+        >
+            <span className="ios-banner__icon" style={{ background: tint }} aria-hidden="true">
+                <Icon size={16} strokeWidth={2.4} />
+            </span>
+            <span className="ios-banner__copy">
+                <span className="ios-banner__top">
+                    <strong>{notification.title}</strong>
+                    <span>now</span>
+                </span>
+                <span className="ios-banner__message">{notification.message}</span>
+            </span>
+        </div>
+    );
 };
 
 const NotificationToast = ({ onAction }) => {
     const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
-        // Subscribe to notification service
         const unsubscribe = smartNotificationService.subscribe((notification) => {
-            setNotifications(prev => {
-                // Prevent duplicates
-                if (prev.find(n => n.id === notification.id)) return prev;
+            setNotifications((prev) => {
+                if (prev.find((item) => item.id === notification.id)) return prev;
                 return [...prev, { ...notification, timestamp: Date.now() }];
             });
         });
@@ -37,82 +107,35 @@ const NotificationToast = ({ onAction }) => {
         return () => unsubscribe();
     }, []);
 
-    // Auto-dismiss notifications after 8 seconds
-    useEffect(() => {
-        if (notifications.length === 0) return;
-
-        const timer = setInterval(() => {
-            const now = Date.now();
-            setNotifications(prev =>
-                prev.filter(n => now - n.timestamp < 8000)
-            );
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [notifications.length]);
-
     const dismiss = (id) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, leaving: true } : item)));
+        window.setTimeout(() => {
+            setNotifications((prev) => prev.filter((item) => item.id !== id));
+        }, LEAVE_MS);
     };
 
-    const handleAction = (notification) => {
-        if (notification.action && onAction) {
-            onAction(notification.action, notification.data);
-        }
+    // Banners leave on their own after a few seconds, like iOS.
+    useEffect(() => {
+        if (notifications.length === 0) return undefined;
+        const timer = window.setInterval(() => {
+            const now = Date.now();
+            notifications
+                .filter((item) => !item.leaving && now - item.timestamp >= VISIBLE_MS)
+                .forEach((item) => dismiss(item.id));
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [notifications]);
+
+    const open = (notification) => {
+        if (notification.action && onAction) onAction(notification.action, notification.data);
         dismiss(notification.id);
     };
 
     return (
-        <div className="pointer-events-none fixed left-4 right-4 top-4 z-[9999] flex flex-col items-center gap-2 sm:left-auto sm:items-end">
-            <AnimatePresence>
-                {notifications.map((notification) => {
-                    const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
-                    const tint = NOTIFICATION_TINTS[notification.type] || 'var(--color-accent)';
-
-                    return (
-                        <Motion.div
-                            key={notification.id}
-                            initial={{ opacity: 0, y: -12, scale: 0.97 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                            transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="pointer-events-auto w-full sm:w-[22rem]"
-                        >
-                            <div className="ui-card flex items-start gap-3 p-3.5">
-                                <span
-                                    className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl"
-                                    style={{
-                                        background: `color-mix(in srgb, ${tint} 14%, transparent)`,
-                                        color: `color-mix(in oklch, ${tint} 70%, var(--color-ink))`
-                                    }}
-                                >
-                                    <Icon size={16} aria-hidden="true" />
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-[var(--color-ink)]">{notification.title}</p>
-                                    <p className="mt-0.5 text-xs leading-5 text-[var(--color-muted)]">{notification.message}</p>
-                                    {notification.action && (
-                                        <button
-                                            onClick={() => handleAction(notification)}
-                                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-accent)]"
-                                        >
-                                            {notification.action}
-                                            <ArrowRight size={13} aria-hidden="true" />
-                                        </button>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => dismiss(notification.id)}
-                                    className="shrink-0 rounded-lg p-1 text-[var(--color-muted)] transition-colors hover:bg-[var(--color-paper-2)]"
-                                    aria-label="Dismiss notification"
-                                >
-                                    <X size={15} aria-hidden="true" />
-                                </button>
-                            </div>
-                        </Motion.div>
-                    );
-                })}
-            </AnimatePresence>
+        <div className="ios-banner-region">
+            {notifications.slice(-2).map((notification) => (
+                <Banner key={notification.id} notification={notification} onOpen={open} onDismiss={dismiss} />
+            ))}
         </div>
     );
 };

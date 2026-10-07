@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Globe2, Link2, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { Sheet } from '../../ui';
+import { Globe2, Link2, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { RowMenu, Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
 import { confirmAction } from '../../utils/confirm';
 import { useLinks } from '../../context/LinksContext';
 import { getLinkDraftError, getLinkHostname } from './linkUtils';
-import ItemActions from './ItemActions';
 
 const emptyDraft = () => ({
   title: '',
@@ -159,20 +158,10 @@ const Links = () => {
 
   return (
     <>
-      <section className="uni-board-section uni-board-links" aria-labelledby="uni-board-links-title">
-        <div className="uni-board-section-heading uni-board-links__heading">
-          <div>
-            <p className="uni-board-kicker">Quick access</p>
-            <h2 id="uni-board-links-title">Links</h2>
-          </div>
-          <div className="uni-board-links__heading-actions">
-            <span className="uni-board-count" aria-label={`${links.length} saved links`}>{links.length}</span>
-            <Link2 size={19} aria-hidden="true" className="uni-board-section-icon" />
-            <button type="button" className="uni-board-primary-button uni-board-links__add" onClick={openNewLink}>
-              <Plus size={16} aria-hidden="true" />
-              <span>Add link</span>
-            </button>
-          </div>
+      <section className="uni-board-links" aria-labelledby="uni-board-links-title">
+        <div className="ui-section-title">
+          <h2 id="uni-board-links-title">Links</h2>
+          <button type="button" className="ui-text-button" onClick={openNewLink}>Add</button>
         </div>
 
         {loadError && (
@@ -183,7 +172,7 @@ const Links = () => {
         )}
 
         {isLoading ? <div className="uni-board-skeleton-list" aria-label="Loading links">{[1, 2].map((row) => <span key={row} className="uni-board-skeleton-row" />)}</div> : links.length > 0 ? (
-          <div className="uni-board-link-list">
+          <div className="ui-group uni-board-link-list">
             {links.map((link) => (
               <article key={link.id} className="uni-board-link-row">
                 <a className="uni-board-link-row__open" href={link.url} target="_blank" rel="noreferrer">
@@ -191,19 +180,21 @@ const Links = () => {
                   <span className="uni-board-item-copy">
                     <strong>{link.title}</strong>
                     <span>{link.category ? `${link.category} · ` : ''}{getLinkHostname(link.url)}</span>
-                    {link.description && <small>{link.description}</small>}
                   </span>
-                  <ExternalLink size={17} aria-hidden="true" className="uni-board-link-row__external" />
                 </a>
-                <ItemActions title={link.title} disabled={deletingId === link.id} onEdit={() => openEditLink(link)} onDelete={() => removeLink(link)} />
+                <RowMenu
+                  label={`Actions for ${link.title}`}
+                  disabled={deletingId === link.id}
+                  items={[
+                    { label: 'Edit', icon: Pencil, onSelect: () => openEditLink(link) },
+                    { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => removeLink(link) },
+                  ]}
+                />
               </article>
             ))}
           </div>
         ) : (
-          <div className="uni-board-links__empty">
-            <p>No saved links yet.</p>
-            <span>Add the portals and references you use most for university.</span>
-          </div>
+          <p className="ui-empty-card">Save the portals and pages you open most.</p>
         )}
       </section>
 

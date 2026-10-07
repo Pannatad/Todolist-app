@@ -1,7 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Bell, CalendarDays, CheckCircle2, Plus, Sprout, XCircle } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { BarButton } from '../ui';
 import HabitCard from './HabitCard';
 import HabitModal from './HabitModal';
 import HabitNotesModal from './HabitNotesModal';
@@ -18,18 +20,11 @@ const TIME_SECTIONS = [
     { key: 'night', label: 'Night' },
     { key: 'anytime', label: 'Anytime' },
 ];
-const getMotivationalMessage = (completionRate, bestStreak) => {
-    if (completionRate === 100) return 'Everything scheduled today is done.';
-    if (bestStreak >= 7) return `You already have a ${bestStreak}-day streak going.`;
-    if (completionRate >= 50) return 'Solid progress for today.';
-    if (completionRate > 0) return 'A small win is already on the board.';
-    return 'Start with one easy habit.';
-};
 const REFLECTION_TAGS = {
     completed: ['easy', 'proud', 'focused', 'tired'],
     missed: ['forgot', 'busy', 'low energy', 'too hard'],
 };
-const TodayHabits = () => {
+const TodayHabits = ({ actionsSlot = null }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingHabit, setEditingHabit] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -55,7 +50,6 @@ const TodayHabits = () => {
     yesterday.setDate(today.getDate() - 1);
     const yesterdayStr = toLocalDateKey(yesterday);
     const isToday = selectedDateStr === todayStr;
-    const isYesterday = selectedDateStr === yesterdayStr;
     const canEditSelectedDate = canLogHabitDate(selectedDateStr);
     const lockedReason = 'Only today and yesterday can be edited.';
     const todayHabits = getHabitsForDate(selectedDate);
@@ -184,64 +178,44 @@ const TodayHabits = () => {
     };
     return (
         <div className="habit-today">
+            {actionsSlot && createPortal(
+                <BarButton
+                    icon={Plus}
+                    tone="primary"
+                    label="New habit"
+                    onClick={() => {
+                        setEditingHabit(null);
+                        setShowModal(true);
+                    }}
+                />,
+                actionsSlot,
+            )}
             <section className="habit-overview">
-                <div className="habit-overview__top">
-                    <div className="habit-overview__copy">
-                        <div className="app-eyebrow">
-                            {isToday ? 'Today' : 'Selected day'}
-                        </div>
-                        <h2 className="app-section-title mt-1">
-                            {isToday
-                                ? 'Daily habits'
-                                : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                        </h2>
-                        <p className="mt-1 text-sm font-medium leading-6 text-[var(--color-muted)]">
-                            {isToday
-                                ? getMotivationalMessage(completionRate, bestCurrentStreak)
-                                : isYesterday
-                                    ? 'Yesterday is still open if you forgot to log something.'
-                                    : 'Review only. Older days are locked to keep the history honest.'}
-                        </p>
-                    </div>
-                    <div className="habit-overview__stats">
-                        <span className="text-[var(--color-ink)]">{completedToday}/{totalToday}</span> done
-                        {bestCurrentStreak > 0 && (
-                            <span className="ml-3">
-                                streak <span className="text-[var(--color-ink)]">{bestCurrentStreak}</span>
-                            </span>
-                        )}
-                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--color-rule)]">
-                            <div className="h-full bg-[var(--color-accent)]" style={{ width: `${completionRate}%` }} />
-                        </div>
-                    </div>
+                <div className="habit-week-strip__days">
+                    {weekDates.map((date, index) => {
+                        const isSelected = date.toDateString() === selectedDate.toDateString();
+                        const isTodayDate = date.toDateString() === today.toDateString();
+                        return (
+                            <button
+                                key={date.toISOString()}
+                                type="button"
+                                onClick={() => setSelectedDate(new Date(date))}
+                                aria-pressed={isSelected}
+                                className={`habit-day${isSelected ? ' is-selected' : ''}${isTodayDate ? ' is-today' : ''}`}
+                            >
+                                <span className="habit-day__weekday">{DAY_LABELS[index]}</span>
+                                <span className="habit-day__date">{date.getDate()}</span>
+                            </button>
+                        );
+                    })}
                 </div>
-                <div className="habit-week-strip">
-                    <div className="habit-week-strip__label">
-                        <CalendarDays size={13} strokeWidth={2.7} />
-                        Week
-                    </div>
-                    <div className="habit-week-strip__days">
-                        {weekDates.map((date, index) => {
-                            const isSelected = date.toDateString() === selectedDate.toDateString();
-                            const isTodayDate = date.toDateString() === today.toDateString();
-                            return (
-                                <Motion.button
-                                    key={date.toISOString()}
-                                    whileTap={{ scale: 0.96 }}
-                                    onClick={() => setSelectedDate(new Date(date))}
-                                    className={`habit-day-button ${
-                                        isSelected
-                                            ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-ink)]'
-                                            : isTodayDate
-                                                ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]'
-                                                : 'bg-[var(--color-paper-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-paper-3)]'
-                                    }`}
-                                >
-                                    <div className="habit-day-button__weekday">{DAY_LABELS[index]}</div>
-                                    <div className="habit-day-button__date">{date.getDate()}</div>
-                                </Motion.button>
-                            );
-                        })}
+                <div className="habit-overview__progress">
+                    <p>
+                        <strong>{completedToday} of {totalToday}</strong> done
+                        {bestCurrentStreak > 0 && <span> · {bestCurrentStreak}-day streak</span>}
+                    </p>
+                    <div className="habit-overview__bar" aria-hidden="true">
+                        <span style={{ transform: `scaleX(${completionRate / 100})` }} />
                     </div>
                 </div>
             </section>
@@ -262,54 +236,43 @@ const TodayHabits = () => {
                         exit={{ opacity: 0, y: 8 }}
                         className="habit-review"
                     >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <div className="flex items-center gap-2 text-sm font-semibold">
-                                    <Bell size={16} strokeWidth={2.7} />
-                                    Did you miss these yesterday, or just forget to log?
-                                </div>
-                                <p className="mt-1 text-sm text-[var(--color-ink-2)]">
-                                    You can still backfill yesterday. After today, these entries become read-only.
-                                </p>
-                            </div>
+                        <div className="habit-review__header">
+                            <strong>Log yesterday?</strong>
                             <button
+                                type="button"
                                 onClick={() => setSelectedDate(new Date(yesterday))}
-                                className="habit-review__link"
+                                className="ui-text-button"
                             >
-                                View yesterday
+                                View
                             </button>
                         </div>
                         <div className="mt-3 space-y-2">
                             {yesterdayReviewHabits.slice(0, 4).map((habit) => (
                                 <div key={habit.id} className="habit-review__item">
                                     <div className="habit-review__item-copy">
-                                        <span className="habit-review__icon">{habit.icon}</span>
-                                        <div className="min-w-0">
-                                            <div className="truncate text-sm font-semibold text-[var(--color-ink)]">{habit.name}</div>
-                                            <div className="text-xs text-[var(--color-muted)]">Yesterday was scheduled for this habit.</div>
-                                        </div>
+                                        <div className="truncate">{habit.name}</div>
                                     </div>
                                     <div className="habit-review__actions">
                                         <button
+                                            type="button"
                                             onClick={() => handleBackfillDone(habit)}
                                             className="habit-review__action habit-review__action--done"
                                         >
-                                            <CheckCircle2 size={14} />
-                                            I did it
+                                            Done
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={() => dismissYesterdayReview(habit.id)}
                                             className="habit-review__action"
                                         >
-                                            <XCircle size={14} />
-                                            I missed it
+                                            Missed
                                         </button>
                                     </div>
                                 </div>
                             ))}
                             {yesterdayReviewHabits.length > 4 && (
                                 <div className="habit-review__more">
-                                    +{yesterdayReviewHabits.length - 4} more in yesterday&apos;s list.
+                                    +{yesterdayReviewHabits.length - 4} more
                                 </div>
                             )}
                         </div>
@@ -317,9 +280,7 @@ const TodayHabits = () => {
                 )}
             </AnimatePresence>
             {!canEditSelectedDate && (
-                <div className="habit-inline-status">
-                    This day is read-only. You can only edit today and yesterday.
-                </div>
+                <div className="habit-inline-status">Past days are read-only.</div>
             )}
             <AnimatePresence>
                 {allCompleted && isToday && (
@@ -329,10 +290,7 @@ const TodayHabits = () => {
                         exit={{ opacity: 0, y: 8 }}
                         className="habit-inline-status habit-inline-status--success"
                     >
-                        <div className="flex items-center gap-2">
-                            <Sprout size={15} strokeWidth={2.7} />
-                            Everything scheduled for today is complete.
-                        </div>
+                        All done for today.
                     </Motion.div>
                 )}
             </AnimatePresence>
@@ -345,10 +303,7 @@ const TodayHabits = () => {
                         className="habit-reflection"
                     >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <div className="text-sm font-semibold text-[var(--color-ink)]">How did {pendingReflection.habitName} feel?</div>
-                                <div className="mt-0.5 text-xs text-[var(--color-muted)]">One tap saves a small reflection to today&apos;s habit note.</div>
-                            </div>
+                            <div className="text-sm font-semibold text-[var(--color-ink)]">How did {pendingReflection.habitName} feel?</div>
                             <div className="flex flex-wrap gap-2">
                                 {(pendingReflection.completed ? REFLECTION_TAGS.completed : REFLECTION_TAGS.missed).map((tag) => (
                                     <button
@@ -375,15 +330,16 @@ const TodayHabits = () => {
             <section className="habit-list">
                 {todayHabits.length === 0 ? (
                     <section className="habit-empty">
-                        <h3 className="app-section-title">No habits yet.</h3>
+                        <h3 className="habit-empty__title">No habits yet</h3>
                         <button
+                            type="button"
                             onClick={() => {
                                 setEditingHabit(null);
                                 setShowModal(true);
                             }}
-                            className="mt-5 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--color-accent-ink)] transition hover:bg-[var(--color-accent-hover)]"
+                            className="ui-button ui-button--accent"
                         >
-                            Add Habit
+                            New Habit
                         </button>
                     </section>
                 ) : (
@@ -393,12 +349,7 @@ const TodayHabits = () => {
                             if (!sectionHabits?.length) return null;
                             return (
                                 <div key={section.key} className="habit-group">
-                                    <div className="habit-group__header">
-                                        <div className="app-eyebrow">
-                                            {section.label}
-                                        </div>
-                                        <div className="habit-group__rule" />
-                                    </div>
+                                    <h2 className="ui-section-title habit-group__title">{section.label}</h2>
                                     <div className="habit-group__items">
                                         {sectionHabits.map((habit, index) => {
                                             const seedInsight = seedInsightByHabitId[habit.id] || null;
@@ -429,16 +380,6 @@ const TodayHabits = () => {
                                 </div>
                             );
                         })}
-                        <button
-                            onClick={() => {
-                                setEditingHabit(null);
-                                setShowModal(true);
-                            }}
-                            className="habit-add-button"
-                        >
-                            <Plus size={16} strokeWidth={2.7} />
-                            Add Habit
-                        </button>
                     </div>
                 )}
             </section>

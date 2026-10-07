@@ -9,21 +9,13 @@ const STEP_META = [
     { id: 'launch', label: 'Launch', icon: Sparkles },
 ];
 
+// Activate on release (a normal click), as native buttons do; Enter/Space click buttons natively.
 const buttonPressProps = (handler) => ({
-    onMouseDown: (event) => {
-        event.preventDefault();
-        handler(event);
-    },
-    onKeyDown: (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handler(event);
-        }
-    },
+    onClick: handler,
 });
 
 const formatTime = (date) => (
-    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 );
 
 const formatMinutes = (minutes) => {

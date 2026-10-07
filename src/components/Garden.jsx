@@ -43,7 +43,7 @@ const localDateKey = (value) => {
     return `${year}-${month}-${day}`;
 };
 
-const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [] }) => {
+const Garden = ({ tasks, onAddTask, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTask, onRequestAIHelp, existingSubjects = [] }) => {
     const [sortBy, setSortBy] = useState('deadline');
     const [taskView, setTaskView] = useState('week');
     const [weekStart, setWeekStart] = useState(() => startOfWeek());
@@ -366,7 +366,7 @@ const Garden = ({ tasks, onCompleteTask, onDeleteTask, onUpdateTask, onRestoreTa
             view={{
                 activeTasks, addChunk, addNestedSubtask,
                 chunkTotalMinutes, clearSelectedTask, completedChunks, completedTasks, deleteChunk, deleteNestedSubtask,
-                existingSubjects, expandedChunkIds, focusTask, formatEstimatedTime,
+                existingSubjects, expandedChunkIds, focusTask, formatEstimatedTime, onAddTask,
                 handleSelectTask, isTaskDraftDirty, isTaskSaving, newChunkEstimate,
                 newChunkTitle, newNestedDrafts, onCompleteTask, onDeleteTask, onRequestAIHelp, onRestoreTask,
                 onUpdateTask, orderedChunks, reorderChunks, saveChunkOrder, selectedChunks,

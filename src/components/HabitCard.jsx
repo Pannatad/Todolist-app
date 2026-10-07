@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Check, Circle, Clock, Edit2, FileText, Flame, Lock, Star, Trash2 } from 'lucide-react';
+import { Check, Circle, Clock, Edit2, FileText, Flame, History, Lock, Star, Trash2 } from 'lucide-react';
+import { RowMenu } from '../ui';
 import { formatTimeValue, getCurrentTimeValue, timeInputToValue, timeValueToInput } from './habitValueUtils';
 import { SCORE_MAX } from './habitModalUtils';
 
@@ -281,62 +282,43 @@ const HabitCard = ({
                         </div>
                     )}
 
-                    <div className="habit-row__notes">
-                        {isEditingNote ? (
-                            <div className="habit-note-editor">
-                                <textarea
-                                    value={noteDraft}
-                                    onChange={(event) => setNoteDraft(event.target.value)}
-                                    onClick={(event) => event.stopPropagation()}
-                                    disabled={disabled}
-                                    rows={2}
-                                    placeholder={habit.type === 'duration' ? 'e.g. Woke up at 6:20 AM' : 'e.g. Walking, running 2 km, weight training'}
-                                />
-                                <div className="habit-note-editor__actions">
-                                    <button
-                                        type="button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            setNoteDraft(noteText);
-                                            setIsEditingNote(false);
-                                        }}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button type="button" onClick={handleSaveNote} disabled={disabled} className="is-primary">
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="habit-row__note-copy">
-                                {noteText && (
-                                    <span className="habit-row__note-text">
-                                        <FileText size={13} aria-hidden="true" />
-                                        {noteText}
-                                    </span>
-                                )}
-                                <div className="habit-row__note-actions">
-                                    <button
-                                        type="button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            if (!disabled) setIsEditingNote(true);
-                                        }}
+                    {(isEditingNote || noteText) && (
+                        <div className="habit-row__notes">
+                            {isEditingNote ? (
+                                <div className="habit-note-editor">
+                                    <textarea
+                                        value={noteDraft}
+                                        onChange={(event) => setNoteDraft(event.target.value)}
+                                        onClick={(event) => event.stopPropagation()}
                                         disabled={disabled}
-                                        title={disabled ? disabledReason : undefined}
-                                    >
-                                        {noteText ? 'Edit' : 'Add note'}
-                                    </button>
-                                    {onViewNotes && noteCount > 0 && (
-                                        <button type="button" onClick={(event) => { event.stopPropagation(); onViewNotes(); }}>
-                                            History ({noteCount})
+                                        rows={2}
+                                        autoFocus
+                                        placeholder={habit.type === 'duration' ? 'e.g. Woke up at 6:20 AM' : 'e.g. Walking, running 2 km, weight training'}
+                                    />
+                                    <div className="habit-note-editor__actions">
+                                        <button
+                                            type="button"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setNoteDraft(noteText);
+                                                setIsEditingNote(false);
+                                            }}
+                                        >
+                                            Cancel
                                         </button>
-                                    )}
+                                        <button type="button" onClick={handleSaveNote} disabled={disabled} className="is-primary">
+                                            Save
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            ) : (
+                                <p className="habit-row__note-text">
+                                    <FileText size={13} aria-hidden="true" />
+                                    <span>{noteText}</span>
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="habit-row__actions">
@@ -345,12 +327,15 @@ const HabitCard = ({
                             {isCompleted ? 'Done' : '+1'}
                         </button>
                     )}
-                    <button type="button" onClick={(event) => { event.stopPropagation(); onEdit?.(habit); }} aria-label={`Edit ${habit.name}`} title="Edit habit">
-                        <Edit2 size={16} aria-hidden="true" />
-                    </button>
-                    <button type="button" onClick={(event) => { event.stopPropagation(); onDelete?.(habit.id); }} aria-label={`Delete ${habit.name}`} title="Delete habit" className="is-danger">
-                        <Trash2 size={16} aria-hidden="true" />
-                    </button>
+                    <RowMenu
+                        label={`Actions for ${habit.name}`}
+                        items={[
+                            ...(!disabled ? [{ label: noteText ? 'Edit Note' : 'Add Note', icon: FileText, onSelect: () => setIsEditingNote(true) }] : []),
+                            ...(onViewNotes && noteCount > 0 ? [{ label: `Note History (${noteCount})`, icon: History, onSelect: onViewNotes }] : []),
+                            { label: 'Edit Habit', icon: Edit2, onSelect: () => onEdit?.(habit) },
+                            { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => onDelete?.(habit.id) },
+                        ]}
+                    />
                 </div>
             </div>
         </Motion.article>

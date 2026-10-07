@@ -1,16 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Image, Youtube, Loader2, Check, Upload, AlertCircle, Wand2, ArrowUpDown, Clock } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import { SegmentedControl, Sheet } from '../ui';
 import { generateTopicsFromDescription, generateTopicsFromImage } from '../services/aiClient';
 import { parseYouTubePlaylist } from '../services/youtubeService';
 
 const TABS = [
-    { id: 'describe', label: 'Describe', icon: Wand2, emoji: '✨' },
-    { id: 'image', label: 'Image', icon: Image, emoji: '📷' },
-    { id: 'youtube', label: 'YouTube', icon: Youtube, emoji: '🎬' },
+    { id: 'describe', label: 'Describe' },
+    { id: 'image', label: 'Image' },
+    { id: 'youtube', label: 'YouTube' },
 ];
 
-const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onAddTopics }) => {
+const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, onAddTopics }) => {
     const [activeTab, setActiveTab] = useState('describe');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -186,287 +186,127 @@ const AITopicGenerator = ({ isOpen, onClose, pathId, pathName, pathGradient, onA
         });
     };
 
-
-
-    if (!isOpen) return null;
+    const allSelected = generatedTopics.length > 0 && selectedTopics.size === generatedTopics.length;
+    const canGenerate = activeTab === 'describe'
+        ? Boolean(description.trim())
+        : activeTab === 'image'
+            ? Boolean(imageFile)
+            : Boolean(youtubeUrl.trim());
 
     return (
-        <AnimatePresence>
-            <Motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-                onClick={handleClose}
-            >
-                <Motion.div
-                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                    className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 w-full max-w-lg max-h-[90vh] rounded-3xl shadow-2xl border border-white/10 overflow-hidden flex flex-col"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div className={`bg-gradient-to-r ${pathGradient || 'from-purple-500 to-indigo-600'} p-5 relative overflow-hidden flex-shrink-0`}>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-                        <div className="flex items-center justify-between relative z-10">
-                            <div className="flex items-center gap-3">
-                                <Sparkles className="text-white/80" size={22} />
-                                <h2 className="text-lg font-bold text-white">AI Topic Generator</h2>
-                            </div>
-                            <button
-                                onClick={handleClose}
-                                className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-colors"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
+        <Sheet open={isOpen} onClose={handleClose} title="Generate Topics" className="form-sheet">
+            <div className="form-stack">
+                <SegmentedControl
+                    items={TABS}
+                    value={activeTab}
+                    onChange={handleTabChange}
+                    ariaLabel="Source"
+                    className="topic-generator__tabs"
+                />
 
-                        {/* Tabs */}
-                        <div className="flex gap-2 mt-4 relative z-10">
-                            {TABS.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleTabChange(tab.id)}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-all
-                                        ${activeTab === tab.id
-                                            ? 'bg-white/25 text-white shadow-lg'
-                                            : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
-                                        }`}
-                                >
-                                    <span>{tab.emoji}</span>
-                                    <span className="hidden sm:inline">{tab.label}</span>
-                                </button>
-                            ))}
-                        </div>
+                {activeTab === 'describe' && (
+                    <div className="form-group">
+                        <label className="form-field form-field--stacked">
+                            <span className="sr-only">What do you want to learn?</span>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="What do you want to learn?"
+                                rows={4}
+                            />
+                        </label>
                     </div>
+                )}
 
-                    {/* Content */}
-                    <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                        {/* Input Section */}
-                        {generatedTopics.length === 0 && (
-                            <>
-                                {activeTab === 'describe' && (
-                                    <div className="space-y-3">
-                                        <label className="text-sm font-medium text-white/70">
-                                            Describe what you want to learn
-                                        </label>
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            placeholder="e.g., I want to learn React.js from scratch, covering components, hooks, state management, and building a full-stack app..."
-                                            rows={4}
-                                            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none text-sm"
-                                            autoFocus
-                                        />
-                                        <p className="text-xs text-white/30">
-                                            💡 Be specific! The more detail you give, the better the topics will be.
-                                        </p>
-                                    </div>
-                                )}
+                {activeTab === 'image' && (
+                    <div className="form-group" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+                        {imagePreview && (
+                            <div className="topic-generator__preview">
+                                <img src={imagePreview} alt={imageFile?.name || 'Selected image'} />
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            className="form-field form-option form-option--tinted"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {imagePreview ? 'Choose Another Image' : 'Choose Image'}
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageChange} />
+                    </div>
+                )}
 
-                                {activeTab === 'image' && (
-                                    <div className="space-y-3">
-                                        <label className="text-sm font-medium text-white/70">
-                                            Upload a course outline, syllabus, or roadmap image
-                                        </label>
-                                        <div
-                                            onDrop={handleDrop}
-                                            onDragOver={(e) => e.preventDefault()}
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all
-                                                ${imagePreview
-                                                    ? 'border-purple-500/50 bg-purple-500/5'
-                                                    : 'border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            {imagePreview ? (
-                                                <div className="space-y-3">
-                                                    <img
-                                                        src={imagePreview}
-                                                        alt="Preview"
-                                                        className="max-h-40 mx-auto rounded-lg object-contain"
-                                                    />
-                                                    <p className="text-xs text-white/50">{imageFile?.name}</p>
-                                                    <p className="text-xs text-purple-400">Click to change</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    <Upload size={32} className="text-white/30 mx-auto" />
-                                                    <p className="text-sm text-white/50">
-                                                        Drop an image here or click to upload
-                                                    </p>
-                                                    <p className="text-xs text-white/30">
-                                                        Supports: PNG, JPG, WEBP
-                                                    </p>
-                                                </div>
-                                            )}
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleImageChange}
-                                                className="hidden"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                {activeTab === 'youtube' && (
+                    <div className="form-group">
+                        <label className="form-field">
+                            <span className="sr-only">Playlist link</span>
+                            <input
+                                type="url"
+                                value={youtubeUrl}
+                                onChange={(e) => setYoutubeUrl(e.target.value)}
+                                placeholder="Playlist link"
+                            />
+                        </label>
+                    </div>
+                )}
 
-                                {activeTab === 'youtube' && (
-                                    <div className="space-y-3">
-                                        <label className="text-sm font-medium text-white/70">
-                                            YouTube Playlist URL
-                                        </label>
-                                        <input
-                                            type="url"
-                                            value={youtubeUrl}
-                                            onChange={(e) => setYoutubeUrl(e.target.value)}
-                                            placeholder="https://www.youtube.com/playlist?list=PL..."
-                                            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-red-500/50 text-sm"
-                                            autoFocus
-                                        />
-                                        <p className="text-xs text-white/30">
-                                            📺 Paste a public YouTube playlist URL. Each video becomes a topic.
-                                        </p>
-                                    </div>
-                                )}
+                {error && <p className="form-note is-error">{error}</p>}
 
-                                {/* Error */}
-                                {error && (
-                                    <Motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+                {generatedTopics.length === 0 ? (
+                    <button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={isLoading || !canGenerate}
+                        className="ui-button ui-button--accent form-submit"
+                    >
+                        {isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> Generating…</> : 'Generate'}
+                    </button>
+                ) : (
+                    <>
+                        <div className="topic-generator__header">
+                            <span>{generatedTopics.length} topics</span>
+                            <button type="button" className="ui-text-button" onClick={handleReverse}>Reverse</button>
+                            <button type="button" className="ui-text-button" onClick={toggleAll}>{allSelected ? 'Deselect All' : 'Select All'}</button>
+                        </div>
+                        <div className="form-group">
+                            {generatedTopics.map((topic, index) => {
+                                const isSelected = selectedTopics.has(index);
+                                return (
+                                    <button
+                                        key={`${topic.title}-${index}`}
+                                        type="button"
+                                        className="form-field form-option topic-generator__row"
+                                        aria-pressed={isSelected}
+                                        onClick={() => toggleTopic(index)}
                                     >
-                                        <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-                                        <p className="text-xs text-red-300">{error}</p>
-                                    </Motion.div>
-                                )}
-
-                                {/* Generate Button */}
-                                <button
-                                    onClick={handleGenerate}
-                                    disabled={isLoading}
-                                    className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2
-                                        ${isLoading
-                                            ? 'bg-white/10 cursor-not-allowed'
-                                            : `bg-gradient-to-r ${pathGradient || 'from-purple-500 to-indigo-600'} hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`
-                                        }`}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" />
-                                            {activeTab === 'youtube' ? 'Importing...' : 'Generating...'}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles size={16} />
-                                            {activeTab === 'youtube' ? 'Import Playlist' : 'Generate Topics'}
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        )}
-
-                        {/* Results Section */}
-                        {generatedTopics.length > 0 && (
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-white/70">
-                                        {generatedTopics.length} topics generated
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={handleReverse}
-                                            className="text-xs px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors flex items-center gap-1"
-                                            title="Reverse order"
-                                        >
-                                            <ArrowUpDown size={12} /> Reverse
-                                        </button>
-                                        <button
-                                            onClick={toggleAll}
-                                            className="text-xs px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors"
-                                        >
-                                            {selectedTopics.size === generatedTopics.length ? 'Deselect All' : 'Select All'}
-                                        </button>
-                                        <button
-                                            onClick={() => { setGeneratedTopics([]); setSelectedTopics(new Set()); setError(null); }}
-                                            className="text-xs px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors"
-                                        >
-                                            ← Back
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Topic List */}
-                                <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
-                                    {generatedTopics.map((topic, index) => {
-                                        const isSelected = selectedTopics.has(index);
-                                        return (
-                                            <Motion.button
-                                                key={index}
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: index * 0.03 }}
-                                                onClick={() => toggleTopic(index)}
-                                                className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all
-                                                    ${isSelected
-                                                        ? 'bg-white/15 border border-white/20'
-                                                        : 'bg-white/5 border border-transparent hover:bg-white/10'
-                                                    }`}
-                                            >
-                                                {/* Checkbox */}
-                                                <div className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center mt-0.5 transition-all
-                                                    ${isSelected
-                                                        ? 'bg-purple-500 border-purple-500'
-                                                        : 'border-white/30 bg-transparent'
-                                                    }`}
-                                                >
-                                                    {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
-                                                </div>
-
-                                                {/* Content */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-white/30 font-mono">{index + 1}.</span>
-                                                        <h4 className="text-sm font-semibold text-white truncate">{topic.title}</h4>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        {topic.description && (
-                                                            <p className="text-xs text-white/40 line-clamp-1 truncate">{topic.description}</p>
-                                                        )}
-                                                        {topic.estimated_time > 0 && (
-                                                            <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium whitespace-nowrap flex-shrink-0">
-                                                                <Clock size={10} />
-                                                                {topic.estimated_time}m
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </Motion.button>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* Add Selected Button */}
-                                <button
-                                    onClick={handleAddSelected}
-                                    disabled={selectedTopics.size === 0}
-                                    className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2
-                                        ${selectedTopics.size === 0
-                                            ? 'bg-white/10 cursor-not-allowed text-white/30'
-                                            : `bg-gradient-to-r ${pathGradient || 'from-purple-500 to-indigo-600'} hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`
-                                        }`}
-                                >
-                                    <Check size={16} />
-                                    Add {selectedTopics.size} Topic{selectedTopics.size !== 1 ? 's' : ''}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </Motion.div>
-            </Motion.div>
-        </AnimatePresence>
+                                        <span className="task-check" aria-hidden="true">
+                                            <span>{isSelected && <Check size={12} strokeWidth={3.2} />}</span>
+                                        </span>
+                                        <span className="topic-generator__copy">
+                                            <span>{topic.title}</span>
+                                            {(topic.description || topic.estimated_time > 0) && (
+                                                <small>{[topic.estimated_time > 0 ? `${topic.estimated_time} min` : null, topic.description].filter(Boolean).join(' · ')}</small>
+                                            )}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleAddSelected}
+                            disabled={selectedTopics.size === 0}
+                            className="ui-button ui-button--accent form-submit"
+                        >
+                            Add {selectedTopics.size} {selectedTopics.size === 1 ? 'Topic' : 'Topics'}
+                        </button>
+                        <button type="button" className="ui-text-button topic-generator__again" onClick={() => handleTabChange(activeTab)}>
+                            Start Over
+                        </button>
+                    </>
+                )}
+            </div>
+        </Sheet>
     );
 };
 

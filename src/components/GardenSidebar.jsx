@@ -24,14 +24,18 @@ const GardenSidebar = ({ view }) => {
             </div>
         </section>
         <section className="task-subtasks">
-            <header><div><h2>Subtasks</h2><p>{selectedChunks.length ? `${completedChunks}/${selectedChunks.length} complete · ${formatEstimatedTime(chunkTotalMinutes) || 'No estimate'}` : 'Break this task into a small next step.'}</p></div></header>
+            <header><div><h2>Subtasks</h2>{selectedChunks.length > 0 && <p>{completedChunks} of {selectedChunks.length} done · {formatEstimatedTime(chunkTotalMinutes) || 'No estimate'}</p>}</div></header>
             <Reorder.Group axis="y" values={visibleChunks} onReorder={reorderChunks} className="task-subtask-list">
                 {visibleChunks.map((chunk) => <ChunkReorderItem key={chunk.id} chunk={chunk} expandedChunkIds={expandedChunkIds} newNestedDraft={newNestedDrafts[chunk.id]} onAddNested={addNestedSubtask} onDelete={deleteChunk} onDeleteNested={deleteNestedSubtask} onDragEnd={saveChunkOrder} onToggleExpanded={toggleChunkExpanded} onUpdate={updateChunk} onUpdateNested={updateNestedSubtask} onUpdateNestedDraft={updateNestedDraft} />)}
             </Reorder.Group>
             <div className="new-subtask-row">
-                <input value={newChunkTitle} onChange={(event) => setNewChunkTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addChunk(); } }} placeholder="Add a subtask" aria-label="New subtask title" />
-                <input type="number" min="1" value={newChunkEstimate} onChange={(event) => setNewChunkEstimate(event.target.value)} placeholder="min" aria-label="New subtask estimate" />
-                <button type="button" className="task-primary-icon" onClick={addChunk} disabled={!newChunkTitle.trim()} aria-label="Add subtask"><Plus size={18} /></button>
+                <span className="new-subtask-row__plus" aria-hidden="true"><Plus size={14} strokeWidth={2.8} /></span>
+                <input value={newChunkTitle} onChange={(event) => setNewChunkTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addChunk(); } }} placeholder="Add subtask" aria-label="New subtask title" />
+                <label className="subtask-estimate">
+                    <input type="number" min="1" value={newChunkEstimate} onChange={(event) => setNewChunkEstimate(event.target.value)} placeholder="–" aria-label="New subtask estimate in minutes" />
+                    <span aria-hidden="true">m</span>
+                </label>
+                {newChunkTitle.trim() && <button type="button" className="ui-text-button" onClick={addChunk}>Add</button>}
             </div>
         </section>
     </div>;

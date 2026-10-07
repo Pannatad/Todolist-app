@@ -10,6 +10,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import { confirmAction } from '../utils/confirm';
+import { RowMenu } from '../ui';
 
 const LearningPathCard = ({
     path,
@@ -63,7 +64,7 @@ const LearningPathCard = ({
                     aria-label={`Open ${path.name}`}
                 >
                     <span className="learning-path-card__icon" aria-hidden="true">
-                        {path.icon || '📚'}
+                        {(path.name || '?').trim().charAt(0).toUpperCase()}
                     </span>
                     <span className="learning-path-card__heading">
                         <span className="learning-path-card__title-row">
@@ -79,39 +80,24 @@ const LearningPathCard = ({
                     </span>
                 </button>
 
-                <div className="learning-path-card__actions" aria-label={`${path.name} actions`}>
-                    <button
-                        type="button"
-                        onClick={() => onTogglePin?.(path.id)}
-                        className={isPinned ? 'is-active' : ''}
-                        title={isPinned ? 'Unpin path' : 'Pin path'}
-                        aria-label={isPinned ? `Unpin ${path.name}` : `Pin ${path.name}`}
-                    >
-                        <Pin size={15} fill={isPinned ? 'currentColor' : 'none'} />
-                    </button>
-                    <button type="button" onClick={() => onEdit(path)} title="Edit path" aria-label={`Edit ${path.name}`}>
-                        <Edit2 size={15} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => (path.archived ? onRestore(path.id) : onArchive(path.id))}
-                        title={path.archived ? 'Restore path' : 'Archive path'}
-                        aria-label={path.archived ? `Restore ${path.name}` : `Archive ${path.name}`}
-                    >
-                        {path.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
-                    </button>
-                    <button
-                        type="button"
-                        className="is-danger"
-                        onClick={() => {
-                            if (confirmAction('Delete this learning path and all its topics?')) onDelete(path.id);
-                        }}
-                        title="Delete path"
-                        aria-label={`Delete ${path.name}`}
-                    >
-                        <Trash2 size={15} />
-                    </button>
-                </div>
+                <RowMenu
+                    label={`Actions for ${path.name}`}
+                    items={[
+                        { label: isPinned ? 'Unpin' : 'Pin', icon: Pin, onSelect: () => onTogglePin?.(path.id) },
+                        { label: 'Edit', icon: Edit2, onSelect: () => onEdit(path) },
+                        path.archived
+                            ? { label: 'Restore', icon: ArchiveRestore, onSelect: () => onRestore(path.id) }
+                            : { label: 'Archive', icon: Archive, onSelect: () => onArchive(path.id) },
+                        {
+                            label: 'Delete',
+                            icon: Trash2,
+                            destructive: true,
+                            onSelect: () => {
+                                if (confirmAction('Delete this learning path and all its topics?')) onDelete(path.id);
+                            },
+                        },
+                    ]}
+                />
             </div>
 
             <button type="button" className="learning-path-card__body" onClick={onClick}>

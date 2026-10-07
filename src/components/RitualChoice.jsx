@@ -10,21 +10,17 @@ const RitualChoice = ({ item, selected, onToggle }) => {
         <button
             type="button"
             {...buttonPressProps(() => onToggle(item.key))}
-            className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${selected
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] shadow-sm'
-                : 'border-[var(--color-rule)] bg-[var(--color-card)] hover:border-[var(--color-rule-2)] hover:bg-[var(--color-card-raised)]'
-                }`}
+            aria-pressed={selected}
+            className={`ritual-choice${selected ? ' is-selected' : ''}`}
         >
             <div className="flex items-start gap-3">
-                <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-ink)]' : 'border-[var(--color-rule-2)] bg-[var(--color-card-raised)] text-transparent'}`}>
-                    <Check size={12} />
-                </div>
+                <span className="ritual-choice__check" aria-hidden="true">
+                    <Check size={12} strokeWidth={3} />
+                </span>
                 <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-[var(--color-ink)]">{item.title}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]">
-                        <span>{label}</span>
-                        <span>{formatMinutes(getRitualItemEstimate(item))}</span>
-                        {deadline && <span>due {deadline.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}
+                        <span>{[label === 'habit' ? 'Habit' : 'Task', formatMinutes(getRitualItemEstimate(item)), deadline ? `due ${deadline.toLocaleDateString([], { month: 'short', day: 'numeric' })}` : null].filter(Boolean).join(' · ')}</span>
                     </div>
                 </div>
             </div>

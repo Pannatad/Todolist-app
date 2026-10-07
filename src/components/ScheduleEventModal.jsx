@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, Repeat, Palette, Check, Tag } from 'lucide-react';
 import { toLocalDateKey, upsertOverride, weekdayOverrideKey } from '../utils/scheduleOccurrences';
 import { toast } from '../ui/Toast';
-import { Sheet } from '../ui';
+import { SegmentedControl, Sheet } from '../ui';
 import { confirmAction } from '../utils/confirm';
 
 const PRESET_COLORS = [
@@ -221,265 +220,180 @@ const ScheduleEventModal = ({
 
     if (!isOpen) return null;
 
+    const durationOptions = [...new Set([15, 30, 45, 60, 90, 120, 180, 240, Number(formData.duration) || 60])].sort((a, b) => a - b);
+    const durationLabel = (mins) => (mins < 60 ? `${mins} min` : mins % 60 ? `${Math.floor(mins / 60)} hr ${mins % 60} min` : `${mins / 60} hr`);
+    const submitLabel = isSubmitting ? 'Saving…' : !event ? 'Add' : isDayScope ? (editScope === 'weekday' ? `Save ${weekdayLabel}s` : 'Save This Day') : 'Save';
+
     return (
         <Sheet
             open={isOpen}
             onClose={onClose}
-            title={event ? 'Edit event' : itemKind === 'flexible_shell' ? 'New flexible shell' : parentItemId ? 'New nested event' : 'New event'}
+            title={event ? 'Edit Event' : itemKind === 'flexible_shell' ? 'New Flexible Shell' : parentItemId ? 'New Nested Event' : 'New Event'}
+            className="form-sheet"
         >
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* Edit scope for recurring occurrences */}
-                        {canCustomizeDay && (
-                            <div>
-                                <div className="flex gap-1 rounded-xl bg-sage-100 dark:bg-void-800 p-1">
-                                    {[
-                                        { value: 'day', label: 'This day' },
-                                        { value: 'weekday', label: `${weekdayLabel}s` },
-                                        { value: 'series', label: 'Series' },
-                                    ].map((scope) => (
-                                        <button
-                                            key={scope.value}
-                                            type="button"
-                                            onClick={() => setEditScope(scope.value)}
-                                            className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors ${editScope === scope.value
-                                                ? 'bg-white dark:bg-void-900 text-sage-800 dark:text-bone-100 shadow-sm'
-                                                : 'text-sage-500 dark:text-bone-300'
-                                                }`}
-                                        >
-                                            {scope.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                {isDayScope && (
-                                    <p className="mt-1.5 text-xs text-sage-500 dark:text-bone-300">
-                                        {editScope === 'weekday'
-                                            ? `Changes apply to every ${weekdayLabel} of “${seriesBase.title || event?.title}”.`
-                                            : `Changes apply to this day only. The series stays “${seriesBase.title || event?.title}”.`}
-                                    </p>
-                                )}
-                            </div>
-                        )}
+            <form onSubmit={handleSubmit} className="form-stack">
+                {canCustomizeDay && (
+                    <SegmentedControl
+                        items={[
+                            { id: 'day', label: 'This Day' },
+                            { id: 'weekday', label: `${weekdayLabel}s` },
+                            { id: 'series', label: 'Series' },
+                        ]}
+                        value={editScope}
+                        onChange={setEditScope}
+                        ariaLabel="Apply changes to"
+                        className="form-segments"
+                    />
+                )}
 
-                        {/* Title */}
-                        <div>
-                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                Event Title
-                            </label>
+                <div className="form-group">
+                    <label className="form-field">
+                        <span className="sr-only">Title</span>
+                        <input
+                            type="text"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            placeholder="Title"
+                            autoFocus
+                        />
+                    </label>
+                </div>
+
+                <div className="form-group">
+                    {!isDayScope && (
+                        <label className="form-field form-field--value">
+                            <span className="form-field__label">Date</span>
                             <input
-                                type="text"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                placeholder="Add title"
-                                className="w-full px-4 py-3 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-xl text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] font-medium text-lg"
-                                autoFocus
+                                type="date"
+                                value={formData.date}
+                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                             />
-                        </div>
+                        </label>
+                    )}
+                    <label className="form-field form-field--value">
+                        <span className="form-field__label">Starts</span>
+                        <input
+                            type="time"
+                            value={formData.startTime}
+                            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                        />
+                    </label>
+                    <label className="form-field form-field--value">
+                        <span className="form-field__label">Duration</span>
+                        <select
+                            value={formData.duration}
+                            onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value, 10) || 60 })}
+                        >
+                            {durationOptions.map((mins) => <option key={mins} value={mins}>{durationLabel(mins)}</option>)}
+                        </select>
+                    </label>
+                </div>
 
-                        {/* Date and Time Row */}
-                        <div className={`grid gap-4 ${isDayScope ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                            {!isDayScope && (
-                            <div>
-                                <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                    <Calendar size={14} className="inline mr-1" /> Date
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                <div className="form-group">
+                    <label className="form-field form-field--value">
+                        <span className="form-field__label">Category</span>
+                        <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                            {[...new Set([...CATEGORY_OPTIONS, formData.category].filter(Boolean))].map((cat) => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <div className="form-field form-field--stacked form-field--swatches">
+                        <span className="form-field__label">Color</span>
+                        <div className="form-swatches form-swatches--compact" role="radiogroup" aria-label="Color">
+                            {PRESET_COLORS.map((color) => (
+                                <button
+                                    key={color.value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={formData.color === color.value}
+                                    aria-label={color.name}
+                                    onClick={() => setFormData({ ...formData, color: color.value })}
+                                    className={`form-swatch${formData.color === color.value ? ' is-selected' : ''}`}
+                                    style={{ '--swatch': color.value }}
                                 />
-                            </div>
-                            )}
-                            <div>
-                                <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                    <Clock size={14} className="inline mr-1" /> Start Time
-                                </label>
-                                <input
-                                    type="time"
-                                    value={formData.startTime}
-                                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                                    className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-                                />
-                            </div>
+                            ))}
                         </div>
+                    </div>
+                </div>
 
-                        {/* Duration */}
-                        <div>
-                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                Duration
-                            </label>
-                            <div className="flex gap-2 flex-wrap">
-                                {[15, 30, 45, 60, 90, 120].map((mins) => (
-                                    <button
-                                        key={mins}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, duration: mins })}
-                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.duration === mins
-                                                ? 'bg-[var(--color-accent)] text-white'
-                                                : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
-                                            }`}
-                                    >
-                                        {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
-                                    </button>
-                                ))}
-                                <input
-                                    type="number"
-                                    value={formData.duration}
-                                    onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 60 })}
-                                    className="w-20 px-2 py-1.5 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 text-sm text-center"
-                                    min="5"
-                                    max="480"
-                                />
-                                <span className="text-sm text-sage-500 self-center">min</span>
-                            </div>
-                        </div>
-
-                        {/* Category */}
-                        <div>
-                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                <Tag size={14} className="inline mr-1" /> Category
-                            </label>
-                            <div className="flex gap-2 flex-wrap">
-                                {CATEGORY_OPTIONS.map((cat) => (
-                                    <button
-                                        key={cat}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, category: cat })}
-                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${formData.category === cat
-                                            ? 'bg-[var(--color-accent)] text-white'
-                                            : 'bg-sage-100 dark:bg-void-800 text-sage-600 dark:text-bone-300 hover:bg-sage-200 dark:hover:bg-void-700'
-                                            }`}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Color Picker */}
-                        <div>
-                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                <Palette size={14} className="inline mr-1" /> Color
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                                {PRESET_COLORS.map((color) => (
-                                    <button
-                                        key={color.value}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, color: color.value })}
-                                        className={`w-8 h-8 rounded-full transition-all hover:scale-110 ${formData.color === color.value ? 'ring-2 ring-offset-2 ring-sage-400' : ''
-                                            }`}
-                                        style={{ backgroundColor: color.value }}
-                                        title={color.name}
-                                    >
-                                        {formData.color === color.value && (
-                                            <Check size={16} className="text-white m-auto" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Recurrence */}
-                        {!isDayScope && (
-                        <div>
-                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                <Repeat size={14} className="inline mr-1" /> Recurrence
-                            </label>
+                {!isDayScope && (
+                    <div className="form-group">
+                        <label className="form-field form-field--value">
+                            <span className="form-field__label">Repeat</span>
                             <select
                                 value={formData.recurrenceType}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setFormData({ ...formData, recurrenceType: value });
-                                }}
-                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                                onChange={(e) => setFormData({ ...formData, recurrenceType: e.target.value })}
                             >
                                 {RECURRENCE_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    <option key={opt.value} value={opt.value}>{opt.value === 'none' ? 'Never' : opt.label.replace('...', '')}</option>
                                 ))}
                             </select>
-
-                            {/* Custom Recurrence Options */}
-                            {(formData.recurrenceType === 'custom' || formData.recurrenceType === 'weekly') && (
-                                <div className="mt-3 p-3 bg-sage-50 dark:bg-void-800 rounded-lg space-y-3">
-                                    {formData.recurrenceType === 'custom' && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-sage-600 dark:text-bone-300">Repeat every</span>
-                                            <input
-                                                type="number"
-                                                value={formData.recurrenceInterval}
-                                                onChange={(e) => setFormData({ ...formData, recurrenceInterval: parseInt(e.target.value) || 1 })}
-                                                className="w-16 px-2 py-1 bg-white dark:bg-void-900 border border-sage-200 dark:border-white/10 rounded text-center"
-                                                min="1"
-                                                max="99"
-                                            />
-                                            <span className="text-sm text-sage-600 dark:text-bone-300">week(s)</span>
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        <span className="text-sm text-sage-600 dark:text-bone-300 block mb-2">Repeat on:</span>
-                                        <div className="flex gap-1">
-                                            {DAYS_OF_WEEK.map((day, index) => (
-                                                <button
-                                                    key={day}
-                                                    type="button"
-                                                    onClick={() => toggleDayOfWeek(index)}
-                                                    className={`w-9 h-9 rounded-full text-xs font-bold transition-colors ${formData.recurrenceDaysOfWeek.includes(index)
-                                                            ? 'bg-[var(--color-accent)] text-white'
-                                                            : 'bg-white dark:bg-void-900 text-sage-600 dark:text-bone-300 border border-sage-200 dark:border-white/10'
-                                                        }`}
-                                                >
-                                                    {day.charAt(0)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* End Date for Recurrence */}
-                            {formData.recurrenceType !== 'none' && (
-                                <div className="mt-3">
-                                    <label className="block text-sm text-sage-600 dark:text-bone-300 mb-1">
-                                        End date (optional)
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.recurrenceEndDate}
-                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                                        className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        )}
-
-                        {/* Notes */}
-                        <div>
-                            <label className="block text-sm font-bold text-sage-600 dark:text-sage-400 mb-1">
-                                Notes
+                        </label>
+                        {formData.recurrenceType === 'custom' && (
+                            <label className="form-field form-field--value">
+                                <span className="form-field__label">Every</span>
+                                <input
+                                    type="number"
+                                    value={formData.recurrenceInterval}
+                                    onChange={(e) => setFormData({ ...formData, recurrenceInterval: parseInt(e.target.value, 10) || 1 })}
+                                    min="1"
+                                    max="99"
+                                    aria-label="Repeat every N weeks"
+                                />
+                                <span className="form-field__suffix">weeks</span>
                             </label>
-                            <textarea
-                                value={formData.notes}
-                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                placeholder="Add notes..."
-                                rows={2}
-                                className="w-full px-3 py-2 bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 rounded-lg text-sage-800 dark:text-bone-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] resize-none"
-                            />
-                        </div>
-                    </form>
+                        )}
+                        {(formData.recurrenceType === 'custom' || formData.recurrenceType === 'weekly') && (
+                            <div className="form-field form-days" role="group" aria-label="Repeat on">
+                                {DAYS_OF_WEEK.map((day, index) => (
+                                    <button
+                                        key={day}
+                                        type="button"
+                                        aria-pressed={formData.recurrenceDaysOfWeek.includes(index)}
+                                        aria-label={day}
+                                        onClick={() => toggleDayOfWeek(index)}
+                                        className={`form-day${formData.recurrenceDaysOfWeek.includes(index) ? ' is-selected' : ''}`}
+                                    >
+                                        {day.charAt(0)}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {formData.recurrenceType !== 'none' && (
+                            <label className="form-field form-field--value">
+                                <span className="form-field__label">End Repeat</span>
+                                <input
+                                    type="date"
+                                    value={formData.recurrenceEndDate}
+                                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                />
+                            </label>
+                        )}
+                    </div>
+                )}
 
-                    {/* Footer */}
-                    <div className="flex flex-wrap gap-3 p-4 border-t border-sage-100 dark:border-white/10 bg-sage-50 dark:bg-void-800/50">
+                <div className="form-group">
+                    <label className="form-field form-field--stacked">
+                        <span className="sr-only">Notes</span>
+                        <textarea
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder="Notes"
+                            rows={2}
+                        />
+                    </label>
+                </div>
+
+                <button type="submit" disabled={!formData.title.trim() || isSubmitting} className="ui-button ui-button--accent form-submit">
+                    {submitLabel}
+                </button>
+
+                {(event && onDelete) || (isDayScope && event?._hasOverride) ? (
+                    <div className="form-group">
                         {isDayScope && event?._hasOverride && (
-                            <button
-                                type="button"
-                                onClick={handleResetDay}
-                                disabled={isSubmitting}
-                                className="px-4 py-2 text-sage-600 dark:text-bone-300 hover:bg-sage-100 dark:hover:bg-void-700 rounded-lg font-bold transition-colors"
-                            >
-                                Reset day
+                            <button type="button" onClick={handleResetDay} disabled={isSubmitting} className="form-field form-option form-option--tinted">
+                                Reset This Day
                             </button>
                         )}
                         {event && onDelete && canDeleteSingleOccurrence && (
@@ -491,9 +405,9 @@ const ScheduleEventModal = ({
                                     }
                                 }}
                                 disabled={isSubmitting}
-                                className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
+                                className="form-field form-option form-option--destructive"
                             >
-                                Delete this occurrence
+                                Delete This Event Only
                             </button>
                         )}
                         {event && onDelete && (
@@ -505,32 +419,14 @@ const ScheduleEventModal = ({
                                     }
                                 }}
                                 disabled={isSubmitting}
-                                className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold transition-colors"
+                                className="form-field form-option form-option--destructive"
                             >
-                                {isRecurringSeries ? 'Delete series' : 'Delete'}
+                                {isRecurringSeries ? 'Delete All Events' : 'Delete Event'}
                             </button>
                         )}
-                        <div className="flex-1" />
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                            className="px-4 py-2 bg-sage-200 dark:bg-void-700 text-sage-700 dark:text-bone-300 rounded-lg font-bold hover:bg-sage-300 dark:hover:bg-void-600 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            onClick={handleSubmit}
-                            disabled={!formData.title.trim() || isSubmitting}
-                            className={`px-6 py-2 rounded-lg font-bold transition-colors ${formData.title.trim()
-                                    ? 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
-                                    : 'bg-sage-300 text-sage-500 cursor-not-allowed'
-                                }`}
-                        >
-                            {isSubmitting ? 'Saving...' : !event ? 'Create Event' : isDayScope ? (editScope === 'weekday' ? `Save ${weekdayLabel}s` : 'Save this day') : 'Save Changes'}
-                        </button>
                     </div>
+                ) : null}
+            </form>
         </Sheet>
     );
 };

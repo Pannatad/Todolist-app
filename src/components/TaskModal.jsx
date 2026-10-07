@@ -1,11 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
-import { X, Sun, Pencil, Check } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { toast } from '../ui/Toast';
 import { Sheet } from '../ui';
 
-const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) => {
+const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create', allowAddToToday = false }) => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -40,8 +40,6 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
             setNewSubtask('');
         }
     }, [isOpen, initialData?.id]);
-
-    if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -121,172 +119,116 @@ const TaskModal = ({ isOpen, onClose, onSave, initialData, mode = 'create' }) =>
     };
 
     return (
-        <Sheet open={isOpen} onClose={onClose} title={mode === 'create' ? 'New task' : 'Edit task'}>
-
-                {/* Add to Today Banner (Only in Edit Mode) */}
-                {mode === 'edit' && (
-                    <div className="px-8 pt-6">
-                        <button
-                            onClick={handleAddToToday}
-                            className="w-full flex items-center justify-center gap-3 p-4 bg-[var(--color-warning-soft)] border border-[var(--color-warning)]/30 rounded-2xl text-[var(--color-warning)] hover:opacity-80 transition-colors font-semibold text-base"
-                        >
-                            <Sun className="w-5 h-5" />
-                            Add to Today's Focus
-                        </button>
-                    </div>
-                )}
-
-                <div className="overflow-y-auto px-8 py-6 space-y-6">
-                    <div>
-                        <label className="block text-sm font-semibold text-sage-700 dark:text-bone-200 mb-2">Title</label>
+        <Sheet open={isOpen} onClose={onClose} title={mode === 'create' ? 'New Task' : 'Edit Task'} className="form-sheet">
+            <form onSubmit={handleSubmit} className="form-stack">
+                <div className="form-group">
+                    <label className="form-field">
+                        <span className="sr-only">Title</span>
                         <input
                             type="text"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            className="w-full px-5 py-3 rounded-xl bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 focus:ring-2 focus:ring-sage-500 dark:focus:ring-magma-500 text-sage-900 dark:text-bone-100 text-base"
-                            placeholder="Task title"
+                            placeholder="Title"
                             required
                         />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-semibold text-sage-700 dark:text-bone-200 mb-2">Description</label>
+                    </label>
+                    <label className="form-field form-field--stacked">
+                        <span className="sr-only">Notes</span>
                         <textarea
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full px-5 py-3 rounded-xl bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 focus:ring-2 focus:ring-sage-500 dark:focus:ring-magma-500 text-sage-900 dark:text-bone-100 resize-none h-28 text-base"
-                            placeholder="Task description"
+                            placeholder="Notes"
+                            rows={3}
                         />
-                    </div>
+                    </label>
+                </div>
 
-                    <div>
-                        <div>
-                            <label className="block text-sm font-semibold text-sage-700 dark:text-bone-200 mb-2">Priority</label>
-                            <select
-                                value={formData.priority}
-                                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                                className="w-full px-5 py-3 rounded-xl bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 focus:ring-2 focus:ring-sage-500 dark:focus:ring-magma-500 text-sage-900 dark:text-bone-100 text-base"
-                            >
-                                <option value="Low">Low</option>
-                                <option value="Medium">Medium</option>
-                                <option value="High">High</option>
-                            </select>
-                        </div>
+                <div className="form-group">
+                    <label className="form-field form-field--value">
+                        <span className="form-field__label">Priority</span>
+                        <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </label>
+                </div>
 
-                    </div>
-
-                    {/* Subtasks Section */}
-                    <div className="pt-2">
-                        <label className="block text-sm font-semibold text-sage-700 dark:text-bone-200 mb-3">Subtasks</label>
-
-                        <div className="flex gap-3 mb-4">
-                            <input
-                                type="text"
-                                value={newSubtask}
-                                onChange={(e) => setNewSubtask(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && addSubtask(e)}
-                                className="flex-1 px-5 py-3 rounded-xl bg-sage-50 dark:bg-void-800 border border-sage-200 dark:border-white/10 focus:ring-2 focus:ring-sage-500 dark:focus:ring-magma-500 text-sage-900 dark:text-bone-100 text-base"
-                                placeholder="Add a subtask..."
-                            />
+                <p className="form-section-label">Subtasks</p>
+                <div className="form-group">
+                    {formData.subtasks.map((subtask) => (
+                        <div key={subtask.id} className="form-field form-subtask">
                             <button
                                 type="button"
-                                onClick={addSubtask}
-                                className="px-5 py-3 rounded-xl bg-sage-100 dark:bg-void-700 text-sage-700 dark:text-bone-200 hover:bg-sage-200 dark:hover:bg-void-600 transition-colors text-base font-semibold"
+                                className="task-check form-subtask__check"
+                                aria-pressed={subtask.completed}
+                                aria-label={subtask.completed ? `Mark ${subtask.title} not done` : `Complete ${subtask.title}`}
+                                onClick={() => toggleSubtask(subtask.id)}
                             >
-                                Add
+                                <span>{subtask.completed && <Check size={12} strokeWidth={3.2} />}</span>
+                            </button>
+                            {editingSubtaskId === subtask.id ? (
+                                <input
+                                    type="text"
+                                    value={editingSubtaskTitle}
+                                    onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                                    onBlur={saveSubtaskEdit}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            saveSubtaskEdit();
+                                        }
+                                        if (e.key === 'Escape') cancelSubtaskEdit();
+                                    }}
+                                    autoFocus
+                                    aria-label="Subtask title"
+                                />
+                            ) : (
+                                <button
+                                    type="button"
+                                    className={`form-subtask__title${subtask.completed ? ' is-done' : ''}`}
+                                    onClick={() => startEditingSubtask(subtask)}
+                                >
+                                    {subtask.title}
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => deleteSubtask(subtask.id)}
+                                className="form-remove"
+                                aria-label={`Delete ${subtask.title}`}
+                            >
+                                <X size={14} strokeWidth={2.6} />
                             </button>
                         </div>
-
-                        <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                            {formData.subtasks.map(subtask => (
-                                <div key={subtask.id} className="flex items-center gap-4 p-3 rounded-xl bg-sage-50/50 dark:bg-void-800/30 hover:bg-sage-100 dark:hover:bg-void-800/60 transition-colors group border border-sage-100 dark:border-white/5">
-                                    <input
-                                        type="checkbox"
-                                        checked={subtask.completed}
-                                        onChange={() => toggleSubtask(subtask.id)}
-                                        className="w-5 h-5 rounded-lg border-sage-300 text-sage-600 focus:ring-sage-500 dark:bg-void-700 dark:border-white/10"
-                                    />
-                                    {editingSubtaskId === subtask.id ? (
-                                        <div className="flex-1 flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                value={editingSubtaskTitle}
-                                                onChange={(e) => setEditingSubtaskTitle(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') saveSubtaskEdit();
-                                                    if (e.key === 'Escape') cancelSubtaskEdit();
-                                                }}
-                                                autoFocus
-                                                className="flex-1 px-2 py-1 text-sm rounded bg-sage-50 dark:bg-void-800 border border-sage-300 dark:border-white/20 focus:ring-2 focus:ring-sage-500 dark:focus:ring-magma-500 text-sage-900 dark:text-bone-100"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={saveSubtaskEdit}
-                                                className="text-[var(--color-success)] hover:opacity-80"
-                                            >
-                                                <Check className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={cancelSubtaskEdit}
-                                                className="text-sage-400 hover:text-red-500"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <span
-                                                className={`flex-1 text-sm cursor-pointer ${subtask.completed ? 'text-sage-400 dark:text-bone-500 line-through' : 'text-sage-700 dark:text-bone-200'}`}
-                                                onDoubleClick={() => startEditingSubtask(subtask)}
-                                                title="Double-click to edit"
-                                            >
-                                                {subtask.title}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => startEditingSubtask(subtask)}
-                                                className="opacity-0 group-hover:opacity-100 text-sage-400 hover:text-sage-600 dark:hover:text-bone-200 transition-all"
-                                                title="Edit subtask"
-                                            >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => deleteSubtask(subtask.id)}
-                                                className="opacity-0 group-hover:opacity-100 text-sage-400 hover:text-red-500 transition-all"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            ))}
-                            {formData.subtasks.length === 0 && (
-                                <p className="text-sm text-sage-400 dark:text-bone-500 italic text-center py-4">
-                                    No subtasks yet
-                                </p>
-                            )}
-                        </div>
+                    ))}
+                    <div className="form-field">
+                        <input
+                            type="text"
+                            value={newSubtask}
+                            onChange={(e) => setNewSubtask(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addSubtask(e)}
+                            placeholder="Add subtask"
+                            aria-label="New subtask"
+                        />
+                        {newSubtask.trim() && (
+                            <button type="button" onClick={addSubtask} className="ui-text-button">Add</button>
+                        )}
                     </div>
                 </div>
 
-                <div className="px-8 py-6 border-t border-sage-100 dark:border-white/5 shrink-0 flex gap-4 bg-white dark:bg-void-900">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 px-6 py-3.5 rounded-xl border-2 border-sage-200 dark:border-white/10 text-sage-600 dark:text-bone-300 hover:bg-sage-50 dark:hover:bg-void-800 transition-colors font-semibold text-base"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSubmit}
-                        className="flex-1 px-6 py-3.5 rounded-xl bg-sage-600 dark:bg-magma-600 text-white font-semibold hover:bg-sage-700 dark:hover:bg-magma-700 transition-colors text-base shadow-lg shadow-sage-600/20 dark:shadow-magma-600/20"
-                    >
-                        {mode === 'create' ? 'Create Task' : 'Save Changes'}
-                    </button>
-                </div>
+                <button type="submit" className="ui-button ui-button--accent form-submit">
+                    {mode === 'create' ? 'Add Task' : 'Save'}
+                </button>
+
+                {allowAddToToday && mode === 'edit' && (
+                    <div className="form-group">
+                        <button type="button" onClick={handleAddToToday} className="form-field form-option form-option--tinted">
+                            Add to Tasks
+                        </button>
+                    </div>
+                )}
+            </form>
         </Sheet>
     );
 };

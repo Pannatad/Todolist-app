@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, CalendarDays, GraduationCap, LayoutDashboard } from 'lucide-react';
+import { AlertCircle, Settings2 } from 'lucide-react';
 import { useTask } from '../../context/TaskContext';
 import { buildUniBoardViewModel } from '../../utils/uniBoardItems';
 import { toast } from '../../ui/Toast';
-import { SegmentedControl } from '../../ui';
+import { BarButton, PageHeader, SegmentedControl } from '../../ui';
 import MagicSchedule from '../magic/MagicSchedule';
 import Agenda from './Agenda';
 import ActionPanel from './ActionPanel';
@@ -13,7 +13,6 @@ import DetailsSheet from './DetailsSheet';
 import Links from './Links';
 import MilestoneTimeline from './MilestoneTimeline';
 import QuickAdd from './QuickAdd';
-import { useLinks } from '../../context/LinksContext';
 import { isClassScheduleItem, withUniversityScheduleDefaults } from './classSchedule';
 import { confirmAction } from '../../utils/confirm';
 import './uni-board.css';
@@ -24,7 +23,6 @@ const skeletonSections = [1, 2, 3];
 
 const UniBoard = () => {
   const context = useTask();
-  const { links = [], isLoading: isLinksLoading = false } = useLinks();
   const {
     tasks = [],
     scheduleItems = [],
@@ -65,7 +63,6 @@ const UniBoard = () => {
   const outstandingTasks = viewModel?.outstandingTasks || [];
   const assessments = viewModel?.assessments || [];
   const milestones = viewModel?.milestones || [];
-  const hasRecords = agendaGroups.length + outstandingTasks.length + assessments.length + milestones.length + links.length > 0;
   const classScheduleItems = useMemo(
     () => scheduleItems.filter(isClassScheduleItem),
     [scheduleItems],
@@ -108,33 +105,21 @@ const UniBoard = () => {
 
   return (
     <div className="uni-board">
-      <header className="uni-board-header">
-        <div className="uni-board-header__title">
-          <span className="uni-board-header__icon" aria-hidden="true"><GraduationCap size={20} /></span>
-          <div>
-            <p className="uni-board-kicker">University workspace</p>
-            <h1>Uni-board</h1>
-          </div>
-        </div>
-        <div className="uni-board-header__actions">
-          <p className="uni-board-header__date">{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(now)}</p>
-          {view === 'overview' ? (
-            <QuickAdd addTask={addTask} addScheduleItem={addScheduleItem} />
-          ) : view === 'class-schedule' ? (
-            <button type="button" className="uni-board-add-trigger" onClick={() => setClassSheetOpen(true)}>
-              <CalendarDays size={17} aria-hidden="true" />
-              <span>Manage classes</span>
-            </button>
-          ) : null}
-        </div>
-      </header>
+      <PageHeader
+        title="Uni"
+        actions={view === 'overview' ? (
+          <QuickAdd addTask={addTask} addScheduleItem={addScheduleItem} />
+        ) : view === 'class-schedule' ? (
+          <BarButton icon={Settings2} label="Manage classes" onClick={() => setClassSheetOpen(true)} />
+        ) : null}
+      />
 
       <SegmentedControl
         className="uni-board-view-tabs"
         items={[
-          { id: 'overview', label: 'Overview', icon: LayoutDashboard, controls: 'uni-board-overview' },
-          { id: 'classes', label: 'Classes', icon: BookOpen, controls: 'uni-board-classes' },
-          { id: 'class-schedule', label: 'Class schedule', icon: CalendarDays, controls: 'uni-board-class-schedule' },
+          { id: 'overview', label: 'Overview', controls: 'uni-board-overview' },
+          { id: 'classes', label: 'Classes', controls: 'uni-board-classes' },
+          { id: 'class-schedule', label: 'Schedule', controls: 'uni-board-class-schedule' },
         ]}
         value={view}
         onChange={setView}
@@ -147,10 +132,6 @@ const UniBoard = () => {
           <span>Some university items could not be loaded.</span>
           <button type="button" onClick={handleRetry}>Retry</button>
         </div>
-      )}
-
-      {view === 'overview' && !isLoading && !isLinksLoading && !hasRecords && (
-        <p className="uni-board-full-empty">Add your first deadline, exam, or event.</p>
       )}
 
       {view === 'overview' ? (
@@ -192,8 +173,6 @@ const UniBoard = () => {
             onAddEvent={addClassScheduleItem}
             onUpdateEvent={updateScheduleItem}
             onDeleteEvent={deleteScheduleItem}
-            eyebrow="Class schedule"
-            description="Add your real classes, repeat them each week, and see where your time goes."
           />
         </section>
       )}

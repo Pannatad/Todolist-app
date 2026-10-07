@@ -1,10 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, GraduationCap, Layers, ListChecks, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
-import { COLOR_OPTIONS } from './LearningPathModal';
 import ScheduleEventModal from './ScheduleEventModal';
 import TaskEditModal from './TaskEditModal';
 import { formatDuration, formatTime, getItemColor, getMonday } from './weeklyPlanUtils';
@@ -15,6 +13,7 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
     const [subjectFilter, setSubjectFilter] = useState('all');
     const [editingScheduleItem, setEditingScheduleItem] = useState(null);
     const [editingTask, setEditingTask] = useState(null);
+    const [completingIds, setCompletingIds] = useState(() => new Set());
     const { getTimetableForDay } = useLearning();
 
     const weekDates = useMemo(() => {
@@ -113,9 +112,8 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
         return { taskCount, scheduleCount, learningCount, minutes, busiest };
     }, [itemsByDate, visibleItems, weekDates]);
 
-    const weekLabel = `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} - ${weekDates[6].toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+    const weekLabel = `${weekDates[0].toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${weekDates[6].toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
     const todayKey = toLocalDateKey(new Date());
-    const maxDailyItems = Math.max(1, ...Object.values(itemsByDate).map((items) => items.length));
 
     const handleItemClick = (item) => {
         if (item.type === 'task') {
@@ -132,202 +130,124 @@ const WeeklyPlan = ({ tasks = [], scheduleItems = [], onCompleteTask, onDeleteSc
         onUpdateScheduleItem?.(eventData.id, eventData)
     );
 
+    const completeTask = (item) => {
+        setCompletingIds((current) => new Set(current).add(item.id));
+        window.setTimeout(() => onCompleteTask?.(item.id), 380);
+    };
+
     return (
-        <div className="h-full overflow-y-auto rounded-2xl border border-[var(--color-rule)] bg-[var(--color-card)] p-4 text-[var(--color-ink)] shadow-sm sm:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="week-list">
+            <div className="week-list__toolbar">
                 <div>
-                    <div className="flex items-center gap-2 text-[var(--color-accent)]">
-                        <CalendarDays size={18} />
-                        <span className="app-eyebrow">Weekly plan</span>
-                    </div>
-                    <h2 className="app-page-title mt-1">{weekLabel}</h2>
+                    <h2 className="week-list__title">{weekLabel}</h2>
+                    <p className="week-list__summary">
+                        {visibleItems.length} {visibleItems.length === 1 ? 'item' : 'items'} · {formatDuration(weeklyStats.minutes)} planned
+                    </p>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        onClick={() => setWeekOffset((prev) => prev - 1)}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink-2)] transition hover:bg-[var(--color-paper-2)]"
-                    >
-                        <ChevronLeft size={18} />
+                <div className="week-list__nav">
+                    {weekOffset !== 0 && (
+                        <button type="button" className="ui-text-button" onClick={() => setWeekOffset(0)}>Today</button>
+                    )}
+                    <button type="button" className="ui-round-button" onClick={() => setWeekOffset((prev) => prev - 1)} aria-label="Previous week">
+                        <ChevronLeft size={19} strokeWidth={2.3} />
                     </button>
-                    <button
-                        onClick={() => setWeekOffset(0)}
-                        className="flex h-10 items-center gap-2 rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 text-sm font-bold text-[var(--color-ink-2)] transition hover:bg-[var(--color-paper-2)]"
-                    >
-                        <RotateCcw size={15} />
-                        This week
-                    </button>
-                    <button
-                        onClick={() => setWeekOffset((prev) => prev + 1)}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] text-[var(--color-ink-2)] transition hover:bg-[var(--color-paper-2)]"
-                    >
-                        <ChevronRight size={18} />
+                    <button type="button" className="ui-round-button" onClick={() => setWeekOffset((prev) => prev + 1)} aria-label="Next week">
+                        <ChevronRight size={19} strokeWidth={2.3} />
                     </button>
                 </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                        <ListChecks size={14} />
-                        Tasks
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{weeklyStats.taskCount}</div>
-                </div>
-                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                        <Layers size={14} />
-                        Schedule
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{weeklyStats.scheduleCount}</div>
-                </div>
-                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                        <GraduationCap size={14} />
-                        Learning
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{weeklyStats.learningCount}</div>
-                </div>
-                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
-                        <Clock size={14} />
-                        Load
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{formatDuration(weeklyStats.minutes)}</div>
-                </div>
-                <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">Busiest</div>
-                    <div className="mt-1 truncate text-lg font-bold text-[var(--color-ink)]">
-                        {weeklyStats.busiest?.count ? weeklyStats.busiest.date.toLocaleDateString([], { weekday: 'long' }) : 'Clear'}
-                    </div>
-                </div>
+            <div className="week-list__filters">
+                <label className="pill-select">
+                    <span className="sr-only">Show</span>
+                    <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                        <option value="all">Everything</option>
+                        <option value="task">Tasks</option>
+                        <option value="schedule">Events</option>
+                        <option value="learning">Learning</option>
+                    </select>
+                    <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
+                </label>
+                {subjects.length > 1 && (
+                    <label className="pill-select">
+                        <span className="sr-only">Category</span>
+                        <select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}>
+                            <option value="all">All categories</option>
+                            {subjects.map((subject) => (
+                                <option key={subject} value={subject}>{subject}</option>
+                            ))}
+                        </select>
+                        <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
+                    </label>
+                )}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 md:flex-row">
-                <select
-                    value={typeFilter}
-                    onChange={(event) => setTypeFilter(event.target.value)}
-                    className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm font-bold text-[var(--color-ink-2)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
-                >
-                    <option value="all">Tasks + schedule + learning</option>
-                    <option value="task">Tasks only</option>
-                    <option value="schedule">Schedule only</option>
-                    <option value="learning">Learning only</option>
-                </select>
-                <select
-                    value={subjectFilter}
-                    onChange={(event) => setSubjectFilter(event.target.value)}
-                    className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-card-raised)] px-3 py-2 text-sm font-bold text-[var(--color-ink-2)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
-                >
-                    <option value="all">All subjects/categories</option>
-                    {subjects.map((subject) => (
-                        <option key={subject} value={subject}>{subject}</option>
-                    ))}
-                </select>
-            </div>
+            {weekDates.map((date) => {
+                const dateKey = toLocalDateKey(date);
+                const dayItems = itemsByDate[dateKey] || [];
+                const isToday = dateKey === todayKey;
+                const dayLabel = isToday
+                    ? `Today, ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+                    : date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
 
-            <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-7">
-                {weekDates.map((date) => {
-                    const dateKey = toLocalDateKey(date);
-                    const dayItems = itemsByDate[dateKey] || [];
-                    const isToday = dateKey === todayKey;
-                    const loadPercent = Math.round((dayItems.length / maxDailyItems) * 100);
+                return (
+                    <section key={dateKey} className="week-list__day" aria-label={dayLabel}>
+                        <div className={`ui-section-title week-list__day-title${isToday ? ' is-today' : ''}`}>
+                            <h3>{dayLabel}</h3>
+                            {dayItems.length > 0 && <span>{dayItems.length}</span>}
+                        </div>
 
-                    return (
-                        <section
-                            key={dateKey}
-                            className={`rounded-2xl border p-3 ${isToday ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]' : 'border-[var(--color-rule)] bg-[var(--color-paper-2)]'}`}
-                        >
-                            <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <div className={`text-xs font-bold uppercase tracking-wide ${isToday ? 'text-[var(--color-accent)]' : 'text-[var(--color-muted)]'}`}>
-                                        {date.toLocaleDateString([], { weekday: 'short' })}
-                                    </div>
-                                    <div className="text-xl font-bold text-[var(--color-ink)]">{date.getDate()}</div>
-                                </div>
-                                <span className="rounded-full bg-[var(--color-card-raised)] px-2 py-1 text-xs font-bold text-[var(--color-muted)] shadow-sm">
-                                    {dayItems.length}
-                                </span>
-                            </div>
+                        {dayItems.length === 0 ? (
+                            <p className="week-list__free">Free</p>
+                        ) : (
+                            <div className="ui-group">
+                                {dayItems.map((item) => {
+                                    const color = getItemColor(item).color;
+                                    const isTask = item.type === 'task';
+                                    const isLearning = item.type === 'learning';
+                                    const meta = [
+                                        formatTime(item.displayTime),
+                                        item.duration ? formatDuration(item.duration) : null,
+                                        item.label,
+                                    ].filter(Boolean).join(' · ');
 
-                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-rule)]">
-                                <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${loadPercent}%` }} />
-                            </div>
-
-                            <div className="mt-3 space-y-2">
-                                {dayItems.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-[var(--color-rule)] bg-[var(--color-card-raised)]/70 p-3 text-center text-xs text-[var(--color-muted)]">
-                                        Open
-                                    </div>
-                                ) : (
-                                    dayItems.map((item) => {
-                                        const color = getItemColor(item);
-                                        const isLearning = item.type === 'learning';
-                                        const learningColor = COLOR_OPTIONS.find((option) => option.name === item.pathColor) || COLOR_OPTIONS[0];
-                                        const typeLabel = item.type === 'task' ? 'Task' : item.type === 'learning' ? 'Learning' : 'Schedule';
-                                        const typeColor = item.type === 'task' ? 'text-[var(--color-accent)]' : item.type === 'learning' ? 'text-[var(--color-success)]' : 'text-[var(--color-muted)]';
-                                        return (
-                                            <div
-                                                key={`${item.type}-${item.id}-${item.dateKey}`}
-                                                role={isLearning ? undefined : 'button'}
-                                                tabIndex={isLearning ? -1 : 0}
-                                                onClick={() => handleItemClick(item)}
-                                                onKeyDown={(event) => {
-                                                    if (isLearning) return;
-                                                    if (event.key !== 'Enter' && event.key !== ' ') return;
-                                                    event.preventDefault();
-                                                    handleItemClick(item);
-                                                }}
-                                                className={`rounded-xl border bg-[var(--color-card-raised)] p-2 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] ${isLearning ? 'cursor-default' : 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
-                                                style={{ borderColor: color.border, backgroundColor: color.bg }}
-                                                title={isLearning ? 'Learning timetable slot' : `Edit ${item.type === 'task' ? 'task' : 'schedule item'}`}
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="min-w-0">
-                                                        <div className="flex min-w-0 items-center gap-1.5">
-                                                            {isLearning && (
-                                                                <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full bg-gradient-to-r ${learningColor.gradient}`} />
-                                                            )}
-                                                            <div className="truncate text-xs font-bold text-[var(--color-ink)]">
-                                                                {isLearning ? `${item.pathIcon || '📚'} ${item.title}` : item.title}
-                                                            </div>
-                                                        </div>
-                                                        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-[var(--color-muted)]">
-                                                            <Clock size={10} />
-                                                            {formatTime(item.displayTime)}
-                                                            {item.duration ? ` · ${formatDuration(item.duration)}` : ''}
-                                                        </div>
-                                                    </div>
-                                                    {item.type === 'task' && (
-                                                        <button
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                onCompleteTask?.(item.id);
-                                                            }}
-                                                            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-card-raised)]/80 text-[var(--color-success)] transition hover:bg-[var(--color-success-soft)]"
-                                                            title="Mark task done"
-                                                        >
-                                                            <CheckCircle2 size={15} />
-                                                        </button>
-                                                    )}
+                                    return (
+                                        <div
+                                            key={`${item.type}-${item.id}-${item.dateKey}`}
+                                            className={`week-row${completingIds.has(item.id) ? ' is-done' : ''}`}
+                                            style={{ '--event': color }}
+                                        >
+                                            {isTask ? (
+                                                <button
+                                                    type="button"
+                                                    className="week-row__check"
+                                                    onClick={() => completeTask(item)}
+                                                    aria-label={`Complete ${item.title}`}
+                                                >
+                                                    <span><Check size={13} strokeWidth={3.2} aria-hidden="true" /></span>
+                                                </button>
+                                            ) : (
+                                                <span className="week-row__bar" aria-hidden="true" />
+                                            )}
+                                            {isLearning ? (
+                                                <div className="week-row__body">
+                                                    <span className="week-row__title">{item.title}</span>
+                                                    <span className="week-row__meta">{meta}</span>
                                                 </div>
-                                                <div className="mt-2 flex items-center justify-between gap-2">
-                                                    <span className="truncate rounded-full bg-[var(--color-paper-2)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-muted)]">
-                                                        {item.label}
-                                                    </span>
-                                                    <span className={`text-[10px] font-bold ${typeColor}`}>
-                                                        {typeLabel}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
+                                            ) : (
+                                                <button type="button" className="week-row__body" onClick={() => handleItemClick(item)}>
+                                                    <span className="week-row__title">{item.title}</span>
+                                                    <span className="week-row__meta">{meta}</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </section>
-                    );
-                })}
-            </div>
+                        )}
+                    </section>
+                );
+            })}
 
             <ScheduleEventModal
                 isOpen={Boolean(editingScheduleItem)}

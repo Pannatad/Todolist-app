@@ -1,243 +1,163 @@
-import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, ArrowLeft } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, ListFilter } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
+import { MenuButton, PageHeader } from '../ui';
+
+// iOS system colors, one per project in list order.
+const PROJECT_TINTS = ['#ff2d55', '#af52de', '#007aff', '#30b0c7', '#34c759', '#ff9500'];
+const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
 export const ProjectCalendar = ({ onBack }) => {
     const { projects } = useProject();
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedProjects, setSelectedProjects] = useState([]);
-    const [showFilter, setShowFilter] = useState(false);
+    const today = new Date();
+    const [month, setMonth] = useState(() => startOfMonth(today));
+    const [selectedDay, setSelectedDay] = useState(today.getDate());
+    const [hiddenProjectIds, setHiddenProjectIds] = useState([]);
 
-    // Get all projects with phases
-    const projectsWithPhases = useMemo(() => {
-        return projects.filter(p => p.phases && p.phases.length > 0);
-    }, [projects]);
+    const projectsWithPhases = useMemo(
+        () => projects.filter((project) => project.phases && project.phases.length > 0),
+        [projects]
+    );
 
-    // Navigate months
-    const goToPreviousMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-    };
-
-    const goToNextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-    };
-
-    // Get calendar data
-    const { monthName, year, daysInMonth, firstDayOfMonth } = useMemo(() => {
-        const monthName = currentDate.toLocaleString('default', { month: 'long' });
-        const year = currentDate.getFullYear();
-        const daysInMonth = new Date(year, currentDate.getMonth() + 1, 0).getDate();
-        const firstDayOfMonth = new Date(year, currentDate.getMonth(), 1).getDay();
-
-        return { monthName, year, daysInMonth, firstDayOfMonth };
-    }, [currentDate]);
-
-    // Project color mapping - uses project index to ensure same project = same color
-    const projectColors = [
-        'from-pink-400/40 to-rose-400/30',
-        'from-purple-400/40 to-violet-400/30',
-        'from-blue-400/40 to-indigo-400/30',
-        'from-cyan-400/40 to-teal-400/30',
-        'from-emerald-400/40 to-green-400/30',
-        'from-amber-400/40 to-orange-400/30',
-    ];
-
-    const getProjectColor = (projectId) => {
-        const projectIndex = projectsWithPhases.findIndex(p => p.id === projectId);
-        return projectColors[projectIndex % projectColors.length];
-    };
-
-    // Get phase deadlines for the current month
-    // getProjectColor is derived from the same project list and must retain the existing memo boundary.
-    const phaseDeadlines = useMemo(() => {
-        const deadlines = new Map();
-
-        const filteredProjects = selectedProjects.length > 0
-            ? projectsWithPhases.filter(p => selectedProjects.includes(p.id))
-            : projectsWithPhases;
-
-        filteredProjects.forEach(project => {
-            project.phases.forEach((phase, index) => {
+    const deadlinesByDay = useMemo(() => {
+        const byDay = new Map();
+        projectsWithPhases.forEach((project, projectIndex) => {
+            if (hiddenProjectIds.includes(project.id)) return;
+            project.phases.forEach((phase) => {
                 if (!phase.deadline) return;
-
-                const deadlineDate = new Date(phase.deadline);
-                if (deadlineDate.getMonth() === currentDate.getMonth() &&
-                    deadlineDate.getFullYear() === currentDate.getFullYear()) {
-
-                    const day = deadlineDate.getDate();
-                    if (!deadlines.has(day)) {
-                        deadlines.set(day, []);
-                    }
-
-                    deadlines.get(day).push({
-                        projectTitle: project.title,
-                        projectId: project.id,
-                        phaseName: phase.name,
-                        phaseIndex: index,
-                        color: getProjectColor(project.id)
-                    });
-                }
+                const deadline = new Date(phase.deadline);
+                if (deadline.getMonth() !== month.getMonth() || deadline.getFullYear() !== month.getFullYear()) return;
+                const day = deadline.getDate();
+                if (!byDay.has(day)) byDay.set(day, []);
+                byDay.get(day).push({
+                    id: `${project.id}-${phase.id || phase.name}`,
+                    day,
+                    phaseName: phase.name,
+                    projectTitle: project.title,
+                    tint: PROJECT_TINTS[projectIndex % PROJECT_TINTS.length],
+                });
             });
         });
+        return byDay;
+    }, [projectsWithPhases, hiddenProjectIds, month]);
 
-        return deadlines;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentDate, projectsWithPhases, selectedProjects]);
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+    const leadingBlanks = month.getDay();
+    const isCurrentMonth = month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth();
+    const monthLabel = month.toLocaleDateString([], { month: 'long', year: 'numeric' });
 
-    // Toggle project filter
-    const toggleProjectFilter = (projectId) => {
-        setSelectedProjects(prev => {
-            if (prev.includes(projectId)) {
-                return prev.filter(id => id !== projectId);
-            } else {
-                return [...prev, projectId];
-            }
-        });
+    const changeMonth = (offset) => {
+        const next = new Date(month.getFullYear(), month.getMonth() + offset, 1);
+        setMonth(next);
+        const nextIsCurrent = next.getFullYear() === today.getFullYear() && next.getMonth() === today.getMonth();
+        setSelectedDay(nextIsCurrent ? today.getDate() : null);
     };
 
-    // Generate calendar grid
-    const calendarDays = [];
-    for (let i = 0; i < firstDayOfMonth; i++) {
-        calendarDays.push(<div key={`empty-${i}`} className="min-h-24" />);
-    }
+    const toggleProject = (projectId) => {
+        setHiddenProjectIds((current) => (
+            current.includes(projectId)
+                ? current.filter((id) => id !== projectId)
+                : [...current, projectId]
+        ));
+    };
 
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dayDeadlines = phaseDeadlines.get(day) || [];
-        const isToday = new Date().getDate() === day &&
-            new Date().getMonth() === currentDate.getMonth() &&
-            new Date().getFullYear() === currentDate.getFullYear();
-
-        calendarDays.push(
-            <div
-                key={day}
-                className={`min-h-24 p-2 bg-white/20 backdrop-blur-xl rounded-xl border transition-all ${isToday ? 'border-white/60 ring-2 ring-white/40' : 'border-white/30'
-                    } hover:bg-white/30`}
-            >
-                <div className={`text-sm font-bold mb-1 ${isToday ? 'text-white' : 'text-white/90'}`}>
-                    {day}
-                </div>
-                <div className="space-y-1">
-                    {dayDeadlines.slice(0, 3).map((deadline, idx) => (
-                        <div
-                            key={idx}
-                            className={`text-[10px] px-2 py-1 rounded-lg bg-gradient-to-r ${deadline.color} backdrop-blur-md border border-white/30 text-white font-medium truncate`}
-                            title={`${deadline.projectTitle} - ${deadline.phaseName}`}
-                        >
-                            {deadline.phaseName}
-                        </div>
-                    ))}
-                    {dayDeadlines.length > 3 && (
-                        <div className="text-[9px] text-white/70 text-center">
-                            +{dayDeadlines.length - 3} more
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
+    const listedDeadlines = selectedDay
+        ? deadlinesByDay.get(selectedDay) || []
+        : [...deadlinesByDay.values()].flat().sort((a, b) => a.day - b.day);
+    const listTitle = selectedDay
+        ? new Date(month.getFullYear(), month.getMonth(), selectedDay).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
+        : 'This Month';
 
     return (
-        <div className="h-full flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl">
-            {/* Header */}
-            <div className="relative z-10 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        {/* Back Button */}
-                        {onBack && (
+        <div className="project-calendar push-enter">
+            <PageHeader
+                title="Calendar"
+                onBack={onBack}
+                backLabel="Projects"
+                showAccount={false}
+                actions={projectsWithPhases.length > 1 ? (
+                    <MenuButton
+                        icon={ListFilter}
+                        label="Show projects"
+                        sections={[{
+                            title: 'Show',
+                            items: projectsWithPhases.map((project) => ({
+                                id: project.id,
+                                label: project.title,
+                                checked: !hiddenProjectIds.includes(project.id),
+                                onSelect: () => toggleProject(project.id),
+                            })),
+                        }]}
+                    />
+                ) : null}
+            />
+
+            <section className="ui-card project-calendar__month" aria-label={monthLabel}>
+                <div className="project-calendar__nav">
+                    <h2>{monthLabel}</h2>
+                    <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month">
+                        <ChevronLeft size={20} />
+                    </button>
+                    <button type="button" onClick={() => changeMonth(1)} aria-label="Next month">
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+
+                <div className="project-calendar__weekdays" aria-hidden="true">
+                    {WEEKDAY_LETTERS.map((letter, index) => <span key={index}>{letter}</span>)}
+                </div>
+
+                <div className="project-calendar__grid">
+                    {Array.from({ length: leadingBlanks }, (_, index) => <span key={`blank-${index}`} />)}
+                    {Array.from({ length: daysInMonth }, (_, index) => {
+                        const day = index + 1;
+                        const deadlines = deadlinesByDay.get(day) || [];
+                        const isToday = isCurrentMonth && day === today.getDate();
+                        const isSelected = day === selectedDay;
+                        return (
                             <button
-                                onClick={onBack}
-                                className="p-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
-                                title="Back to Projects"
+                                key={day}
+                                type="button"
+                                className={`project-calendar__day${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}`}
+                                aria-pressed={isSelected}
+                                aria-label={`${day}${deadlines.length ? `, ${deadlines.length} deadline${deadlines.length !== 1 ? 's' : ''}` : ''}`}
+                                onClick={() => setSelectedDay(isSelected ? null : day)}
                             >
-                                <ArrowLeft className="w-5 h-5" />
+                                <span className="project-calendar__number">{day}</span>
+                                <span className="project-calendar__dots" aria-hidden="true">
+                                    {deadlines.slice(0, 3).map((deadline) => (
+                                        <i key={deadline.id} style={{ background: deadline.tint }} />
+                                    ))}
+                                </span>
                             </button>
-                        )}
-                        <CalendarIcon className="w-8 h-8 text-white" />
-                        <h1 className="text-3xl font-bold text-white">Project Calendar</h1>
-                    </div>
-
-                    <button
-                        onClick={() => setShowFilter(!showFilter)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
-                    >
-                        <Filter className="w-4 h-4" />
-                        Filter Projects
-                    </button>
+                        );
+                    })}
                 </div>
+            </section>
 
-                {/* Month Navigation */}
-                <div className="flex items-center justify-between">
-                    <button
-                        onClick={goToPreviousMonth}
-                        className="p-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
-
-                    <h2 className="text-2xl font-bold text-white">
-                        {monthName} {year}
-                    </h2>
-
-                    <button
-                        onClick={goToNextMonth}
-                        className="p-2 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all"
-                    >
-                        <ChevronRight className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {/* Project Filter */}
-                {showFilter && (
-                    <div className="mt-4 p-4 bg-white/20 backdrop-blur-xl rounded-xl border border-white/30">
-                        <p className="text-white font-medium mb-2">Select Projects:</p>
-                        <div className="flex flex-wrap gap-2">
-                            {projectsWithPhases.map(project => (
-                                <button
-                                    key={project.id}
-                                    onClick={() => toggleProjectFilter(project.id)}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${selectedProjects.includes(project.id) || selectedProjects.length === 0
-                                        ? 'bg-white/40 border-white/50 text-white'
-                                        : 'bg-white/10 border-white/20 text-white/60'
-                                        }`}
-                                >
-                                    {project.title}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
+            <div className="ui-section-title">
+                <h2>{listTitle}</h2>
             </div>
-
-            {/* Calendar Grid */}
-            <div className="flex-1 relative z-10">
-                {/* Day Headers */}
-                <div className="grid grid-cols-7 gap-2 mb-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="text-center text-white font-bold text-sm py-2">
-                            {day}
+            {listedDeadlines.length > 0 ? (
+                <div className="ui-group">
+                    {listedDeadlines.map((deadline) => (
+                        <div key={deadline.id} className="ui-list-row project-calendar__row">
+                            <i className="project-calendar__tint" style={{ background: deadline.tint }} aria-hidden="true" />
+                            <span className="ui-list-row__copy">
+                                <span className="ui-list-row__title">{deadline.phaseName}</span>
+                                <span className="ui-list-row__subtitle">
+                                    {selectedDay
+                                        ? deadline.projectTitle
+                                        : `${deadline.projectTitle} · ${new Date(month.getFullYear(), month.getMonth(), deadline.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+                                </span>
+                            </span>
                         </div>
                     ))}
                 </div>
-
-                {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-2">
-                    {calendarDays}
-                </div>
-            </div>
-
-            {/* Legend */}
-            {projectsWithPhases.length > 0 && (
-                <div className="mt-6 p-4 bg-white/20 backdrop-blur-xl rounded-xl border border-white/30 relative z-10">
-                    <p className="text-white font-bold mb-2 text-sm">Projects:</p>
-                    <div className="flex flex-wrap gap-3">
-                        {projectsWithPhases.map((project, index) => (
-                            <div key={project.id} className="flex items-center gap-2">
-                                <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${projectColors[index % projectColors.length]}`} />
-                                <span className="text-white text-xs">{project.title}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            ) : (
+                <p className="ui-empty-card">No deadlines.</p>
             )}
         </div>
     );

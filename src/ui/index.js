@@ -1,7 +1,13 @@
 export { Card } from './Card';
 export { Chip } from './Chip';
 export { ListRow } from './ListRow';
+export { MenuButton } from './MenuButton';
+export { BarButton, PageHeader } from './PageHeader';
+export { RowMenu } from './RowMenu';
 export { SegmentedControl } from './SegmentedControl';
+export { ShellContext, useShell } from './shell-context';
 export { Sheet } from './Sheet';
 export { ToastProvider, toast } from './Toast';
 export { useToast } from './useToast';
+export { usePresence } from './usePresence';
+export { useMediaQuery } from './useMediaQuery';

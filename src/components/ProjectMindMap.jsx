@@ -1,14 +1,15 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, Plus, RotateCcw, Sparkles, Star, ZoomIn, ZoomOut } from 'lucide-react';
+import { Check, Minus, Plus, SlidersHorizontal, Star, Trash2, X } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
+import { BarButton, MenuButton, PageHeader, RowMenu, Sheet } from '../ui';
+import { confirmAction } from '../utils/confirm';
 import ProjectMindMapGraph from './ProjectMindMapGraph';
 
 const ProjectMindMap = ({ project, onBack }) => {
     const {
         toggleTaskComplete,
         addSubtask,
-        updateSubtask,
         toggleSubtaskComplete,
         deleteSubtask,
         addTask,
@@ -24,7 +25,6 @@ const ProjectMindMap = ({ project, onBack }) => {
     const [allExpanded, setAllExpanded] = useState(true);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [showAddTask, setShowAddTask] = useState(false);
-    const [addingSubtaskTo, setAddingSubtaskTo] = useState(null);
     const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
     const [draggedTask, setDraggedTask] = useState(null);
 
@@ -33,14 +33,14 @@ const ProjectMindMap = ({ project, onBack }) => {
     const [highlightedSubtasks, setHighlightedSubtasks] = useState(new Set()); // Format: "taskId-subtaskId"
     const [showHighlightedOnly, setShowHighlightedOnly] = useState(false);
 
-    // Editing state for inline title editing
-    const [editingTaskId, setEditingTaskId] = useState(null);
-    const [editingTaskTitle, setEditingTaskTitle] = useState('');
-    const [editingSubtaskKey, setEditingSubtaskKey] = useState(null); // Format: "taskId-subtaskId"
-    const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
+    // Task sheet (tap a node to open it)
+    const [openTaskId, setOpenTaskId] = useState(null);
+    const [taskTitleDraft, setTaskTitleDraft] = useState('');
 
     // Zoom state
-    const [zoom, setZoom] = useState(1);
+    // Phones start slightly zoomed out so subtask labels fit inside the canvas.
+    const [defaultZoom] = useState(() => (window.matchMedia?.('(max-width: 40rem)').matches ? 0.8 : 1));
+    const [zoom, setZoom] = useState(defaultZoom);
     const minZoom = 0.5;
     const maxZoom = 2;
 
@@ -105,46 +105,31 @@ const ProjectMindMap = ({ project, onBack }) => {
         }
     };
 
-    // Start editing a task title
-    const startEditingTask = (task) => {
-        setEditingTaskId(task.id);
-        setEditingTaskTitle(task.title);
+    const openTask = tasks.find((task) => task.id === openTaskId) || null;
+
+    const openTaskSheet = (taskId) => {
+        const task = tasks.find((item) => item.id === taskId);
+        setTaskTitleDraft(task?.title || '');
+        setNewSubtaskTitle('');
+        setOpenTaskId(taskId);
     };
 
-    // Save task title edit
-    const saveTaskEdit = async () => {
-        if (editingTaskId && editingTaskTitle.trim()) {
-            await updateTask(project.id, editingTaskId, { title: editingTaskTitle.trim() });
-        }
-        setEditingTaskId(null);
-        setEditingTaskTitle('');
+    const saveTaskTitle = async () => {
+        const title = taskTitleDraft.trim();
+        if (!openTask || !title || title === openTask.title) return;
+        await updateTask(project.id, openTask.id, { title });
     };
 
-    // Cancel task title edit
-    const cancelTaskEdit = () => {
-        setEditingTaskId(null);
-        setEditingTaskTitle('');
+    const closeTaskSheet = () => {
+        saveTaskTitle();
+        setOpenTaskId(null);
     };
 
-    // Start editing a subtask title
-    const startEditingSubtask = (taskId, subtask) => {
-        setEditingSubtaskKey(`${taskId}-${subtask.id}`);
-        setEditingSubtaskTitle(subtask.title);
-    };
-
-    // Save subtask title edit
-    const saveSubtaskEdit = async (taskId, subtaskId) => {
-        if (editingSubtaskTitle.trim()) {
-            await updateSubtask(project.id, taskId, subtaskId, { title: editingSubtaskTitle.trim() });
-        }
-        setEditingSubtaskKey(null);
-        setEditingSubtaskTitle('');
-    };
-
-    // Cancel subtask title edit
-    const cancelSubtaskEdit = () => {
-        setEditingSubtaskKey(null);
-        setEditingSubtaskTitle('');
+    const handleDeleteTask = async () => {
+        if (!openTask || !confirmAction(`Delete "${openTask.title}"?`)) return;
+        const taskId = openTask.id;
+        setOpenTaskId(null);
+        await deleteTask(project.id, taskId);
     };
 
     // Check if any item is highlighted
@@ -165,7 +150,7 @@ const ProjectMindMap = ({ project, onBack }) => {
 
     const handleZoomIn = () => setZoom(prev => Math.min(maxZoom, prev + 0.2));
     const handleZoomOut = () => setZoom(prev => Math.max(minZoom, prev - 0.2));
-    const handleResetZoom = () => setZoom(1);
+    const handleResetZoom = () => setZoom(defaultZoom);
 
     // Ref for mind map container
     const containerRef = useRef(null);
@@ -189,14 +174,6 @@ const ProjectMindMap = ({ project, onBack }) => {
         container.addEventListener('wheel', handleWheel, { passive: false });
         return () => container.removeEventListener('wheel', handleWheel);
     }, []);
-
-    // Toggle task expansion (for subtasks)
-    const toggleExpand = (taskId) => {
-        setExpandedTasks(prev => ({
-            ...prev,
-            [taskId]: !prev[taskId]
-        }));
-    };
 
     // Expand/Collapse all subtasks
     const toggleAllExpanded = () => {
@@ -240,9 +217,8 @@ const ProjectMindMap = ({ project, onBack }) => {
     // Handle adding subtask
     const handleAddSubtask = async (taskId) => {
         if (!newSubtaskTitle.trim()) return;
-        await addSubtask(project.id, taskId, newSubtaskTitle);
+        await addSubtask(project.id, taskId, newSubtaskTitle.trim());
         setNewSubtaskTitle('');
-        setAddingSubtaskTo(null);
     };
 
     // Drag and drop handlers
@@ -273,152 +249,166 @@ const ProjectMindMap = ({ project, onBack }) => {
         return Math.round((completed / tasks.length) * 100);
     }, [tasks]);
 
-    return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-pink-400 via-purple-500 to-indigo-500 rounded-2xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 md:p-6 border-b border-white/20">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={onBack}
-                        className="p-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl hover:bg-white/30 transition-all"
-                    >
-                        <ArrowLeft className="w-5 h-5 text-white" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-white">{project?.title}</h1>
-                        <p className="text-white/70 text-sm">{tasks.length} tasks · {progress}% complete</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    {/* Zoom Controls */}
-                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl p-1">
-                        <button
-                            onClick={handleZoomOut}
-                            disabled={zoom <= minZoom}
-                            className="p-2 hover:bg-white/20 rounded-lg transition-all disabled:opacity-40"
-                            title="Zoom Out"
-                        >
-                            <ZoomOut className="w-4 h-4 text-white" />
-                        </button>
-                        <span className="text-white text-xs font-medium w-12 text-center">{Math.round(zoom * 100)}%</span>
-                        <button
-                            onClick={handleZoomIn}
-                            disabled={zoom >= maxZoom}
-                            className="p-2 hover:bg-white/20 rounded-lg transition-all disabled:opacity-40"
-                            title="Zoom In"
-                        >
-                            <ZoomIn className="w-4 h-4 text-white" />
-                        </button>
-                        <button
-                            onClick={handleResetZoom}
-                            className="p-2 hover:bg-white/20 rounded-lg transition-all"
-                            title="Reset Zoom"
-                        >
-                            <RotateCcw className="w-4 h-4 text-white" />
-                        </button>
-                    </div>
-                    {/* Collapse/Expand All */}
-                    <button
-                        onClick={toggleAllExpanded}
-                        className="flex items-center gap-2 px-3 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl hover:bg-white/30 transition-all text-white"
-                        title={allExpanded ? "Collapse All" : "Expand All"}
-                    >
-                        {allExpanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        <span className="hidden sm:inline text-sm font-medium">{allExpanded ? 'Collapse' : 'Expand'}</span>
-                    </button>
-                    {/* Show Highlighted Only */}
-                    <button
-                        onClick={() => setShowHighlightedOnly(!showHighlightedOnly)}
-                        disabled={!hasHighlights}
-                        className={`flex items-center gap-2 px-3 py-2 backdrop-blur-md border rounded-xl transition-all text-white ${showHighlightedOnly
-                            ? 'bg-yellow-500/40 border-yellow-400/60 hover:bg-yellow-500/50'
-                            : 'bg-white/20 border-white/30 hover:bg-white/30'
-                            } ${!hasHighlights ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={showHighlightedOnly ? "Show All" : "Show Highlighted Only"}
-                    >
-                        <Star className={`w-4 h-4 ${showHighlightedOnly ? 'fill-yellow-300 text-yellow-300' : ''}`} />
-                        <span className="hidden sm:inline text-sm font-medium">{showHighlightedOnly ? 'Starred' : 'Stars'}</span>
-                    </button>
-                    <button
-                        onClick={() => setShowAddTask(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl hover:bg-white/30 transition-all text-white font-medium"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">Add Task</span>
-                    </button>
-                </div>
-            </div>
+    const openSubtasks = openTask?.subtasks || [];
+    const openTaskStarred = openTask ? highlightedTasks.has(openTask.id) : false;
 
-            {/* Mind Map Container */}
-            <div
-                ref={containerRef}
-                className="flex-1 relative overflow-auto p-4 md:p-8"
-            >
+    return (
+        <div className="mindmap-page push-enter">
+            <PageHeader
+                title={project?.title}
+                subtitle={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} · ${progress}% done`}
+                onBack={onBack}
+                backLabel="Projects"
+                showAccount={false}
+                actions={(
+                    <>
+                        <MenuButton
+                            icon={SlidersHorizontal}
+                            label="View options"
+                            sections={[{
+                                title: 'View',
+                                items: [
+                                    { id: 'expand', label: allExpanded ? 'Hide Subtasks' : 'Show Subtasks', onSelect: toggleAllExpanded },
+                                    { id: 'starred', label: 'Starred Only', checked: showHighlightedOnly, disabled: !hasHighlights, onSelect: () => setShowHighlightedOnly((value) => !value) },
+                                ],
+                            }]}
+                        />
+                        <BarButton icon={Plus} tone="primary" label="New task" onClick={() => setShowAddTask(true)} />
+                    </>
+                )}
+            />
+
+            <div ref={containerRef} className="ui-card mindmap-canvas">
                 {tasks.length === 0 ? (
-                    /* Empty State */
-                    <div className="h-full flex flex-col items-center justify-center">
-                        <div className="w-24 h-24 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center mb-6 border border-white/30">
-                            <Sparkles className="w-12 h-12 text-white" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-white mb-2">No tasks yet</h3>
-                        <p className="text-white/70 mb-6">Add your first task to start the mind map</p>
-                        <button
-                            onClick={() => setShowAddTask(true)}
-                            className="flex items-center gap-2 px-6 py-3 bg-white/30 backdrop-blur-md border border-white/40 rounded-xl hover:bg-white/40 transition-all text-white font-semibold"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Add First Task
-                        </button>
+                    <div className="mindmap-empty">
+                        <p>No tasks yet.</p>
+                        <button type="button" className="ui-button ui-button--accent" onClick={() => setShowAddTask(true)}>New Task</button>
                     </div>
                 ) : (
-                    /* Mind Map Visualization with Zoom */
-                    <ProjectMindMapGraph
-                        view={{
-                            addingSubtaskTo, cancelSubtaskEdit, cancelTaskEdit, deleteSubtask, deleteTask,
-                            editingSubtaskKey, editingSubtaskTitle, editingTaskId, editingTaskTitle, expandedTasks,
-                            handleAddSubtask, handleDragEnd, handleDragOver, handleDragStart, highlightedSubtasks,
-                            highlightedTasks, newSubtaskTitle, project, saveSubtaskEdit, saveTaskEdit, setAddingSubtaskTo,
-                            setEditingSubtaskTitle, setEditingTaskTitle, setNewSubtaskTitle, showHighlightedOnly,
-                            startEditingSubtask, startEditingTask, taskPositions, tasks, toggleExpand, toggleSubtaskComplete,
-                            toggleSubtaskHighlight, toggleTaskComplete, toggleTaskHighlight, zoom,
-                            progress,
-                        }}
-                    />
+                    <>
+                        <ProjectMindMapGraph
+                            view={{
+                                expandedTasks, handleDragEnd, handleDragOver, handleDragStart, highlightedSubtasks,
+                                highlightedTasks, onOpenTask: openTaskSheet, project, progress, showHighlightedOnly,
+                                taskPositions, tasks, toggleSubtaskComplete, toggleTaskComplete, zoom,
+                            }}
+                        />
+                        <div className="mindmap-zoom" role="group" aria-label="Zoom">
+                            <button type="button" onClick={handleZoomOut} disabled={zoom <= minZoom} aria-label="Zoom out"><Minus size={16} /></button>
+                            <button type="button" onClick={handleResetZoom} aria-label="Reset zoom">{Math.round(zoom * 100)}%</button>
+                            <button type="button" onClick={handleZoomIn} disabled={zoom >= maxZoom} aria-label="Zoom in"><Plus size={16} /></button>
+                        </div>
+                    </>
                 )}
             </div>
 
-            {/* Add Task Modal */}
-            {showAddTask && (
-                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4">Add New Task</h3>
-                        <input
-                            type="text"
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                            placeholder="Task title..."
-                            className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none mb-4"
-                            autoFocus
-                        />
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowAddTask(false)}
-                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleAddTask}
-                                disabled={!newTaskTitle.trim()}
-                                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold disabled:opacity-50"
-                            >
-                                Add Task
-                            </button>
-                        </div>
+            <Sheet open={showAddTask} onClose={() => { setShowAddTask(false); setNewTaskTitle(''); }} title="New Task" className="form-sheet">
+                <form className="form-stack" onSubmit={(event) => { event.preventDefault(); handleAddTask(); }}>
+                    <div className="form-group">
+                        <label className="form-field">
+                            <span className="sr-only">Title</span>
+                            <input
+                                type="text"
+                                value={newTaskTitle}
+                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                placeholder="Title"
+                                autoFocus
+                            />
+                        </label>
                     </div>
-                </div>
-            )}
+                    <button type="submit" disabled={!newTaskTitle.trim()} className="ui-button ui-button--accent form-submit">Add Task</button>
+                </form>
+            </Sheet>
+
+            <Sheet
+                open={Boolean(openTask)}
+                onClose={closeTaskSheet}
+                title="Task"
+                className="form-sheet"
+                actions={openTask ? (
+                    <RowMenu
+                        label="Task actions"
+                        items={[
+                            { label: openTaskStarred ? 'Unstar' : 'Star', icon: Star, onSelect: () => toggleTaskHighlight(openTask.id) },
+                            { label: 'Delete', icon: Trash2, destructive: true, onSelect: handleDeleteTask },
+                        ]}
+                    />
+                ) : null}
+            >
+                {openTask && (
+                    <div className="form-stack">
+                        <div className="form-group">
+                            <label className="form-field">
+                                <span className="sr-only">Title</span>
+                                <input
+                                    type="text"
+                                    value={taskTitleDraft}
+                                    onChange={(e) => setTaskTitleDraft(e.target.value)}
+                                    onBlur={saveTaskTitle}
+                                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                    placeholder="Title"
+                                />
+                            </label>
+                        </div>
+
+                        <p className="form-section-label">Subtasks</p>
+                        <div className="form-group">
+                            {openSubtasks.map((subtask) => {
+                                const starred = highlightedSubtasks.has(`${openTask.id}-${subtask.id}`);
+                                return (
+                                    <div key={subtask.id} className="form-field form-subtask">
+                                        <button
+                                            type="button"
+                                            className="task-check form-subtask__check"
+                                            aria-pressed={Boolean(subtask.completed)}
+                                            aria-label={subtask.completed ? `Mark ${subtask.title} not done` : `Complete ${subtask.title}`}
+                                            onClick={() => toggleSubtaskComplete(project.id, openTask.id, subtask.id)}
+                                        >
+                                            <span>{subtask.completed && <Check size={12} strokeWidth={3.2} />}</span>
+                                        </button>
+                                        <span className={`form-subtask__title${subtask.completed ? ' is-done' : ''}`}>{subtask.title}</span>
+                                        <button
+                                            type="button"
+                                            className={`mindmap-sheet__star${starred ? ' is-on' : ''}`}
+                                            aria-pressed={starred}
+                                            aria-label={starred ? `Unstar ${subtask.title}` : `Star ${subtask.title}`}
+                                            onClick={() => toggleSubtaskHighlight(openTask.id, subtask.id)}
+                                        >
+                                            <Star size={15} fill={starred ? 'currentColor' : 'none'} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="form-remove"
+                                            aria-label={`Delete ${subtask.title}`}
+                                            onClick={() => deleteSubtask(project.id, openTask.id, subtask.id)}
+                                        >
+                                            <X size={13} strokeWidth={2.6} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                            <form className="form-field" onSubmit={(event) => { event.preventDefault(); handleAddSubtask(openTask.id); }}>
+                                <input
+                                    type="text"
+                                    value={newSubtaskTitle}
+                                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                                    placeholder="Add Subtask"
+                                    aria-label="New subtask"
+                                />
+                                {newSubtaskTitle.trim() && <button type="submit" className="ui-text-button mindmap-sheet__add">Add</button>}
+                            </form>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="ui-button ui-button--accent form-submit"
+                            onClick={() => toggleTaskComplete(project.id, openTask.id)}
+                        >
+                            {openTask.completed ? 'Mark Open' : 'Mark Done'}
+                        </button>
+                    </div>
+                )}
+            </Sheet>
         </div>
     );
 };

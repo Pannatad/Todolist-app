@@ -1,35 +1,55 @@
-/* Hallmark · tokens: calm secretary · theme: custom indigo · modes: light + dark */
+/* Personal Agent · tokens: iOS system palette · tint: system indigo · modes: light + dark
+ * Light mirrors iOS grouped backgrounds (systemGroupedBackground + white cells);
+ * dark mirrors the true-black OLED palette with elevated #1C1C1E surfaces. */
 :root {
   color-scheme: light;
 
-  --color-paper: oklch(97.5% 0.003 265);
-  --color-paper-2: oklch(95% 0.004 265);
-  --color-paper-3: oklch(91.5% 0.005 265);
-  --color-card: oklch(99.5% 0.001 265);
-  --color-card-raised: oklch(100% 0 0);
-  --color-rule: oklch(88% 0.005 265);
-  --color-rule-2: oklch(78% 0.008 265);
-  --color-muted: oklch(49% 0.012 265);
-  --color-neutral: oklch(37% 0.012 265);
-  --color-ink-2: oklch(28% 0.01 265);
-  --color-ink: oklch(17% 0.008 265);
-  --color-accent: oklch(52% 0.18 285);
-  --color-accent-hover: oklch(47% 0.18 285);
-  --color-accent-soft: oklch(93% 0.035 285);
-  --color-accent-ink: oklch(98% 0.008 285);
-  --color-focus: oklch(60% 0.2 280);
-  --color-success: oklch(55% 0.14 155);
-  --color-success-soft: oklch(94% 0.035 155);
-  --color-warning: oklch(64% 0.14 75);
-  --color-warning-soft: oklch(95% 0.04 75);
-  --color-error: oklch(56% 0.2 25);
-  --color-error-soft: oklch(95% 0.035 25);
-  --color-overlay: oklch(14% 0.012 285 / 0.42);
+  /* Surfaces */
+  --color-paper: #f2f2f7;
+  --color-paper-2: #ebebf0;
+  --color-paper-3: #e1e1e6;
+  --color-card: #ffffff;
+  --color-card-raised: #ffffff;
+  --color-fill: rgb(118 118 128 / 0.12);
+  --color-fill-strong: rgb(118 118 128 / 0.2);
+  --color-pressed: rgb(0 0 0 / 0.06);
+
+  /* Separators */
+  --color-rule: #e3e3e8;
+  --color-rule-2: #d1d1d6;
+
+  /* Labels */
+  --color-muted: #6e6e73;
+  --color-neutral: #48484a;
+  --color-ink-2: #2c2c2e;
+  --color-ink: #1c1c1e;
+
+  /* Tint: iOS system indigo */
+  --color-accent: #5856d6;
+  --color-accent-hover: #4a48c4;
+  --color-accent-soft: #ececfb;
+  --color-accent-ink: #ffffff;
+  --color-focus: #5856d6;
+
+  /* Semantic (text-safe variants of systemGreen / systemOrange / systemRed) */
+  --color-success: #248a3d;
+  --color-success-soft: #e4f5e8;
+  --color-warning: #c2570c;
+  --color-warning-soft: #fff1e0;
+  --color-error: #d92d20;
+  --color-error-soft: #fdeceb;
+  --color-overlay: rgb(0 0 0 / 0.32);
+
+  /* Bar material (navigation bar, tab bar) */
+  --material-bar: rgb(249 249 251 / 0.78);
+  --material-thick: rgb(255 255 255 / 0.86);
+  --material-filter: saturate(180%) blur(20px);
 
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-outlier: var(--font-body);
 
+  /* iOS text styles: footnote 13 · subhead 15 · body 17 · title3 20 · title2 22 · title1 28 · large title 34 */
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
   --text-base: 1.0625rem;
@@ -37,7 +57,7 @@
   --text-lg: 1.375rem;
   --text-xl: 1.75rem;
   --text-2xl: 2rem;
-  --text-display: 2rem;
+  --text-display: 2.125rem;
 
   --space-3xs: 0.125rem;
   --space-2xs: 0.25rem;
@@ -50,23 +70,31 @@
   --space-3xl: 4rem;
   --space-4xl: 6rem;
 
+  /* Page gutter: iOS compact (16pt) / regular (20pt) margins */
+  --page-gutter: 1rem;
+  --nav-bar-height: 2.75rem;
+  --tab-bar-space: calc(5.5rem + env(safe-area-inset-bottom));
+
   --rule-hair: 1px;
   --rule-fine: 2px;
   --radius-control: 0.75rem;
   --radius-input: 0.75rem;
-  --radius-card: 1.25rem;
-  --radius-sheet: 1.5rem;
+  --radius-card: 1.375rem;
+  --radius-sheet: 1.75rem;
   --radius-pill: 999px;
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  /* Motion: iOS sheet/drawer curve, plus a crisp ease-out for small state changes */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-micro: 120ms;
   --dur-short: 220ms;
   --dur-long: 420ms;
+  --dur-sheet: 480ms;
 
-  --shadow-card: 0 1px 2px oklch(20% 0.015 285 / 0.05), 0 12px 32px -14px oklch(25% 0.02 285 / 0.14);
-  --shadow-floating: 0 16px 40px oklch(20% 0.015 285 / 0.12);
+  --shadow-card: 0 0.5px 1px rgb(0 0 0 / 0.04), 0 2px 10px rgb(0 0 0 / 0.035);
+  --shadow-floating: 0 10px 34px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.06);
 
   --z-base: 1;
   --z-raised: 10;
@@ -80,29 +108,46 @@
 .dark {
   color-scheme: dark;
 
-  --color-paper: oklch(14% 0.012 285);
-  --color-paper-2: oklch(18% 0.014 285);
-  --color-paper-3: oklch(22% 0.016 285);
-  --color-card: oklch(18% 0.014 285);
-  --color-card-raised: oklch(21% 0.016 285);
-  --color-rule: oklch(28% 0.016 285);
-  --color-rule-2: oklch(38% 0.018 285);
-  --color-muted: oklch(70% 0.016 285);
-  --color-neutral: oklch(78% 0.014 285);
-  --color-ink-2: oklch(86% 0.012 285);
-  --color-ink: oklch(95% 0.008 285);
-  --color-accent: oklch(70% 0.16 285);
-  --color-accent-hover: oklch(75% 0.15 285);
-  --color-accent-soft: oklch(27% 0.055 285);
-  --color-accent-ink: oklch(16% 0.014 285);
-  --color-focus: oklch(78% 0.18 280);
-  --color-success: oklch(72% 0.12 155);
-  --color-success-soft: oklch(24% 0.04 155);
-  --color-warning: oklch(78% 0.12 75);
-  --color-warning-soft: oklch(25% 0.04 75);
-  --color-error: oklch(72% 0.16 25);
-  --color-error-soft: oklch(25% 0.045 25);
-  --color-overlay: oklch(8% 0.012 285 / 0.68);
-  --shadow-card: 0 0 0 1px oklch(95% 0.008 285 / 0.05), 0 12px 32px -14px oklch(0% 0 0 / 0.5);
-  --shadow-floating: 0 18px 48px oklch(5% 0.012 285 / 0.38);
+  --color-paper: #000000;
+  --color-paper-2: #2c2c2e;
+  --color-paper-3: #3a3a3c;
+  --color-card: #1c1c1e;
+  --color-card-raised: #242426;
+  --color-fill: rgb(118 118 128 / 0.24);
+  --color-fill-strong: rgb(118 118 128 / 0.36);
+  --color-pressed: rgb(255 255 255 / 0.08);
+
+  --color-rule: #38383a;
+  --color-rule-2: #48484a;
+
+  --color-muted: #98989f;
+  --color-neutral: #c7c7cc;
+  --color-ink-2: #e5e5ea;
+  --color-ink: #f5f5f7;
+
+  --color-accent: #7d7aff;
+  --color-accent-hover: #918eff;
+  --color-accent-soft: #23224a;
+  --color-accent-ink: #ffffff;
+  --color-focus: #7d7aff;
+
+  --color-success: #30d158;
+  --color-success-soft: #0f2e18;
+  --color-warning: #ff9f0a;
+  --color-warning-soft: #33230a;
+  --color-error: #ff453a;
+  --color-error-soft: #3a1513;
+  --color-overlay: rgb(0 0 0 / 0.56);
+
+  --material-bar: rgb(22 22 24 / 0.74);
+  --material-thick: rgb(36 36 38 / 0.86);
+
+  --shadow-card: none;
+  --shadow-floating: 0 12px 40px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.08);
+}
+
+@media (min-width: 25rem) {
+  :root {
+    --page-gutter: 1.25rem;
+  }
 }

@@ -1,21 +1,15 @@
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import {
     Archive,
-    BarChart3,
-    BookOpen,
-    CheckCircle2,
     ChevronRight,
-    Clock,
     FolderOpen,
-    GraduationCap,
     Minus,
     Plus,
     Search,
     Settings,
     Target,
-    Zap,
 } from 'lucide-react';
-import { SegmentedControl } from '../ui';
+import { BarButton, PageHeader, SegmentedControl } from '../ui';
 import LearningPathCard from './LearningPathCard';
 import LearningPathModal from './LearningPathModal';
 import SubjectProgressDashboard from './SubjectProgressDashboard';
@@ -65,77 +59,50 @@ const LearningTrackerContent = ({
     stats,
     topics,
 }) => (
-        <div className="learning-screen space-y-6">
-            {/* Header Section */}
-            <Motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="learning-header border-b border-slate-200 pb-4 dark:border-white/10"
-            >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                    <div className="min-w-0">
-                        <h1 className="app-page-title">Learning</h1>
-                        <p className="learning-header__description">
-                            Keep your subjects focused and know exactly what to study next.
-                        </p>
-                    </div>
+        <div className="learning-screen">
+            <PageHeader
+                title="Learning"
+                actions={(
+                    <>
+                        <BarButton
+                            icon={Settings}
+                            label="Learning settings"
+                            aria-expanded={showSettings}
+                            onClick={() => setShowSettings(!showSettings)}
+                        />
+                        <BarButton
+                            icon={Plus}
+                            tone="primary"
+                            label="New path"
+                            disabled={!canStart}
+                            onClick={() => {
+                                if (canStart) {
+                                    setEditingPath(null);
+                                    setShowPathModal(true);
+                                }
+                            }}
+                        />
+                    </>
+                )}
+            />
 
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <SegmentedControl
-                        className="learning-view-switch"
-                        items={[
-                            { id: 'paths', label: 'Paths', icon: BookOpen },
-                            { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-                        ]}
-                        value={learningView}
-                        onChange={setLearningView}
-                        ariaLabel="Learning view"
-                    />
-                    <button
-                        onClick={() => setShowSettings(!showSettings)}
-                        className={`ui-icon-button learning-settings-trigger${showSettings ? ' is-active' : ''}`}
-                        title="Learning Tracker Settings"
-                        type="button"
-                    >
-                        <Settings size={20} />
-                    </button>
-                    <button
-                        onClick={() => {
-                            if (canStart) {
-                                setEditingPath(null);
-                                setShowPathModal(true);
-                            }
-                        }}
-                        disabled={!canStart}
-                        className="learning-primary-button"
-                        type="button"
-                    >
-                        <Plus size={18} />
-                        New path
-                    </button>
-                </div>
-                </div>
-            </Motion.div>
+            <SegmentedControl
+                className="learning-view-switch"
+                items={[
+                    { id: 'paths', label: 'Paths' },
+                    { id: 'dashboard', label: 'Progress' },
+                ]}
+                value={learningView}
+                onChange={setLearningView}
+                ariaLabel="Learning view"
+            />
 
-            <section className="learning-summary" aria-label="Learning overview">
-                <div className="learning-summary__lead">
-                    <span className="learning-summary__mark" aria-hidden="true"><GraduationCap size={20} /></span>
-                    <span>
-                        <strong>{stats.inProgress > 0 ? 'Keep your momentum' : 'Your study workspace'}</strong>
-                        <span>
-                            {stats.inProgress > 0
-                                ? `${stats.inProgress} ${stats.inProgress === 1 ? 'path is' : 'paths are'} ready to continue.`
-                                : 'Build one clear path for every subject you want to move forward.'}
-                        </span>
-                    </span>
-                </div>
-                <dl className="learning-summary__stats">
-                    <div><dt><BookOpen size={14} /> Paths</dt><dd>{stats.totalPaths}</dd></div>
-                    <div><dt><Zap size={14} /> In progress</dt><dd>{stats.inProgress}</dd></div>
-                    <div><dt><CheckCircle2 size={14} /> Completed</dt><dd>{stats.completed}</dd></div>
-                    <div><dt><Clock size={14} /> Studied</dt><dd>{formatTime(stats.studiedTime)}</dd></div>
-                </dl>
-            </section>
+            <dl className="learning-summary__stats learning-stats">
+                <div><dt>Paths</dt><dd>{stats.totalPaths}</dd></div>
+                <div><dt>Active</dt><dd>{stats.inProgress}</dd></div>
+                <div><dt>Done</dt><dd>{stats.completed}</dd></div>
+                <div><dt>Studied</dt><dd>{formatTime(stats.studiedTime)}</dd></div>
+            </dl>
 
             {/* Settings Panel */}
             <AnimatePresence>
@@ -147,12 +114,7 @@ const LearningTrackerContent = ({
                         className="overflow-hidden"
                     >
                         <div className="learning-settings-panel ui-card mb-2 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h3 className="app-section-title text-sm">Focus limit</h3>
-                                <p className="mt-1 max-w-lg text-xs text-gray-500">
-                                    Limit the number of paths you actively study at once.
-                                </p>
-                            </div>
+                            <h3 className="app-section-title text-sm">Paths at once</h3>
                             <div className="learning-stepper flex items-center gap-3">
                                 <button
                                     onClick={() => setMaxConcurrentPaths(Math.max(1, maxConcurrentPaths - 1))}
@@ -183,14 +145,7 @@ const LearningTrackerContent = ({
                     animate={{ opacity: 1, y: 0 }}
                     className="learning-notice learning-notice--warning flex items-center gap-3"
                 >
-                    <div className="learning-notice__icon"><Target size={18} /></div>
-                    <div className="flex-1">
-                        <p className="text-sm font-semibold">Focus limit reached</p>
-                        <p className="text-xs">
-                            You have {activeCount} of {maxConcurrentPaths} courses in progress.
-                            Only paths with topics you have actually started count toward this limit.
-                        </p>
-                    </div>
+                    <p className="text-sm font-semibold">Focus limit reached · {activeCount} of {maxConcurrentPaths} in progress</p>
                 </Motion.div>
             )}
 
@@ -215,13 +170,7 @@ const LearningTrackerContent = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
                 >
-                    <div className="learning-section-heading mb-3 flex items-center gap-2">
-                        <Zap size={17} />
-                        <h3 className="app-section-title">Continue learning</h3>
-                        <span className="ui-chip learning-count-chip">
-                            {inProgressTopics.length} in progress
-                        </span>
-                    </div>
+                    <h3 className="ui-section-title learning-continue-title">Continue</h3>
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sage-200">
                         {inProgressTopics.map((topic) => {
                             return (
@@ -235,12 +184,7 @@ const LearningTrackerContent = ({
                                     data-learning-color={topic.path?.color || 'purple'}
                                     className="learning-continue-card group flex-shrink-0 min-w-[240px] max-w-[300px] p-4 text-left"
                                 >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="learning-continue-card__icon flex h-8 w-8 items-center justify-center rounded-lg text-sm">
-                                            {topic.path?.icon || '📚'}
-                                        </div>
-                                        <span className="truncate text-xs font-medium">{topic.path?.name}</span>
-                                    </div>
+                                    <span className="learning-continue-card__path">{topic.path?.name}</span>
                                     <h4 className="mb-2 truncate text-sm font-semibold">{topic.title}</h4>
                                     <div className="learning-continue-card__action flex items-center gap-1.5 text-xs font-semibold">
                                         <span>Continue</span>
@@ -259,13 +203,14 @@ const LearningTrackerContent = ({
             {/* Search & Filter Bar */}
             <div className="learning-search flex items-center gap-3">
                 <div className="flex-1 relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400" />
+                    <Search size={16} className="learning-search__icon" aria-hidden="true" />
                     <input
-                        type="text"
+                        type="search"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search learning paths..."
-                        className="learning-input w-full py-3 pl-9 pr-4 text-sm outline-none"
+                        placeholder="Search"
+                        aria-label="Search learning paths"
+                        className="learning-input w-full outline-none"
                     />
                 </div>
                 <button
@@ -291,17 +236,9 @@ const LearningTrackerContent = ({
                     className="learning-empty py-16"
                 >
                     <div className="learning-empty__content">
-                        <div className="learning-empty__icon"><BookOpen size={22} /></div>
-                        <div>
-                            <h3 className="app-section-title">
-                                {searchQuery ? 'No paths found' : showArchived ? 'No archived paths' : 'Start with one subject'}
-                            </h3>
-                            <p>
-                                {searchQuery
-                                    ? 'Try a different search term.'
-                                    : 'Add its topics, choose the next step, and keep your study time in one place.'}
-                            </p>
-                        </div>
+                        <h3 className="app-section-title">
+                            {searchQuery ? 'No results' : showArchived ? 'No archived paths' : 'No learning paths yet'}
+                        </h3>
                         {!searchQuery && !showArchived && (
                             <button
                                 onClick={() => {
@@ -314,8 +251,7 @@ const LearningTrackerContent = ({
                                 className="learning-primary-button"
                                 type="button"
                             >
-                                <Plus size={18} />
-                                Create your first path
+                                New Path
                             </button>
                         )}
                     </div>

@@ -1,21 +1,17 @@
-import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
-import {
-  CalendarDays,
-  ChevronRight,
-  ClipboardList,
-  FolderKanban,
-  GraduationCap,
-  LayoutGrid,
-  ListTodo,
-  LogIn,
-  LogOut,
-  Moon,
-  Repeat2,
-  Sun,
-  SunMedium,
-} from 'lucide-react';
+import React, {
+  Activity,
+  Suspense,
+  lazy,
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import AuthModal from './components/AuthModal';
-import UserProfile from './components/UserProfile';
+import ProfileSettings from './components/ProfileSettings';
 
 // Import all context hooks
 import { useAuth } from './context/AuthContext';
@@ -28,45 +24,54 @@ import { useHabit } from './context/HabitContext';
 import { useUserProfile } from './context/UserProfileContext';
 import smartNotificationService from './services/SmartNotificationService';
 import { IdeaBoardProvider } from './context/IdeaBoardContext';
-import { SegmentedControl, Sheet, ToastProvider } from './ui';
-const TaskInput = lazy(() => import('./components/TaskInput'));
-const Garden = lazy(() => import('./components/Garden'));
-const Schedule = lazy(() => import('./components/Schedule'));
-const ProjectBoards = lazy(() => import('./components/ProjectBoards'));
-const LearningTracker = lazy(() => import('./components/LearningTracker'));
-const Overview = lazy(() => import('./components/Overview'));
-const HabitTracker = lazy(() => import('./components/HabitTracker'));
-const UniBoard = lazy(() => import('./components/uni-board/UniBoard'));
-const NotificationToast = lazy(() => import('./components/NotificationToast'));
-const ChatSidebar = lazy(() => import('./components/ChatSidebar'));
-const FloatingChatButton = lazy(() => import('./components/ChatSidebar').then((module) => ({ default: module.FloatingChatButton })));
+import { ShellContext, ToastProvider } from './ui';
+import TabBar from './shell/TabBar';
+import Sidebar from './shell/Sidebar';
+import { AccountSheet, MoreSheet } from './shell/ShellSheets';
+import { PRIMARY_TAB_IDS, TABS, resolveTab } from './shell/tabs';
 
-const TAB_ALIASES = {
-  overview: 'today',
-  schedule: 'plan',
-  garden: 'tasks',
-  focus: 'tasks',
-  ideas: 'projects',
-  vision: 'today',
-  sleep: 'habits',
-  uni: 'uni-board',
-  university: 'uni-board',
-  uniboard: 'uni-board',
+const lazyTab = (factory) => {
+  const Component = lazy(factory);
+  Component.preload = factory;
+  return Component;
 };
 
-const TabFallback = () => (
-  <div className="flex items-center justify-center py-16 text-sage-500 dark:text-bone-200/70">
-    Loading...
-  </div>
-);
+const Overview = lazyTab(() => import('./components/Overview'));
+const Schedule = lazyTab(() => import('./components/Schedule'));
+const Garden = lazyTab(() => import('./components/Garden'));
+const UniBoard = lazyTab(() => import('./components/uni-board/UniBoard'));
+const HabitTracker = lazyTab(() => import('./components/HabitTracker'));
+const LearningTracker = lazyTab(() => import('./components/LearningTracker'));
+const ProjectBoards = lazyTab(() => import('./components/ProjectBoards'));
+const NotificationToast = lazyTab(() => import('./components/NotificationToast'));
+const ChatSidebar = lazyTab(() => import('./components/ChatSidebar'));
 
-const DigitalClock = () => {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const PRELOADED_SCREENS = [Schedule, Garden, UniBoard, HabitTracker, LearningTracker, ProjectBoards, ChatSidebar];
+const THEME_SURFACES = { light: '#f2f2f7', dark: '#000000' };
+
+const whenIdle = (callback) => {
+  if ('requestIdleCallback' in window) {
+    const handle = window.requestIdleCallback(callback, { timeout: 2000 });
+    return () => window.cancelIdleCallback(handle);
+  }
+  const handle = window.setTimeout(callback, 600);
+  return () => window.clearTimeout(handle);
+};
+
+const initialsOf = (name = '') => name
+  .trim()
+  .split(/\s+/)
+  .slice(0, 2)
+  .map((part) => part[0]?.toUpperCase() || '')
+  .join('');
+
+const readAppearance = () => {
+  try {
+    const saved = localStorage.getItem('app-color-mode');
+    return saved === 'light' || saved === 'dark' ? saved : 'system';
+  } catch {
+    return 'system';
+  }
 };
 
 const SmartNotificationBridge = () => {
@@ -105,8 +110,12 @@ const UnifiedChatBridge = () => {
   return null;
 };
 
+const AgentLauncher = ({ children }) => {
+  const { openSidebar } = useChatContext();
+  return children(openSidebar);
+};
+
 function App() {
-  // Context hooks
   const { user, signOut } = useAuth();
   const {
     tasks,
@@ -120,67 +129,151 @@ function App() {
     updateScheduleItem,
     deleteScheduleItem
   } = useTask();
-
   const { profile } = useUserProfile();
 
-  // Local UI State (not in contexts)
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [theme, setTheme] = useState(() => {
-    try {
-      const saved = localStorage.getItem('app-color-mode');
-      if (saved === 'light' || saved === 'dark') return saved;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } catch {
-      return 'light';
-    }
-  });
-  const [activeTab, setActiveTab] = useState('today');
+  const [showProfile, setShowProfile] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const [appearance, setAppearance] = useState(readAppearance);
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false);
 
-  const tabs = [
-    { id: 'today', label: 'Today', icon: SunMedium, controls: 'app-active-workspace' },
-    { id: 'plan', label: 'Plan', icon: CalendarDays, controls: 'app-active-workspace' },
-    { id: 'tasks', label: 'Tasks', icon: ListTodo, controls: 'app-active-workspace' },
-    { id: 'uni-board', label: 'Uni-board', icon: GraduationCap, controls: 'app-active-workspace' },
-    { id: 'habits', label: 'Habits', icon: Repeat2, controls: 'app-active-workspace' },
-    { id: 'learning', label: 'Learning', icon: GraduationCap, controls: 'app-active-workspace' },
-    { id: 'projects', label: 'Projects', icon: FolderKanban, controls: 'app-active-workspace' },
-  ];
+  // The tab bar responds instantly; the page swap runs as a transition so the
+  // current page stays on screen (never a loading flash) until the next is ready.
+  const [selectedTab, setSelectedTab] = useState('today');
+  const [activeTab, setActiveTab] = useState('today');
+  const [mountedTabs, setMountedTabs] = useState(() => new Set(['today']));
+  const selectedTabRef = useRef('today');
+  const scrollPositions = useRef({});
 
-  // Theme effect
+  const theme = appearance === 'system' ? (systemDark ? 'dark' : 'light') : appearance;
+
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!query) return undefined;
+    const onChange = (event) => setSystemDark(event.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('dark', 'theme-professional', 'theme-pink', 'theme-blue');
+    root.classList.remove('theme-professional', 'theme-pink', 'theme-blue');
     root.classList.toggle('dark', theme === 'dark');
     root.dataset.colorMode = theme;
-    localStorage.setItem('app-color-mode', theme);
-  }, [theme]);
+    try {
+      if (appearance === 'system') localStorage.removeItem('app-color-mode');
+      else localStorage.setItem('app-color-mode', appearance);
+    } catch {
+      // Appearance still applies for this session.
+    }
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.removeAttribute('media');
+      meta.setAttribute('content', THEME_SURFACES[theme]);
+    });
+  }, [appearance, theme]);
 
-  const toggleTheme = () => {
-    setTheme((current) => current === 'dark' ? 'light' : 'dark');
-  };
+  // Load every screen in the background, then pre-render the primary tabs
+  // offscreen so the first visit to each is as instant as the second.
+  useEffect(() => whenIdle(() => {
+    PRELOADED_SCREENS.forEach((screen) => screen.preload().catch(() => {}));
+    startTransition(() => {
+      setMountedTabs((current) => new Set([...current, ...PRIMARY_TAB_IDS]));
+    });
+  }), []);
 
-  // Get unique subjects from tasks
-  const existingSubjects = [...new Set(tasks.map(t => t.subject).filter(Boolean))];
+  useLayoutEffect(() => {
+    window.scrollTo(0, scrollPositions.current[activeTab] || 0);
+  }, [activeTab]);
 
-  const handleCompleteTask = async (id) => {
+  const navigateTo = useCallback((tabId) => {
+    const nextTab = resolveTab(tabId);
+    if (!nextTab) return;
+
+    if (nextTab === selectedTabRef.current) {
+      // Re-selecting the current tab scrolls it back to the top, like iOS.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    scrollPositions.current[selectedTabRef.current] = window.scrollY;
+    selectedTabRef.current = nextTab;
+    setSelectedTab(nextTab);
+    startTransition(() => {
+      setMountedTabs((current) => (current.has(nextTab) ? current : new Set([...current, nextTab])));
+      setActiveTab(nextTab);
+    });
+  }, []);
+
+  const handleCompleteTask = useCallback(async (id) => {
     await completeTask(id);
-  };
+  }, [completeTask]);
 
-  const handleRequestAIHelp = (task) => {
+  const handleRequestAIHelp = useCallback((task) => {
     window.dispatchEvent(new CustomEvent('personal-agent:task-help', { detail: task }));
-  };
+  }, []);
 
-  const navigateTo = (tabId) => {
-    const nextTab = TAB_ALIASES[tabId] || tabId;
-    if (tabs.some((tab) => tab.id === nextTab)) setActiveTab(nextTab);
-  };
+  const existingSubjects = useMemo(
+    () => [...new Set(tasks.map((task) => task.subject).filter(Boolean))],
+    [tasks],
+  );
 
-  const todayLabel = new Intl.DateTimeFormat(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date());
+  const displayName = profile?.nickname || profile?.name || (user ? user.email?.split('@')[0] : '');
+  const account = useMemo(() => ({
+    initials: initialsOf(displayName),
+    name: displayName || (user ? 'Your account' : 'Guest'),
+    detail: user ? user.email : 'Sign in to sync your data',
+    label: 'Account',
+  }), [displayName, user]);
+
+  const shellValue = useMemo(() => ({
+    openAccount: () => setShowAccount(true),
+    account,
+    navigate: navigateTo,
+  }), [account, navigateTo]);
+
+  const renderTab = (tabId) => {
+    switch (tabId) {
+      case 'today':
+        return <Overview onNavigate={navigateTo} />;
+      case 'plan':
+        return (
+          <Schedule
+            onAddEvent={addScheduleItem}
+            onUpdateEvent={updateScheduleItem}
+            onDeleteEvent={deleteScheduleItem}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            tasks={tasks}
+            events={scheduleItems}
+            onCompleteTask={handleCompleteTask}
+          />
+        );
+      case 'tasks':
+        return (
+          <Garden
+            tasks={tasks}
+            onAddTask={addTask}
+            onCompleteTask={handleCompleteTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onRestoreTask={restoreTask}
+            onRequestAIHelp={handleRequestAIHelp}
+            existingSubjects={existingSubjects}
+          />
+        );
+      case 'uni-board':
+        return <UniBoard />;
+      case 'habits':
+        return <HabitTracker />;
+      case 'learning':
+        return <LearningTracker />;
+      case 'projects':
+        return <ProjectBoards />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <ToastProvider>
@@ -188,196 +281,91 @@ function App() {
         <IdeaBoardProvider>
           <ProjectProvider>
             <ScheduleTemplateProvider>
-            <ChatProvider>
-              <SmartNotificationBridge />
-              <UnifiedChatBridge />
+              <ChatProvider>
+                <ShellContext.Provider value={shellValue}>
+                  <SmartNotificationBridge />
+                  <UnifiedChatBridge />
 
-              <div className="app-shell">
-                <div className="app-shell__frame">
-                  <header className="app-header">
-                    <div className="app-brand">
-                      <span className="app-brand__mark" aria-hidden="true">
-                        <ClipboardList size={21} />
-                      </span>
-                      <div className="app-brand__copy">
-                        <h1>Personal Agent</h1>
-                        <p>
-                          <span>{todayLabel}</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{user ? profile?.nickname || user.email?.split('@')[0] || 'Your day' : 'Guest mode'}</span>
-                        </p>
+                  <AgentLauncher>
+                    {(openAgent) => (
+                      <div className="app-shell">
+                        <Sidebar
+                          selectedTab={selectedTab}
+                          onSelect={navigateTo}
+                          onAgent={openAgent}
+                          onAccount={() => setShowAccount(true)}
+                          account={account}
+                        />
+
+                        <main className="app-workspace" aria-label={`${TABS.find((tab) => tab.id === selectedTab)?.label || 'Active'} page`}>
+                          <Suspense fallback={<div className="tab-page tab-page--placeholder" />}>
+                            {TABS.filter((tab) => mountedTabs.has(tab.id)).map((tab) => (
+                              <Activity key={tab.id} mode={tab.id === activeTab ? 'visible' : 'hidden'}>
+                                <section className={`tab-page tab-page--${tab.id}`} aria-label={tab.label}>
+                                  {renderTab(tab.id)}
+                                </section>
+                              </Activity>
+                            ))}
+                          </Suspense>
+                        </main>
+
+                        <TabBar
+                          selectedTab={selectedTab}
+                          onSelect={navigateTo}
+                          onMore={() => setShowMoreSheet(true)}
+                          moreOpen={showMoreSheet}
+                          onAgent={openAgent}
+                        />
                       </div>
-                    </div>
+                    )}
+                  </AgentLauncher>
 
-                    <div className="app-header__actions">
-                      <div className="app-clock" aria-label="Current time">
-                        <DigitalClock />
-                      </div>
-
-                      {user ? (
-                        <button type="button" onClick={signOut} className="ui-icon-button" title="Sign out" aria-label="Sign out">
-                          <LogOut size={19} aria-hidden="true" />
-                        </button>
-                      ) : (
-                        <button type="button" onClick={() => setShowAuthModal(true)} className="ui-icon-button" title="Sign in" aria-label="Sign in">
-                          <LogIn size={19} aria-hidden="true" />
-                        </button>
-                      )}
-
-                      <div className="app-profile-control">
-                        <UserProfile />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={toggleTheme}
-                        className="ui-icon-button"
-                        title={`Use ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                        aria-label={`Use ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                      >
-                        {theme === 'dark' ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}
-                      </button>
-                    </div>
-                  </header>
-
-                  <nav className="app-primary-nav" aria-label="Primary navigation">
-                    <SegmentedControl
-                      items={tabs}
-                      value={activeTab}
-                      onChange={navigateTo}
-                      ariaLabel="Primary navigation"
-                      className="app-primary-nav__control"
-                    />
-                  </nav>
-
-                  {/* Mobile tab dock: Today, Plan, Tasks, Uni, and More. */}
-                  <nav className="app-tabbar" aria-label="Primary navigation">
-                    {tabs.filter((tab) => ['today', 'plan', 'tasks', 'uni-board'].includes(tab.id)).map((tab) => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => navigateTo(tab.id)}
-                          className={`app-tabbar__item${isActive ? ' is-active' : ''}`}
-                          aria-current={isActive ? 'page' : undefined}
-                        >
-                          <Icon size={19} aria-hidden="true" />
-                          <span className="app-tabbar__label">{tab.id === 'uni-board' ? 'Uni' : tab.label}</span>
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      onClick={() => setShowMoreSheet(true)}
-                      className={`app-tabbar__item${['habits', 'learning', 'projects'].includes(activeTab) ? ' is-active' : ''}`}
-                      aria-haspopup="dialog"
-                      aria-expanded={showMoreSheet}
-                    >
-                      <LayoutGrid size={19} aria-hidden="true" />
-                      <span className="app-tabbar__label">More</span>
-                    </button>
-                  </nav>
-
-                  <Sheet open={showMoreSheet} onClose={() => setShowMoreSheet(false)} title="More">
-                    <div className="space-y-1">
-                      {[
-                        { id: 'habits', label: 'Habits', icon: Repeat2, hint: 'Daily routines and progress' },
-                        { id: 'learning', label: 'Learning', icon: GraduationCap, hint: 'Paths, topics, timetable' },
-                        { id: 'projects', label: 'Projects', icon: FolderKanban, hint: 'Boards and planning' },
-                      ].map((entry) => {
-                        const Icon = entry.icon;
-                        return (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            onClick={() => { navigateTo(entry.id); setShowMoreSheet(false); }}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-[var(--color-paper-2)]"
-                          >
-                            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
-                              <Icon size={18} aria-hidden="true" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-semibold text-[var(--color-ink)]">{entry.label}</span>
-                              <span className="block text-xs text-[var(--color-muted)]">{entry.hint}</span>
-                            </span>
-                            <ChevronRight size={16} className="text-[var(--color-muted)]" aria-hidden="true" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </Sheet>
-
-                  {activeTab === 'tasks' && (
-                    <div className="app-task-composer">
-                      <Suspense fallback={<TabFallback />}>
-                        <TaskInput onAdd={addTask} existingSubjects={existingSubjects} />
-                      </Suspense>
-                    </div>
-                  )}
-
-                  <main
-                    id="app-active-workspace"
-                    className={`app-workspace app-workspace--${activeTab}`}
-                    role="tabpanel"
-                    aria-label={`${tabs.find((tab) => tab.id === activeTab)?.label || 'Active'} workspace`}
-                  >
-                    <div key={activeTab} className={`workspace-view workspace-view--${activeTab}`}>
-                      <Suspense fallback={<TabFallback />}>
-                        {activeTab === 'today' && <Overview onNavigate={navigateTo} />}
-
-                        {activeTab === 'uni-board' && <UniBoard />}
-
-                        {activeTab === 'plan' && (
-                          <Schedule
-                            onAddEvent={addScheduleItem}
-                            onUpdateEvent={updateScheduleItem}
-                            onDeleteEvent={deleteScheduleItem}
-                            onDeleteTask={deleteTask}
-                            onUpdateTask={updateTask}
-                            tasks={tasks}
-                            events={scheduleItems}
-                            onCompleteTask={handleCompleteTask}
-                          />
-                        )}
-
-                        {activeTab === 'tasks' && (
-                          <Garden
-                            tasks={tasks}
-                            onCompleteTask={handleCompleteTask}
-                            onDeleteTask={deleteTask}
-                            onUpdateTask={updateTask}
-                            onRestoreTask={restoreTask}
-                            onRequestAIHelp={handleRequestAIHelp}
-                            existingSubjects={existingSubjects}
-                          />
-                        )}
-
-                        {activeTab === 'habits' && <HabitTracker />}
-                        {activeTab === 'learning' && <LearningTracker />}
-                        {activeTab === 'projects' && <ProjectBoards />}
-                      </Suspense>
-                    </div>
-                  </main>
-                </div>
-
-                <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-
-                <Suspense fallback={null}>
-                  <NotificationToast
-                    onAction={(action) => {
-                      if (action === 'View Schedule' || action === 'Go to Schedule') navigateTo('plan');
-                      if (action === 'Go to Habits') navigateTo('habits');
-                      if (action === 'View tasks') navigateTo('tasks');
+                  <MoreSheet
+                    open={showMoreSheet}
+                    onClose={() => setShowMoreSheet(false)}
+                    selectedTab={selectedTab}
+                    onSelect={(tabId) => {
+                      setShowMoreSheet(false);
+                      navigateTo(tabId);
                     }}
                   />
-                  <ChatSidebar />
-                  {/* Today has its own docked ask-bar; the floating button would be redundant there. */}
-                  {activeTab !== 'today' && <FloatingChatButton />}
-                </Suspense>
-              </div>
-            </ChatProvider>
+
+                  <AccountSheet
+                    open={showAccount}
+                    onClose={() => setShowAccount(false)}
+                    account={account}
+                    signedIn={Boolean(user)}
+                    appearance={appearance}
+                    onAppearanceChange={setAppearance}
+                    onOpenProfile={() => {
+                      setShowAccount(false);
+                      setShowProfile(true);
+                    }}
+                    onSignIn={() => {
+                      setShowAccount(false);
+                      setShowAuthModal(true);
+                    }}
+                    onSignOut={() => {
+                      setShowAccount(false);
+                      signOut();
+                    }}
+                  />
+
+                  <ProfileSettings isOpen={showProfile} onClose={() => setShowProfile(false)} />
+                  <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+                  <Suspense fallback={null}>
+                    <NotificationToast
+                      onAction={(action) => {
+                        if (action === 'View Schedule' || action === 'Go to Schedule') navigateTo('plan');
+                        if (action === 'Go to Habits') navigateTo('habits');
+                        if (action === 'View tasks') navigateTo('tasks');
+                      }}
+                    />
+                    <ChatSidebar />
+                  </Suspense>
+                </ShellContext.Provider>
+              </ChatProvider>
             </ScheduleTemplateProvider>
           </ProjectProvider>
         </IdeaBoardProvider>

@@ -1,14 +1,15 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { Calendar, Folder, LayoutDashboard, Plus, Sparkles } from 'lucide-react';
+import React, { Suspense, lazy, useMemo, useState } from 'react';
+import { Calendar, Plus, Sparkles } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { useAIProjectArchitect } from '../hooks/useAIProjectArchitect';
 import ProjectMindMap from './ProjectMindMap';
 import ProjectDetailView from './ProjectDetailView';
 import { confirmAction } from '../utils/confirm';
 import { ProjectCalendar } from './ProjectCalendar';
-import { SegmentedControl } from '../ui';
+import { BarButton, PageHeader, RowMenu, SegmentedControl } from '../ui';
 import { AIProjectModal, EmptyProjectMap, ProjectPlanModal, ProjectTreeCard } from './projectBoardParts';
 import { buildProjectPayload, EMPTY_MANUAL_PROJECT, getSortedPhases } from './projectBoardUtils';
+import './projects.css';
 
 const IdeasBoard = lazy(() => import('./IdeasBoard'));
 
@@ -27,8 +28,9 @@ const ProjectBoards = () => {
     const [aiProjectCategory, setAiProjectCategory] = useState('General');
     const [manualProjectData, setManualProjectData] = useState(EMPTY_MANUAL_PROJECT);
     const [editProjectData, setEditProjectData] = useState(EMPTY_MANUAL_PROJECT);
-    const [projectMenuOpen, setProjectMenuOpen] = useState(null);
     const [activePhaseByProject, setActivePhaseByProject] = useState({});
+    // Returning from a pushed screen slides the list back in from the leading edge.
+    const [cameBack, setCameBack] = useState(false);
 
     const workspaceControl = (
         <SegmentedControl
@@ -39,7 +41,23 @@ const ProjectBoards = () => {
             value={workspace}
             onChange={setWorkspace}
             ariaLabel="Projects workspace"
+            className="projects-page__segments"
         />
+    );
+
+    const projectActions = (
+        <>
+            <BarButton icon={Calendar} label="Project calendar" onClick={() => setView('calendar')} />
+            <RowMenu
+                variant="bar"
+                icon={Plus}
+                label="New project"
+                items={[
+                    { label: 'New Project', icon: Plus, onSelect: () => setShowManualProjectModal(true) },
+                    { label: 'Plan with the Agent', icon: Sparkles, onSelect: () => setShowNewProjectModal(true) },
+                ]}
+            />
+        </>
     );
 
     const selectedProject = projects.find((project) => project.id === selectedProjectId);
@@ -53,14 +71,17 @@ const ProjectBoards = () => {
 
     const handleBackToList = () => {
         setView('list');
+        setCameBack(true);
         setSelectedProjectId(null);
         setSelectedPhaseId(null);
+        window.scrollTo(0, 0);
     };
 
     const openProjectBoard = (projectId, phaseId = null) => {
         setSelectedProjectId(projectId);
         setSelectedPhaseId(phaseId);
         setView('board');
+        window.scrollTo(0, 0);
     };
 
     const openProjectMindMap = (projectId) => {
@@ -115,7 +136,6 @@ const ProjectBoards = () => {
             notes: project.notes || '',
             deadline: project.deadline || ''
         });
-        setProjectMenuOpen(null);
     };
 
     const handleUpdateProjectPlan = async (event) => {
@@ -139,7 +159,6 @@ const ProjectBoards = () => {
         event.stopPropagation();
         const project = projects.find((item) => item.id === projectId);
         updateProject(projectId, { status: project?.status === 'completed' ? 'active' : 'completed' });
-        setProjectMenuOpen(null);
     };
 
     const handleDeleteProject = (event, projectId) => {
@@ -147,26 +166,13 @@ const ProjectBoards = () => {
         if (confirmAction('Delete this project and its tasks?')) {
             deleteProject(projectId);
         }
-        setProjectMenuOpen(null);
     };
 
     const handlePinProject = (event, projectId) => {
         event.stopPropagation();
         const project = projects.find((item) => item.id === projectId);
         updateProject(projectId, { isPinned: !project?.isPinned });
-        setProjectMenuOpen(null);
     };
-
-    const toggleProjectMenu = (event, projectId) => {
-        event.stopPropagation();
-        setProjectMenuOpen(projectMenuOpen === projectId ? null : projectId);
-    };
-
-    useEffect(() => {
-        const handleClickOutside = () => setProjectMenuOpen(null);
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
-    }, []);
 
     if (view === 'mindmap' && selectedProject) {
         return <ProjectMindMap project={selectedProject} onBack={handleBackToList} />;
@@ -174,9 +180,10 @@ const ProjectBoards = () => {
 
     if (workspace === 'ideas') {
         return (
-            <div className="h-full min-h-[720px] overflow-y-auto p-4 md:p-6">
-                <div className="mb-5">{workspaceControl}</div>
-                <Suspense fallback={<div className="py-16 text-center text-sm text-slate-500">Loading...</div>}>
+            <div className="projects-page">
+                <PageHeader title="Projects" />
+                {workspaceControl}
+                <Suspense fallback={null}>
                     <IdeasBoard />
                 </Suspense>
             </div>
@@ -198,96 +205,44 @@ const ProjectBoards = () => {
     }
 
     return (
-        <div className="ios-codex-projects h-full min-h-[720px] overflow-y-auto rounded-lg border border-slate-200 p-4 text-slate-900 shadow-sm dark:border-white/10 dark:text-bone-100 md:p-6">
-            <div className="mb-5">{workspaceControl}</div>
-            <header className="ios-codex-header mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                    <div className="app-eyebrow flex items-center gap-2">
-                        <LayoutDashboard className="h-4 w-4" />
-                        Project map
-                    </div>
-                    <h2 className="app-page-title mt-2">
-                        Main Page Projects
-                    </h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-bone-200/70">
-                        Projects split into stages, and stages open into the tasks that move them forward.
-                    </p>
+        <div className={`projects-page${cameBack ? ' pop-enter' : ''}`} onAnimationEnd={(event) => { if (event.target === event.currentTarget) setCameBack(false); }}>
+            <PageHeader title="Projects" actions={projectActions} />
+            {workspaceControl}
+
+            {orderedProjects.length > 0 ? (
+                <div className="project-grid">
+                    {orderedProjects.map((project, index) => {
+                        const firstPhaseId = getSortedPhases(project)[0]?.id || null;
+                        const storedPhaseId = activePhaseByProject[project.id];
+                        const activePhaseId = storedPhaseId === '__closed'
+                            ? null
+                            : storedPhaseId || (index === 0 ? firstPhaseId : null);
+
+                        return (
+                            <ProjectTreeCard
+                                key={project.id}
+                                project={project}
+                                activePhaseId={activePhaseId}
+                                onTogglePhase={togglePhaseBranch}
+                                onOpenBoard={openProjectBoard}
+                                onOpenMindMap={openProjectMindMap}
+                                onEditProject={startEditingProject}
+                                onCompleteProject={handleCompleteProject}
+                                onPinProject={handlePinProject}
+                                onDeleteProject={handleDeleteProject}
+                            />
+                        );
+                    })}
                 </div>
+            ) : (
+                <EmptyProjectMap
+                    onCreateManual={() => setShowManualProjectModal(true)}
+                    onCreateAI={() => setShowNewProjectModal(true)}
+                />
+            )}
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        onClick={() => setView('calendar')}
-                        className="ios-codex-button inline-flex items-center gap-2"
-                    >
-                        <Calendar className="h-4 w-4" />
-                        Calendar
-                    </button>
-                    <button
-                        onClick={() => setShowManualProjectModal(true)}
-                        className="ios-codex-button inline-flex items-center gap-2"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Manual
-                    </button>
-                    <button
-                        onClick={() => setShowNewProjectModal(true)}
-                        className="ios-codex-button ios-codex-button-primary inline-flex items-center gap-2"
-                    >
-                        <Sparkles className="h-4 w-4" />
-                        AI Project
-                    </button>
-                </div>
-            </header>
-
-            <section className="ios-codex-map mb-5 py-5">
-                <div className="mx-auto max-w-xl text-center">
-                    <div className="ios-codex-root-pill inline-flex items-center gap-2 px-3 py-2 text-sm font-bold">
-                        <Folder className="h-4 w-4 text-sage-600 dark:text-sage-400" />
-                        Main Page Projects
-                    </div>
-                    <div className="mx-auto mt-4 hidden h-12 w-px bg-slate-300 dark:bg-white/20 md:block" />
-                </div>
-
-                {orderedProjects.length > 0 ? (
-                    <div className="relative mt-4">
-                        <div className="absolute left-[10%] right-[10%] top-0 hidden h-px bg-slate-300 dark:bg-white/20 md:block" />
-                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                            {orderedProjects.map((project, index) => {
-                                const firstPhaseId = getSortedPhases(project)[0]?.id || null;
-                                const storedPhaseId = activePhaseByProject[project.id];
-                                const activePhaseId = storedPhaseId === '__closed'
-                                    ? null
-                                    : storedPhaseId || (index === 0 ? firstPhaseId : null);
-
-                                return (
-                                    <ProjectTreeCard
-                                        key={project.id}
-                                        project={project}
-                                        activePhaseId={activePhaseId}
-                                        isMenuOpen={projectMenuOpen === project.id}
-                                        onTogglePhase={togglePhaseBranch}
-                                        onOpenBoard={openProjectBoard}
-                                        onOpenMindMap={openProjectMindMap}
-                                        onToggleMenu={toggleProjectMenu}
-                                        onEditProject={startEditingProject}
-                                        onCompleteProject={handleCompleteProject}
-                                        onPinProject={handlePinProject}
-                                        onDeleteProject={handleDeleteProject}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-                ) : (
-                    <EmptyProjectMap
-                        onCreateManual={() => setShowManualProjectModal(true)}
-                        onCreateAI={() => setShowNewProjectModal(true)}
-                    />
-                )}
-            </section>
-
-            {showNewProjectModal && (
-                <AIProjectModal
+            <AIProjectModal
+                    open={showNewProjectModal}
                     prompt={prompt}
                     setPrompt={setPrompt}
                     category={aiProjectCategory}
@@ -296,29 +251,26 @@ const ProjectBoards = () => {
                     onSubmit={handleCreateProject}
                     isGenerating={isGenerating}
                 />
-            )}
 
-            {showManualProjectModal && (
-                <ProjectPlanModal
-                    title="Create Project"
+            <ProjectPlanModal
+                    open={showManualProjectModal}
+                    title="New Project"
                     submitLabel="Create Project"
                     data={manualProjectData}
                     setData={setManualProjectData}
                     onSubmit={handleCreateManualProject}
                     onClose={() => setShowManualProjectModal(false)}
                 />
-            )}
 
-            {editingProject && (
-                <ProjectPlanModal
-                    title="Edit Project Plan"
-                    submitLabel="Save Changes"
+            <ProjectPlanModal
+                    open={Boolean(editingProject)}
+                    title="Edit Project"
+                    submitLabel="Save"
                     data={editProjectData}
                     setData={setEditProjectData}
                     onSubmit={handleUpdateProjectPlan}
                     onClose={() => setEditingProject(null)}
                 />
-            )}
         </div>
     );
 };

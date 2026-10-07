@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Calendar, Check, CheckCircle2, Clock, Sparkles, Sunrise, X } from 'lucide-react';
+import { Calendar, Check, CheckCircle2, Clock, Sparkles, X } from 'lucide-react';
+import { usePresence } from '../ui';
+import './ritual.css';
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences';
 import { isTaskActive } from '../utils/taskState';
 import RitualChoice from './RitualChoice';
@@ -24,7 +25,6 @@ const DailyRitualModal = ({
     isOpen,
     onClose,
     profile,
-    user,
     tasks = [],
     scheduleItems = [],
     habits = [],
@@ -198,98 +198,65 @@ const DailyRitualModal = ({
         onClose();
     };
 
-    const displayName = profile?.nickname || profile?.name || user?.email?.split('@')[0] || '';
-    const activeStep = STEP_META[stepIndex];
+    const rendered = usePresence(isOpen, 320);
+
+    if (!rendered) return null;
+    const closing = !isOpen;
 
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <Motion.div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--color-overlay)] px-3 py-4 backdrop-blur-sm"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                >
-                    <Motion.div
-                        className="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] bg-[var(--color-card)] shadow-2xl"
-                        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 16, scale: 0.98 }}
-                    >
-                        <div className="flex items-start justify-between gap-4 border-b border-[var(--color-rule)] px-5 py-4 sm:px-7">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-warning-soft)] text-[var(--color-warning)]">
-                                    <Sunrise size={22} />
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-warning)]">Daily Ritual</div>
-                                    <h2 className="text-2xl font-bold text-[var(--color-ink)]">{displayName ? `Start with intention, ${displayName}` : 'Start with intention'}</h2>
-                                </div>
-                            </div>
+        <>
+            <div className="ritual-overlay" data-closing={closing ? 'true' : undefined} onClick={onClose} />
+            <section
+                className="ritual-sheet"
+                data-closing={closing ? 'true' : undefined}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Start your day"
+            >
+                        <header className="ritual-sheet__header">
+                            <span className="ritual-sheet__grabber" aria-hidden="true" />
+                            <h2>Start Your Day</h2>
                             <button
                                 type="button"
                                 {...buttonPressProps(onClose)}
-                                className="rounded-2xl p-2 text-[var(--color-muted)] transition-colors hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
+                                className="ui-sheet__close"
                                 aria-label="Close Daily Ritual"
                             >
-                                <X size={20} />
+                                <X size={17} strokeWidth={2.4} />
                             </button>
+                        </header>
+
+                        <div className="ritual-steps" role="tablist" aria-label="Ritual steps">
+                            {STEP_META.map((step, index) => {
+                                const isActive = index === stepIndex;
+                                const isDone = index < stepIndex || (index === 3 && applied);
+                                return (
+                                    <button
+                                        key={step.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        {...buttonPressProps(() => goToStep(index))}
+                                        className={`ritual-steps__item${isActive ? ' is-active' : ''}${isDone ? ' is-done' : ''}`}
+                                    >
+                                        <span className="ritual-steps__bar" aria-hidden="true" />
+                                        <span className="ritual-steps__label">{step.label}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
 
-                        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[220px_1fr]">
-                            <aside className="border-b border-[var(--color-rule)] bg-[var(--color-paper-2)]/70 p-4 lg:border-b-0 lg:border-r">
-                                <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-                                    {STEP_META.map((step, index) => {
-                                        const StepIcon = step.icon;
-                                        const isActive = index === stepIndex;
-                                        const isDone = index < stepIndex || (index === 3 && applied);
-
-                                        return (
-                                            <button
-                                                key={step.id}
-                                                type="button"
-                                                {...buttonPressProps(() => goToStep(index))}
-                                                className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition-all ${isActive
-                                                    ? 'bg-[var(--color-card-raised)] text-[var(--color-accent)] shadow-sm'
-                                                    : 'text-[var(--color-muted)] hover:bg-[var(--color-card-raised)]/70 hover:text-[var(--color-ink)]'
-                                                    }`}
-                                            >
-                                                <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${isDone ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]' : isActive ? 'bg-[var(--color-accent)] text-[var(--color-accent-ink)]' : 'bg-[var(--color-card-raised)] text-[var(--color-muted)]'}`}>
-                                                    {isDone ? <CheckCircle2 size={16} /> : <StepIcon size={16} />}
-                                                </span>
-                                                {step.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </aside>
-
-                            <main className="min-h-0 overflow-y-auto p-5 sm:p-7">
-                                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="ritual-sheet__body">
+                            <main className="ritual-sheet__main">
+                                <div className="ritual-sheet__title">
                                     <div>
-                                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">{activeStep.label}</div>
-                                        <h3 className="mt-1 text-2xl font-bold text-[var(--color-ink)]">
+                                        <h3>
                                             {stepIndex === 0 && 'See the day clearly'}
                                             {stepIndex === 1 && 'Choose the work that matters'}
                                             {stepIndex === 2 && 'Turn priorities into time'}
                                             {stepIndex === 3 && 'You are ready to begin'}
                                         </h3>
                                     </div>
-                                    <div className="text-sm font-medium text-[var(--color-muted)]">
-                                        {now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-                                    </div>
-                                </div>
-
-                                <div className="mb-5 rounded-3xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-soft)] px-5 py-4">
-                                    <div className="text-sm font-bold text-[var(--color-accent)]">
-                                        Step {stepIndex + 1} of {STEP_META.length}: {activeStep.label}
-                                    </div>
-                                    <p className="mt-1 text-sm text-[var(--color-ink-2)]">
-                                        {stepIndex === 0 && 'I am collecting today’s tasks, habits, and schedule so you can see what needs attention.'}
-                                        {stepIndex === 1 && `Choose what should become today's plan. ${selectedItems.length} item${selectedItems.length === 1 ? '' : 's'} selected.`}
-                                        {stepIndex === 2 && `I found ${freeWindows.length} free window${freeWindows.length === 1 ? '' : 's'} and prepared ${planBlocks.length} new ritual block${planBlocks.length === 1 ? '' : 's'}.`}
-                                        {stepIndex === 3 && 'Your launch path is ready. You can view the schedule or ask the agent to guide execution.'}
-                                    </p>
                                 </div>
 
                                 {stepIndex === 0 && (
@@ -366,9 +333,6 @@ const DailyRitualModal = ({
 
                                 {stepIndex === 1 && (
                                     <div className="space-y-4">
-                                        <div className="rounded-3xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-soft)] px-5 py-4 text-sm text-[var(--color-ink-2)]">
-                                            Pick tasks or habits. The ritual will schedule the selected work into real free windows.
-                                        </div>
                                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                             {priorityCandidates.map((item) => (
                                                 <RitualChoice
@@ -402,10 +366,7 @@ const DailyRitualModal = ({
 
                                         <div className="rounded-3xl border border-[var(--color-rule)] bg-[var(--color-paper-2)] p-5">
                                             <div className="mb-4 flex items-center justify-between gap-3">
-                                                <div>
-                                                    <h4 className="font-bold text-[var(--color-ink)]">Suggested focus blocks</h4>
-                                                    <p className="mt-1 text-sm text-[var(--color-muted)]">These will be added to your schedule when you apply the plan.</p>
-                                                </div>
+                                                <h4 className="font-bold text-[var(--color-ink)]">Focus blocks</h4>
                                                 <button
                                                     type="button"
                                                     {...buttonPressProps(handleApplyPlan)}
@@ -491,10 +452,8 @@ const DailyRitualModal = ({
                             stepCount={STEP_META.length}
                             stepIndex={stepIndex}
                         />
-                    </Motion.div>
-                </Motion.div>
-            )}
-        </AnimatePresence>
+            </section>
+        </>
     );
 };
 

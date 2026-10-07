@@ -6,7 +6,7 @@ export const formatTaskDueAbsolute = (value, completed = false, now = new Date()
     const due = new Date(value);
     const today = due.toDateString() === now.toDateString();
     const date = today
-        ? `Today, ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+        ? `Today, ${due.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
         : due.toLocaleDateString([], { month: 'short', day: 'numeric' });
     return !completed && due < now && !today ? `Overdue · ${date}` : date;
 };

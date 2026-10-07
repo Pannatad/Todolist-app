@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useRef, useState } from 'react';
 import {
+    ArrowUp,
     CalendarPlus,
     CheckSquare,
     MessageCircle,
@@ -9,13 +9,15 @@ import {
     LoaderCircle,
     Mic,
     MicOff,
+    MoreHorizontal,
     Paperclip,
-    Send,
-    Sparkles,
+    Plus,
     Square,
     Trash2,
     X,
 } from 'lucide-react';
+import { MenuButton, RowMenu, useMediaQuery, usePresence } from '../ui';
+import './agent.css';
 import ChatMessage, { TypingIndicator } from './ChatMessage';
 import { GUIDE_MODES, plannerSummaryLines, TOMORROW_PLANNER_STEPS } from './chatSidebarUtils';
 import { useTask } from '../context/TaskContext';
@@ -34,8 +36,6 @@ const addMinutes = (hhmm, minutes) => {
     const total = Math.min(23 * 60 + 59, hours * 60 + mins + minutes);
     return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 };
-
-const timeInputClass = 'rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-900 focus:border-slate-400 focus:bg-white focus:outline-none';
 
 /**
  * Structured quick-add: pick times/dates, type a title, send — the item is
@@ -122,6 +122,48 @@ const ChatSidebarPanel = ({
     updatePlannerAnswer,
 }) => {
     const quickAdd = useQuickAdd({ input, setInput });
+    const wide = useMediaQuery('(min-width: 40rem)');
+    const rendered = usePresence(isOpen, 320);
+    const sheetRef = useRef(null);
+    const dragRef = useRef(null);
+
+    // Drag the header down to dismiss, like a native sheet.
+    const startDrag = (event) => {
+        if (wide || event.button !== 0 || event.target.closest('button')) return;
+        dragRef.current = { startY: event.clientY, lastY: event.clientY, lastTime: performance.now(), velocity: 0 };
+        try {
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch {
+            // Pointer already released; drag still works without capture.
+        }
+        if (sheetRef.current) sheetRef.current.dataset.dragging = 'true';
+    };
+    const moveDrag = (event) => {
+        const drag = dragRef.current;
+        const sheet = sheetRef.current;
+        if (!drag || !sheet) return;
+        const now = performance.now();
+        drag.velocity = (event.clientY - drag.lastY) / Math.max(1, now - drag.lastTime);
+        drag.lastY = event.clientY;
+        drag.lastTime = now;
+        const delta = event.clientY - drag.startY;
+        sheet.style.transform = `translate3d(0, ${delta > 0 ? delta : -Math.sqrt(-delta) * 2}px, 0)`;
+    };
+    const endDrag = () => {
+        const drag = dragRef.current;
+        const sheet = sheetRef.current;
+        dragRef.current = null;
+        if (!drag || !sheet) return;
+        delete sheet.dataset.dragging;
+        const distance = drag.lastY - drag.startY;
+        if (distance > 120 || (distance > 24 && drag.velocity > 0.6)) {
+            sheet.dataset.flicked = 'true';
+            sheet.style.transform = 'translate3d(0, 100%, 0)';
+            closeSidebar();
+            return;
+        }
+        sheet.style.transform = '';
+    };
 
     const onComposerSubmit = (event) => {
         if (quickAdd.mode) {
@@ -132,365 +174,216 @@ const ChatSidebarPanel = ({
         }
     };
 
+    const settingsSections = [
+        {
+            title: 'Model',
+            items: aiProviderOptions.map((option) => ({
+                id: option.id,
+                label: option.label,
+                checked: selectedAIProvider === option.id,
+                disabled: isTyping,
+                onSelect: () => setSelectedAIProvider(option.id),
+            })),
+        },
+        ...(selectedAIProvider === 'local' ? [{
+            title: 'Local model',
+            items: [{
+                id: 'thinking',
+                label: 'Thinking Mode',
+                checked: localThinkingEnabled,
+                disabled: isTyping,
+                onSelect: () => setLocalThinkingEnabled(!localThinkingEnabled),
+            }],
+        }] : []),
+        {
+            items: [{ id: 'clear', label: 'Clear Conversation', icon: Trash2, destructive: true, onSelect: handleClearChat }],
+        },
+    ];
+
+    const addMenuItems = [
+        { label: 'Photo or PDF', icon: Paperclip, onSelect: () => fileInputRef.current?.click() },
+        { label: 'New Event', icon: CalendarPlus, onSelect: () => quickAdd.toggleMode('event') },
+        { label: 'New Task', icon: CheckSquare, onSelect: () => quickAdd.toggleMode('task') },
+    ];
+
+    const showEmptyState = messages.length === 0 && !activeGuide && !tomorrowPlanner;
+    const localStatusLabel = localAIStatus.status === 'checking' ? 'Checking LM Studio…' : 'LM Studio is offline';
+
+    if (!rendered) return null;
+    const closing = !isOpen;
+
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <>
-                    {/* Backdrop */}
+        <>
                     <div
+                        className="agent-backdrop"
+                        data-closing={closing ? 'true' : undefined}
                         onClick={closeSidebar}
-                        className="fixed inset-0 z-[400] bg-black/20 backdrop-blur-sm"
                     />
 
-                    {/* Sidebar Panel */}
-                    <div
-                        className="fixed right-0 top-0 z-[410] flex h-dvh w-full flex-col bg-slate-50 shadow-2xl sm:w-[440px] md:w-[500px]"
+                    <section
+                        ref={sheetRef}
+                        className="agent-sheet"
+                        data-closing={closing ? 'true' : undefined}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Agent"
                     >
-                        {/* Header */}
-                        <div className="border-b border-slate-200 bg-white">
-                            <div className="flex items-center justify-between px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-slate-900 rounded-lg">
-                                        <Sparkles size={18} className="text-white" />
-                                    </div>
-                                    <div>
-                                        <h2 className="font-semibold text-slate-900">Agent</h2>
-                                        <p className="text-xs text-slate-500">Plan, decide, and act</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={handleClearChat}
-                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-red-500"
-                                        title="Clear conversation"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                    <button
-                                        onClick={closeSidebar}
-                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
-                                        title="Close"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="px-4 pb-3">
-                                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-1">
-                                    <div className="grid grid-cols-2 gap-1">
-                                        {aiProviderOptions.map((option) => {
-                                            const isSelected = selectedAIProvider === option.id;
-                                            return (
-                                                <button
-                                                    key={option.id}
-                                                    type="button"
-                                                    onClick={() => setSelectedAIProvider(option.id)}
-                                                    disabled={isTyping}
-                                                    className={`rounded-lg px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isSelected
-                                                        ? 'bg-slate-900 text-white shadow-sm'
-                                                        : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                                                        }`}
-                                                    title={option.description}
-                                                >
-                                                    <div className="text-xs font-semibold uppercase tracking-wide">{option.label}</div>
-                                                    <div className={`mt-0.5 truncate text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                                                        {option.id === 'local' ? 'Local via LM Studio' : 'Cloud default'}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                {selectedAIProvider === 'local' && (
-                                    <div className="mb-3 space-y-2">
-                                        <div
-                                            className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs ${localAIStatus.status === 'ready'
-                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                : localAIStatus.status === 'checking'
-                                                    ? 'border-slate-200 bg-white text-slate-500'
-                                                    : 'border-amber-200 bg-amber-50 text-amber-800'
-                                                }`}
-                                            role="status"
-                                        >
-                                            <span
-                                                className={`h-2 w-2 shrink-0 rounded-full ${localAIStatus.status === 'ready'
-                                                    ? 'bg-emerald-500'
-                                                    : localAIStatus.status === 'checking'
-                                                        ? 'animate-pulse bg-slate-400'
-                                                        : 'bg-amber-500'
-                                                    }`}
-                                            />
-                                            <span className="truncate">
-                                                {localAIStatus.status === 'ready'
-                                                    ? `Ready · ${localAIStatus.model}`
-                                                    : localAIStatus.message || 'Open LM Studio and start its local server.'}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                            <div className="min-w-0">
-                                                <div className="text-xs font-semibold text-slate-700">Thinking mode</div>
-                                                <div className="text-[11px] text-slate-400">
-                                                    {localThinkingEnabled ? 'Enabled · slower, deeper response' : 'Disabled · faster response'}
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                role="switch"
-                                                aria-checked={localThinkingEnabled}
-                                                aria-label="Thinking mode"
-                                                onClick={() => setLocalThinkingEnabled(!localThinkingEnabled)}
-                                                disabled={isTyping}
-                                                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${localThinkingEnabled ? 'bg-slate-900' : 'bg-slate-300'}`}
-                                            >
-                                                <span className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${localThinkingEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="grid grid-cols-5 gap-1.5">
-                                    {GUIDE_MODES.map((command) => {
-                                        const Icon = command.icon;
-                                        const isActive = activeGuide?.id === command.id;
-                                        return (
-                                            <button
-                                                key={command.label}
-                                                type="button"
-                                                onClick={() => openGuide(command)}
-                                                disabled={isTyping}
-                                                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border px-1.5 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isActive
-                                                    ? 'border-slate-900 bg-slate-900 text-white'
-                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100'
-                                                    }`}
-                                                title={command.title}
-                                            >
-                                                <Icon size={16} />
-                                                <span className="leading-none">{command.label}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
+                        <div
+                            className="agent-header"
+                            onPointerDown={startDrag}
+                            onPointerMove={moveDrag}
+                            onPointerUp={endDrag}
+                            onPointerCancel={endDrag}
+                        >
+                            <span className="agent-header__grabber" aria-hidden="true" />
+                            <MenuButton
+                                icon={MoreHorizontal}
+                                label="Agent settings"
+                                sections={settingsSections}
+                                align="left"
+                                buttonClassName="agent-header__button"
+                            />
+                            <h2 className="agent-header__title">Agent</h2>
+                            <button type="button" onClick={closeSidebar} className="ui-sheet__close agent-header__close" aria-label="Close agent">
+                                <X size={17} strokeWidth={2.4} />
+                            </button>
                         </div>
 
-                        {activeGuide && (
-                            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                        <div>
-                                            <h3 className="text-sm font-semibold text-slate-900">{activeGuide.title}</h3>
-                                            <p className="text-xs text-slate-500">Answer a few knobs, then I’ll ask the agent.</p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveGuide(null)}
-                                            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                            title="Close guide"
-                                        >
-                                            <X size={16} />
+                        {selectedAIProvider === 'local' && localAIStatus.status !== 'ready' && (
+                            <p className={`agent-status is-${localAIStatus.status}`} role="status" title={localAIStatus.message}>
+                                <span aria-hidden="true" />
+                                {localStatusLabel}
+                            </p>
+                        )}
+
+                        <div className="agent-messages">
+                            {activeGuide && (
+                                <div className="agent-card">
+                                    <div className="agent-card__header">
+                                        <h3>{activeGuide.title}</h3>
+                                        <button type="button" onClick={() => setActiveGuide(null)} className="ui-sheet__close" aria-label="Close guide">
+                                            <X size={15} strokeWidth={2.4} />
                                         </button>
                                     </div>
+                                    {activeGuide.fields.map((field) => (
+                                        <div key={field.id} className="agent-card__field">
+                                            <span className="agent-card__label">{field.label}</span>
+                                            <div className="agent-card__options">
+                                                {field.options.map((option) => (
+                                                    <button
+                                                        key={option}
+                                                        type="button"
+                                                        onClick={() => updateGuideAnswer(field.id, option)}
+                                                        className={`agent-chip${guideAnswers[field.id] === option ? ' is-selected' : ''}`}
+                                                        aria-pressed={guideAnswers[field.id] === option}
+                                                    >
+                                                        {option}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <textarea
+                                        value={guideAnswers.notes || ''}
+                                        onChange={(event) => updateGuideAnswer('notes', event.target.value)}
+                                        placeholder="Anything else? (optional)"
+                                        rows={2}
+                                        className="agent-textarea"
+                                    />
+                                    <div className="agent-card__footer">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setInput(activeGuide.prompt(guideAnswers));
+                                                setActiveGuide(null);
+                                            }}
+                                            className="ui-text-button"
+                                        >
+                                            Edit First
+                                        </button>
+                                        <button type="button" onClick={submitGuide} disabled={isTyping} className="ui-button ui-button--accent">Ask</button>
+                                    </div>
+                                </div>
+                            )}
 
-                                    <div className="space-y-3">
-                                        {activeGuide.fields.map((field) => (
-                                            <div key={field.id}>
-                                                <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{field.label}</div>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {field.options.map((option) => (
-                                                        <button
-                                                            key={option}
-                                                            type="button"
-                                                            onClick={() => updateGuideAnswer(field.id, option)}
-                                                            className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${guideAnswers[field.id] === option
-                                                                ? 'border-slate-900 bg-slate-900 text-white'
-                                                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                                                }`}
-                                                        >
-                                                            {option}
+                            {tomorrowPlanner && (() => {
+                                const step = TOMORROW_PLANNER_STEPS[tomorrowPlanner.stepIndex];
+                                const isReview = step.id === 'review';
+                                return (
+                                    <div className="agent-card">
+                                        <div className="agent-card__header">
+                                            <div>
+                                                <span className="agent-card__label">Tomorrow · {tomorrowPlanner.stepIndex + 1} of {TOMORROW_PLANNER_STEPS.length}</span>
+                                                <h3>{step.title}</h3>
+                                            </div>
+                                            <button type="button" onClick={() => setTomorrowPlanner(null)} className="ui-sheet__close" aria-label="Close planner">
+                                                <X size={15} strokeWidth={2.4} />
+                                            </button>
+                                        </div>
+                                        <div className="agent-progress" aria-hidden="true">
+                                            {TOMORROW_PLANNER_STEPS.map((item, index) => (
+                                                <span key={item.id} className={index <= tomorrowPlanner.stepIndex ? 'is-done' : ''} />
+                                            ))}
+                                        </div>
+                                        {!isReview ? (
+                                            <>
+                                                <div className="agent-card__options">
+                                                    {step.chips.map((chip) => (
+                                                        <button key={chip} type="button" onClick={() => applyPlannerChip(step.id, chip)} className="agent-chip">
+                                                            {chip}
                                                         </button>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        ))}
-
-                                        <textarea
-                                            value={guideAnswers.notes || ''}
-                                            onChange={(event) => updateGuideAnswer('notes', event.target.value)}
-                                            placeholder="Optional: constraints, mood, deadline, what feels hard..."
-                                            rows={2}
-                                            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                        />
-
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={submitGuide}
-                                                disabled={isTyping}
-                                                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                            >
-                                                Ask agent
+                                                <textarea
+                                                    value={tomorrowPlanner.answers[step.id] || ''}
+                                                    onChange={(event) => updatePlannerAnswer(step.id, event.target.value)}
+                                                    placeholder={step.placeholder}
+                                                    rows={3}
+                                                    className="agent-textarea"
+                                                />
+                                            </>
+                                        ) : (
+                                            <ul className="agent-card__summary">
+                                                {plannerSummaryLines(tomorrowPlanner.answers).map((line) => <li key={line}>{line}</li>)}
+                                            </ul>
+                                        )}
+                                        <div className="agent-card__footer">
+                                            <button type="button" onClick={() => movePlannerStep(-1)} disabled={tomorrowPlanner.stepIndex === 0} className="ui-text-button">
+                                                Back
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setInput(activeGuide.prompt(guideAnswers));
-                                                    setActiveGuide(null);
-                                                }}
-                                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                                            >
-                                                Edit first
-                                            </button>
+                                            {isReview ? (
+                                                <button type="button" onClick={sendTomorrowPlan} disabled={isTyping} className="ui-button ui-button--accent">Draft Plan</button>
+                                            ) : (
+                                                <button type="button" onClick={() => movePlannerStep(1)} className="ui-button ui-button--accent">
+                                                    {tomorrowPlanner.answers[step.id]?.trim() ? 'Next' : 'Skip'}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
+                                );
+                            })()}
 
-                        {tomorrowPlanner && (
-                            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                                    {(() => {
-                                        const step = TOMORROW_PLANNER_STEPS[tomorrowPlanner.stepIndex];
-                                        const isReview = step.id === 'review';
-                                        const progress = `${tomorrowPlanner.stepIndex + 1}/${TOMORROW_PLANNER_STEPS.length}`;
-
-                                        return (
-                                            <>
-                                                <div className="mb-3 flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Tomorrow planner {progress}</div>
-                                                        <h3 className="text-sm font-semibold text-slate-900">{step.title}</h3>
-                                                        <p className="mt-0.5 text-xs text-slate-500">{step.helper}</p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTomorrowPlanner(null)}
-                                                        className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                                        title="Close planner"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                </div>
-
-                                                <div className="mb-3 grid grid-cols-7 gap-1">
-                                                    {TOMORROW_PLANNER_STEPS.map((item, index) => (
-                                                        <button
-                                                            key={item.id}
-                                                            type="button"
-                                                            onClick={() => setTomorrowPlanner((current) => current ? { ...current, stepIndex: index } : current)}
-                                                            className={`h-1.5 rounded-full transition-colors ${index <= tomorrowPlanner.stepIndex ? 'bg-slate-900' : 'bg-slate-200'}`}
-                                                            title={item.title}
-                                                        />
-                                                    ))}
-                                                </div>
-
-                                                {!isReview ? (
-                                                    <div className="space-y-3">
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {step.chips.map((chip) => (
-                                                                <button
-                                                                    key={chip}
-                                                                    type="button"
-                                                                    onClick={() => applyPlannerChip(step.id, chip)}
-                                                                    className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                                                                >
-                                                                    {chip}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-
-                                                        <textarea
-                                                            value={tomorrowPlanner.answers[step.id] || ''}
-                                                            onChange={(event) => updatePlannerAnswer(step.id, event.target.value)}
-                                                            placeholder={step.placeholder}
-                                                            rows={3}
-                                                            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-2">
-                                                        {plannerSummaryLines(tomorrowPlanner.answers).map((line) => (
-                                                            <div key={line} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                                                                {line}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                <div className="mt-3 flex items-center justify-between gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => movePlannerStep(-1)}
-                                                        disabled={tomorrowPlanner.stepIndex === 0}
-                                                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                                    >
-                                                        Back
-                                                    </button>
-
-                                                    <div className="flex items-center gap-2">
-                                                        {!isReview && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => movePlannerStep(1)}
-                                                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                                                            >
-                                                                {tomorrowPlanner.answers[step.id]?.trim() ? 'Next' : 'Skip'}
-                                                            </button>
-                                                        )}
-                                                        {isReview ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={sendTomorrowPlan}
-                                                                disabled={isTyping}
-                                                                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                                            >
-                                                                Draft with agent
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setTomorrowPlanner((current) => current ? { ...current, stepIndex: TOMORROW_PLANNER_STEPS.length - 1 } : current)}
-                                                                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700"
-                                                            >
-                                                                Review
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                            {messages.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                                    <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-                                        <MessageCircle size={32} className="text-slate-700" />
-                                    </div>
-                                    <h3 className="font-semibold text-slate-900 mb-2">What should we decide?</h3>
-                                    <p className="text-slate-500 text-sm mb-6 max-w-sm">
-                                        Use a command above for a focused answer, or ask naturally. Short, actionable requests work best.
-                                    </p>
-
-                                    {/* Quick action buttons */}
-                                    <div className="grid w-full max-w-sm grid-cols-1 gap-2">
-                                        {[
-                                            'What is the single best task to do next?',
-                                            'Create a realistic focus block for today',
-                                            'What is overloaded or conflicting today?'
-                                        ].map((action) => (
-                                            <button
-                                                key={action}
-                                                onClick={() => sendMessage(action)}
-                                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
-                                            >
-                                                {action}
-                                            </button>
-                                        ))}
+                            {showEmptyState ? (
+                                <div className="agent-empty">
+                                    <span className="agent-empty__icon" aria-hidden="true"><MessageCircle size={26} strokeWidth={2} /></span>
+                                    <h3>How can I help?</h3>
+                                    <div className="agent-empty__guides">
+                                        {GUIDE_MODES.map((command) => {
+                                            const Icon = command.icon;
+                                            return (
+                                                <button
+                                                    key={command.label}
+                                                    type="button"
+                                                    onClick={() => openGuide(command)}
+                                                    disabled={isTyping}
+                                                    className="agent-chip agent-chip--large"
+                                                    title={command.title}
+                                                >
+                                                    <Icon size={15} aria-hidden="true" />
+                                                    {command.label}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ) : (
@@ -511,87 +404,39 @@ const ChatSidebarPanel = ({
                             )}
                         </div>
 
-                        {/* Input Area */}
-                        <div className="border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                            {/* Quick-add mode chips */}
-                            <div className="mb-2 flex items-center gap-1.5">
-                                {[
-                                    { id: 'event', label: 'Event', icon: CalendarPlus },
-                                    { id: 'task', label: 'Task', icon: CheckSquare },
-                                ].map((chip) => {
-                                    const ChipIcon = chip.icon;
-                                    const { id, label } = chip;
-                                    return (
-                                    <button
-                                        key={id}
-                                        type="button"
-                                        onClick={() => quickAdd.toggleMode(id)}
-                                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${quickAdd.mode === id
-                                            ? 'border-slate-900 bg-slate-900 text-white'
-                                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                                            }`}
-                                        title={id === 'event' ? 'Add a schedule block directly' : 'Add a task directly'}
-                                    >
-                                        <ChipIcon size={13} />
-                                        {label}
+                        <div className="agent-composer">
+                            {quickAdd.mode && (
+                                <div className="agent-quick-add">
+                                    <button type="button" className="agent-chip is-selected" onClick={() => quickAdd.toggleMode(quickAdd.mode)} aria-label={`Stop adding ${quickAdd.mode}`}>
+                                        {quickAdd.mode === 'event' ? <CalendarPlus size={14} /> : <CheckSquare size={14} />}
+                                        {quickAdd.mode === 'event' ? 'Event' : 'Task'}
+                                        <X size={13} strokeWidth={2.6} />
                                     </button>
-                                    );
-                                })}
-                                {quickAdd.mode && (
-                                    <span className="text-xs text-slate-400">added instantly, no agent</span>
-                                )}
-                            </div>
-
-                            {/* Structured fields for the active quick-add mode */}
-                            {quickAdd.mode === 'event' && (
-                                <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                                    <input type="date" value={quickAdd.date} onChange={(e) => quickAdd.setDate(e.target.value)} className={timeInputClass} aria-label="Event date" />
-                                    <input type="time" value={quickAdd.startTime} onChange={(e) => { quickAdd.setStartTime(e.target.value); quickAdd.setEndTime(addMinutes(e.target.value, 90)); }} className={timeInputClass} aria-label="Start time" />
-                                    <span className="text-sm text-slate-400">–</span>
-                                    <input type="time" value={quickAdd.endTime} onChange={(e) => quickAdd.setEndTime(e.target.value)} className={timeInputClass} aria-label="End time" />
-                                </div>
-                            )}
-                            {quickAdd.mode === 'task' && (
-                                <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                                    <span className="text-xs font-medium text-slate-400">Due</span>
-                                    <input type="date" value={quickAdd.date} onChange={(e) => quickAdd.setDate(e.target.value)} className={timeInputClass} aria-label="Due date" />
-                                    <input type="time" value={quickAdd.taskTime} onChange={(e) => quickAdd.setTaskTime(e.target.value)} className={timeInputClass} aria-label="Due time" />
-                                </div>
-                            )}
-
-                            {/* Attachments only apply to normal agent messages, not quick-add */}
-                            {!quickAdd.mode && (attachment || isPreparingAttachment) && (
-                                <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                                    <div className="flex min-w-0 items-center gap-2">
-                                        {isPreparingAttachment ? (
-                                            <LoaderCircle size={16} className="shrink-0 animate-spin" />
-                                        ) : attachment.kind === 'pdf' ? (
-                                            <FileText size={16} className="shrink-0" />
-                                        ) : (
-                                            <ImageIcon size={16} className="shrink-0" />
-                                        )}
-                                        <span className="truncate">
-                                            {isPreparingAttachment ? 'Preparing attachment…' : attachment.name}
-                                        </span>
-                                    </div>
-                                    {!isPreparingAttachment && (
-                                        <button
-                                            type="button"
-                                            onClick={removeAttachment}
-                                            className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                            aria-label="Remove attachment"
-                                            title="Remove attachment"
-                                        >
-                                            <X size={14} />
-                                        </button>
+                                    <input type="date" value={quickAdd.date} onChange={(e) => quickAdd.setDate(e.target.value)} className="agent-time-input" aria-label={quickAdd.mode === 'event' ? 'Event date' : 'Due date'} />
+                                    {quickAdd.mode === 'event' ? (
+                                        <>
+                                            <input type="time" value={quickAdd.startTime} onChange={(e) => { quickAdd.setStartTime(e.target.value); quickAdd.setEndTime(addMinutes(e.target.value, 90)); }} className="agent-time-input" aria-label="Start time" />
+                                            <span className="agent-quick-add__dash">–</span>
+                                            <input type="time" value={quickAdd.endTime} onChange={(e) => quickAdd.setEndTime(e.target.value)} className="agent-time-input" aria-label="End time" />
+                                        </>
+                                    ) : (
+                                        <input type="time" value={quickAdd.taskTime} onChange={(e) => quickAdd.setTaskTime(e.target.value)} className="agent-time-input" aria-label="Due time" />
                                     )}
                                 </div>
                             )}
-                            {!quickAdd.mode && attachmentError && (
-                                <p className="mb-2 text-xs text-red-600" role="alert">{attachmentError}</p>
-                            )}
 
-                            <form onSubmit={onComposerSubmit} className="flex items-center gap-2">
+                            {!quickAdd.mode && (attachment || isPreparingAttachment) && (
+                                <div className="agent-attachment">
+                                    {isPreparingAttachment ? <LoaderCircle size={15} className="animate-spin" /> : attachment.kind === 'pdf' ? <FileText size={15} /> : <ImageIcon size={15} />}
+                                    <span>{isPreparingAttachment ? 'Preparing…' : attachment.name}</span>
+                                    {!isPreparingAttachment && (
+                                        <button type="button" onClick={removeAttachment} aria-label="Remove attachment"><X size={14} strokeWidth={2.4} /></button>
+                                    )}
+                                </div>
+                            )}
+                            {!quickAdd.mode && attachmentError && <p className="agent-error" role="alert">{attachmentError}</p>}
+
+                            <form onSubmit={onComposerSubmit} className="agent-composer__form">
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -599,83 +444,52 @@ const ChatSidebarPanel = ({
                                     onChange={handleAttachmentChange}
                                     className="hidden"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isTyping || isPreparingAttachment || Boolean(quickAdd.mode)}
-                                    className="rounded-lg bg-slate-100 p-3 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                    title="Attach image or PDF"
-                                    aria-label="Attach image or PDF"
-                                >
-                                    <Paperclip size={20} />
-                                </button>
-                                <div className="flex-1 relative">
+                                <RowMenu
+                                    variant="plain"
+                                    icon={Plus}
+                                    label="Add"
+                                    disabled={isTyping || isPreparingAttachment}
+                                    items={addMenuItems}
+                                />
+                                <div className="agent-field">
                                     <input
                                         ref={inputRef}
                                         type="text"
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
-                                        placeholder={isListening ? 'Listening...' : quickAdd.mode === 'event' ? 'Event title...' : quickAdd.mode === 'task' ? 'Task title...' : 'Ask for a decision or action...'}
+                                        placeholder={isListening ? 'Listening…' : quickAdd.mode === 'event' ? 'Event title' : quickAdd.mode === 'task' ? 'Task title' : 'Message'}
                                         disabled={(isTyping && !quickAdd.mode) || isPreparingAttachment}
-                                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 transition-all focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-50"
+                                        enterKeyHint="send"
                                     />
+                                    {speechSupported && !input.trim() && !isTyping && (
+                                        <button
+                                            type="button"
+                                            onClick={toggleListening}
+                                            className={`agent-field__mic${isListening ? ' is-listening' : ''}`}
+                                            aria-label={isListening ? 'Stop dictation' : 'Dictate'}
+                                        >
+                                            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                                        </button>
+                                    )}
                                 </div>
-
-                                {/* Voice button */}
-                                {speechSupported && (
-                                    <button
-                                        type="button"
-                                        onClick={toggleListening}
-                                        disabled={isTyping}
-                                        className={`p-3 rounded-lg transition-all ${isListening
-                                            ? 'bg-red-500 text-white animate-pulse'
-                                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                            }`}
-                                        title={isListening ? 'Stop dictation' : 'Start dictation'}
-                                    >
-                                        {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                                    </button>
-                                )}
-
-                                {/* Send button (quick-add: always Send; agent mode: Stop while streaming) */}
-                                {quickAdd.mode ? (
-                                    <button
-                                        type="submit"
-                                        disabled={!input.trim() || quickAdd.isSaving}
-                                        className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                        title="Add"
-                                    >
-                                        <Send size={20} />
-                                    </button>
-                                ) : isTyping ? (
-                                    <button
-                                        type="button"
-                                        onClick={stopMessage}
-                                        className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700"
-                                        title="Stop response"
-                                        aria-label="Stop response"
-                                    >
-                                        <Square size={18} fill="currentColor" />
+                                {!quickAdd.mode && isTyping ? (
+                                    <button type="button" onClick={stopMessage} className="agent-send" aria-label="Stop response">
+                                        <Square size={13} fill="currentColor" />
                                     </button>
                                 ) : (
                                     <button
                                         type="submit"
-                                        disabled={(!input.trim() && !attachment) || isPreparingAttachment}
-                                        className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                        title="Send"
+                                        disabled={quickAdd.mode ? (!input.trim() || quickAdd.isSaving) : ((!input.trim() && !attachment) || isPreparingAttachment)}
+                                        className="agent-send"
+                                        aria-label={quickAdd.mode ? 'Add' : 'Send'}
                                     >
-                                        <Send size={20} />
+                                        <ArrowUp size={19} strokeWidth={2.6} />
                                     </button>
                                 )}
                             </form>
-                            <p className="text-xs text-slate-400 text-center mt-2">
-                                {quickAdd.mode ? 'Added instantly, no agent · Press Enter to add' : 'Attach PNG, JPEG, WebP, or PDF • Press Enter to send'}
-                            </p>
                         </div>
-                    </div>
-                </>
-            )}
-        </AnimatePresence>
+                    </section>
+        </>
     );
 };
 

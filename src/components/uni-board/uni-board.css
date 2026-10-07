@@ -393,3 +393,413 @@
   .uni-board-action-row { transition: none; }
   .uni-board-action-row:hover { transform: none; }
 }
+
+/* ═══ iOS pass ════════════════════════════════════════════════════════
+ * Sections are a prominent title over one grouped card; rows are single
+ * tap targets (details open in a sheet), with secondary actions in menus.
+ */
+.uni-board {
+  padding-bottom: 0;
+}
+
+.uni-board .ui-section-title h2 {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.uni-board-view-tabs {
+  display: flex;
+  width: 100%;
+  margin-bottom: var(--space-xs);
+}
+
+.uni-board-main-grid {
+  gap: 0 var(--space-xl);
+  margin-top: 0;
+}
+
+.uni-board-main-grid > * {
+  min-width: 0;
+}
+
+.uni-board-agenda,
+.uni-board-action-panel,
+.uni-board-links,
+.uni-board-milestones {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.uni-board-action-panel.is-tasks,
+.uni-board-action-panel.is-assessments {
+  border: 0;
+  background: transparent;
+}
+
+.uni-board-action-panel.is-tasks h2 {
+  color: inherit;
+}
+
+.uni-board-action-tabs {
+  margin: 0 0 var(--space-sm);
+  background: var(--color-fill);
+}
+
+.uni-board-action-panel.is-assessments .uni-board-action-tabs .ui-segmented__item.is-active {
+  background: transparent;
+  color: var(--color-ink);
+}
+
+/* Agenda */
+.uni-board-agenda-list {
+  margin-top: 0;
+}
+
+.uni-board-agenda-day + .uni-board-agenda-day {
+  margin-top: var(--space-md);
+}
+
+.uni-board-agenda-day__heading {
+  margin: 0 0 var(--space-xs);
+  padding-inline: var(--space-2xs);
+}
+
+.uni-board-agenda-day h3 {
+  display: block;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.uni-board-agenda-day__remaining {
+  min-height: 0;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.uni-board-agenda-day__items {
+  border-top: 0;
+}
+
+.uni-board-agenda-row {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 0;
+}
+
+.uni-board-agenda-row + .uni-board-agenda-row::before,
+.uni-board-action-row + .uni-board-action-row::before,
+.uni-board-link-row + .uni-board-link-row::before,
+.uni-board-milestone-list li + li::after {
+  position: absolute;
+  inset: 0 0 auto 3.5rem;
+  height: var(--rule-hair);
+  background: var(--color-rule);
+  content: "";
+}
+
+.uni-board-agenda-row__main {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  min-height: 3.5rem;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) 0.75rem;
+}
+
+.uni-board-agenda-row.has-notes .uni-board-agenda-row__main {
+  padding-right: var(--space-2xs);
+}
+
+.uni-board-agenda-row__main:hover .uni-board-item-copy strong {
+  color: inherit;
+}
+
+.uni-board-agenda-row__time {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.uni-board-agenda-row__marker {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--uni-kind-color) 14%, transparent);
+}
+
+.uni-board-agenda-row__toggle {
+  width: 2.5rem;
+  border-radius: 0;
+  color: var(--color-rule-2);
+}
+
+.uni-board-agenda-row__toggle svg {
+  transform: rotate(-90deg);
+  transition: transform 220ms var(--ease-out);
+}
+
+.uni-board-agenda-row__toggle.is-open {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.uni-board-agenda-row__toggle.is-open svg {
+  transform: none;
+}
+
+.uni-board-agenda-row__toggle:hover {
+  background: transparent;
+}
+
+.uni-board-agenda-row__details {
+  border-top: 0;
+  padding: 0 var(--space-md) var(--space-md) 3.5rem;
+}
+
+.uni-board-agenda-row__details-label {
+  color: var(--color-muted);
+}
+
+.uni-board-item-copy {
+  gap: 0.125rem;
+}
+
+.uni-board-item-copy strong {
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  font-weight: 400;
+}
+
+.uni-board-item-copy span {
+  font-size: var(--text-sm);
+}
+
+/* To Do */
+.uni-board-action-list {
+  display: block;
+  margin-top: 0;
+}
+
+.uni-board-action-row {
+  position: relative;
+  min-height: 3.5rem;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 var(--space-md) 0 0.375rem;
+  transition: opacity 260ms var(--ease-out);
+}
+
+.uni-board-action-row:hover {
+  border-color: transparent;
+  background: transparent;
+  transform: none;
+}
+
+.uni-board-action-row .task-check {
+  width: 3rem;
+}
+
+.uni-board-assessment-icon {
+  width: 3rem;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-warning);
+}
+
+.uni-board-action-row__open {
+  min-height: 3.5rem;
+  text-align: start;
+}
+
+.uni-board-action-row.is-complete .uni-board-item-copy strong,
+.uni-board-agenda-row.is-complete .uni-board-item-copy strong {
+  text-decoration: none;
+}
+
+/* Links */
+.uni-board-links {
+  margin-top: 0;
+}
+
+.uni-board-link-list {
+  display: block;
+  margin-top: 0;
+}
+
+.uni-board-link-row {
+  position: relative;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.uni-board-link-row:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.uni-board-link-row__open {
+  grid-template-columns: 2rem minmax(0, 1fr);
+  min-height: 3.5rem;
+  gap: var(--space-sm);
+  border-radius: 0;
+  padding: var(--space-xs) 0 var(--space-xs) 0.75rem;
+}
+
+.uni-board-link-row__open:hover .uni-board-item-copy strong {
+  color: inherit;
+}
+
+.uni-board-link-row__marker {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.uni-board-link-row .row-menu {
+  margin-right: 0.25rem;
+}
+
+/* Milestones */
+.uni-board-milestones {
+  margin-top: 0;
+  border-color: transparent;
+}
+
+.uni-board-milestone-list,
+.uni-board-milestone-list li {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.uni-board-milestone-list li {
+  position: relative;
+}
+
+.uni-board-milestone-list li::before {
+  display: none;
+}
+
+.uni-board-milestone {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) 0.75rem;
+}
+
+.uni-board-milestone__marker {
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  border: 0;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.uni-board-milestone .uni-board-item-copy {
+  flex: 1;
+}
+
+.uni-board-milestone .uni-board-item-copy strong {
+  white-space: nowrap;
+}
+
+.uni-board-milestone__chevron {
+  flex: 0 0 auto;
+  color: var(--color-rule-2);
+}
+
+:is(.uni-board-agenda-row__main, .uni-board-action-row__open, .uni-board-link-row__open, .uni-board-milestone):active {
+  opacity: 0.6;
+}
+
+/* Skeleton + errors */
+.uni-board-skeleton-row {
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+}
+
+.uni-board-load-error,
+.uni-board-links__error {
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-error-soft);
+}
+
+/* Forms in sheets */
+.uni-board-input {
+  border: 0;
+  background: var(--color-fill);
+}
+
+.uni-board-when-chip,
+.uni-board-primary-button,
+.uni-board-secondary-button,
+.uni-board-danger-button {
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding-inline: var(--space-md);
+  font-weight: 600;
+}
+
+.uni-board-when-chip,
+.uni-board-secondary-button {
+  background: var(--color-fill);
+}
+
+.uni-board-when-chip.is-open {
+  background: var(--color-accent-soft);
+}
+
+.uni-board-danger-button {
+  background: var(--color-error-soft);
+}
+
+.uni-board-class-schedule {
+  border-top: 0;
+  padding-top: var(--space-sm);
+}
+
+@media (min-width: 60rem) {
+  .uni-board-view-tabs {
+    width: 24rem;
+  }
+}
+
+@media (max-width: 29.999rem) {
+  .uni-board-agenda-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .uni-board-agenda-row__main {
+    grid-column: 1;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+  }
+
+  .uni-board-agenda-row__toggle {
+    grid-column: 2;
+  }
+
+  .uni-board-agenda-row__details {
+    padding-left: 3.5rem;
+    padding-right: var(--space-md);
+  }
+
+  .uni-board-link-row__open {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+}

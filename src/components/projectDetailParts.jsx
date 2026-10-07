@@ -1,86 +1,41 @@
 import React from 'react';
-import {
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    Check,
-    Circle,
-    Edit3,
-    Plus,
-    Trash2,
-    X,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Edit3, Plus, Trash2 } from 'lucide-react';
+import { RowMenu, Sheet } from '../ui';
 import { isTaskDone } from './projectDetailUtils';
 
 const SegmentButton = ({ active, onClick, children }) => (
-    <button
-        onClick={onClick}
-        className={`ios-codex-segment ${active ? 'is-active' : ''}`}
-    >
+    <button type="button" onClick={onClick} className={`ios-codex-segment ${active ? 'is-active' : ''}`}>
         {children}
     </button>
 );
 
 const NameDialog = ({ dialog, onChange, onClose, onSubmit }) => {
-    if (!dialog) return null;
-
-    const entityLabel = dialog.type === 'stage' ? 'stage' : 'work tree';
-    const actionLabel = dialog.mode === 'create' ? 'Add' : 'Rename';
-    const title = `${actionLabel} ${entityLabel}`;
+    const entityLabel = dialog?.type === 'stage' ? 'Stage' : 'Work Tree';
+    const title = dialog ? `${dialog.mode === 'create' ? 'New' : 'Rename'} ${entityLabel}` : '';
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
-            <form
-                onSubmit={onSubmit}
-                className="ios-codex-dialog w-full max-w-sm p-4"
-            >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-bold text-slate-950 dark:text-bone-100">{title}</h3>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="ios-codex-mini-button rounded-md p-1.5"
-                        title="Close"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
+        <Sheet open={Boolean(dialog)} onClose={onClose} title={title} className="form-sheet">
+            <form onSubmit={onSubmit} className="form-stack">
+                <div className="form-group">
+                    <label className="form-field">
+                        <span className="sr-only">Name</span>
+                        <input
+                            id="project-board-name-dialog"
+                            value={dialog?.value || ''}
+                            onChange={(event) => onChange(event.target.value)}
+                            placeholder="Name"
+                            autoFocus
+                        />
+                    </label>
                 </div>
-
-                <label className="block text-sm text-slate-500 dark:text-bone-200/60" htmlFor="project-board-name-dialog">
-                    Name
-                </label>
-                <input
-                    id="project-board-name-dialog"
-                    value={dialog.value}
-                    onChange={(event) => onChange(event.target.value)}
-                    className="ios-codex-input mt-2 w-full px-3 py-2 text-sm"
-                    autoFocus
-                />
-
-                <div className="mt-5 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="ios-codex-button"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        className="ios-codex-button ios-codex-button-primary inline-flex items-center gap-2"
-                    >
-                        <Check className="h-4 w-4" />
-                        Save
-                    </button>
-                </div>
+                <button type="submit" className="ui-button ui-button--accent form-submit">Save</button>
             </form>
-        </div>
+        </Sheet>
     );
 };
 
 const WorkTree = ({
     column,
-    columnIndex,
     tasks,
     project,
     columns,
@@ -93,67 +48,38 @@ const WorkTree = ({
     onDeleteWorkTree,
     canDeleteWorkTree
 }) => (
-    <section className="ios-codex-worktree w-64 shrink-0">
-        <div className="mb-4 flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-                <div className="truncate text-xl font-bold text-slate-950 dark:text-bone-100">{column.title}</div>
-                <div className="mt-1 truncate text-sm text-slate-500 dark:text-bone-200/60">Work tree {columnIndex + 1} / {tasks.length} tasks</div>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-                <button
-                    onClick={() => onOpenWorkTreeDialog(column)}
-                    className="ios-codex-mini-button rounded-md p-1.5"
-                    title="Edit work tree name"
-                >
-                    <Edit3 className="h-4 w-4" />
-                </button>
-                <button
-                    onClick={() => onDeleteWorkTree(column)}
-                    disabled={!canDeleteWorkTree}
-                    className="ios-codex-mini-button ios-codex-danger rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-35"
-                    title={canDeleteWorkTree ? 'Delete work tree' : 'Keep at least one work tree'}
-                >
-                    <Trash2 className="h-4 w-4" />
-                </button>
-                <button
-                    onClick={() => onAddTask(column.id)}
-                    className="ios-codex-icon-button rounded-lg p-2"
-                    title={`Add task to ${column.title}`}
-                >
-                    <Plus className="h-4 w-4" />
-                </button>
-            </div>
+    <section className="project-worktree" aria-label={column.title}>
+        <div className="ui-section-title project-worktree__title">
+            <h3>{column.title}</h3>
+            <span>{tasks.length}</span>
+            <RowMenu
+                label={`Actions for ${column.title}`}
+                items={[
+                    { label: 'Add Task', icon: Plus, onSelect: () => onAddTask(column.id) },
+                    { label: 'Rename', icon: Edit3, onSelect: () => onOpenWorkTreeDialog(column) },
+                    ...(canDeleteWorkTree ? [{ label: 'Delete', icon: Trash2, destructive: true, onSelect: () => onDeleteWorkTree(column) }] : []),
+                ]}
+            />
         </div>
 
-        <div className="space-y-4">
-            {tasks.map((task, taskIndex) => (
-                <React.Fragment key={task.id}>
-                    <WorkTreeTask
-                        task={task}
-                        project={project}
-                        columns={columns}
-                        currentColumnId={column.id}
-                        onEditTask={onEditTask}
-                        onDeleteTask={onDeleteTask}
-                        onToggleDone={onToggleDone}
-                        onMoveTask={onMoveTask}
-                    />
-                    {taskIndex < tasks.length - 1 && (
-                        <div className="flex justify-center text-slate-500 dark:text-bone-200/50">
-                            <ArrowDown className="h-6 w-6" />
-                        </div>
-                    )}
-                </React.Fragment>
+        <div className="ui-group project-worktree__list">
+            {tasks.map((task) => (
+                <WorkTreeTask
+                    key={task.id}
+                    task={task}
+                    project={project}
+                    columns={columns}
+                    currentColumnId={column.id}
+                    onEditTask={onEditTask}
+                    onDeleteTask={onDeleteTask}
+                    onToggleDone={onToggleDone}
+                    onMoveTask={onMoveTask}
+                />
             ))}
-
-            {tasks.length === 0 && (
-                <button
-                    onClick={() => onAddTask(column.id)}
-                    className="ios-codex-empty-card flex h-28 w-full items-center justify-center text-sm font-semibold"
-                >
-                    Add work item
-                </button>
-            )}
+            <button type="button" className="project-worktree__add" onClick={() => onAddTask(column.id)}>
+                <span aria-hidden="true"><Plus size={14} strokeWidth={2.8} /></span>
+                Add Task
+            </button>
         </div>
     </section>
 );
@@ -174,69 +100,31 @@ const WorkTreeTask = ({
     const nextColumn = columns[currentIndex + 1];
 
     return (
-        <article className={`ios-codex-task-card group px-3 py-3 ${done ? 'is-done' : ''}`}>
-            <div className="flex items-start gap-3">
-                <button
-                    onClick={() => onToggleDone(task)}
-                    className={`ios-codex-checkbox mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center ${done ? 'is-done' : ''}`}
-                    title={done ? 'Mark open' : 'Mark done'}
-                >
-                    {done ? <Check className="h-5 w-5" /> : <Circle className="h-4 w-4" />}
-                </button>
-
-                <button
-                    onClick={() => onEditTask(task)}
-                    className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-500"
-                >
-                    <div className={`truncate text-lg font-bold ${done ? 'line-through opacity-70' : ''}`}>{task.title}</div>
-                    {task.description && (
-                        <p className="mt-1 line-clamp-2 text-sm opacity-70">{task.description}</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-                        <span className="rounded-md bg-white/70 px-2 py-1 text-slate-600 dark:bg-white/10 dark:text-bone-200">{task.priority || 'Medium'}</span>
-                    </div>
-                </button>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/10 pt-2 opacity-100 dark:border-white/10 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-                <div className="flex items-center gap-1">
-                    {previousColumn && (
-                        <button
-                            onClick={() => onMoveTask(task, previousColumn.id)}
-                            className="ios-codex-mini-button rounded-md p-1.5"
-                            title={`Move to ${previousColumn.title}`}
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                        </button>
-                    )}
-                    {nextColumn && (
-                        <button
-                            onClick={() => onMoveTask(task, nextColumn.id)}
-                            className="ios-codex-mini-button rounded-md p-1.5"
-                            title={`Move to ${nextColumn.title}`}
-                        >
-                            <ArrowRight className="h-4 w-4" />
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={() => onEditTask(task)}
-                        className="ios-codex-mini-button rounded-md p-1.5"
-                        title="Edit task"
-                    >
-                        <Edit3 className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={() => onDeleteTask(task.id)}
-                        className="ios-codex-mini-button ios-codex-danger rounded-md p-1.5"
-                        title="Delete task"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
-                </div>
-            </div>
+        <article className={`project-task${done ? ' is-done' : ''}`}>
+            <button
+                type="button"
+                onClick={() => onToggleDone(task)}
+                className="task-check"
+                aria-pressed={done}
+                aria-label={done ? `Mark ${task.title} open` : `Mark ${task.title} done`}
+            >
+                <span>{done && <Check size={12} strokeWidth={3.2} />}</span>
+            </button>
+            <button type="button" onClick={() => onEditTask(task)} className="project-task__body">
+                <span className="project-task__title">{task.title}</span>
+                <span className="project-task__meta">
+                    {[task.priority || 'Medium', task.description].filter(Boolean).join(' · ')}
+                </span>
+            </button>
+            <RowMenu
+                label={`Actions for ${task.title}`}
+                items={[
+                    ...(previousColumn ? [{ label: `Move to ${previousColumn.title}`, icon: ArrowLeft, onSelect: () => onMoveTask(task, previousColumn.id) }] : []),
+                    ...(nextColumn ? [{ label: `Move to ${nextColumn.title}`, icon: ArrowRight, onSelect: () => onMoveTask(task, nextColumn.id) }] : []),
+                    { label: 'Edit', icon: Edit3, onSelect: () => onEditTask(task) },
+                    { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => onDeleteTask(task.id) },
+                ]}
+            />
         </article>
     );
 };

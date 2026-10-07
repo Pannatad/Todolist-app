@@ -1,23 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import {
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    ArrowUp,
-    Check,
-    ChevronDown,
-    ChevronRight,
-    Circle,
-    Edit3,
-    PanelLeftClose,
-    PanelLeftOpen,
-    Plus,
-    Trash2,
-} from 'lucide-react';
+import { ArrowUpDown, Edit3, Plus, Trash2 } from 'lucide-react';
+import { BarButton, MenuButton, PageHeader, RowMenu } from '../ui';
 import TaskModal from './TaskModal';
 import { useProject } from '../context/ProjectContext';
 import { confirmAction } from '../utils/confirm';
-import { NameDialog, SegmentButton, WorkTree } from './projectDetailParts';
+import { NameDialog, WorkTree } from './projectDetailParts';
 import {
     getDoneColumn,
     getPhaseColumns,
@@ -35,7 +22,6 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
     const initialColumns = getPhaseColumns(project, initialPhaseId);
 
     const [activePhaseId, setActivePhaseId] = useState(initialPhaseId);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [taskTargetColumnId, setTaskTargetColumnId] = useState(initialColumns[0]?.id || 'c-1');
@@ -207,239 +193,91 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
         });
     };
 
+    const doneCount = phaseTasks.filter((task) => isTaskDone(task, project)).length;
+
     return (
-        <div className="ios-codex-board grid h-[calc(100vh-132px)] min-h-[760px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-slate-200 text-slate-900 shadow-sm dark:border-white/10 dark:text-bone-100">
-            <header className="ios-codex-board-header flex flex-col gap-3 px-4 py-3 md:px-5">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                        <button
-                            onClick={onBack}
-                            className="ios-codex-icon-button rounded-lg p-2"
-                            title="Back to projects"
-                        >
-                            <ArrowLeft className="h-5 w-5" />
-                        </button>
-                        <button
-                            onClick={() => setIsSidebarOpen((current) => !current)}
-                            className="ios-codex-icon-button rounded-lg p-2"
-                            title={isSidebarOpen ? 'Hide stages sidebar' : 'Show stages sidebar'}
-                        >
-                            {isSidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
-                        </button>
-                        <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-500 dark:text-bone-200/60">{project.title}</div>
-                            <h2 className="mt-1 truncate text-2xl font-bold text-slate-950 dark:text-bone-100">Context</h2>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={() => handleAddTask()}
-                        className="ios-codex-button ios-codex-button-primary inline-flex shrink-0 items-center gap-2"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Task
-                    </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <div className="ios-codex-inline-status">
-                        <span>Stage: {activePhase?.name || 'No stage'}</span>
-                        <span>{phaseTasks.length} tasks</span>
-                        <span>{getPhaseProgress(project, safeActivePhaseId)}% done</span>
-                    </div>
-
-                    <div className="ml-auto flex items-center gap-2 overflow-x-auto">
-                        <SegmentButton active={sortBy === 'manual'} onClick={() => setSortBy('manual')}>Manual</SegmentButton>
-                        <SegmentButton active={sortBy === 'priority'} onClick={() => setSortBy('priority')}>Priority</SegmentButton>
-                        {sortBy !== 'manual' && (
-                            <button
-                                onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-                                className="ios-codex-button inline-flex items-center p-2"
-                                title={sortDirection === 'desc' ? 'Descending' : 'Ascending'}
-                            >
-                                {sortDirection === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </header>
-
-            <div className={`grid min-h-0 ${isSidebarOpen ? 'md:grid-cols-[216px_minmax(0,1fr)]' : 'md:grid-cols-[minmax(0,1fr)]'}`}>
-                {isSidebarOpen && (
-                <aside className="ios-codex-sidebar min-h-0 overflow-y-auto border-b border-slate-200 md:border-b-0 md:border-r dark:border-white/10">
-                    <div className="px-4 pb-3 pt-4">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                                <div className="truncate text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-bone-200/40">Stages</div>
-                                <div className="mt-0.5 truncate text-sm font-bold text-slate-900 dark:text-bone-100">{project.title}</div>
-                            </div>
-                            <button
-                                onClick={() => openStageDialog()}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white transition-transform hover:scale-105 active:scale-95 dark:bg-sage-500 dark:text-void-950"
-                                title="Add stage"
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-1 px-2.5 pb-4">
-                        {sortedPhases.map((phase, phaseIndex) => {
-                            const isActive = phase.id === safeActivePhaseId;
-                            const progress = getPhaseProgress(project, phase.id);
-                            const phaseTaskCount = getPhaseTasks(project, phase.id).length;
-
-                            return (
-                                <div key={phase.id} className="group relative">
-                                    <button
-                                        onClick={() => setActivePhaseId(phase.id)}
-                                        className={`relative flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all duration-200 ${
-                                            isActive
-                                                ? 'bg-white/90 shadow-sm ring-1 ring-slate-900/[0.06] dark:bg-white/[0.08] dark:ring-white/[0.08]'
-                                                : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
-                                        }`}
-                                    >
-                                        {isActive && (
-                                            <span className="absolute -left-0.5 top-2 bottom-2 w-[3px] rounded-full bg-slate-900 dark:bg-sage-400" />
-                                        )}
-
-                                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-colors ${
-                                            isActive
-                                                ? 'bg-slate-900 text-white dark:bg-sage-500 dark:text-void-950'
-                                                : 'bg-slate-200/70 text-slate-500 group-hover:bg-slate-200 dark:bg-white/10 dark:text-bone-200/60'
-                                        }`}>
-                                            {phaseIndex + 1}
-                                        </span>
-
-                                        <span className="min-w-0 flex-1">
-                                            <span className="flex items-center gap-1.5">
-                                                <span className={`block truncate text-[13px] font-semibold ${
-                                                    isActive ? 'text-slate-900 dark:text-bone-100' : 'text-slate-600 dark:text-bone-200/70'
-                                                }`}>{phase.name}</span>
-                                                <span className={`shrink-0 text-[11px] tabular-nums ${
-                                                    isActive ? 'text-slate-500 dark:text-bone-200/50' : 'text-slate-400 dark:text-bone-200/30'
-                                                }`}>{phaseTaskCount}</span>
-                                            </span>
-                                            <span className="mt-1.5 flex items-center gap-2">
-                                                <span className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-                                                    <span
-                                                        className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out ${
-                                                            progress === 100
-                                                                ? 'bg-emerald-500'
-                                                                : isActive
-                                                                    ? 'bg-slate-900 dark:bg-sage-400'
-                                                                    : 'bg-slate-400 dark:bg-bone-200/30'
-                                                        }`}
-                                                        style={{ width: `${progress}%` }}
-                                                    />
-                                                </span>
-                                                <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${
-                                                    progress === 100
-                                                        ? 'text-emerald-600 dark:text-emerald-400'
-                                                        : isActive
-                                                            ? 'text-slate-500 dark:text-bone-200/50'
-                                                            : 'text-slate-400 dark:text-bone-200/30'
-                                                }`}>{progress}%</span>
-                                            </span>
-                                        </span>
-
-                                        <span className="flex shrink-0 items-center gap-0.5">
-                                            {isActive
-                                                ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-bone-200/40" />
-                                                : <ChevronRight className="h-3.5 w-3.5 text-slate-300 dark:text-bone-200/20" />
-                                            }
-                                        </span>
-                                    </button>
-
-                                    <span className="ml-3 flex items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" style={{ position: 'absolute', right: 8, top: 8 }}>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); openStageDialog(phase); }}
-                                            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10 dark:text-bone-200/40 dark:hover:text-bone-200/70 transition-colors"
-                                            title="Edit stage name"
-                                        >
-                                            <Edit3 className="h-3 w-3" />
-                                        </button>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteStage(phase); }}
-                                            disabled={sortedPhases.length <= 1}
-                                            className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-bone-200/40 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
-                                            title={sortedPhases.length <= 1 ? 'Keep at least one stage' : 'Delete stage'}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </button>
-                                    </span>
-
-                                    {isActive && (
-                                        <div className="ml-[1.15rem] mt-1 space-y-0.5 pb-1">
-                                            {activeColumns.map((column) => {
-                                                const count = phaseTasks.filter((task) => task.columnId === column.id).length;
-
-                                                return (
-                                                    <button
-                                                        key={column.id}
-                                                        onClick={() => handleAddTask(column.id)}
-                                                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-white/70 dark:hover:bg-white/[0.04]"
-                                                        title={`Add task to ${column.title}`}
-                                                    >
-                                                        <Circle className="h-[5px] w-[5px] shrink-0 fill-slate-300 text-slate-300 dark:fill-bone-200/30 dark:text-bone-200/30" />
-                                                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-500 dark:text-bone-200/50">{column.title}</span>
-                                                        <span className="shrink-0 min-w-[18px] text-center text-[11px] font-semibold tabular-nums text-slate-400 dark:text-bone-200/30">{count}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </aside>
+        <div className="project-board push-enter">
+            <PageHeader
+                title={project.title}
+                subtitle={`${doneCount} of ${phaseTasks.length} done in ${activePhase?.name || 'this stage'}`}
+                onBack={onBack}
+                backLabel="Projects"
+                showAccount={false}
+                actions={(
+                    <>
+                        <MenuButton
+                            icon={ArrowUpDown}
+                            label="Sort tasks"
+                            sections={[{
+                                title: 'Sort By',
+                                items: [
+                                    { id: 'manual', label: 'Manual', checked: sortBy === 'manual', onSelect: () => setSortBy('manual') },
+                                    { id: 'priority-desc', label: 'Priority, High First', checked: sortBy === 'priority' && sortDirection === 'desc', onSelect: () => { setSortBy('priority'); setSortDirection('desc'); } },
+                                    { id: 'priority-asc', label: 'Priority, Low First', checked: sortBy === 'priority' && sortDirection === 'asc', onSelect: () => { setSortBy('priority'); setSortDirection('asc'); } },
+                                ],
+                            }]}
+                        />
+                        <BarButton icon={Plus} tone="primary" label="New task" onClick={() => handleAddTask()} />
+                    </>
                 )}
+            />
 
-                <main className="ios-codex-canvas min-h-0 overflow-auto p-3 md:p-5">
-                    <div className="mb-4 max-w-none text-left">
-                        <h3 className="text-2xl font-bold text-slate-950 dark:text-bone-100">Context</h3>
-                        <p className="mt-1 text-sm text-slate-500 dark:text-bone-200/60">
-                            {activePhase?.name || 'Selected stage'} work trees
-                        </p>
-                    </div>
-
-                    <div className="mb-5 flex items-center justify-start">
+            <div className="ui-section-title project-board__stages-title">
+                <h2>Stages</h2>
+                <RowMenu
+                    label="Stage actions"
+                    items={[
+                        { label: 'New Stage', icon: Plus, onSelect: () => openStageDialog() },
+                        ...(activePhase ? [{ label: 'Rename Stage', icon: Edit3, onSelect: () => openStageDialog(activePhase) }] : []),
+                        ...(activePhase && sortedPhases.length > 1 ? [{ label: 'Delete Stage', icon: Trash2, destructive: true, onSelect: () => handleDeleteStage(activePhase) }] : []),
+                    ]}
+                />
+            </div>
+            <div className="project-stages" role="tablist" aria-label="Stages">
+                {sortedPhases.map((phase, phaseIndex) => {
+                    const isActive = phase.id === safeActivePhaseId;
+                    return (
                         <button
-                            onClick={() => openWorkTreeDialog()}
-                            className="ios-codex-button inline-flex items-center gap-2"
-                            title="Add work tree"
+                            key={phase.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            onClick={() => setActivePhaseId(phase.id)}
+                            className={`project-stage${isActive ? ' is-active' : ''}`}
                         >
-                            <Plus className="h-4 w-4" />
-                            Work tree
+                            <span className="project-stage__index">{phaseIndex + 1}</span>
+                            <span className="project-stage__name">{phase.name}</span>
+                            <span className="project-stage__progress">{getPhaseProgress(project, phase.id)}%</span>
                         </button>
-                    </div>
+                    );
+                })}
+            </div>
 
-                    <div className="flex min-w-max gap-5 pb-6">
-                        {activeColumns.map((column, columnIndex) => {
-                            const columnTasks = getSortedTasks(phaseTasks.filter((task) => task.columnId === column.id));
+            <div className="project-worktrees">
+                {activeColumns.map((column) => {
+                    const columnTasks = getSortedTasks(phaseTasks.filter((task) => task.columnId === column.id));
 
-                            return (
-                                <WorkTree
-                                    key={column.id}
-                                    column={column}
-                                    columnIndex={columnIndex}
-                                    tasks={columnTasks}
-                                    project={project}
-                                    columns={activeColumns}
-                                    onAddTask={handleAddTask}
-                                    onEditTask={handleEditTask}
-                                    onDeleteTask={handleDeleteTask}
-                                    onToggleDone={handleToggleDone}
-                                    onMoveTask={handleMoveTask}
-                                    onOpenWorkTreeDialog={openWorkTreeDialog}
-                                    onDeleteWorkTree={handleDeleteWorkTree}
-                                    canDeleteWorkTree={activeColumns.length > 1}
-                                />
-                            );
-                        })}
-                    </div>
-                </main>
+                    return (
+                        <WorkTree
+                            key={column.id}
+                            column={column}
+                            tasks={columnTasks}
+                            project={project}
+                            columns={activeColumns}
+                            onAddTask={handleAddTask}
+                            onEditTask={handleEditTask}
+                            onDeleteTask={handleDeleteTask}
+                            onToggleDone={handleToggleDone}
+                            onMoveTask={handleMoveTask}
+                            onOpenWorkTreeDialog={openWorkTreeDialog}
+                            onDeleteWorkTree={handleDeleteWorkTree}
+                            canDeleteWorkTree={activeColumns.length > 1}
+                        />
+                    );
+                })}
+                <button type="button" className="ui-text-button project-worktrees__add" onClick={() => openWorkTreeDialog()}>
+                    New Work Tree
+                </button>
             </div>
 
             <TaskModal
@@ -452,6 +290,7 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
                 onSave={handleSaveTask}
                 initialData={editingTask}
                 mode={editingTask ? 'edit' : 'create'}
+                allowAddToToday
             />
 
             <NameDialog
@@ -463,6 +302,5 @@ const ProjectDetailView = ({ project, onBack, selectedPhaseId }) => {
         </div>
     );
 };
-
 
 export default ProjectDetailView;

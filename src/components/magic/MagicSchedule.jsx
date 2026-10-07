@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Bot,
     CalendarDays,
@@ -7,7 +8,7 @@ import {
     CircleHelp,
     Clock3,
     LayoutTemplate,
-    Loader2,
+
     Mic,
     Pencil,
     Plus,
@@ -51,7 +52,7 @@ import { getScheduleItemsForDate, toLocalDateKey, upsertOverride } from '../../u
 import { hasExceededDragThreshold } from '../../utils/pointerGestures';
 import { useScheduleTransactions } from '../../hooks/useScheduleTransactions';
 import { toast } from '../../ui/Toast';
-import { Sheet } from '../../ui';
+import { BarButton, Sheet, useMediaQuery } from '../../ui';
 import { confirmAction } from '../../utils/confirm';
 import './magic-schedule.css';
 
@@ -61,7 +62,7 @@ const START_HOUR = 0;
 const END_HOUR = 24;
 const HOUR_HEIGHT = 72;
 const DAY_MINUTES = (END_HOUR - START_HOUR) * 60;
-const timelineTimeLabel = (minutes) => minutes === END_HOUR * 60 ? '24:00' : timeFromMinutes(minutes);
+const timelineTimeLabel = (minutes) => new Date(2000, 0, 1, Math.floor(minutes / 60) % 24).toLocaleTimeString([], { hour: 'numeric' });
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const SCHEDULE_ASSISTANT_INTENTS = [
     { id: 'add', label: 'Add', icon: Plus, hint: 'Create a new block or template' },
@@ -106,18 +107,7 @@ const rangeLabel = (item) => {
     return `${timeLabel(start)} – ${timeLabel(end)}`;
 };
 
-const useMobileTimeline = () => {
-    const [mobile, setMobile] = useState(() => (
-        typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
-    ));
-    useEffect(() => {
-        const query = window.matchMedia('(max-width: 760px)');
-        const update = () => setMobile(query.matches);
-        query.addEventListener('change', update);
-        return () => query.removeEventListener('change', update);
-    }, []);
-    return mobile;
-};
+const useMobileTimeline = () => useMediaQuery('(max-width: 760px)');
 
 const MagicSchedule = ({
     events = [],
@@ -125,8 +115,7 @@ const MagicSchedule = ({
     onAddEvent,
     onUpdateEvent,
     onDeleteEvent,
-    eyebrow = 'Magic Schedule',
-    description = 'Click, drag, resize—or ask the schedule assistant.'
+    actionsSlot = null
 }) => {
     const mobile = useMobileTimeline();
     const { templates, saveTemplate, deleteTemplate } = useScheduleTemplates();
@@ -158,6 +147,7 @@ const MagicSchedule = ({
     const [now, setNow] = useState(() => new Date());
     const recognitionRef = useRef(null);
     const fileInputRef = useRef(null);
+    const addMenuRef = useRef(null);
     const canvasRef = useRef(null);
     const canvasScrollRef = useRef(null);
     const autoScrolledViewRef = useRef(null);
@@ -692,6 +682,22 @@ const MagicSchedule = ({
     useEffect(() => () => recognitionRef.current?.stop?.(), []);
 
     useEffect(() => {
+        if (!showAddMenu) return undefined;
+        const closeOnOutsidePress = (event) => {
+            if (!addMenuRef.current?.contains(event.target)) setShowAddMenu(false);
+        };
+        const closeOnEscape = (event) => {
+            if (event.key === 'Escape') setShowAddMenu(false);
+        };
+        document.addEventListener('pointerdown', closeOnOutsidePress);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('pointerdown', closeOnOutsidePress);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [showAddMenu]);
+
+    useEffect(() => {
         if (!drag) return undefined;
         const handlePointerMove = (event) => {
             if (!drag.moved && !hasExceededDragThreshold(
@@ -929,88 +935,91 @@ const MagicSchedule = ({
         setAssistantInput(`Apply “${templateName}” on ${selectedDateKey}. Conflicts: ${conflictDetails}. Resolve them with this rule: ${request}`);
     };
 
-    return (
-        <div className="magic-schedule">
-            <header className="magic-header">
-                <div>
-                    <span className="magic-eyebrow">{eyebrow}</span>
-                    <h2>{mobile ? selectedDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : formatRange(weekDates)}</h2>
-                    <p>{description}</p>
-                </div>
-                <div className="magic-header__actions">
-                    <button type="button" className="magic-icon-button" onClick={() => navigateWeek(-1)} aria-label="Previous week"><ChevronLeft size={18} /></button>
-                    <button type="button" className="magic-secondary-button" onClick={() => { setAnchorDate(new Date()); setSelectedDate(new Date()); }}>Today</button>
-                    <button type="button" className="magic-icon-button" onClick={() => navigateWeek(1)} aria-label="Next week"><ChevronRight size={18} /></button>
-                    <button
-                        type="button"
-                        className="magic-secondary-button"
-                        disabled={!transactions.canUndo || transactions.isRunning}
-                        onClick={async () => {
-                            await transactions.undo();
-                            toast('Last schedule batch undone.', { tone: 'success' });
-                        }}
-                        title={transactions.undoLabel}
-                    >
-                        <Undo2 size={16} /> Undo
-                    </button>
-                    <div className="magic-add-menu-wrap">
-                        <button type="button" className="magic-primary-button" onClick={() => setShowAddMenu((value) => !value)}>
-                            <Plus size={17} /> Add
-                        </button>
-                        {showAddMenu && (
-                            <div className="magic-add-menu">
-                                <button type="button" onClick={() => { openQuickAdd(selectedDate, 9 * 60); setShowAddMenu(false); }}><Clock3 size={16} /> New event</button>
-                                <button type="button" onClick={() => { setCraftEditor({ initialDate: selectedDate }); setShowAddMenu(false); }}><CalendarDays size={16} /> Craft a day</button>
-                                <button type="button" onClick={() => { openQuickAdd(selectedDate, 9 * 60, 180, { itemKind: SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL }); setShowAddMenu(false); }}><LayoutTemplate size={16} /> Flexible shell</button>
-                                <button type="button" onClick={() => fileInputRef.current?.click()}><Upload size={16} /> Import image / camera</button>
-                                <button type="button" onClick={handleVoice}><Mic size={16} /> {isListening ? 'Listening…' : 'Voice schedule'}</button>
-                            </div>
-                        )}
-                    </div>
-                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageImport} hidden />
-                </div>
-            </header>
+    const closeAddMenuThen = (action) => () => {
+        setShowAddMenu(false);
+        action();
+    };
 
-            <section className="magic-template-gallery" aria-label="Schedule templates">
-                <button type="button" className="magic-template-card is-new" onClick={() => setTemplateEditor({})}>
-                    <Plus size={20} />
-                    <strong>New template</strong>
-                    <span>One sheet, one save</span>
-                </button>
-                {templates.map((template) => (
-                    <article
-                        key={template.id}
-                        className={`magic-template-card ${String(selectedTemplateId) === String(template.id) ? 'is-selected' : ''}`}
-                    >
-                        <button
-                            type="button"
-                            className="magic-template-card__open"
-                            onClick={() => {
-                                setSelectedTemplateId(template.id);
-                                setApplyMode('once');
-                                setRepeatDays([]);
-                                setRepeatEndDate('');
-                                setShowApplyOptions(true);
-                            }}
-                        >
-                            <div className="magic-template-card__top">
-                                <strong>{template.name}</strong>
-                            </div>
-                            <TimelinePreview blocks={template.blocks} />
-                            <span>{template.blocks.length} block{template.blocks.length === 1 ? '' : 's'} · {template.blocks.some((block) => block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) ? 'flexible structure' : 'fixed day'}</span>
-                        </button>
-                        <div className="magic-template-card__actions" aria-label={`Actions for ${template.name}`}>
-                            <button type="button" className="magic-template-card__action" onClick={() => setTemplateEditor(template)} aria-label={`Edit template ${template.name}`} title="Edit template"><Pencil size={15} aria-hidden="true" /></button>
-                            <button type="button" className="magic-template-card__action is-delete" disabled={deletingTemplateId === template.id} onClick={() => removeTemplate(template)} aria-label={`Delete template ${template.name}`} title="Delete template"><Trash2 size={15} aria-hidden="true" /></button>
-                        </div>
-                    </article>
-                ))}
-                {!templates.length && (
-                    <div className="magic-template-empty">
-                        Start with “New template” or save the day already on your canvas.
+    const scheduleActions = (
+        <>
+            {transactions.canUndo && (
+                <BarButton
+                    icon={Undo2}
+                    label={transactions.undoLabel || 'Undo'}
+                    disabled={transactions.isRunning}
+                    onClick={async () => {
+                        await transactions.undo();
+                        toast('Undone.', { tone: 'success' });
+                    }}
+                />
+            )}
+            <div className="magic-add-menu-wrap" ref={addMenuRef}>
+                <BarButton
+                    icon={Plus}
+                    tone="primary"
+                    label="Add to schedule"
+                    aria-haspopup="menu"
+                    aria-expanded={showAddMenu}
+                    onClick={() => setShowAddMenu((value) => !value)}
+                />
+                {showAddMenu && (
+                    <div className="ios-menu magic-add-menu" role="menu">
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(() => openQuickAdd(selectedDate, 9 * 60))}>New Event <Clock3 size={18} /></button>
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(() => setCraftEditor({ initialDate: selectedDate }))}>Craft a Day <CalendarDays size={18} /></button>
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(() => openQuickAdd(selectedDate, 9 * 60, 180, { itemKind: SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL }))}>Flexible Shell <LayoutTemplate size={18} /></button>
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(() => setTemplateEditor({}))}>New Template <Plus size={18} /></button>
+                        <span className="ios-menu__divider" aria-hidden="true" />
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(() => fileInputRef.current?.click())}>Import from Photo <Upload size={18} /></button>
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(handleVoice)}>{isListening ? 'Listening…' : 'Dictate'} <Mic size={18} /></button>
+                        <button type="button" role="menuitem" onClick={closeAddMenuThen(() => { setAssistantOpen(true); setMobileInspectorOpen(true); })}>Schedule Assistant <Bot size={18} /></button>
                     </div>
                 )}
-            </section>
+            </div>
+        </>
+    );
+
+    return (
+        <div className="magic-schedule">
+            {actionsSlot ? createPortal(scheduleActions, actionsSlot) : (
+                <div className="magic-inline-actions">{scheduleActions}</div>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageImport} hidden />
+
+            {templates.length > 0 && (
+                <section className="magic-templates" aria-label="Schedule templates">
+                    <div className="ui-section-title magic-templates__title">
+                        <h2>Templates</h2>
+                    </div>
+                    <div className="magic-template-gallery">
+                        {templates.map((template) => {
+                            const isSelected = showApplyOptions && String(selectedTemplateId) === String(template.id);
+                            return (
+                                <button
+                                    key={template.id}
+                                    type="button"
+                                    className={`magic-template-card ${isSelected ? 'is-selected' : ''}`}
+                                    aria-pressed={isSelected}
+                                    onClick={() => {
+                                        if (isSelected) {
+                                            setShowApplyOptions(false);
+                                            return;
+                                        }
+                                        setSelectedTemplateId(template.id);
+                                        setApplyMode('once');
+                                        setRepeatDays([]);
+                                        setRepeatEndDate('');
+                                        setShowApplyOptions(true);
+                                    }}
+                                >
+                                    <strong className="magic-template-card__name">{template.name}</strong>
+                                    <TimelinePreview blocks={template.blocks} />
+                                    <span className="magic-template-card__meta">{template.blocks.length} block{template.blocks.length === 1 ? '' : 's'}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {showApplyOptions && selectedTemplate && (
                 <section className="magic-apply-bar">
@@ -1062,8 +1071,11 @@ const MagicSchedule = ({
                             </label>
                         </>
                     )}
-                    <button type="button" className="magic-secondary-button" onClick={() => setTemplateEditor(selectedTemplate)}><Pencil size={15} /> Edit</button>
-                    <button type="button" className="magic-primary-button" onClick={() => beginApplyTemplate()}><CalendarDays size={16} /> Preview apply</button>
+                    <div className="magic-apply-bar__actions">
+                        <button type="button" className="magic-text-button is-destructive" disabled={deletingTemplateId === selectedTemplate.id} onClick={() => removeTemplate(selectedTemplate)}>Delete</button>
+                        <button type="button" className="magic-text-button" onClick={() => setTemplateEditor(selectedTemplate)}>Edit</button>
+                        <button type="button" className="magic-primary-button" onClick={() => beginApplyTemplate()}>Preview</button>
+                    </div>
                 </section>
             )}
 
@@ -1081,16 +1093,31 @@ const MagicSchedule = ({
                         shiftMobileDay(endX < startX ? 1 : -1);
                     }}
                 >
+                    <div className="magic-toolbar">
+                        <h2 className="magic-toolbar__title">
+                            {mobile
+                                ? selectedDate.toLocaleDateString([], { month: 'long', year: 'numeric' })
+                                : formatRange(weekDates)}
+                        </h2>
+                        <div className="magic-toolbar__actions">
+                            {!weekDates.some((date) => toLocalDateKey(date) === todayKey) || selectedDateKey !== todayKey ? (
+                                <button type="button" className="magic-text-button" onClick={() => { setAnchorDate(new Date()); setSelectedDate(new Date()); }}>Today</button>
+                            ) : null}
+                            <button type="button" className="magic-round-button" onClick={() => navigateWeek(-1)} aria-label="Previous week"><ChevronLeft size={19} strokeWidth={2.3} /></button>
+                            <button type="button" className="magic-round-button" onClick={() => navigateWeek(1)} aria-label="Next week"><ChevronRight size={19} strokeWidth={2.3} /></button>
+                        </div>
+                    </div>
                     {mobile && (
                         <div className="magic-mobile-day-picker">
                             {weekDates.map((date) => (
                                 <button
                                     key={toLocalDateKey(date)}
                                     type="button"
-                                    className={toLocalDateKey(date) === selectedDateKey ? 'is-selected' : ''}
+                                    className={`${toLocalDateKey(date) === selectedDateKey ? 'is-selected' : ''} ${toLocalDateKey(date) === todayKey ? 'is-today' : ''}`.trim()}
+                                    aria-pressed={toLocalDateKey(date) === selectedDateKey}
                                     onClick={() => setSelectedDate(date)}
                                 >
-                                    <span>{date.toLocaleDateString([], { weekday: 'short' })}</span>
+                                    <span>{date.toLocaleDateString([], { weekday: 'narrow' })}</span>
                                     <strong>{date.getDate()}</strong>
                                 </button>
                             ))}
@@ -1324,16 +1351,11 @@ const MagicSchedule = ({
                         <div className="magic-inspector__empty">
                             <CalendarDays size={24} />
                             <strong>Select a block</strong>
-                            <span>Inspect an event, resize it from the canvas, or click an empty time to add.</span>
                             <div className="magic-quiet-suggestion"><CircleHelp size={15} /> {quietSuggestion}</div>
                         </div>
                     )}
                 </aside>
             </div>
-
-            <button type="button" className="magic-mobile-assistant-button" onClick={() => { setAssistantOpen(true); setMobileInspectorOpen(true); }}>
-                <Bot size={19} /> Ask schedule assistant
-            </button>
 
             <ScheduleEventModal
                 isOpen={Boolean(modal)}

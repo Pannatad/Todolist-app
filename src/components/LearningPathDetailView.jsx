@@ -1,22 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion as Motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     BookCheck,
-    BookOpen,
     Check,
-    ChevronRight,
-    Clock,
     Dumbbell,
+    Edit3,
     GripVertical,
     Lock,
     Play,
     Star,
     Target,
     Trash2,
-    Zap,
 } from 'lucide-react';
+import { RowMenu } from '../ui';
 import { useLearning } from '../context/LearningContext';
-import { COLOR_OPTIONS } from './LearningPathModal';
 import LearningPathDetailContent from './LearningPathDetailContent';
 import { findVideoUrlInText, STATUS_CONFIG } from './learningPathDetailUtils';
 import { confirmAction } from '../utils/confirm';
@@ -52,23 +48,9 @@ const LearningPathDetailView = ({ path, onBack }) => {
     const [editingTopic, setEditingTopic] = useState(null);
     const [showAIGenerator, setShowAIGenerator] = useState(false);
     const [showTimetableEditor, setShowTimetableEditor] = useState(false);
-    const [showAddMenu, setShowAddMenu] = useState(false);
     const [feedbackMessage, setFeedbackMessage] = useState('');
     const [topicFilter, setTopicFilter] = useState('all');
     const [topicQuery, setTopicQuery] = useState('');
-    const addMenuRef = useRef(null);
-
-    // Close add menu when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (addMenuRef.current && !addMenuRef.current.contains(event.target)) {
-                setShowAddMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
     useEffect(() => {
         if (!feedbackMessage) return undefined;
 
@@ -91,14 +73,6 @@ const LearningPathDetailView = ({ path, onBack }) => {
     );
     const completedCount = pathTopics.filter(t => t.status === 'completed' || t.status === 'mastered').length;
     const focusTopics = pathTopics.filter((topic) => topic.section === 'current_focus');
-    const filterCounts = useMemo(() => ({
-        all: pathTopics.length,
-        focus: pathTopics.filter((topic) => topic.section === 'current_focus').length,
-        active: pathTopics.filter((topic) => topic.status === 'in_progress').length,
-        done: pathTopics.filter((topic) => topic.status === 'completed' || topic.status === 'mastered').length,
-    }), [pathTopics]);
-
-    const colorConfig = COLOR_OPTIONS.find(c => c.name === path.color) || COLOR_OPTIONS[0];
 
     const formatTime = (minutes) => {
         if (!minutes) return '0h';
@@ -187,8 +161,6 @@ const LearningPathDetailView = ({ path, onBack }) => {
             : [previousTopic];
     };
 
-    const isTopicLocked = (topic, index) => getBlockingTopics(topic, index).length > 0;
-
     const topicLibraryEntries = useMemo(() => {
         return pathTopics
             .map((topic) => {
@@ -247,162 +219,73 @@ const LearningPathDetailView = ({ path, onBack }) => {
         await deleteTopic(topic.id);
     };
 
-    const renderTopicRow = (topic, index) => {
+    const renderTopicRow = (topic, onGripPointerDown = null) => {
         const status = STATUS_CONFIG[topic.status] || STATUS_CONFIG.not_started;
-        const topicResourceList = getResourcesByTopic(topic.id);
+        const resourceCount = getResourcesByTopic(topic.id).length;
         const primaryVideoUrl = getTopicVideoUrl(topic);
-        const resourceCount = topicResourceList.length;
         const isCompleted = topic.status === 'completed';
-        const isMastered = topic.status === 'mastered';
         const actualIndex = pathTopics.findIndex((item) => item.id === topic.id);
-        const isLocked = isTopicLocked(topic, actualIndex);
         const blockingTopics = getBlockingTopics(topic, actualIndex);
+        const isLocked = blockingTopics.length > 0;
         const isFocused = topic.section === 'current_focus';
+        const meta = [
+            isLocked ? `After ${blockingTopics[0].title}` : null,
+            !isLocked && topic.status !== 'not_started' && !isCompleted ? status.label : null,
+            isFocused ? 'Focus' : null,
+            topic.estimated_time > 0 ? formatTime(topic.estimated_time) : null,
+            resourceCount > 0 ? `${resourceCount} resource${resourceCount !== 1 ? 's' : ''}` : null,
+            isCompleted && !topic.exercise_completed ? 'Needs exercise' : null,
+            isCompleted && !topic.revision_completed ? 'Needs revision' : null,
+        ].filter(Boolean).join(' · ');
 
         return (
-            <Motion.div
-                key={topic.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ delay: index * 0.03 }}
-            >
-                <div
-                    className={`group flex items-center gap-3 px-5 py-3.5 ${
-                        canReorderTopics ? 'cursor-grab active:cursor-grabbing' : ''
-                    } hover:bg-gray-50/80 transition-colors
-                        ${isMastered ? 'opacity-60' : ''}
-                        ${isLocked ? 'opacity-50' : ''}
-                        ${status.rowHighlight || ''}`}
-                >
-                    {canReorderTopics ? (
-                        <GripVertical
-                            size={14}
-                            className="text-gray-200 group-hover:text-gray-400 transition-colors flex-shrink-0 cursor-grab"
-                        />
-                    ) : (
-                        <div className="w-[14px] flex-shrink-0" />
-                    )}
-
-                    <span className="text-xs text-gray-300 font-mono w-5 text-right flex-shrink-0">
-                        {actualIndex + 1}
+            <article key={topic.id} className={`learning-topic${isLocked ? ' is-locked' : ''}`} data-status={topic.status}>
+                {isLocked ? (
+                    <span className="task-check learning-topic__check" aria-label={`Locked until ${blockingTopics.map((item) => item.title).join(', ')} is done`}>
+                        <span><Lock size={11} strokeWidth={2.6} /></span>
                     </span>
-
-                    {isLocked ? (
-                        <div
-                            className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 border border-gray-200"
-                            title={`Topic locked — complete ${blockingTopics.map((item) => item.title).join(', ')} first`}
-                        >
-                            <Lock size={16} className="text-gray-400" />
-                        </div>
-                    ) : (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleStatusCycle(topic.id); }}
-                            className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${status.dot}`}
-                            title={`${status.label} — click to change`}
-                        >
-                            {status.dotInner}
-                        </button>
-                    )}
-
-                    <div
-                        className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => handleEditTopic(topic)}
-                    >
-                        <h4 className={`font-semibold text-sm truncate ${status.textClass}`}>
-                            {topic.title}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            {topic.description && (
-                                <span className="text-xs text-gray-400 truncate">{topic.description}</span>
-                            )}
-                            {topic.estimated_time > 0 && (
-                                <span className="text-xs text-blue-500/80 flex items-center gap-1 font-medium flex-shrink-0 bg-blue-50 px-1.5 py-0.5 rounded-md">
-                                    <Clock size={10} />
-                                    {formatTime(topic.estimated_time)}
-                                </span>
-                            )}
-                            {resourceCount > 0 && (
-                                <span className="text-xs text-gray-300 flex items-center gap-1 flex-shrink-0">
-                                    <BookOpen size={10} />
-                                    {resourceCount}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {isCompleted && (
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); toggleExerciseCompleted(topic.id); }}
-                                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all
-                                    ${topic.exercise_completed
-                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                                        : 'bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 animate-pulse'
-                                    }`}
-                                title={topic.exercise_completed ? 'Exercise done ✓' : 'Mark exercise as done'}
-                            >
-                                <Dumbbell size={12} />
-                                {topic.exercise_completed ? <Check size={10} strokeWidth={3} /> : 'Exercise'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); toggleRevisionCompleted(topic.id); }}
-                                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all
-                                    ${topic.revision_completed
-                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                                        : 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 animate-pulse'
-                                    }`}
-                                title={topic.revision_completed ? 'Revision done ✓' : 'Mark revision as done'}
-                            >
-                                <BookCheck size={12} />
-                                {topic.revision_completed ? <Check size={10} strokeWidth={3} /> : 'Revise'}
-                            </button>
-                        </div>
-                    )}
-
-                    {primaryVideoUrl && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); window.open(primaryVideoUrl, '_blank'); }}
-                            className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                            title="Open linked video"
-                        >
-                            <Play size={14} className="text-red-500 fill-red-500" />
-                        </button>
-                    )}
-
+                ) : (
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleTopicFocus(topic.id);
-                        }}
-                        className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
-                            isFocused
-                                ? 'bg-rose-100 text-rose-600'
-                                : 'bg-gray-100 text-gray-400 hover:bg-rose-50 hover:text-rose-500'
-                        }`}
-                        title={isFocused ? 'Remove from current focus' : 'Mark as current focus'}
+                        type="button"
+                        className="task-check learning-topic__check"
+                        aria-label={`${status.label}. Change status of ${topic.title}`}
+                        onClick={() => handleStatusCycle(topic.id)}
                     >
-                        <Target size={14} />
+                        <span>
+                            {isCompleted && <Check size={12} strokeWidth={3.2} />}
+                            {topic.status === 'mastered' && <Star size={11} strokeWidth={2.6} fill="currentColor" />}
+                        </span>
                     </button>
-
+                )}
+                <button type="button" className="learning-topic__body" onClick={() => handleEditTopic(topic)}>
+                    <span className="learning-topic__title">{topic.title}</span>
+                    {meta && <span className="learning-topic__meta">{meta}</span>}
+                </button>
+                {onGripPointerDown ? (
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteTopic(topic);
-                        }}
-                        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all hover:scale-110 active:scale-95 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
-                        title="Delete topic"
+                        type="button"
+                        className="learning-topic__grip"
+                        onPointerDown={onGripPointerDown}
+                        aria-label={`Reorder ${topic.title}`}
                     >
-                        <Trash2 size={14} />
+                        <GripVertical size={18} aria-hidden="true" />
                     </button>
-
-                    <ChevronRight
-                        size={14}
-                        className="text-gray-200 group-hover:text-gray-400 transition-colors flex-shrink-0 cursor-pointer"
-                        onClick={() => handleEditTopic(topic)}
+                ) : (
+                    <RowMenu
+                        label={`Actions for ${topic.title}`}
+                        items={[
+                            { label: isFocused ? 'Remove from Focus' : 'Focus', icon: Target, onSelect: () => toggleTopicFocus(topic.id) },
+                            ...(isCompleted ? [
+                                { label: topic.exercise_completed ? 'Exercise Not Done' : 'Exercise Done', icon: Dumbbell, onSelect: () => toggleExerciseCompleted(topic.id) },
+                                { label: topic.revision_completed ? 'Revision Not Done' : 'Revision Done', icon: BookCheck, onSelect: () => toggleRevisionCompleted(topic.id) },
+                            ] : []),
+                            ...(primaryVideoUrl ? [{ label: 'Open Video', icon: Play, onSelect: () => window.open(primaryVideoUrl, '_blank', 'noopener,noreferrer') }] : []),
+                            { label: 'Edit', icon: Edit3, onSelect: () => handleEditTopic(topic) },
+                            { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => handleDeleteTopic(topic) },
+                        ]}
                     />
-                </div>
-            </Motion.div>
+                )}
+            </article>
         );
     };
 
@@ -410,13 +293,13 @@ const LearningPathDetailView = ({ path, onBack }) => {
         <div className="learning-detail">
             <LearningPathDetailContent
                 view={{
-                addMenuRef, addResource, addTopicsBatch, canReorderTopics, colorConfig, completedCount,
-                deleteResource, deleteTimeLog, deleteTopic, editingTopic, feedbackMessage, filterCounts,
+                addResource, addTopicsBatch, canReorderTopics, completedCount,
+                deleteResource, deleteTimeLog, deleteTopic, editingTopic, feedbackMessage,
                 focusTopics, formatTime, getTopicVideoUrl, handleAddTopic, handleEditTopic, handleReorder,
                 handleSaveTimetable, handleSaveTopic, handleToggleSequentialLock, isSequentialLocked, onBack,
                 logTime, path, pathTopics, plannedTime, progress, renderTopicRow, reorderTopics, setEditingTopic,
-                setShowAddMenu, setShowAIGenerator, setShowTimetableEditor, setShowTopicModal, setTopicFilter,
-                setTopicQuery, showAddMenu, showAIGenerator, showTimetableEditor, showTopicModal, timetable,
+                setShowAIGenerator, setShowTimetableEditor, setShowTopicModal, setTopicFilter,
+                setTopicQuery, showAIGenerator, showTimetableEditor, showTopicModal, timetable,
                 topicFilter, topicLibraryEntries, topicQuery, topicResources, topicTimeLogs, totalTime, visibleTopics,
                 }}
             />

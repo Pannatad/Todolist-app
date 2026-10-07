@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ChevronDown, Plus } from 'lucide-react';
-import { Sheet } from '../../ui';
+import { BarButton, Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
 import { ALL_KINDS, getKindLabel, isScheduleKind } from './constants';
 import { buildUniversityItemInput } from './universityItemInput';
@@ -85,12 +85,9 @@ const QuickAdd = ({ addTask, addScheduleItem }) => {
 
   return (
     <>
-      <button type="button" className="uni-board-add-trigger" onClick={() => setIsOpen(true)}>
-        <Plus size={17} aria-hidden="true" />
-        <span>Add item</span>
-      </button>
+      <BarButton icon={Plus} tone="primary" label="Add university item" onClick={() => setIsOpen(true)} />
 
-      <Sheet open={isOpen} onClose={closeComposer} title="Add university item" description="Capture a deadline, exam, event, or university task." className="uni-board-quick-add-sheet">
+      <Sheet open={isOpen} onClose={closeComposer} title="New Item" className="uni-board-quick-add-sheet">
         <form className="uni-board-composer__form" onSubmit={submit}>
         {error && <p className="uni-board-inline-error uni-board-composer__error" role="alert">{error}</p>}
         <label className="uni-board-visually-hidden" htmlFor="uni-board-title">Title</label>

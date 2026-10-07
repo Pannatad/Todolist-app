@@ -1,75 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Circle, List, ListChecks, ListOrdered, Star } from 'lucide-react';
+import { Check, List, ListChecks, ListOrdered } from 'lucide-react';
 import {
     buildDetailLine,
     createContinuationLine,
     createFormattedLine,
-    getColors,
     getDetailLines,
-    ideaMatchesQuery,
     parseDetailLine,
     resizeLineEditor,
 } from './ideasBoardUtils';
-
-const TreeItem = ({
-    node,
-    childrenByParentId,
-    selectedId,
-    query,
-    onSelect,
-    depth = 0
-}) => {
-    const children = childrenByParentId[node.id] || [];
-    const visibleChildren = children.filter((child) => ideaMatchesQuery(child, query) || (childrenByParentId[child.id] || []).length > 0);
-    const matches = ideaMatchesQuery(node, query);
-
-    if (!matches && visibleChildren.length === 0) {
-        return null;
-    }
-
-    const selected = selectedId === node.id;
-    const colors = getColors(node.color);
-
-    return (
-        <div>
-            <button
-                type="button"
-                onClick={() => onSelect(node.id)}
-                className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2.5 text-left transition ${
-                    selected ? `bg-[var(--color-card-raised)] shadow-sm ring-1 ${colors.ring}` : 'hover:bg-[var(--color-card-raised)]/70'
-                }`}
-                style={{ paddingLeft: `${8 + depth * 18}px` }}
-            >
-                <span className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${colors.dot}`} />
-                <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-sm font-semibold ${node.completed ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-ink)]'}`}>
-                        {node.title}
-                    </span>
-                    {node.details && depth === 0 && (
-                        <span className="mt-1 block truncate text-xs leading-5 text-[var(--color-muted)]">{node.details}</span>
-                    )}
-                </span>
-                {node.focused && <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />}
-            </button>
-
-            {visibleChildren.length > 0 && (
-                <div className="mt-0.5 space-y-0.5">
-                    {visibleChildren.map((child) => (
-                        <TreeItem
-                            key={child.id}
-                            node={child}
-                            childrenByParentId={childrenByParentId}
-                            selectedId={selectedId}
-                            query={query}
-                            onSelect={onSelect}
-                            depth={depth + 1}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
 
 const IdeaNoteEditor = ({ node, onSave }) => {
     const [titleDraft, setTitleDraft] = useState(node.title);
@@ -214,92 +152,89 @@ const IdeaNoteEditor = ({ node, onSave }) => {
         lineInputRefs.current.forEach((element) => resizeLineEditor(element));
     }, [detailLines]);
 
+    // The sheet opens after this mounts, so measure again once it is on screen.
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => {
+            lineInputRefs.current.forEach((element) => resizeLineEditor(element));
+        });
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    // Save whatever is pending when the sheet closes, even without a blur first.
+    const commitRef = useRef(commitDraft);
+    useEffect(() => {
+        commitRef.current = commitDraft;
+    }, [commitDraft]);
+    useEffect(() => () => commitRef.current(), []);
+
     return (
-        <>
+        <div className="idea-editor">
             <input
                 value={titleDraft}
                 onChange={(event) => setTitleDraft(event.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleSaveShortcut}
-                className={`w-full bg-transparent text-2xl font-bold leading-tight outline-none sm:text-3xl ${node.completed ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-ink)]'}`}
-                placeholder="Untitled idea"
+                className={`idea-editor__title${node.completed ? ' is-done' : ''}`}
+                placeholder="Title"
+                aria-label="Idea title"
             />
 
-            <div className="mt-6 min-h-[320px] space-y-1.5">
-                {parsedLines.map((line, index) => {
-                    const placeholder = index === 0 ? 'Write the idea here. Add context, questions, examples, next steps...' : '';
-
-                    return (
-                        <div key={`${index}-${line.type}`} className="flex min-h-9 items-start gap-3 rounded-lg px-1 transition-colors focus-within:bg-[var(--color-paper-2)]/80">
-                            <div className="flex h-9 w-7 shrink-0 items-center justify-center pt-0.5 text-sm font-semibold text-[var(--color-muted)]">
+            <div className="idea-editor__lines">
+                {parsedLines.map((line, index) => (
+                    <div key={`${index}-${line.type}`} className={`idea-editor__line is-${line.type}`}>
+                        {line.type !== 'plain' && (
+                            <span className="idea-editor__marker">
                                 {line.type === 'check' && (
-                                    <input
-                                        type="checkbox"
-                                        checked={line.checked}
-                                        onChange={() => toggleChecklistLine(index)}
-                                        className="h-4 w-4 cursor-pointer rounded border-[var(--color-rule-2)] accent-[var(--color-accent)]"
-                                        title={line.checked ? 'Mark open' : 'Mark done'}
-                                    />
+                                    <button
+                                        type="button"
+                                        className="task-check"
+                                        aria-pressed={line.checked}
+                                        aria-label={line.checked ? 'Mark open' : 'Mark done'}
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => toggleChecklistLine(index)}
+                                    >
+                                        <span>{line.checked && <Check size={11} strokeWidth={3.2} />}</span>
+                                    </button>
                                 )}
-                                {line.type === 'bullet' && <span className="text-lg leading-6">•</span>}
-                                {line.type === 'number' && <span>{line.number || index + 1}.</span>}
-                            </div>
-
-                            <textarea
-                                ref={(element) => {
-                                    lineInputRefs.current[index] = element;
-                                    resizeLineEditor(element);
-                                }}
-                                rows={1}
-                                value={line.content}
-                                onChange={(event) => {
-                                    resizeLineEditor(event.currentTarget);
-                                    updateDetailLine(index, event.target.value);
-                                }}
-                                onFocus={() => setActiveLineIndex(index)}
-                                onBlur={handleBlur}
-                                onKeyDown={(event) => handleLineKeyDown(event, index)}
-                                className={`min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-1 text-base leading-7 text-[var(--color-ink-2)] outline-none placeholder:text-[var(--color-muted)] ${
-                                    line.type === 'check' && line.checked ? 'text-[var(--color-muted)] line-through' : ''
-                                }`}
-                                placeholder={placeholder}
-                            />
-                        </div>
-                    );
-                })}
+                                {line.type === 'bullet' && '•'}
+                                {line.type === 'number' && `${line.number || index + 1}.`}
+                            </span>
+                        )}
+                        <textarea
+                            ref={(element) => {
+                                lineInputRefs.current[index] = element;
+                                resizeLineEditor(element);
+                            }}
+                            rows={1}
+                            value={line.content}
+                            onChange={(event) => {
+                                resizeLineEditor(event.currentTarget);
+                                updateDetailLine(index, event.target.value);
+                            }}
+                            onFocus={() => setActiveLineIndex(index)}
+                            onBlur={handleBlur}
+                            onKeyDown={(event) => handleLineKeyDown(event, index)}
+                            className={line.type === 'check' && line.checked ? 'is-checked' : undefined}
+                            placeholder={index === 0 ? 'Note' : ''}
+                            aria-label={`Line ${index + 1}`}
+                        />
+                    </div>
+                ))}
             </div>
 
-            <div className="mt-4 flex items-center gap-1 border-t border-[var(--color-rule)] pt-3">
-                <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => applyListFormat('bullet')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
-                    title="Bullet list"
-                >
-                    <List size={16} />
+            <div className="idea-editor__toolbar" role="toolbar" aria-label="Format">
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyListFormat('check')} aria-label="Checklist">
+                    <ListChecks size={19} />
                 </button>
-                <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => applyListFormat('check')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
-                    title="Checklist"
-                >
-                    <ListChecks size={16} />
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyListFormat('bullet')} aria-label="Bulleted list">
+                    <List size={19} />
                 </button>
-                <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => applyListFormat('number')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
-                    title="Numbered list"
-                >
-                    <ListOrdered size={16} />
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyListFormat('number')} aria-label="Numbered list">
+                    <ListOrdered size={19} />
                 </button>
             </div>
-        </>
+        </div>
     );
 };
 
-export { IdeaNoteEditor, TreeItem };
+export { IdeaNoteEditor };

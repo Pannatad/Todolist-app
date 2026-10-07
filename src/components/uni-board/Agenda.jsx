@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   CalendarDays,
   ChevronDown,
-  ChevronRight,
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
@@ -12,13 +11,10 @@ import {
   GraduationCap,
   Users,
 } from 'lucide-react';
-import SegmentedControl from '../../ui/SegmentedControl';
 import { AGENDA_RANGE_OPTIONS } from './constants';
-import ItemActions from './ItemActions';
 import {
   formatAgendaDate,
   formatDaysRemaining,
-  formatShortDate,
   formatTime,
   formatTimeRemaining,
   getItemKind,
@@ -48,34 +44,35 @@ const getNotesText = (item) => {
   return typeof notes === 'string' ? notes.trim() : notes ? String(notes) : '';
 };
 
-export const AgendaItemRow = ({ item, now, onSelect, onDelete, isNotesOpen, onToggleNotes }) => {
+export const AgendaItemRow = ({ item, now, onSelect, isNotesOpen, onToggleNotes }) => {
   const kind = getItemKind(item);
   const notesId = notesIdFor(item.key);
   const notes = getNotesText(item);
 
   return (
-    <div className={`uni-board-agenda-row${item.completed ? ' is-complete' : ''}${isNotesOpen ? ' is-notes-open' : ''}`}>
+    <div className={`uni-board-agenda-row${item.completed ? ' is-complete' : ''}${isNotesOpen ? ' is-notes-open' : ''}${notes ? ' has-notes' : ''}`}>
       <button type="button" className="uni-board-agenda-row__main" onClick={() => onSelect(item)}>
-        <span className="uni-board-agenda-row__time">{item.occursAt ? formatTime(item.occursAt) : 'Any time'}</span>
         <span className={`uni-board-agenda-row__marker uni-board-agenda-row__marker--${kind}`} aria-hidden="true">
           <AgendaItemIcon item={item} />
         </span>
         <span className="uni-board-item-copy">
           <strong>{item.title}</strong>
-          <span>{formatShortDate(item.occursAt)} · {itemLabel(item)} · {item.subject || 'University'} · {formatTimeRemaining(item.occursAt, now)}</span>
+          <span>{itemLabel(item)} · {item.subject || 'University'} · {formatTimeRemaining(item.occursAt, now)}</span>
         </span>
+        <span className="uni-board-agenda-row__time">{item.occursAt ? formatTime(item.occursAt) : 'Any time'}</span>
       </button>
-      <ItemActions title={item.title} onEdit={() => onSelect(item)} onDelete={() => onDelete(item)} />
-      <button
-        type="button"
-        className={`uni-board-agenda-row__toggle${isNotesOpen ? ' is-open' : ''}`}
-        aria-label={`${isNotesOpen ? 'Hide' : 'Show'} notes for ${item.title}`}
-        aria-expanded={isNotesOpen}
-        aria-controls={notesId}
-        onClick={() => onToggleNotes(item.key)}
-      >
-        {isNotesOpen ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronRight size={18} aria-hidden="true" />}
-      </button>
+      {notes && (
+        <button
+          type="button"
+          className={`uni-board-agenda-row__toggle${isNotesOpen ? ' is-open' : ''}`}
+          aria-label={`${isNotesOpen ? 'Hide' : 'Show'} notes for ${item.title}`}
+          aria-expanded={isNotesOpen}
+          aria-controls={notesId}
+          onClick={() => onToggleNotes(item.key)}
+        >
+          <ChevronDown size={18} aria-hidden="true" />
+        </button>
+      )}
       {isNotesOpen && (
         <div id={notesId} className="uni-board-agenda-row__details">
           <span className="uni-board-agenda-row__details-label">Notes</span>
@@ -86,8 +83,7 @@ export const AgendaItemRow = ({ item, now, onSelect, onDelete, isNotesOpen, onTo
   );
 };
 
-const Agenda = ({ groups, onSelect, onDelete, isLoading, now, range = '14', onRangeChange = () => {} }) => {
-  const agendaItemCount = groups.reduce((count, group) => count + group.items.length, 0);
+const Agenda = ({ groups, onSelect, isLoading, now, range = '14', onRangeChange = () => {} }) => {
   const [expandedNotes, setExpandedNotes] = useState(() => new Set());
 
   const toggleNotes = (itemKey) => {
@@ -100,26 +96,16 @@ const Agenda = ({ groups, onSelect, onDelete, isLoading, now, range = '14', onRa
   };
 
   return (
-    <section className="uni-board-section uni-board-agenda" aria-labelledby="uni-board-agenda-title">
-      <div className="uni-board-section-heading uni-board-agenda__heading">
-        <div>
-          <p className="uni-board-kicker">Plan ahead</p>
-          <h2 id="uni-board-agenda-title">Agenda</h2>
-        </div>
-        <div className="uni-board-agenda__heading-actions">
-          <span className="uni-board-count" aria-label={`${agendaItemCount} agenda items`}>{agendaItemCount}</span>
-          <CalendarDays size={19} aria-hidden="true" className="uni-board-section-icon" />
-        </div>
-      </div>
-      <div className="uni-board-agenda__controls">
-        <span className="uni-board-agenda__range-label">Show upcoming</span>
-        <SegmentedControl
-          items={AGENDA_RANGE_OPTIONS}
-          value={range}
-          onChange={onRangeChange}
-          ariaLabel="Agenda range"
-          className="uni-board-agenda__ranges"
-        />
+    <section className="uni-board-agenda" aria-labelledby="uni-board-agenda-title">
+      <div className="ui-section-title">
+        <h2 id="uni-board-agenda-title">Agenda</h2>
+        <label className="pill-select">
+          <span className="sr-only">Show upcoming</span>
+          <select value={range} onChange={(event) => onRangeChange(event.target.value)}>
+            {AGENDA_RANGE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.id === 'all' ? 'All upcoming' : `Next ${option.label}`}</option>)}
+          </select>
+          <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
+        </label>
       </div>
       {isLoading ? <div className="uni-board-skeleton-list" aria-label="Loading agenda">{[1, 2, 3].map((row) => <span key={row} className="uni-board-skeleton-row" />)}</div> : groups.length > 0 ? (
         <div className="uni-board-agenda-list">
@@ -129,14 +115,13 @@ const Agenda = ({ groups, onSelect, onDelete, isLoading, now, range = '14', onRa
                 <h3>{formatAgendaDate(group.date)}</h3>
                 <span className="uni-board-agenda-day__remaining">{formatDaysRemaining(group.date, now)}</span>
               </div>
-              <div className="uni-board-agenda-day__items">
+              <div className="ui-group uni-board-agenda-day__items">
                 {group.items.map((item) => (
                   <AgendaItemRow
                     key={item.key}
                     item={item}
                     now={now}
                     onSelect={onSelect}
-                    onDelete={onDelete}
                     isNotesOpen={expandedNotes.has(item.key)}
                     onToggleNotes={toggleNotes}
                   />
@@ -145,7 +130,7 @@ const Agenda = ({ groups, onSelect, onDelete, isLoading, now, range = '14', onRa
             </div>
           ))}
         </div>
-      ) : <p className="uni-board-quiet-empty">No dated items in this range.</p>}
+      ) : <p className="ui-empty-card">Nothing due in this range.</p>}
     </section>
   );
 };

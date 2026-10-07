@@ -1,7 +1,7 @@
 import { isTaskActive } from '../utils/taskState';
 
 const MINUTE = 60000;
-const timeLabel = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const timeLabel = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 const toEntries = (scheduleToday) => scheduleToday
     .map((item) => {

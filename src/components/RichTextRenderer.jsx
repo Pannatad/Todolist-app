@@ -1,50 +1,16 @@
 import React from 'react';
-import { Circle, FolderKanban, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { Circle } from 'lucide-react';
 import { resolveChatRenderMode } from '../services/chatRenderMode.js';
+import './rich-text.css';
 
 // Clean markdown
 const cleanText = (str) => {
     if (!str) return str;
-    return str.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').trim();
-};
-
-// Get habit emoji
-const getHabitEmoji = (text) => {
-    const lower = (text || '').toLowerCase();
-    if (lower.includes('meditat')) return '🧘';
-    if (lower.includes('gym') || lower.includes('workout')) return '🏋️';
-    if (lower.includes('journal')) return '📓';
-    if (lower.includes('stretch') || lower.includes('yoga')) return '🤸';
-    if (lower.includes('read')) return '📖';
-    if (lower.includes('water')) return '💧';
-    if (lower.includes('gratitude')) return '🙏';
-    return '✔️';
-};
-
-// Get task emoji
-const getTaskEmoji = (text) => {
-    const lower = (text || '').toLowerCase();
-    if (lower.includes('reflection')) return '📓';
-    if (lower.includes('assignment') || lower.includes('homework')) return '📄';
-    if (lower.includes('writing')) return '✍️';
-    if (lower.includes('code') || lower.includes('app')) return '💻';
-    return '📋';
-};
-
-// Timeline colors
-const TIMELINE_COLORS = [
-    { dot: 'bg-blue-500', line: 'bg-blue-200' },
-    { dot: 'bg-orange-500', line: 'bg-orange-200' },
-    { dot: 'bg-emerald-500', line: 'bg-emerald-200' },
-    { dot: 'bg-purple-500', line: 'bg-purple-200' },
-];
-
-// Section colors for day overview
-const SECTION_STYLES = {
-    schedule: { bg: 'bg-gradient-to-br from-blue-50 to-indigo-50', border: 'border-blue-100', text: 'text-blue-800', icon: '🗓️' },
-    tasks: { bg: 'bg-gradient-to-br from-emerald-50 to-green-50', border: 'border-emerald-100', text: 'text-emerald-800', icon: '📋' },
-    habits: { bg: 'bg-gradient-to-br from-amber-50 to-orange-50', border: 'border-amber-100', text: 'text-amber-800', icon: '🔄' },
-    highlights: { bg: 'bg-gradient-to-br from-purple-50 to-pink-50', border: 'border-purple-100', text: 'text-purple-800', icon: '⭐' },
+    return str
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/\*(.+?)\*/g, '$1')
+        .replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '')
+        .trim();
 };
 
 // Get section type from header
@@ -70,56 +36,37 @@ const parseScheduleTime = (text) => {
     return null;
 };
 
-// Timeline Component for Schedule
-const ScheduleTimeline = ({ items }) => {
-    return (
-        <div className="relative pl-4">
-            {/* Vertical line */}
-            <div className="absolute left-[7px] top-3 bottom-3 w-0.5 bg-gray-200" />
+const titleCase = (value) => value.toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 
-            <div className="space-y-3">
-                {items.map((item, idx) => {
-                    const color = TIMELINE_COLORS[idx % TIMELINE_COLORS.length];
-                    const timeInfo = parseScheduleTime(item.text);
-                    const title = item.text
-                        .replace(/at\s*\d{1,2}:\d{2}(?:\s*(?:AM|PM)?)?/gi, '')
-                        .replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/g, '')
-                        .replace(/\(passed\)/gi, '')
-                        .replace(/\(recurring\)/gi, '')
-                        .trim();
-                    const isPassed = item.text.toLowerCase().includes('passed');
+// Schedule rows: title on the left, time on the right.
+const ScheduleRows = ({ items }) => (
+    <div className="rich-list">
+        {items.map((item, idx) => {
+            const timeInfo = parseScheduleTime(item.text);
+            const title = item.text
+                .replace(/at\s*\d{1,2}:\d{2}(?:\s*(?:AM|PM)?)?/gi, '')
+                .replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/g, '')
+                .replace(/\(passed\)/gi, '')
+                .replace(/\(recurring\)/gi, '')
+                .replace(/[:\s–-]+$/, '')
+                .trim();
+            const isPassed = item.text.toLowerCase().includes('passed');
 
-                    return (
-                        <div key={idx} className="relative flex items-start gap-3">
-                            {/* Timeline dot */}
-                            <div className={`relative z-10 w-3.5 h-3.5 rounded-full ${color.dot} ring-4 ring-white/50 shadow-sm flex-shrink-0 mt-4`} />
-
-                            {/* Event card - Glassmorphism */}
-                            <div className={`flex-1 p-3 bg-white/40 backdrop-blur-sm rounded-xl border border-white/60 shadow-sm ${isPassed ? 'opacity-60' : ''}`}>
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
-                                        <p className={`font-semibold text-gray-900 ${isPassed ? 'line-through' : ''}`}>
-                                            {title || item.text}
-                                        </p>
-                                        {timeInfo && (
-                                            <div className="flex items-center gap-1.5 mt-1 text-gray-500">
-                                                <Clock size={12} />
-                                                <span className="text-xs">
-                                                    {timeInfo.start}{timeInfo.end ? ` - ${timeInfo.end}` : ''}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className={`w-3 h-3 rounded-full ${color.dot} flex-shrink-0 mt-1`} />
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
+            return (
+                <div key={idx} className={`rich-list__row${isPassed ? ' is-passed' : ''}`}>
+                    <span className="rich-list__copy">
+                        <span className="rich-list__title">{title || item.text}</span>
+                    </span>
+                    {timeInfo && (
+                        <span className="rich-list__value">
+                            {timeInfo.start}{timeInfo.end ? `–${timeInfo.end}` : ''}
+                        </span>
+                    )}
+                </div>
+            );
+        })}
+    </div>
+);
 
 // Parse day overview sections
 const parseDayOverview = (text) => {
@@ -178,54 +125,31 @@ const RichTextRenderer = ({ text, renderHint }) => {
 
         if (sections.length > 0) {
             return (
-                <div className="space-y-3">
+                <div>
                     {sections.map((section, idx) => {
-                        const style = SECTION_STYLES[section.type] || SECTION_STYLES.schedule;
-                        const isSchedule = section.type === 'schedule';
-
+                        const items = section.items.filter((item) => !item.isEmpty);
                         return (
-                            <div key={idx} className={`p-4 rounded-2xl border ${style.bg} ${style.border}`}>
-                                {/* Section Header */}
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="text-lg">{style.icon}</span>
-                                    <h4 className={`text-sm font-bold uppercase tracking-wide ${style.text}`}>
-                                        {section.header}
-                                    </h4>
-                                </div>
-
-                                {/* Section Items */}
-                                {section.items.length > 0 ? (
-                                    isSchedule ? (
-                                        <ScheduleTimeline items={section.items.filter(i => !i.isEmpty)} />
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {section.items.map((item, iIdx) => {
-                                                if (item.isEmpty) {
-                                                    return (
-                                                        <p key={iIdx} className="text-gray-500 text-sm italic">{item.text}</p>
-                                                    );
-                                                }
-
-                                                // Colors for dots
-                                                const dotColors = ['bg-blue-500', 'bg-orange-500', 'bg-emerald-500', 'bg-purple-500'];
-                                                const dotColor = dotColors[iIdx % dotColors.length];
-
-                                                return (
-                                                    <div key={iIdx} className="flex items-center gap-3 p-3 bg-white/40 backdrop-blur-sm rounded-xl border border-white/60 shadow-sm">
-                                                        <div className={`w-2.5 h-2.5 rounded-full ${dotColor} flex-shrink-0`} />
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="font-medium text-gray-900 text-sm">{item.text}</p>
-                                                        </div>
-                                                        <div className={`w-2.5 h-2.5 rounded-full ${dotColor} flex-shrink-0`} />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )
+                            <section key={idx} className="rich-card">
+                                <h4 className="rich-card__title">{titleCase(section.header)}</h4>
+                                {items.length === 0 ? (
+                                    <div className="rich-list">
+                                        <p className="rich-list__empty">{section.items[0]?.text || 'Nothing here.'}</p>
+                                    </div>
+                                ) : section.type === 'schedule' ? (
+                                    <ScheduleRows items={items} />
                                 ) : (
-                                    <p className="text-gray-500 text-sm italic">No items</p>
+                                    <div className="rich-list">
+                                        {items.map((item, iIdx) => (
+                                            <div key={iIdx} className="rich-list__row">
+                                                {section.type === 'habits' && <span className="rich-list__circle" aria-hidden="true" />}
+                                                <span className="rich-list__copy">
+                                                    <span className="rich-list__title">{item.text}</span>
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
-                            </div>
+                            </section>
                         );
                     })}
                 </div>
@@ -245,13 +169,10 @@ const RichTextRenderer = ({ text, renderHint }) => {
 
         if (scheduleItems.length > 0) {
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">🗓️</span>
-                        <h4 className="text-base font-semibold text-gray-800">Today's Schedule</h4>
-                    </div>
-                    <ScheduleTimeline items={scheduleItems} />
-                </div>
+                <section className="rich-card">
+                    <h4 className="rich-card__title">Today</h4>
+                    <ScheduleRows items={scheduleItems} />
+                </section>
             );
         }
     }
@@ -268,33 +189,21 @@ const RichTextRenderer = ({ text, renderHint }) => {
 
         if (projects.length > 0) {
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span>📊</span>
-                        <h4 className="text-base font-semibold text-gray-800">Your Projects ({projects.length})</h4>
-                    </div>
-                    {projects.map((project, idx) => {
-                        const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500'];
-                        const bg = ['bg-blue-50', 'bg-emerald-50', 'bg-purple-50', 'bg-amber-50'];
-                        return (
-                            <div key={idx} className={`p-3 ${bg[idx % 4]} rounded-xl border flex items-center gap-3`}>
-                                <div className={`w-10 h-10 ${colors[idx % 4]} rounded-lg flex items-center justify-center`}>
-                                    <FolderKanban size={20} className="text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-gray-900 text-sm truncate">{project.name}</p>
-                                    <p className="text-xs text-gray-500">{project.tasks} tasks</p>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-lg font-bold text-gray-700">{project.progress}%</span>
-                                    <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                        <div className={`h-full ${colors[idx % 4]} rounded-full`} style={{ width: `${project.progress}%` }} />
-                                    </div>
-                                </div>
+                <section className="rich-card">
+                    <h4 className="rich-card__title">Projects</h4>
+                    <div className="rich-list">
+                        {projects.map((project, idx) => (
+                            <div key={idx} className="rich-list__row">
+                                <span className="rich-list__copy">
+                                    <span className="rich-list__title">{project.name}</span>
+                                    <span className="rich-list__meta">{project.tasks} {project.tasks === 1 ? 'task' : 'tasks'}</span>
+                                    <span className="rich-list__bar" aria-hidden="true"><i style={{ width: `${project.progress}%` }} /></span>
+                                </span>
+                                <span className="rich-list__value">{project.progress}%</span>
                             </div>
-                        );
-                    })}
-                </div>
+                        ))}
+                    </div>
+                </section>
             );
         }
     }
@@ -315,31 +224,20 @@ const RichTextRenderer = ({ text, renderHint }) => {
 
         if (tasks.length > 0) {
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">📋</span>
-                        <h4 className="text-base font-semibold text-gray-800">Your Pending Tasks ({tasks.length})</h4>
-                    </div>
-                    <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                <section className="rich-card">
+                    <h4 className="rich-card__title">Open Tasks</h4>
+                    <div className="rich-list">
                         {tasks.map((task, idx) => (
-                            <div key={idx} className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                                <div className="flex items-start gap-3">
-                                    <span className="text-xl">{getTaskEmoji(task.name)}</span>
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-gray-900 text-sm">{task.name}</p>
-                                        {task.dueDate && (
-                                            <div className="flex items-center gap-1.5 mt-1 text-gray-500">
-                                                <Calendar size={12} />
-                                                <span className="text-xs">Due: {task.dueDate}</span>
-                                            </div>
-                                        )}
-                                        <span className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">Pending</span>
-                                    </div>
-                                </div>
+                            <div key={idx} className="rich-list__row">
+                                <span className="rich-list__circle" aria-hidden="true" />
+                                <span className="rich-list__copy">
+                                    <span className="rich-list__title">{task.name}</span>
+                                    {task.dueDate && <span className="rich-list__meta">Due {task.dueDate}</span>}
+                                </span>
                             </div>
                         ))}
                     </div>
-                </div>
+                </section>
             );
         }
     }
@@ -352,26 +250,19 @@ const RichTextRenderer = ({ text, renderHint }) => {
             const habits = listMatch[1].replace(/,?\s+and\s+/gi, ',').split(/,\s*/).map(s => s.trim()).filter(s => s.length > 0 && s.length < 50);
             if (habits.length > 0) {
                 return (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">🔄</span>
-                            <h4 className="text-base font-semibold text-gray-800">Habits to Complete ({habits.length})</h4>
-                        </div>
-                        <div className="space-y-2">
+                    <section className="rich-card">
+                        <h4 className="rich-card__title">Habits Left Today</h4>
+                        <div className="rich-list">
                             {habits.map((habit, idx) => (
-                                <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl flex items-center justify-center">
-                                        <span className="text-lg">{getHabitEmoji(habit)}</span>
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-medium text-gray-900 text-sm">{habit}</p>
-                                        <p className="text-xs text-gray-500">Daily habit</p>
-                                    </div>
-                                    <div className="w-6 h-6 rounded-full border-2 border-gray-200" />
+                                <div key={idx} className="rich-list__row">
+                                    <span className="rich-list__circle" aria-hidden="true" />
+                                    <span className="rich-list__copy">
+                                        <span className="rich-list__title">{habit}</span>
+                                    </span>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 );
             }
         }
@@ -401,32 +292,20 @@ const RichTextRenderer = ({ text, renderHint }) => {
     if (currentSection.items.length > 0 || currentSection.header) sections.push(currentSection);
 
     return (
-        <div className="space-y-4">
+        <div className="rich-text">
             {sections.map((section, sIdx) => (
-                <div key={sIdx} className="space-y-2">
-                    {section.header && (
-                        <div className="flex items-center gap-2 mb-2">
-                            <span>✨</span>
-                            <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wide">{section.header}</h4>
-                        </div>
-                    )}
-                    {section.items.map((item, iIdx) => {
-                        if (item.type === 'bullet') {
-                            return (
-                                <div key={iIdx} className="flex items-start gap-2 pl-1">
-                                    <Circle size={5} className="text-indigo-400 mt-1.5" />
-                                    <p className="text-gray-600 text-sm">{item.content}</p>
-                                </div>
-                            );
-                        }
-                        return item.content.length > 100 ? (
-                            <div key={iIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                <p className="text-gray-700 text-sm">{item.content}</p>
-                            </div>
+                <div key={sIdx} className="rich-text__section">
+                    {section.header && <h4 className="rich-text__header">{section.header}</h4>}
+                    {section.items.map((item, iIdx) => (
+                        item.type === 'bullet' ? (
+                            <p key={iIdx} className="rich-text__bullet">
+                                <Circle size={5} aria-hidden="true" />
+                                <span>{item.content}</span>
+                            </p>
                         ) : (
-                            <p key={iIdx} className="text-gray-600 text-sm">{item.content}</p>
-                        );
-                    })}
+                            <p key={iIdx} className="rich-text__text">{item.content}</p>
+                        )
+                    ))}
                 </div>
             ))}
         </div>
