@@ -17,6 +17,29 @@ const COLOR_OPTIONS = [
     { name: 'emerald', swatch: 'bg-emerald-500' },
 ];
 
+// iOS system colors for each stored habit color name.
+const HABIT_COLORS = {
+    slate: '#8e8e93',
+    rose: '#ff2d55',
+    purple: '#af52de',
+    pink: '#ff375f',
+    indigo: '#5856d6',
+    blue: '#007aff',
+    teal: '#30b0c7',
+    cyan: '#32ade6',
+    lime: '#8bc34a',
+    amber: '#ff9500',
+    emerald: '#34c759',
+};
+
+const HABIT_TYPE_OPTIONS = [
+    { value: 'check', label: 'Done or Not' },
+    { value: 'count', label: 'Count' },
+    { value: 'duration', label: 'Duration' },
+    { value: 'score', label: `Score 1–5` },
+    { value: 'time', label: 'Time of Day' },
+];
+
 const TIME_OF_DAY_OPTIONS = [
     { value: 'morning', label: 'Morning', icon: Sunrise, color: 'text-[var(--color-warning)]', defaultTime: '07:00' },
     { value: 'afternoon', label: 'Afternoon', icon: Sun, color: 'text-[var(--color-warning)]', defaultTime: '12:00' },
@@ -55,19 +78,14 @@ const getInitialFormState = (habit) => ({
     seedWhy: habit?.seed_why || '',
 });
 
-const labelClass = 'habit-form__label';
-const surfaceClass = 'habit-form__surface';
-const inputClass = 'habit-form__input';
-
 export {
     COLOR_OPTIONS,
+    HABIT_COLORS,
+    HABIT_TYPE_OPTIONS,
     DAYS,
     EMOJI_OPTIONS,
     getInitialFormState,
-    inputClass,
-    labelClass,
     SEED_DURATION_OPTIONS,
     SCORE_MAX,
-    surfaceClass,
     TIME_OF_DAY_OPTIONS,
 };

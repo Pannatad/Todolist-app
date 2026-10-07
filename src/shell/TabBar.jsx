@@ -1,4 +1,5 @@
 import { LayoutGrid, MessageCircle } from 'lucide-react';
+import { useMediaQuery } from '../ui';
 import { MORE_TAB_IDS, PRIMARY_TAB_IDS, TABS } from './tabs';
 
 const TabIcon = ({ icon, active }) => {
@@ -17,14 +18,19 @@ const TabIcon = ({ icon, active }) => {
 /**
  * Floating iOS 26 tab bar: a material capsule with a selection lens that
  * glides between tabs, plus a detached circular button for the agent.
+ * Phones show four tabs and "More"; tablets have room for every tab.
  */
 const TabBar = ({ selectedTab, onSelect, onMore, moreOpen, onAgent }) => {
-  const items = [
-    ...TABS.filter((tab) => PRIMARY_TAB_IDS.includes(tab.id)).map((tab) => ({
+  const showAllTabs = useMediaQuery('(min-width: 40rem)');
+  const tabItems = TABS
+    .filter((tab) => showAllTabs || PRIMARY_TAB_IDS.includes(tab.id))
+    .map((tab) => ({
       ...tab,
       active: tab.id === selectedTab,
       onClick: () => onSelect(tab.id),
-    })),
+    }));
+  const items = showAllTabs ? tabItems : [
+    ...tabItems,
     {
       id: 'more',
       label: 'More',
@@ -39,7 +45,7 @@ const TabBar = ({ selectedTab, onSelect, onMore, moreOpen, onAgent }) => {
   return (
     <div className="tab-bar-dock">
       <nav
-        className="tab-bar"
+        className={`tab-bar${showAllTabs ? ' tab-bar--all' : ''}`}
         aria-label="Primary navigation"
         style={{ '--tab-count': items.length, '--tab-index': Math.max(0, activeIndex) }}
       >

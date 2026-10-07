@@ -137,6 +137,13 @@ const MagicSchedule = ({
     const [deletingTemplateId, setDeletingTemplateId] = useState(null);
     const [assistantOpen, setAssistantOpen] = useState(false);
     const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
+    // When the selected block goes away (deleted, updated, deselected), close the
+    // inspector instead of leaving an empty panel or sheet behind.
+    const [previousSelectedItem, setPreviousSelectedItem] = useState(null);
+    if (previousSelectedItem !== selectedItem) {
+        setPreviousSelectedItem(selectedItem);
+        if (previousSelectedItem && !selectedItem && !assistantOpen) setMobileInspectorOpen(false);
+    }
     const [assistantInput, setAssistantInput] = useState('');
     const [assistantIntent, setAssistantIntent] = useState(null);
     const [assistantMessages, setAssistantMessages] = useState([]);
@@ -1079,7 +1086,7 @@ const MagicSchedule = ({
                 </section>
             )}
 
-            <div className="magic-workspace">
+            <div className={`magic-workspace${selectedItem || assistantOpen || mobileInspectorOpen ? ' has-inspector' : ''}`}>
                 <section
                     className="magic-canvas-card"
                     onTouchStart={(event) => {
@@ -1194,7 +1201,7 @@ const MagicSchedule = ({
                     <div className="magic-inspector__tabs">
                         <button type="button" className={!assistantOpen ? 'is-selected' : ''} onClick={() => { setAssistantOpen(false); setMobileInspectorOpen(true); }}>Inspector</button>
                         <button type="button" className={assistantOpen ? 'is-selected' : ''} onClick={() => setAssistantOpen(true)}><Bot size={15} /> Assistant</button>
-                        <button type="button" className="magic-inspector__close" onClick={() => { setAssistantOpen(false); setMobileInspectorOpen(false); }} aria-label="Close schedule panel"><X size={16} /></button>
+                        <button type="button" className="magic-inspector__close" onClick={() => { setAssistantOpen(false); setMobileInspectorOpen(false); setSelectedItem(null); }} aria-label="Close schedule panel"><X size={16} /></button>
                     </div>
                     {assistantOpen ? (
                         <div className="magic-assistant">

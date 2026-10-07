@@ -920,3 +920,24 @@
   align-items: center;
   justify-content: flex-end;
 }
+
+/* Sidebar layout (iPad landscape, laptops): the whole week fits, like
+   Calendar's week view, instead of a sideways carousel. */
+@media (min-width: 64rem) {
+  .task-week-board {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-inline: 0;
+    overflow: visible;
+    padding-inline: 0;
+    scroll-snap-type: none;
+  }
+
+  .task-day-column {
+    scroll-snap-align: none;
+  }
+}
+
+.task-detail-delete {
+  margin-top: var(--space-lg);
+}

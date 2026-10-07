@@ -1,9 +1,10 @@
 import { Reorder } from 'framer-motion';
 import { Plus, Save, X } from 'lucide-react';
+import { confirmAction } from '../utils/confirm';
 import { ChunkReorderItem } from './gardenTaskRows';
 
 const GardenSidebar = ({ view }) => {
-    const { addChunk, addNestedSubtask, chunkTotalMinutes, clearSelectedTask, completedChunks, deleteChunk, deleteNestedSubtask, existingSubjects, expandedChunkIds, formatEstimatedTime, isTaskDraftDirty, isTaskSaving, newChunkEstimate, newChunkTitle, newNestedDrafts, reorderChunks, saveChunkOrder, saveTaskDetails, selectedChunks, selectedTask, setNewChunkEstimate, setNewChunkTitle, taskDraft, toggleChunkExpanded, updateChunk, updateNestedSubtask, updateNestedDraft, updateTaskDraft, visibleChunks } = view;
+    const { addChunk, addNestedSubtask, chunkTotalMinutes, clearSelectedTask, completedChunks, deleteChunk, onDeleteTask, deleteNestedSubtask, existingSubjects, expandedChunkIds, formatEstimatedTime, isTaskDraftDirty, isTaskSaving, newChunkEstimate, newChunkTitle, newNestedDrafts, reorderChunks, saveChunkOrder, saveTaskDetails, selectedChunks, selectedTask, setNewChunkEstimate, setNewChunkTitle, taskDraft, toggleChunkExpanded, updateChunk, updateNestedSubtask, updateNestedDraft, updateTaskDraft, visibleChunks } = view;
     if (!selectedTask) return null;
 
     return <div className="task-detail-panel">
@@ -38,6 +39,21 @@ const GardenSidebar = ({ view }) => {
                 {newChunkTitle.trim() && <button type="button" className="ui-text-button" onClick={addChunk}>Add</button>}
             </div>
         </section>
+        {onDeleteTask && (
+            <div className="form-group task-detail-delete">
+                <button
+                    type="button"
+                    className="form-field form-option form-option--destructive"
+                    onClick={() => {
+                        if (!confirmAction(`Delete "${selectedTask.title}"?`)) return;
+                        clearSelectedTask();
+                        onDeleteTask(selectedTask.id);
+                    }}
+                >
+                    Delete Task
+                </button>
+            </div>
+        )}
     </div>;
 };
 

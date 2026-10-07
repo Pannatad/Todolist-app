@@ -2024,3 +2024,18 @@
   color: var(--color-muted);
   font-size: var(--text-xs);
 }
+
+/* iPad and desktop: segmented controls stay control-sized, not page-wide. */
+@media (min-width: 40rem) {
+  .learning-view-switch {
+    width: min(100%, 18rem);
+  }
+
+  .learning-detail__filters {
+    width: min(100%, 24rem);
+  }
+
+  .learning-detail__search {
+    max-width: 24rem;
+  }
+}

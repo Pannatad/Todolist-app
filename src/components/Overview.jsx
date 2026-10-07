@@ -131,27 +131,34 @@ const Overview = ({ onNavigate }) => {
         )}
       />
 
-      <NowCard
-        current={currentEntry}
-        next={nextEntry}
-        now={now}
-        onOpen={openSchedule}
-        onPlanDay={() => askAgent('Plan my day.')}
-      />
+      {/* One column on phones; on iPad and desktop the day sits left, to-dos right. */}
+      <div className="today-layout">
+        <div className="today-layout__main">
+          <NowCard
+            current={currentEntry}
+            next={nextEntry}
+            now={now}
+            onOpen={openSchedule}
+            onPlanDay={() => askAgent('Plan my day.')}
+          />
 
-      <button type="button" className="today-secretary" onClick={() => askAgent(secretary.prompt)}>
-        <span className="today-secretary__icon" aria-hidden="true"><MessageCircle size={17} strokeWidth={2.2} /></span>
-        <span className="today-secretary__text">{secretary.message}</span>
-        <ChevronRight size={18} className="today-secretary__chevron" aria-hidden="true" />
-      </button>
+          <button type="button" className="today-secretary" onClick={() => askAgent(secretary.prompt)}>
+            <span className="today-secretary__icon" aria-hidden="true"><MessageCircle size={17} strokeWidth={2.2} /></span>
+            <span className="today-secretary__text">{secretary.message}</span>
+            <ChevronRight size={18} className="today-secretary__chevron" aria-hidden="true" />
+          </button>
 
-      <TodaySchedule entries={entries} now={now} onOpen={openSchedule} />
+          <TodaySchedule entries={entries} now={now} onOpen={openSchedule} />
+        </div>
 
-      <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
+        <div className="today-layout__side">
+          <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
 
-      {habitItems.length > 0 && (
-        <TodayHabitsSummary habits={habitItems} completedCount={habitsDone} onComplete={markHabit} />
-      )}
+          {habitItems.length > 0 && (
+            <TodayHabitsSummary habits={habitItems} completedCount={habitsDone} onComplete={markHabit} />
+          )}
+        </div>
+      </div>
 
       <DailyRitualModal isOpen={showDailyRitual} onClose={() => setShowDailyRitual(false)} profile={profile} tasks={tasks} scheduleItems={scheduleItems} habits={todaysHabits} getHabitLog={getHabitLog} logHabit={logHabit} addScheduleItem={addScheduleItem} onOpenTask={openTask} onNavigate={onNavigate} onAskAgent={(action) => { sendMessage(action); openSidebar(); }} onComplete={setRitualCompletedAt} />
       <ScheduleEventModal isOpen={showScheduleModal} onClose={closeSchedule} onSave={async (data) => { if (selectedScheduleItem?.id) await updateScheduleItem(selectedScheduleItem.id, data); else await addScheduleItem(data); closeSchedule(); }} onDelete={selectedScheduleItem?.id ? async (_id, options) => { await deleteScheduleItem(selectedScheduleItem.id, options); closeSchedule(); } : null} event={selectedScheduleItem} selectedDate={new Date()} />

@@ -1,18 +1,5 @@
 import { Check } from 'lucide-react';
-
-const HABIT_COLORS = {
-    slate: '#8e8e93',
-    rose: '#ff2d55',
-    purple: '#af52de',
-    pink: '#ff375f',
-    indigo: '#5856d6',
-    blue: '#007aff',
-    teal: '#30b0c7',
-    cyan: '#32ade6',
-    lime: '#8bc34a',
-    amber: '#ff9500',
-    emerald: '#34c759',
-};
+import { HABIT_COLORS } from '../habitModalUtils';
 
 const goalLabel = (habit) => {
     if (habit.type === 'time') return 'Log the time';

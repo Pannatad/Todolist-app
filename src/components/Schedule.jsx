@@ -26,8 +26,10 @@ const Schedule = ({
 
             <SegmentedControl
                 items={[
-                    { id: 'magic', label: 'Day' },
-                    { id: 'week', label: 'Week' }
+                    // The calendar shows one day on phones and the whole week on wider
+                    // screens, so name the views by what they are, not their span.
+                    { id: 'magic', label: 'Calendar' },
+                    { id: 'week', label: 'List' }
                 ]}
                 value={viewMode}
                 onChange={setViewMode}

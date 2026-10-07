@@ -3163,3 +3163,82 @@
     opacity: 0.35;
   }
 }
+
+/* iPad and desktop: the inspector appears beside the calendar only when a
+   block is selected or the assistant is open, like the phone's sheet. */
+@media (min-width: 761px) {
+  .magic-workspace:not(.has-inspector) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .magic-workspace:not(.has-inspector) .magic-inspector {
+    display: none;
+  }
+
+  .magic-workspace.has-inspector .magic-inspector {
+    animation: magic-inspector-in 320ms var(--ease-ios) backwards;
+  }
+
+  .magic-inspector__tabs {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .magic-inspector__close {
+    display: flex !important;
+    width: 2.35rem;
+    padding: 0;
+  }
+}
+
+@keyframes magic-inspector-in {
+  from {
+    opacity: 0;
+    transform: translate3d(1.5rem, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .magic-workspace.has-inspector .magic-inspector {
+    animation: none;
+  }
+}
+
+/* Template cards: the selection ring sits inside the card so the scrolling
+   gallery can never clip it, and no legacy outline/border doubles it up. */
+.magic-template-card,
+.magic-template-card:hover,
+.magic-template-card.is-selected {
+  border: 0;
+  outline: 0;
+}
+
+.magic-template-card.is-selected {
+  box-shadow: inset 0 0 0 2px var(--color-accent), var(--shadow-card);
+}
+
+.magic-template-gallery {
+  padding-top: 0.25rem;
+}
+
+/* iPad and laptop: room to spread out, so the templates fill the row as a
+   grid of wider cards instead of a sideways carousel. */
+@media (min-width: 40rem) {
+  .magic-template-gallery {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    margin-inline: 0;
+    overflow: visible;
+    padding-inline: 0;
+    scroll-snap-type: none;
+  }
+
+  .magic-template-card {
+    gap: 0.625rem;
+    padding: var(--space-md);
+  }
+
+  .magic-template-card__name {
+    font-size: var(--text-base);
+  }
+}

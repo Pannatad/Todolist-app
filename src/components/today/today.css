@@ -542,3 +542,31 @@ button.now-card:active {
     transition-duration: 0ms;
   }
 }
+
+/* ── iPad and desktop: day on the left, to-dos on the right ────────── */
+.today-layout__main,
+.today-layout__side {
+  min-width: 0;
+}
+
+@media (min-width: 48rem) {
+  .today-layout:has(.today-layout__side > *) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-xl);
+  }
+
+  /* With nothing on the right, keep the day at a readable width. */
+  .today-layout:not(:has(.today-layout__side > *)) .today-layout__main {
+    max-width: 46rem;
+  }
+
+  .today-layout__side > section:first-child > .ui-section-title {
+    margin-top: 0;
+  }
+
+  .today-layout__side .today-habits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

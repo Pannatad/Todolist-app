@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, UserRound } from 'lucide-react';
 import { useShell } from './shell-context';
+import { useMediaQuery } from './useMediaQuery';
 
 /**
  * iOS navigation bar with a large title. The bar stays transparent while the
@@ -15,6 +16,9 @@ export const PageHeader = ({ title, eyebrow, subtitle, actions = null, showAccou
   const barRef = useRef(null);
   const titleRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
+  // With the sidebar (iPad landscape, laptops) the buttons sit on the title's
+  // row instead of up in the window corner.
+  const actionsBesideTitle = useMediaQuery('(min-width: 64rem)');
 
   useEffect(() => {
     const heading = titleRef.current;
@@ -42,7 +46,7 @@ export const PageHeader = ({ title, eyebrow, subtitle, actions = null, showAccou
           )}
           <span className="nav-bar__title" aria-hidden="true">{title}</span>
           <div className="nav-bar__trailing">
-            {actions}
+            {!actionsBesideTitle && actions}
             {showAccount && (
               <button
                 type="button"
@@ -61,7 +65,10 @@ export const PageHeader = ({ title, eyebrow, subtitle, actions = null, showAccou
       </div>
       <header className="large-title">
         {eyebrow && <p className="large-title__eyebrow">{eyebrow}</p>}
-        <h1 ref={titleRef} className="large-title__text">{title}</h1>
+        <div className="large-title__row">
+          <h1 ref={titleRef} className="large-title__text">{title}</h1>
+          {actionsBesideTitle && actions && <div className="large-title__actions">{actions}</div>}
+        </div>
         {subtitle && <p className="large-title__subtitle">{subtitle}</p>}
       </header>
     </>
