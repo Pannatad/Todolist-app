@@ -262,7 +262,8 @@ export const TaskProvider = ({ children }) => {
 
         // Handle deadline conversion if present in updates
         const processedUpdates = sanitizeTaskUpdates(updates);
-        if (processedUpdates.deadline !== undefined && processedUpdates.deadline !== null) {
+        if (processedUpdates.deadline !== undefined && processedUpdates.deadline !== null
+            && !/^\d{4}-\d{2}-\d{2}$/.test(processedUpdates.deadline)) {
             const parsedDeadline = new Date(processedUpdates.deadline);
             processedUpdates.deadline = Number.isNaN(parsedDeadline.getTime())
                 ? processedUpdates.deadline

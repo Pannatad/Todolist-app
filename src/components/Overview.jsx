@@ -23,8 +23,10 @@ import TodayDueTasks from './today/TodayDueTasks';
 import TodayHabitsSummary from './today/TodayHabitsSummary';
 import { useAgentCommands } from './today/useAgentCommands';
 import { getCurrentTimeValue } from './habitValueUtils';
-import { BarButton, PageHeader } from '../ui';
+import { BarButton, PageHeader, SegmentedControl } from '../ui';
+import WeeklySummary from './weekly/WeeklySummary';
 import './today/today.css';
+import './weekly/weekly-summary.css';
 
 const Overview = ({ onNavigate }) => {
   const { tasks, addTask, updateTask, deleteTask, completeTask, scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useTask();
@@ -38,6 +40,7 @@ const Overview = ({ onNavigate }) => {
   const { templates: scheduleTemplates, saveTemplate, deleteTemplate } = useScheduleTemplates();
 
   const [nowTick, setNowTick] = useState(Date.now());
+  const [summaryView, setSummaryView] = useState('today');
   const [selectedScheduleItem, setSelectedScheduleItem] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -47,6 +50,7 @@ const Overview = ({ onNavigate }) => {
 
   const now = useMemo(() => new Date(nowTick), [nowTick]);
   const todayKey = useMemo(() => toLocalDateKey(now), [now]);
+  const todayStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now]);
 
   const activeTasks = useMemo(() => (tasks || []).filter(isTaskActive), [tasks]);
   const todaySchedule = useMemo(() => getScheduleItemsForDate(scheduleItems || [], now), [now, scheduleItems]);
@@ -89,9 +93,25 @@ const Overview = ({ onNavigate }) => {
   const agent = useAgentCommands({ addScheduleItem, addTask, completeTask, dailyHighlights, deleteScheduleItem, deleteTask, deleteTemplate, getMemorySummary, getProfileSummary, getRecentInteractions, goals, habits, logHabit, logInteraction, onNavigate, profile, projects, saveTemplate, scheduleItems, scheduleTemplates, tasks, updateScheduleItem, updateTask, user });
 
   useEffect(() => {
-    setNowTick(Date.now());
-    const timer = window.setInterval(() => setNowTick(Date.now()), 60000);
-    return () => window.clearInterval(timer);
+    const refreshClock = () => setNowTick(Date.now());
+    const refreshVisibleClock = () => { if (!document.hidden) refreshClock(); };
+    let midnightTimer;
+    const scheduleMidnight = () => {
+      const current = new Date();
+      const nextDay = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1);
+      midnightTimer = window.setTimeout(() => { refreshClock(); scheduleMidnight(); }, nextDay - current + 50);
+    };
+    refreshClock();
+    scheduleMidnight();
+    const timer = window.setInterval(refreshClock, 60000);
+    window.addEventListener('focus', refreshClock);
+    document.addEventListener('visibilitychange', refreshVisibleClock);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(midnightTimer);
+      window.removeEventListener('focus', refreshClock);
+      document.removeEventListener('visibilitychange', refreshVisibleClock);
+    };
   }, []);
   useEffect(() => {
     try { setRitualCompletedAt(localStorage.getItem(`daily-ritual-completed-${todayKey}`)); } catch { setRitualCompletedAt(null); }
@@ -117,7 +137,7 @@ const Overview = ({ onNavigate }) => {
   const dateLabel = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="today-page">
+    <div className="today-page today-home">
       <PageHeader
         eyebrow={dateLabel}
         title="Today"
@@ -131,7 +151,18 @@ const Overview = ({ onNavigate }) => {
         )}
       />
 
+      <div className="today-home__views">
+        <SegmentedControl
+          items={[{ id: 'today', label: 'Today', controls: 'today-summary-panel' }, { id: 'week', label: 'This week', controls: 'today-summary-panel' }]}
+          value={summaryView}
+          onChange={setSummaryView}
+          ariaLabel="Summary view"
+        />
+      </div>
+
       {/* One column on phones; on iPad and desktop the day sits left, to-dos right. */}
+      <div id="today-summary-panel" role="tabpanel" aria-label={summaryView === 'week' ? 'This week' : 'Today'}>
+      {summaryView === 'week' ? <WeeklySummary now={now} onOpenSchedule={openSchedule} /> : (
       <div className="today-layout">
         <div className="today-layout__main">
           <NowCard
@@ -159,9 +190,11 @@ const Overview = ({ onNavigate }) => {
           )}
         </div>
       </div>
+      )}
+      </div>
 
       <DailyRitualModal isOpen={showDailyRitual} onClose={() => setShowDailyRitual(false)} profile={profile} tasks={tasks} scheduleItems={scheduleItems} habits={todaysHabits} getHabitLog={getHabitLog} logHabit={logHabit} addScheduleItem={addScheduleItem} onOpenTask={openTask} onNavigate={onNavigate} onAskAgent={(action) => { sendMessage(action); openSidebar(); }} onComplete={setRitualCompletedAt} />
-      <ScheduleEventModal isOpen={showScheduleModal} onClose={closeSchedule} onSave={async (data) => { if (selectedScheduleItem?.id) await updateScheduleItem(selectedScheduleItem.id, data); else await addScheduleItem(data); closeSchedule(); }} onDelete={selectedScheduleItem?.id ? async (_id, options) => { await deleteScheduleItem(selectedScheduleItem.id, options); closeSchedule(); } : null} event={selectedScheduleItem} selectedDate={new Date()} />
+      <ScheduleEventModal isOpen={showScheduleModal} onClose={closeSchedule} onSave={async (data) => { if (selectedScheduleItem?.id) await updateScheduleItem(selectedScheduleItem.id, data); else await addScheduleItem(data); closeSchedule(); }} onDelete={selectedScheduleItem?.id ? async (_id, options) => { await deleteScheduleItem(selectedScheduleItem.id, options); closeSchedule(); } : null} event={selectedScheduleItem} selectedDate={selectedScheduleItem ? undefined : todayStart} />
       <TaskModal key={selectedTask?.id || 'new'} isOpen={showTaskModal} onClose={closeTask} onSave={(data) => { if (selectedTask?.id) updateTask(selectedTask.id, data); else addTask(data); closeTask(); }} initialData={selectedTask} mode={selectedTask ? 'edit' : 'create'} />
       <AgentConfirmationModal isOpen={agent.showAgentModal} onClose={agent.clearAgent} onConfirm={agent.execute} onClarifyResponse={(response) => { agent.clearAgent(); agent.submit(response); }} onEditPrompt={(prompt) => { agent.clearAgent(); agent.setOriginalPrompt(prompt); agent.submit(prompt); }} onNavigate={onNavigate} actionPlan={agent.agentPlan} isExecuting={agent.isExecutingActions} originalPrompt={agent.originalPrompt} />
     </div>
