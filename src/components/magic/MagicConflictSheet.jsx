@@ -88,7 +88,6 @@ const MagicConflictSheet = ({
     const displayName = planLabel || template?.name || 'Schedule plan';
     const displayType = variant === 'day' ? 'day plan' : 'template';
     const scheduleType = variant === 'day' ? 'one-time schedule' : 'schedule';
-    const hasTaskConflict = conflicts.some((conflict) => conflict.existing.source === 'task');
     const finalProposals = useMemo(() => {
         if (!conflicts.length || resolution === 'replace') return proposals;
         if (resolution === 'skip') return removeConflictingProposals(proposals, conflicts);
@@ -166,9 +165,9 @@ const MagicConflictSheet = ({
                                 <input type="radio" name="resolution" value="skip" checked={resolution === 'skip'} onChange={(event) => setResolution(event.target.value)} />
                                 <span><strong>Keep existing</strong><small>Skip only the proposed blocks that overlap.</small></span>
                             </label>
-                            <label className={hasTaskConflict ? 'is-disabled' : ''}>
-                                <input type="radio" name="resolution" value="replace" disabled={hasTaskConflict} checked={resolution === 'replace'} onChange={(event) => setResolution(event.target.value)} />
-                                <span><strong>Replace schedule conflicts</strong><small>{hasTaskConflict ? 'Timed tasks are protected and cannot be replaced here.' : 'Remove the conflicting schedule events.'}</small></span>
+                            <label>
+                                <input type="radio" name="resolution" value="replace" checked={resolution === 'replace'} onChange={(event) => setResolution(event.target.value)} />
+                                <span><strong>Replace schedule conflicts</strong><small>Remove the conflicting schedule events.</small></span>
                             </label>
                             <label>
                                 <input type="radio" name="resolution" value="auto_fit" checked={resolution === 'auto_fit'} onChange={(event) => setResolution(event.target.value)} />

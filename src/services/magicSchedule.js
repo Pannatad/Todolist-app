@@ -370,12 +370,6 @@ const intervalFor = (item, source, dateKey) => {
     };
 };
 
-const isTimedTask = (task) => {
-    if (!task?.deadline) return false;
-    const date = new Date(task.deadline);
-    return !Number.isNaN(date.getTime()) && (date.getHours() !== 0 || date.getMinutes() !== 0);
-};
-
 const getDatesInRange = (startDate, endDate, maxDays = 56) => {
     const dates = [];
     const cursor = new Date(startDate);
@@ -397,10 +391,11 @@ const topLevelBlockingOccurrences = (items, date) => {
     });
 };
 
+// Only schedule blocks can clash. A task's due time is a deadline, not
+// occupied time, so it never stops a block from being added.
 export const detectScheduleConflicts = ({
     proposedItems = [],
     scheduleItems = [],
-    tasks = [],
     startDate,
     endDate,
     maxDays = 56
@@ -429,20 +424,14 @@ export const detectScheduleConflicts = ({
         const existingIntervals = topLevelBlockingOccurrences(scheduleItems, date)
             .map((item) => intervalFor(item, 'schedule', dateKey))
             .filter(Boolean);
-        const taskIntervals = tasks
-            .filter((task) => isTimedTask(task) && toLocalDateKey(task.deadline) === dateKey)
-            .map((task) => intervalFor(task, 'task', dateKey))
-            .filter(Boolean);
-
         proposedOccurrences.forEach((proposed) => {
-            [...existingIntervals, ...taskIntervals].forEach((existing) => {
+            existingIntervals.forEach((existing) => {
                 if (proposed.start < existing.end && proposed.end > existing.start) {
                     conflicts.push({
                         id: `${dateKey}-${proposed.id}-${existing.source}-${existing.id}`,
                         dateKey,
                         proposed,
-                        existing,
-                        canReplace: existing.source === 'schedule'
+                        existing
                     });
                 }
             });
@@ -497,7 +486,7 @@ export const autoFitTemplateItems = (
 ) => {
     let fitted = proposedItems;
     let remaining = conflicts;
-    const canRecheck = Array.isArray(context.scheduleItems) || Array.isArray(context.tasks);
+    const canRecheck = Array.isArray(context.scheduleItems);
     const seenPlacements = new Set();
 
     for (let attempt = 0; attempt < 48 && remaining.length; attempt += 1) {
@@ -513,7 +502,6 @@ export const autoFitTemplateItems = (
         remaining = detectScheduleConflicts({
             proposedItems: fitted,
             scheduleItems: context.scheduleItems || [],
-            tasks: context.tasks || [],
             startDate: context.startDate,
             endDate: context.endDate,
             maxDays: context.maxDays

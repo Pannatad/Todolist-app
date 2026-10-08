@@ -182,7 +182,7 @@ test('template application links child events to the shell and inherits recurren
     assert.equal(payloads[1].templateApplicationId, 'application-1');
 });
 
-test('conflicts allow touching endpoints and protect timed tasks', () => {
+test('conflicts allow touching endpoints and ignore task due times', () => {
     const template = {
         id: 'template',
         version: 1,
@@ -210,9 +210,9 @@ test('conflicts allow touching endpoints and protect timed tasks', () => {
         endDate: '2026-07-27'
     });
 
-    assert.equal(conflicts.length, 1);
-    assert.equal(conflicts[0].existing.source, 'task');
-    assert.equal(conflicts[0].canReplace, false);
+    // The 08:00–09:00 block only touches 09:00, and a task due at 09:30 is a
+    // deadline, not occupied time, so the 09:00 block is free to be added.
+    assert.equal(conflicts.length, 0);
 });
 
 test('intentional parent-child overlap is ignored while a shell blocks external events', () => {

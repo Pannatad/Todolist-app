@@ -392,20 +392,17 @@ const MagicSchedule = ({
         const conflicts = detectScheduleConflicts({
             proposedItems: proposals,
             scheduleItems: events,
-            tasks,
             startDate: applicationDateKey,
             endDate: reviewEndDate
         });
         const autoFitProposals = autoFitTemplateItems(proposals, conflicts, 15, {
             scheduleItems: events,
-            tasks,
             startDate: applicationDateKey,
             endDate: reviewEndDate
         });
         const autoFitConflicts = detectScheduleConflicts({
             proposedItems: autoFitProposals,
             scheduleItems: events,
-            tasks,
             startDate: applicationDateKey,
             endDate: reviewEndDate
         });
@@ -427,20 +424,17 @@ const MagicSchedule = ({
         const conflicts = detectScheduleConflicts({
             proposedItems: proposals,
             scheduleItems: events,
-            tasks,
             startDate: dateKey,
             endDate: dateKey
         });
         const autoFitProposals = autoFitTemplateItems(proposals, conflicts, 15, {
             scheduleItems: events,
-            tasks,
             startDate: dateKey,
             endDate: dateKey
         });
         const autoFitConflicts = detectScheduleConflicts({
             proposedItems: autoFitProposals,
             scheduleItems: events,
-            tasks,
             startDate: dateKey,
             endDate: dateKey
         });
