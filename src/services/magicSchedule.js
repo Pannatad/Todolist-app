@@ -588,3 +588,19 @@ export const buildFutureTemplateUpdateSteps = ({
     });
     return steps;
 };
+
+// Steps that empty one day: one-off blocks are deleted outright, repeating
+// blocks lose only this date's occurrence. Nested blocks go before their shells
+// so undo (which replays in reverse) restores each shell before its children.
+export const buildClearDaySteps = (dayItems = [], dateKey) => {
+    const isNested = (item) => Boolean(item.parentItemId || item.parent_item_id);
+    return [...dayItems]
+        .sort((a, b) => Number(isNested(b)) - Number(isNested(a)))
+        .map((item) => ({
+            type: 'delete',
+            item,
+            options: (item.recurrenceType || item.recurrence_type || 'none') !== 'none'
+                ? { occurrenceDate: dateKey }
+                : undefined
+        }));
+};

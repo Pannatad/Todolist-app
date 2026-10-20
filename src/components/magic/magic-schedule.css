@@ -653,7 +653,7 @@
   padding: .58rem .58rem .48rem;
   text-align: left;
   box-shadow: 0 3px 8px rgb(20 24 35 / .045);
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 .magic-event:hover,
@@ -745,27 +745,6 @@
   font-weight: 780;
   letter-spacing: .05em;
   text-transform: uppercase;
-}
-
-.magic-event__resize {
-  position: absolute;
-  right: .25rem;
-  bottom: .1rem;
-  left: .25rem;
-  height: .38rem;
-  cursor: ns-resize;
-}
-
-.magic-event__resize::after {
-  position: absolute;
-  bottom: .08rem;
-  left: 50%;
-  width: 1.15rem;
-  height: 2px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--event-color) 45%, transparent);
-  content: "";
 }
 
 .magic-current-time {
@@ -2612,11 +2591,6 @@
   letter-spacing: 0.02em;
 }
 
-.magic-event__resize::after {
-  background: currentColor;
-  opacity: 0.35;
-}
-
 .magic-current-time {
   height: 2px;
   background: var(--magic-now);
@@ -2881,22 +2855,6 @@
 
   .plan-page__segments {
     width: 14rem;
-  }
-}
-
-/* Resize grips appear on the selected block (and on hover with a mouse). */
-.magic-event__resize::after {
-  opacity: 0;
-  transition: opacity 160ms var(--ease-out);
-}
-
-.magic-event.is-selected .magic-event__resize::after {
-  opacity: 0.6;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .magic-event:hover .magic-event__resize::after {
-    opacity: 0.35;
   }
 }
 

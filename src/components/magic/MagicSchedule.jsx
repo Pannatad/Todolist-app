@@ -31,6 +31,7 @@ import { sendChatMessage } from '../../services/ConversationService';
 import { parseScheduleCommand, parseScheduleImage } from '../../services/aiClient';
 import {
     autoFitTemplateItems,
+    buildClearDaySteps,
     buildDayPlanSchedulePayloads,
     buildFutureTemplateUpdateSteps,
     buildTemplateSchedulePayloads,
@@ -48,11 +49,11 @@ import {
     normalizeScheduleAssistantActions,
     resolveTemplate
 } from '../../services/agentScheduleActions';
-import { getScheduleItemsForDate, toLocalDateKey, upsertOverride } from '../../utils/scheduleOccurrences';
+import { getScheduleItemsForDate, toLocalDateKey } from '../../utils/scheduleOccurrences';
 import { hasExceededDragThreshold } from '../../utils/pointerGestures';
 import { useScheduleTransactions } from '../../hooks/useScheduleTransactions';
 import { toast } from '../../ui/Toast';
-import { BarButton, Sheet, useMediaQuery } from '../../ui';
+import { BarButton, RowMenu, Sheet, useMediaQuery } from '../../ui';
 import { confirmAction } from '../../utils/confirm';
 import './magic-schedule.css';
 
@@ -369,6 +370,24 @@ const MagicSchedule = ({
             setSelectedItem(null);
         } catch (error) {
             toast(error?.message || 'Could not delete this schedule event.', { tone: 'error' });
+        }
+    };
+
+    const clearSelectedDay = async () => {
+        const dayLabel = formatDayLabel(selectedDateKey);
+        if (!daySchedule.length) {
+            toast(`Nothing is scheduled on ${dayLabel}.`);
+            return;
+        }
+        const count = daySchedule.length;
+        const hasRepeats = daySchedule.some((item) => recurrenceType(item) !== 'none');
+        if (!confirmAction(`Remove all ${count} block${count === 1 ? '' : 's'} on ${dayLabel}?${hasRepeats ? ' Repeating blocks are removed from this day only.' : ''}`)) return;
+        try {
+            await transactions.runBatch(buildClearDaySteps(daySchedule, selectedDateKey), `Cleared ${dayLabel}`);
+            setSelectedItem(null);
+            toast(`Cleared ${dayLabel}.`, { tone: 'success' });
+        } catch (error) {
+            toast(error?.message || 'Could not clear this day.', { tone: 'error' });
         }
     };
 
@@ -715,65 +734,19 @@ const MagicSchedule = ({
             const date = new Date(`${dateColumn.dataset.magicDate}T12:00:00`);
             setDrag((current) => current ? { ...current, currentMinutes: snapped, currentDate: date, moved: true } : current);
         };
-        const handlePointerUp = async () => {
+        // Only empty-space drags (to sketch a new block) are tracked here. Existing
+        // blocks never move or resize by touch: stray taps kept rearranging the day,
+        // so changes to a block go through "Edit details" instead.
+        const handlePointerUp = () => {
             const current = drag;
             setDrag(null);
             if (!current?.moved) {
-                if (current?.mode === 'create') openQuickAdd(current.currentDate, current.currentMinutes);
+                openQuickAdd(current.currentDate, current.currentMinutes);
                 return;
             }
-            if (current.mode === 'create') {
-                const start = Math.min(current.startMinutes, current.currentMinutes);
-                const duration = Math.max(15, Math.abs(current.currentMinutes - current.startMinutes));
-                openQuickAdd(current.currentDate, start, duration);
-                return;
-            }
-            const item = current.item;
-            if (!item) return;
-            const targetDateKey = toLocalDateKey(current.currentDate);
-            const currentDateKey = item._occurrenceDate || item._dateKey || toLocalDateKey(itemStart(item));
-            const targetStartMinutes = current.mode === 'resize' ? current.startMinutes : current.currentMinutes;
-            const nextStart = new Date(`${targetDateKey}T${timeFromMinutes(targetStartMinutes)}:00`);
-            const updates = current.mode === 'resize'
-                ? { duration: Math.max(15, current.currentMinutes - current.startMinutes) }
-                : { startTime: nextStart.toISOString() };
-            const linkedParent = parentId(item) ? events.find((candidate) => String(candidate.id) === String(parentId(item))) : null;
-            if (linkedParent) {
-                const parentOccurrence = getScheduleItemsForDate([linkedParent], current.currentDate)[0];
-                const parentStart = parentOccurrence ? itemStart(parentOccurrence).getTime() : null;
-                const parentEnd = parentStart == null ? null : parentStart + itemDuration(parentOccurrence) * 60000;
-                const proposedEnd = nextStart.getTime() + Number(updates.duration || itemDuration(item)) * 60000;
-                if (parentStart == null || nextStart.getTime() < parentStart || proposedEnd > parentEnd) {
-                    if (!confirmAction('This move leaves the flexible shell. Detach it as a standalone event?')) return;
-                    updates.parentItemId = null;
-                }
-            }
-            if (recurrenceType(item) !== 'none' && targetDateKey === currentDateKey) {
-                const override = current.mode === 'resize'
-                    ? { duration: updates.duration }
-                    : { startTime: timeFromMinutes(current.currentMinutes) };
-                updates.recurrenceOverrides = upsertOverride(item, currentDateKey, override);
-                delete updates.startTime;
-                delete updates.duration;
-            } else if (recurrenceType(item) !== 'none' && targetDateKey !== currentDateKey) {
-                await transactions.runBatch([
-                    { type: 'delete', item, options: { occurrenceDate: currentDateKey } },
-                    {
-                        type: 'create',
-                        payload: {
-                            ...item,
-                            id: undefined,
-                            startTime: nextStart.toISOString(),
-                            recurrenceType: 'none',
-                            recurrenceDaysOfWeek: [],
-                            recurrenceEndDate: null,
-                            parentItemId: updates.parentItemId ?? parentId(item)
-                        }
-                    }
-                ], `Moved ${item.title}`);
-                return;
-            }
-            await transactions.runBatch([{ type: 'update', id: item.id, updates, before: item }], `${current.mode === 'resize' ? 'Resized' : 'Moved'} ${item.title}`);
+            const start = Math.min(current.startMinutes, current.currentMinutes);
+            const duration = Math.max(15, Math.abs(current.currentMinutes - current.startMinutes));
+            openQuickAdd(current.currentDate, start, duration);
         };
         window.addEventListener('pointermove', handlePointerMove);
         window.addEventListener('pointerup', handlePointerUp, { once: true });
@@ -781,7 +754,7 @@ const MagicSchedule = ({
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
         };
-    }, [drag, events, transactions]);
+    }, [drag]);
 
     const renderBlock = (item, date, overlapLayout) => {
         const start = itemStart(item);
@@ -822,21 +795,6 @@ const MagicSchedule = ({
                     setAssistantOpen(false);
                     setMobileInspectorOpen(true);
                 }}
-                onPointerDown={(event) => {
-                    if (event.target.closest('.magic-event__resize')) return;
-                    event.stopPropagation();
-                    event.currentTarget.setPointerCapture?.(event.pointerId);
-                    setDrag({
-                        mode: 'move',
-                        item,
-                        startMinutes: minutes,
-                        currentMinutes: minutes,
-                        currentDate: date,
-                        originX: event.clientX,
-                        originY: event.clientY,
-                        moved: false
-                    });
-                }}
                 aria-label={`${shell ? 'Flexible shell' : nested ? 'Nested event' : 'Event'} ${item.title}, ${rangeLabel(item)}`}
             >
                 <span className="magic-event__header">
@@ -845,23 +803,6 @@ const MagicSchedule = ({
                 </span>
                 {height >= 42 && <span className="magic-event__time">{rangeLabel(item)}</span>}
                 {nested && <span className="magic-event__badge">Nested</span>}
-                <span
-                    className="magic-event__resize"
-                    onPointerDown={(event) => {
-                        event.stopPropagation();
-                        setDrag({
-                            mode: 'resize',
-                            item,
-                            startMinutes: minutes,
-                            currentMinutes: minutes + itemDuration(item),
-                            currentDate: date,
-                            originX: event.clientX,
-                            originY: event.clientY,
-                            moved: false
-                        });
-                    }}
-                    aria-hidden="true"
-                />
             </button>
         );
     };
@@ -954,6 +895,17 @@ const MagicSchedule = ({
                     }}
                 />
             )}
+            <RowMenu
+                variant="plain"
+                label="Day options"
+                disabled={transactions.isRunning}
+                items={[{
+                    label: `Clear ${selectedDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`,
+                    icon: Trash2,
+                    destructive: true,
+                    onSelect: clearSelectedDay
+                }]}
+            />
             <div className="magic-add-menu-wrap" ref={addMenuRef}>
                 <BarButton
                     icon={Plus}

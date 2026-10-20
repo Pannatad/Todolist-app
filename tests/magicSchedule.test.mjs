@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     autoFitTemplateItems,
+    buildClearDaySteps,
     buildFutureTemplateUpdateSteps,
     buildDayPlanSchedulePayloads,
     buildTemplateSchedulePayloads,
@@ -22,10 +23,23 @@ import { hasExceededDragThreshold } from '../src/utils/pointerGestures.js';
 
 const localIso = (date, time) => new Date(`${date}T${time}:00`).toISOString();
 
-test('schedule block drag waits for deliberate pointer movement', () => {
+test('drag-to-create waits for deliberate pointer movement', () => {
     assert.equal(hasExceededDragThreshold(100, 100, 103, 104), false);
     assert.equal(hasExceededDragThreshold(100, 100, 106, 100), true);
     assert.equal(hasExceededDragThreshold(100, 100, 104, 105), true);
+});
+
+test('clearing a day deletes one-off blocks and skips only this date of repeats', () => {
+    const shell = { id: 'shell', title: 'Study', recurrenceType: 'none' };
+    const nested = { id: 'nested', title: 'Read', parentItemId: 'shell', recurrenceType: 'none' };
+    const gym = { id: 'gym', title: 'Gym', recurrence_type: 'weekly' };
+    const steps = buildClearDaySteps([shell, gym, nested], '2026-10-20');
+
+    assert.deepEqual(steps.map((step) => step.item.id), ['nested', 'shell', 'gym']);
+    assert.ok(steps.every((step) => step.type === 'delete'));
+    assert.equal(steps.find((step) => step.item.id === 'shell').options, undefined);
+    assert.deepEqual(steps.find((step) => step.item.id === 'gym').options, { occurrenceDate: '2026-10-20' });
+    assert.deepEqual(buildClearDaySteps([], '2026-10-20'), []);
 });
 
 test('template timeline geometry matches the 07:00–22:00 scale and clips edge blocks', () => {
