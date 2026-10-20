@@ -42,6 +42,7 @@ const UniBoard = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionView, setActionView] = useState('tasks');
   const [agendaRange, setAgendaRange] = useState('14');
+  const [agendaKind, setAgendaKind] = useState('all');
   const [view, setView] = useState('overview');
   const [classSheetOpen, setClassSheetOpen] = useState(false);
 
@@ -145,6 +146,8 @@ const UniBoard = () => {
               now={now}
               range={agendaRange}
               onRangeChange={setAgendaRange}
+              kind={agendaKind}
+              onKindChange={setAgendaKind}
             />
             <ActionPanel
               tasks={outstandingTasks}

@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { buildUniBoardViewModel } from '../src/utils/uniBoardItems.js';
 import { buildUniversityItemInput } from '../src/components/uni-board/universityItemInput.js';
 import { CalendarDays, ClipboardList, Users } from 'lucide-react';
-import { formatDaysRemaining, formatTimeRemaining, getItemIcon } from '../src/components/uni-board/formatters.js';
+import { filterAgendaGroups, formatDaysRemaining, formatTimeRemaining, getItemIcon } from '../src/components/uni-board/formatters.js';
 
 const localDate = (year, month, day, hour = 12, minute = 0) => (
     new Date(year, month - 1, day, hour, minute, 0, 0)
@@ -467,4 +467,22 @@ test('Agenda renders an inline Notes disclosure and prominent day countdown', as
     } finally {
         await server.close();
     }
+});
+
+test('agenda type filter keeps only matching items and drops emptied days', () => {
+    const groups = [
+        { dateKey: '2026-10-21', items: [
+            { key: 'a', source: 'schedule', uniKind: 'event' },
+            { key: 'b', source: 'task', uniKind: 'deadline' }
+        ] },
+        { dateKey: '2026-10-22', items: [{ key: 'c', source: 'schedule', uniKind: 'exam' }] },
+        { dateKey: '2026-10-23', items: [{ key: 'd', source: 'schedule', uniKind: 'event' }] }
+    ];
+
+    assert.equal(filterAgendaGroups(groups, 'all'), groups);
+    assert.deepEqual(
+        filterAgendaGroups(groups, 'event').map((group) => [group.dateKey, group.items.map((item) => item.key)]),
+        [['2026-10-21', ['a']], ['2026-10-23', ['d']]]
+    );
+    assert.deepEqual(filterAgendaGroups(groups, 'quiz'), []);
 });

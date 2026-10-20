@@ -22,6 +22,20 @@ export const AGENDA_RANGE_OPTIONS = [
   { id: 'all', label: 'All', days: 'all' },
 ];
 
+// Agenda type filter: assessments and events first, then task-style kinds.
+export const AGENDA_KIND_OPTIONS = [
+  { id: 'all', label: 'All types' },
+  { id: 'exam', label: 'Exams' },
+  { id: 'quiz', label: 'Quizzes' },
+  { id: 'event', label: 'Events' },
+  { id: 'task', label: 'Tasks' },
+  { id: 'deadline', label: 'Deadlines' },
+  { id: 'report', label: 'Reports' },
+  { id: 'payment', label: 'Payments' },
+  { id: 'registration', label: 'Registrations' },
+  { id: 'meeting', label: 'Meetings' },
+];
+
 export const KIND_LABELS = Object.fromEntries(ALL_KINDS.map((kind) => [kind.value, kind.label]));
 
 export const getKindLabel = (kind) => KIND_LABELS[kind] || 'University item';

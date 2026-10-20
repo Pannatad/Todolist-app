@@ -11,8 +11,9 @@ import {
   GraduationCap,
   Users,
 } from 'lucide-react';
-import { AGENDA_RANGE_OPTIONS } from './constants';
+import { AGENDA_KIND_OPTIONS, AGENDA_RANGE_OPTIONS } from './constants';
 import {
+  filterAgendaGroups,
   formatAgendaDate,
   formatDaysRemaining,
   formatTime,
@@ -83,8 +84,19 @@ export const AgendaItemRow = ({ item, now, onSelect, isNotesOpen, onToggleNotes 
   );
 };
 
-const Agenda = ({ groups, onSelect, isLoading, now, range = '14', onRangeChange = () => {} }) => {
+const Agenda = ({
+  groups,
+  onSelect,
+  isLoading,
+  now,
+  range = '14',
+  onRangeChange = () => {},
+  kind = 'all',
+  onKindChange = () => {},
+}) => {
   const [expandedNotes, setExpandedNotes] = useState(() => new Set());
+  const visibleGroups = filterAgendaGroups(groups, kind);
+  const kindLabel = AGENDA_KIND_OPTIONS.find((option) => option.id === kind)?.label;
 
   const toggleNotes = (itemKey) => {
     setExpandedNotes((current) => {
@@ -99,17 +111,26 @@ const Agenda = ({ groups, onSelect, isLoading, now, range = '14', onRangeChange 
     <section className="uni-board-agenda" aria-labelledby="uni-board-agenda-title">
       <div className="ui-section-title">
         <h2 id="uni-board-agenda-title">Agenda</h2>
-        <label className="pill-select">
-          <span className="sr-only">Show upcoming</span>
-          <select value={range} onChange={(event) => onRangeChange(event.target.value)}>
-            {AGENDA_RANGE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.id === 'all' ? 'All upcoming' : `Next ${option.label}`}</option>)}
-          </select>
-          <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
-        </label>
+        <div className="uni-board-agenda__filters">
+          <label className="pill-select">
+            <span className="sr-only">Show type</span>
+            <select value={kind} onChange={(event) => onKindChange(event.target.value)}>
+              {AGENDA_KIND_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+            <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
+          </label>
+          <label className="pill-select">
+            <span className="sr-only">Show upcoming</span>
+            <select value={range} onChange={(event) => onRangeChange(event.target.value)}>
+              {AGENDA_RANGE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.id === 'all' ? 'All upcoming' : `Next ${option.label}`}</option>)}
+            </select>
+            <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
+          </label>
+        </div>
       </div>
-      {isLoading ? <div className="uni-board-skeleton-list" aria-label="Loading agenda">{[1, 2, 3].map((row) => <span key={row} className="uni-board-skeleton-row" />)}</div> : groups.length > 0 ? (
+      {isLoading ? <div className="uni-board-skeleton-list" aria-label="Loading agenda">{[1, 2, 3].map((row) => <span key={row} className="uni-board-skeleton-row" />)}</div> : visibleGroups.length > 0 ? (
         <div className="uni-board-agenda-list">
-          {groups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.dateKey} className="uni-board-agenda-day">
               <div className="uni-board-agenda-day__heading">
                 <h3>{formatAgendaDate(group.date)}</h3>
@@ -130,7 +151,11 @@ const Agenda = ({ groups, onSelect, isLoading, now, range = '14', onRangeChange 
             </div>
           ))}
         </div>
-      ) : <p className="ui-empty-card">Nothing due in this range.</p>}
+      ) : (
+        <p className="ui-empty-card">
+          {kind === 'all' ? 'Nothing due in this range.' : `No ${kindLabel.toLowerCase()} in this range.`}
+        </p>
+      )}
     </section>
   );
 };

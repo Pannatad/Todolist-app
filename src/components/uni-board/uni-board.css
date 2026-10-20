@@ -225,6 +225,7 @@
 .uni-board-main-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr); gap: var(--space-lg); margin-top: var(--space-lg); }
 .uni-board-agenda { background: color-mix(in oklch, var(--color-paper-2) 52%, var(--uni-surface)); }
 .uni-board-agenda__heading { align-items: flex-start; }
+.uni-board-agenda__filters { display: flex; min-width: 0; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-xs); }
 .uni-board-agenda__heading-actions { display: flex; align-items: center; gap: var(--space-sm); }
 .uni-board-agenda__controls { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--uni-border); }
 .uni-board-agenda__range-label { color: var(--color-muted); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }

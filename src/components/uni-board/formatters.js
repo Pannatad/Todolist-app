@@ -118,6 +118,14 @@ export const getItemKind = (item) => String(
   || (item?.source === 'schedule' ? 'event' : 'task'),
 ).toLowerCase();
 
+export const filterAgendaGroups = (groups = [], kind = 'all') => (
+  kind === 'all'
+    ? groups
+    : groups
+      .map((group) => ({ ...group, items: group.items.filter((item) => getItemKind(item) === kind) }))
+      .filter((group) => group.items.length > 0)
+);
+
 export const getItemIcon = (item) => ITEM_ICONS[getItemKind(item)] || CalendarDays;
 
 export const getItemSubject = (item) => getRecordValue(
