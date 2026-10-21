@@ -3,6 +3,8 @@ import { toLocalDateKey, upsertOverride, weekdayOverrideKey } from '../utils/sch
 import { toast } from '../ui/Toast';
 import { SegmentedControl, Sheet } from '../ui';
 import { confirmAction } from '../utils/confirm';
+import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority } from '../utils/schedulePriority';
+import SchedulePriorityField from './SchedulePriorityField';
 
 const PRESET_COLORS = [
     { name: 'Red', value: '#ef4444' },
@@ -64,7 +66,8 @@ const ScheduleEventModal = ({
         recurrenceInterval: 1,
         recurrenceDaysOfWeek: [],
         recurrenceEndDate: '',
-        notes: ''
+        notes: '',
+        priority: DEFAULT_SCHEDULE_PRIORITY
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,7 +107,8 @@ const ScheduleEventModal = ({
                 recurrenceInterval: event.recurrence_interval || 1,
                 recurrenceDaysOfWeek: event.recurrence_days_of_week || [],
                 recurrenceEndDate: event.recurrence_end_date || '',
-                notes: source.notes || ''
+                notes: source.notes || '',
+                priority: normalizeSchedulePriority(source.priority)
             });
         } else if (selectedDate) {
             setFormData(prev => ({
@@ -115,7 +119,8 @@ const ScheduleEventModal = ({
                 title: defaults.title || '',
                 color: defaults.color || prev.color,
                 category: defaults.category || prev.category,
-                notes: defaults.notes || ''
+                notes: defaults.notes || '',
+                priority: normalizeSchedulePriority(defaults.priority)
             }));
         }
     }, [event, selectedDate, isOpen, editScope, canCustomizeDay, defaults]);
@@ -134,6 +139,7 @@ const ScheduleEventModal = ({
         if ((formData.notes || '') !== (seriesBase.notes || '')) override.notes = formData.notes;
         if (Number(formData.duration) !== Number(seriesBase.duration || 60)) override.duration = Number(formData.duration);
         if (formData.startTime !== seriesStartTime) override.startTime = formData.startTime;
+        if (formData.priority !== normalizeSchedulePriority(seriesBase.priority)) override.priority = formData.priority;
         return override;
     };
 
@@ -152,6 +158,8 @@ const ScheduleEventModal = ({
                 });
             } else {
                 const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+                // Send priority only when it changes, so other edits never touch it.
+                const priorityChanged = !event || formData.priority !== normalizeSchedulePriority(seriesBase.priority);
                 await onSave?.({
                     id: event?.id,
                     title: formData.title,
@@ -164,6 +172,7 @@ const ScheduleEventModal = ({
                     recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
                     recurrenceEndDate: formData.recurrenceEndDate || null,
                     notes: formData.notes,
+                    ...(priorityChanged ? { priority: formData.priority } : {}),
                     itemKind: event?.itemKind || event?.item_kind || itemKind,
                     parentItemId: event?.parentItemId || event?.parent_item_id || parentItemId
                 });
@@ -257,6 +266,13 @@ const ScheduleEventModal = ({
                             autoFocus
                         />
                     </label>
+                </div>
+
+                <div className="form-group">
+                    <SchedulePriorityField
+                        value={formData.priority}
+                        onChange={(priority) => setFormData({ ...formData, priority })}
+                    />
                 </div>
 
                 <div className="form-group">

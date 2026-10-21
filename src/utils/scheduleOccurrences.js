@@ -152,7 +152,7 @@ export const doesScheduleItemOccurOnDate = (item, targetDate) => {
 
 export const weekdayOverrideKey = (dayIndex) => `weekday-${dayIndex}`;
 
-const OVERRIDE_FIELDS = ['title', 'category', 'color', 'notes', 'duration', 'startTime'];
+const OVERRIDE_FIELDS = ['title', 'category', 'color', 'notes', 'duration', 'startTime', 'priority'];
 
 const sanitizeOverride = (override = {}) => Object.fromEntries(
     OVERRIDE_FIELDS
@@ -226,7 +226,8 @@ export const getScheduleItemsForDate = (items = [], targetDate) => (
                     category: override.category ?? item.category,
                     color: override.color ?? item.color,
                     notes: override.notes ?? item.notes,
-                    duration: override.duration ?? item.duration
+                    duration: override.duration ?? item.duration,
+                    priority: override.priority ?? item.priority
                 } : null),
                 displayTime,
                 _occurrenceDate: toLocalDateKey(targetDate),
@@ -236,7 +237,8 @@ export const getScheduleItemsForDate = (items = [], targetDate) => (
                     category: item.category,
                     color: item.color,
                     notes: item.notes,
-                    duration: item.duration
+                    duration: item.duration,
+                    priority: item.priority
                 },
                 _hasOverride: Boolean(override),
                 isRecurring: isRecurringScheduleItem(item) && !isSameLocalDate(getScheduleItemStartDate(item), targetDate)

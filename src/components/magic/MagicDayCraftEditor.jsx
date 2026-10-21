@@ -26,6 +26,8 @@ import {
 import { getScheduleItemsForDate, toLocalDateKey } from '../../utils/scheduleOccurrences';
 import { toast } from '../../ui/Toast';
 import { confirmAction } from '../../utils/confirm';
+import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority, schedulePriorityClass, schedulePriorityLabel } from '../../utils/schedulePriority';
+import SchedulePriorityField from '../SchedulePriorityField';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6'];
 const SUGGESTIONS = [
@@ -49,6 +51,7 @@ const createCraftBlock = (startTime = '09:00', duration = 60) => ({
     category: 'Other',
     color: COLORS[0],
     notes: '',
+    priority: DEFAULT_SCHEDULE_PRIORITY,
     children: []
 });
 
@@ -242,6 +245,7 @@ const DayTimeline = ({ open, visible, dateKey, blocks, existingBlocks, activeId,
                         `is-${item.source}`,
                         block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? 'is-shell' : '',
                         short ? 'is-short' : '',
+                        isDraft ? schedulePriorityClass(block.priority) : '',
                         !block.title?.trim() ? 'is-untitled' : '',
                         activeId === block.id && isDraft ? 'is-active' : ''
                     ].filter(Boolean).join(' ');
@@ -299,6 +303,7 @@ const BlockCard = ({ block, open, conflict, autoFocus, onToggle, onChange, onRem
     const isShell = block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL;
     const title = block.title?.trim();
     const start = minutesFromTime(block.startTime) ?? 0;
+    const priority = normalizeSchedulePriority(block.priority);
     const updateChild = (childId, updates) => onChange({
         children: block.children.map((child) => child.id === childId ? { ...child, ...updates } : child)
     });
@@ -306,12 +311,13 @@ const BlockCard = ({ block, open, conflict, autoFocus, onToggle, onChange, onRem
     return (
         <li className={`craft-block${open ? ' is-open' : ''}`} data-block-id={block.id} style={{ '--craft-color': block.color || COLORS[0] }}>
             <button type="button" className="craft-block__summary" onClick={onToggle} aria-expanded={open}>
-                <span className={`craft-block__swatch${isShell ? ' is-shell' : ''}`} aria-hidden="true" />
+                <span className={`craft-block__swatch${isShell ? ' is-shell' : ''} ${schedulePriorityClass(priority)}`.trim()} aria-hidden="true" />
                 <span className="craft-block__text">
                     <strong className={title ? '' : 'is-placeholder'}>{title || 'Untitled block'}</strong>
                     <span>
                         {span ? `${formatClock(span.start)} – ${formatClock(span.end)} · ${formatDuration(span.end - span.start)}` : 'Set a time'}
                         {isShell && ' · Flexible'}
+                        {priority !== DEFAULT_SCHEDULE_PRIORITY && ` · ${schedulePriorityLabel(priority)}`}
                     </span>
                     {conflict && <span className="craft-block__conflict">Overlaps {conflict}</span>}
                 </span>
@@ -342,6 +348,7 @@ const BlockCard = ({ block, open, conflict, autoFocus, onToggle, onChange, onRem
                                 onChange={(duration) => onChange({ duration })}
                             />
                         </div>
+                        <SchedulePriorityField value={priority} onChange={(next) => onChange({ priority: next })} />
                         <div className="form-field">
                             <span className="form-field__label">Color</span>
                             <div className="craft-swatches" role="radiogroup" aria-label="Block color">

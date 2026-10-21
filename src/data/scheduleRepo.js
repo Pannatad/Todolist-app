@@ -1,5 +1,6 @@
 import { supabase } from '../services/supabase';
 import { classIdOf } from '../components/uni-board/classItems.js';
+import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority } from '../utils/schedulePriority.js';
 
 const STORAGE_KEY = 'growth-schedule-guest';
 const SCHEDULE_UNI_KINDS = new Set(['exam', 'quiz', 'event']);
@@ -35,6 +36,7 @@ export const normalizeScheduleRecord = (item) => {
         sourceTemplateVersion: item.sourceTemplateVersion ?? item.source_template_version ?? null,
         templateBlockId: item.templateBlockId ?? item.template_block_id ?? null,
         templateApplicationId: item.templateApplicationId ?? item.template_application_id ?? null,
+        priority: normalizeSchedulePriority(item.priority),
         workspace,
         classId: classIdOf(item),
         class_id: classIdOf(item),
@@ -107,6 +109,8 @@ const buildInsertPayloads = (item) => {
         source_template_version: normalizedItem.source_template_version,
         template_block_id: normalizedItem.template_block_id,
         template_application_id: normalizedItem.template_application_id,
+        // The column defaults to 2, so a default-priority insert leaves it out.
+        priority: normalizedItem.priority === DEFAULT_SCHEDULE_PRIORITY ? undefined : normalizedItem.priority,
         workspace: normalizedItem.workspace,
         uni_kind: normalizedItem.uni_kind,
         is_milestone: normalizedItem.is_milestone
@@ -151,6 +155,7 @@ const buildUpdatePayloads = (updates) => {
             source_template_version: updates.source_template_version,
             template_block_id: updates.template_block_id,
             template_application_id: updates.template_application_id,
+            priority: updates.priority === undefined ? undefined : normalizeSchedulePriority(updates.priority),
             workspace: updates.workspace,
             uni_kind: updates.uni_kind,
             is_milestone: updates.is_milestone

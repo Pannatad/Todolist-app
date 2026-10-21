@@ -1453,6 +1453,20 @@
   font-size: .75rem;
 }
 
+.magic-template-priority {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: .2rem;
+  color: var(--color-muted);
+  font-size: .66rem;
+  font-weight: 700;
+}
+
+.magic-template-priority .form-priority {
+  width: 100%;
+  margin-left: 0;
+}
+
 .magic-template-block-editor__end {
   align-self: center;
   color: var(--color-muted);
@@ -2591,6 +2605,85 @@
   letter-spacing: 0.02em;
 }
 
+/* Priority is shown by weight, not hue, because color already means category.
+ * Optional blocks fade back; must-do blocks get a thick bar, an outline and a pill. */
+.magic-event.is-priority-1,
+.magic-event.is-priority-1:hover {
+  box-shadow: inset 0.125rem 0 0 color-mix(in srgb, var(--event-color) 45%, transparent);
+}
+
+.magic-event.is-priority-1 {
+  background: color-mix(in srgb, var(--event-color) 7%, var(--color-card));
+  color: color-mix(in srgb, var(--event-color) 35%, var(--color-ink-2));
+}
+
+.magic-event.is-priority-1:hover {
+  background: color-mix(in srgb, var(--event-color) 12%, var(--color-card));
+}
+
+.dark .magic-event.is-priority-1 {
+  background: color-mix(in srgb, var(--event-color) 13%, var(--color-card));
+  color: color-mix(in srgb, var(--event-color) 30%, var(--color-ink-2));
+}
+
+.magic-event.is-priority-1 .magic-event__title {
+  font-weight: 500;
+}
+
+.magic-event.is-priority-3,
+.magic-event.is-priority-3:hover {
+  box-shadow:
+    inset 0.375rem 0 0 var(--event-color),
+    inset 0 0 0 1px color-mix(in srgb, var(--event-color) 55%, transparent);
+}
+
+.magic-event.is-priority-3 {
+  padding-left: 0.875rem;
+  background: color-mix(in srgb, var(--event-color) 24%, var(--color-card));
+}
+
+.magic-event.is-priority-3:hover {
+  background: color-mix(in srgb, var(--event-color) 30%, var(--color-card));
+}
+
+.dark .magic-event.is-priority-3 {
+  background: color-mix(in srgb, var(--event-color) 38%, var(--color-card));
+}
+
+.magic-event.is-priority-3 .magic-event__header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.25rem;
+}
+
+.magic-event.is-priority-3 .magic-event__title {
+  font-weight: 700;
+}
+
+.magic-event__priority {
+  grid-column: 2;
+  border-radius: 999px;
+  background: var(--event-color);
+  color: #fff;
+  padding: 0.0625rem 0.375rem;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+/* A selected block keeps the solid selected look at every level. */
+.magic-event.is-selected.is-priority-1,
+.magic-event.is-selected.is-priority-3 {
+  background: var(--event-color);
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--event-color) 35%, transparent);
+}
+
+.magic-event.is-selected .magic-event__priority {
+  background: #fff;
+  color: var(--event-color);
+}
+
 .magic-current-time {
   height: 2px;
   background: var(--magic-now);
@@ -2669,6 +2762,26 @@
 
 .magic-inspector__meta span {
   background: var(--color-fill);
+  font-size: var(--text-xs);
+}
+
+.magic-inspector__priority {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  margin-top: 1rem;
+}
+
+.magic-inspector__priority > span {
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.magic-inspector__priority > small {
+  flex-basis: 100%;
+  color: var(--color-muted);
   font-size: var(--text-xs);
 }
 
@@ -3281,6 +3394,41 @@
   box-shadow: inset 3px 0 0 var(--craft-color), 0 0 0 2px var(--craft-color);
 }
 
+/* Priority weight, matching the Plan timeline blocks. */
+.craft-timeline__event.is-draft.is-priority-1 {
+  background: color-mix(in srgb, var(--craft-color) 7%, var(--color-card));
+  color: color-mix(in srgb, var(--craft-color) 35%, var(--color-ink-2));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--craft-color) 45%, transparent);
+}
+
+.dark .craft-timeline__event.is-draft.is-priority-1 {
+  background: color-mix(in srgb, var(--craft-color) 13%, var(--color-card));
+}
+
+.craft-timeline__event.is-draft.is-priority-3 {
+  padding-left: 0.75rem;
+  background: color-mix(in srgb, var(--craft-color) 24%, var(--color-card));
+  box-shadow:
+    inset 6px 0 0 var(--craft-color),
+    inset 0 0 0 1px color-mix(in srgb, var(--craft-color) 55%, transparent);
+}
+
+.dark .craft-timeline__event.is-draft.is-priority-3 {
+  background: color-mix(in srgb, var(--craft-color) 38%, var(--color-card));
+}
+
+.craft-timeline__event.is-draft.is-priority-3 strong {
+  font-weight: 700;
+}
+
+.craft-timeline__event.is-draft.is-active.is-priority-1 {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--craft-color) 45%, transparent), 0 0 0 2px var(--craft-color);
+}
+
+.craft-timeline__event.is-draft.is-active.is-priority-3 {
+  box-shadow: inset 6px 0 0 var(--craft-color), 0 0 0 2px var(--craft-color);
+}
+
 .craft-timeline__event.is-existing {
   background:
     repeating-linear-gradient(135deg, transparent 0 6px, var(--color-fill) 6px 7px),
@@ -3542,6 +3690,14 @@
 
 .craft-block__swatch.is-shell {
   background: repeating-linear-gradient(180deg, var(--craft-color) 0 4px, transparent 4px 7px);
+}
+
+.craft-block__swatch.is-priority-1 {
+  opacity: 0.4;
+}
+
+.craft-block__swatch.is-priority-3 {
+  width: 0.4375rem;
 }
 
 .craft-block__text {

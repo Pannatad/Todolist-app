@@ -7,6 +7,7 @@ import { toast } from '../ui/Toast';
 import { log } from '../utils/log.js';
 import { createScheduleRepo, normalizeScheduleRecord } from '../data/scheduleRepo';
 import { createTasksRepo, normalizeTaskRecord as normalizeTaskPersistenceRecord } from '../data/tasksRepo';
+import { normalizeSchedulePriority } from '../utils/schedulePriority';
 
 const TaskContext = createContext();
 
@@ -346,6 +347,7 @@ export const TaskProvider = ({ children }) => {
             templateApplicationId: itemData.templateApplicationId || null,
             color: itemData.color || '#6366f1',
             notes: itemData.notes || null,
+            priority: normalizeSchedulePriority(itemData.priority),
             workspace: itemData.workspace ?? 'personal',
             uniKind: resolvedUniKind,
             uni_kind: resolvedUniKind,

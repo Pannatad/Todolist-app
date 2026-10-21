@@ -1,4 +1,5 @@
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences.js';
+import { normalizeSchedulePriority } from '../utils/schedulePriority.js';
 
 export const TEMPLATE_SCHEMA_VERSION = 2;
 export const SCHEDULE_ITEM_KINDS = {
@@ -67,7 +68,8 @@ const sanitizeTemplateChild = (child, parentStart, parentEnd, index) => {
         duration,
         category: child.category || DEFAULT_CATEGORY,
         color: child.color || DEFAULT_COLOR,
-        notes: child.notes || ''
+        notes: child.notes || '',
+        priority: normalizeSchedulePriority(child.priority)
     };
 };
 
@@ -106,6 +108,7 @@ export const sanitizeMagicTemplateBlocks = (blocks = []) => (
                 category: block.category || DEFAULT_CATEGORY,
                 color: block.color || DEFAULT_COLOR,
                 notes: block.notes || '',
+                priority: normalizeSchedulePriority(block.priority),
                 children
             };
         })
@@ -150,6 +153,7 @@ export const occurrencesToMagicTemplateBlocks = (occurrences = []) => {
                     category: item.category || DEFAULT_CATEGORY,
                     color: item.color || DEFAULT_COLOR,
                     notes: item.notes || '',
+                    priority: item.priority,
                     children: (childrenByParent.get(String(item.id)) || []).map((child) => {
                         const childStart = occurrenceStart(child);
                         return {
@@ -159,7 +163,8 @@ export const occurrencesToMagicTemplateBlocks = (occurrences = []) => {
                             duration: occurrenceDuration(child),
                             category: child.category || DEFAULT_CATEGORY,
                             color: child.color || DEFAULT_COLOR,
-                            notes: child.notes || ''
+                            notes: child.notes || '',
+                            priority: child.priority
                         };
                     })
                 };
@@ -212,6 +217,7 @@ export const buildTemplateSchedulePayloads = (templateInput, options = {}) => {
             category: block.category,
             color: block.color,
             notes: block.notes,
+            priority: block.priority,
             itemKind: block.kind,
             sourceTemplateId: template.id || null,
             sourceTemplateVersion: template.version,
@@ -232,6 +238,7 @@ export const buildTemplateSchedulePayloads = (templateInput, options = {}) => {
                 category: child.category,
                 color: child.color,
                 notes: child.notes,
+                priority: child.priority,
                 itemKind: SCHEDULE_ITEM_KINDS.EVENT,
                 sourceTemplateId: template.id || null,
                 sourceTemplateVersion: template.version,
@@ -262,6 +269,7 @@ export const buildDayPlanSchedulePayloads = ({ date, blocks = [] } = {}) => {
             category: block.category,
             color: block.color,
             notes: block.notes,
+            priority: block.priority,
             itemKind: block.kind
         });
 
@@ -277,6 +285,7 @@ export const buildDayPlanSchedulePayloads = ({ date, blocks = [] } = {}) => {
                 category: child.category,
                 color: child.color,
                 notes: child.notes,
+                priority: child.priority,
                 itemKind: SCHEDULE_ITEM_KINDS.EVENT
             });
         });

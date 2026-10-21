@@ -50,10 +50,11 @@ import {
     resolveTemplate
 } from '../../services/agentScheduleActions';
 import { getScheduleItemsForDate, toLocalDateKey } from '../../utils/scheduleOccurrences';
+import { normalizeSchedulePriority, SCHEDULE_PRIORITIES, schedulePriorityClass, schedulePriorityLabel } from '../../utils/schedulePriority';
 import { hasExceededDragThreshold } from '../../utils/pointerGestures';
 import { useScheduleTransactions } from '../../hooks/useScheduleTransactions';
 import { toast } from '../../ui/Toast';
-import { BarButton, RowMenu, Sheet, useMediaQuery } from '../../ui';
+import { BarButton, RowMenu, SegmentedControl, Sheet, useMediaQuery } from '../../ui';
 import { confirmAction } from '../../utils/confirm';
 import './magic-schedule.css';
 
@@ -109,6 +110,8 @@ const rangeLabel = (item) => {
 };
 
 const useMobileTimeline = () => useMediaQuery('(max-width: 760px)');
+const PRIORITY_ITEMS = SCHEDULE_PRIORITIES.map(({ id, label }) => ({ id, label }));
+const occurrenceKeyOf = (item, fallback) => item._occurrenceDate || item._dateKey || fallback;
 
 const MagicSchedule = ({
     events = [],
@@ -272,6 +275,43 @@ const MagicSchedule = ({
         if (!selectedItem || itemKind(selectedItem) !== SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL) return [];
         return daySchedule.filter((item) => String(parentId(item)) === String(selectedItem.id));
     }, [daySchedule, selectedItem]);
+
+    // The inspector holds a snapshot of the tapped block, so look the block up
+    // again to reflect changes made since (a quick priority change, for example).
+    const liveSelectedItem = useMemo(() => {
+        if (!selectedItem) return null;
+        const dateKey = occurrenceKeyOf(selectedItem, selectedDateKey);
+        const live = getScheduleItemsForDate(events, new Date(`${dateKey}T12:00:00`))
+            .find((item) => String(item.id) === String(selectedItem.id));
+        return live ? { ...live, _type: selectedItem._type, _dateKey: selectedItem._dateKey } : selectedItem;
+    }, [events, selectedItem, selectedDateKey]);
+    const selectedPriority = liveSelectedItem ? normalizeSchedulePriority(liveSelectedItem.priority) : null;
+
+    // Quick change from the inspector applies to the whole block, including every
+    // repeat. A per-day priority on this occurrence is dropped so the new level shows.
+    const setSelectedPriority = (priority) => {
+        const base = selectedItem && events.find((item) => String(item.id) === String(selectedItem.id));
+        if (!base || priority === selectedPriority) return;
+        const updates = { priority };
+        if (recurrenceType(base) !== 'none') {
+            const dateKey = occurrenceKeyOf(selectedItem, selectedDateKey);
+            const overrides = { ...(base.recurrenceOverrides || base.recurrence_overrides || {}) };
+            const keys = [dateKey, `weekday-${new Date(`${dateKey}T12:00:00`).getDay()}`];
+            let changed = false;
+            keys.forEach((key) => {
+                if (overrides[key]?.priority === undefined) return;
+                const rest = { ...overrides[key] };
+                delete rest.priority;
+                if (Object.keys(rest).length) overrides[key] = rest;
+                else delete overrides[key];
+                changed = true;
+            });
+            if (changed) updates.recurrenceOverrides = overrides;
+        }
+        // A failed save rolls back and the schedule context already shows a toast.
+        transactions.runBatch([{ type: 'update', id: base.id, updates, before: base }],
+            `Set ${base.title} to ${schedulePriorityLabel(priority)}`).catch(() => {});
+    };
 
     const navigateWeek = (amount) => {
         const next = new Date(anchorDate);
@@ -776,11 +816,12 @@ const MagicSchedule = ({
             }
         }
         if (minutes + itemDuration(item) < START_HOUR * 60 || minutes > END_HOUR * 60) return null;
+        const priority = normalizeSchedulePriority(item.priority);
         return (
             <button
                 key={`${item._type}-${item.id}-${item._dateKey}`}
                 type="button"
-                className={`magic-event ${shell ? 'is-shell' : ''} ${nested ? 'is-nested' : ''} ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
+                className={`magic-event ${shell ? 'is-shell' : ''} ${nested ? 'is-nested' : ''} ${schedulePriorityClass(priority)} ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
                 style={{
                     top,
                     height,
@@ -795,11 +836,12 @@ const MagicSchedule = ({
                     setAssistantOpen(false);
                     setMobileInspectorOpen(true);
                 }}
-                aria-label={`${shell ? 'Flexible shell' : nested ? 'Nested event' : 'Event'} ${item.title}, ${rangeLabel(item)}`}
+                aria-label={`${shell ? 'Flexible shell' : nested ? 'Nested event' : 'Event'} ${item.title}, ${rangeLabel(item)}${priority === 2 ? '' : `, ${schedulePriorityLabel(priority)}`}`}
             >
                 <span className="magic-event__header">
                     <span className="magic-event__mark" aria-hidden="true" />
                     <span className="magic-event__title">{item.title}</span>
+                    {priority === 3 && height >= 42 && <span className="magic-event__priority" aria-hidden="true">Must</span>}
                 </span>
                 {height >= 42 && <span className="magic-event__time">{rangeLabel(item)}</span>}
                 {nested && <span className="magic-event__badge">Nested</span>}
@@ -1242,6 +1284,17 @@ const MagicSchedule = ({
                                 {recurrenceType(selectedItem) !== 'none' && <span><Repeat2 size={14} /> {recurrenceType(selectedItem)}</span>}
                                 {selectedItem.sourceTemplateId && <span><LayoutTemplate size={14} /> Linked to template v{selectedItem.sourceTemplateVersion || 1}</span>}
                             </div>
+                            <div className="magic-inspector__priority">
+                                <span>Priority</span>
+                                <SegmentedControl
+                                    items={PRIORITY_ITEMS}
+                                    value={selectedPriority}
+                                    onChange={setSelectedPriority}
+                                    ariaLabel="Priority"
+                                    className="form-priority"
+                                />
+                                {recurrenceType(selectedItem) !== 'none' && <small>Applies to every repeat. Use Edit details for one day.</small>}
+                            </div>
                             {linkedTemplateIsNewer && (
                                 <div className="magic-template-update">
                                     <strong>Template v{linkedTemplate.version} is available</strong>
@@ -1262,7 +1315,7 @@ const MagicSchedule = ({
                                 </div>
                             )}
                             <div className="magic-inspector__actions">
-                                <button type="button" onClick={() => setModal({ event: selectedItem, selectedDate, defaults: {} })}><Pencil size={16} /> Edit details</button>
+                                <button type="button" onClick={() => setModal({ event: liveSelectedItem, selectedDate, defaults: {} })}><Pencil size={16} /> Edit details</button>
                                 {itemKind(selectedItem) === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL && (
                                     <button type="button" onClick={() => {
                                         const start = itemStart(selectedItem);

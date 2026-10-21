@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bot, CalendarDays, Plus, Trash2 } from 'lucide-react';
-import { Sheet } from '../../ui';
+import { SegmentedControl, Sheet } from '../../ui';
 import {
     createScheduleId,
     getTimelinePreviewGeometry,
@@ -10,9 +10,11 @@ import {
     timeFromMinutes
 } from '../../services/magicSchedule';
 import { toast } from '../../ui/Toast';
+import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority, SCHEDULE_PRIORITIES } from '../../utils/schedulePriority';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6'];
 const PREVIEW_HOURS = [7, 12, 17, 22];
+const PRIORITY_ITEMS = SCHEDULE_PRIORITIES.map(({ id, label }) => ({ id, label }));
 
 const blankBlock = (startTime = '09:00') => ({
     id: createScheduleId('block'),
@@ -23,6 +25,7 @@ const blankBlock = (startTime = '09:00') => ({
     category: 'Other',
     color: COLORS[0],
     notes: '',
+    priority: DEFAULT_SCHEDULE_PRIORITY,
     children: []
 });
 
@@ -150,6 +153,18 @@ const BlockEditor = ({ block, onChange, onRemove }) => {
                         <input type="number" min="5" step="5" value={block.duration} onChange={(event) => onChange({ duration: Number(event.target.value) })} />
                     </label>
                     <span className="magic-template-block-editor__end">ends {endTime}</span>
+                </div>
+                <div className="magic-template-block-editor__row">
+                    <div className="magic-template-priority">
+                        Priority
+                        <SegmentedControl
+                            items={PRIORITY_ITEMS}
+                            value={normalizeSchedulePriority(block.priority)}
+                            onChange={(priority) => onChange({ priority })}
+                            ariaLabel="Priority"
+                            className="form-priority"
+                        />
+                    </div>
                 </div>
                 <div className="magic-template-block-editor__row">
                     <label className="magic-switch-label">
