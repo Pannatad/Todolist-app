@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { createWeekPlansRepo } from '../data/weekPlansRepo';
-import { isWeekPlanEmpty, normalizeWeekPlan } from '../utils/weekPlan';
+import { dateFromKey, getWeekKey, isWeekPlanEmpty, normalizeWeekPlan } from '../utils/weekPlan';
 
 const WeekPlanContext = createContext();
 
@@ -10,6 +10,15 @@ export const useWeekPlans = () => {
     const context = useContext(WeekPlanContext);
     if (!context) throw new Error('useWeekPlans must be used within WeekPlanProvider');
     return context;
+};
+
+// Daily target names for the week holding `dateKey` (YYYY-MM-DD, default today),
+// so category pickers can offer them. Safe outside the provider: returns [].
+export const useWeekTargetLabels = (dateKey) => {
+    const context = useContext(WeekPlanContext);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateKey || '') ? dateFromKey(dateKey) : new Date();
+    const plan = context?.getPlan(getWeekKey(date)) || null;
+    return useMemo(() => (plan?.targets || []).map((target) => target.label), [plan]);
 };
 
 const isMissingTable = (error) => (

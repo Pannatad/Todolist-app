@@ -171,7 +171,88 @@
 }
 
 .week-target {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2xs);
   padding-block: var(--space-sm);
+}
+
+.week-target__body {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Round "+" to log time by hand: 44px hit area, small filled circle */
+.week-log-button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  margin: -0.5rem -0.75rem -0.5rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  padding: 0;
+}
+
+.week-log-button > span {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  transition: transform 160ms var(--ease-out);
+}
+
+.week-log-button:active > span {
+  transform: scale(0.88);
+}
+
+/* Log time sheet */
+.target-log__stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.target-log__step {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-ink);
+  padding: 0;
+}
+
+.dark .target-log__step {
+  background: var(--color-paper-3);
+}
+
+.target-log__step:active {
+  transform: scale(0.92);
+}
+
+.target-log__step:disabled {
+  opacity: 0.35;
+}
+
+.target-log__value {
+  min-width: 4.5rem;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.target-log__chips {
+  justify-content: flex-end;
+  padding-top: 0;
 }
 
 .week-target + .week-target {
@@ -310,10 +391,22 @@ button.week-strip:active {
 
 .week-strip__top {
   display: flex;
+  width: 100%;
   min-width: 0;
-  align-items: baseline;
+  min-height: 2.25rem;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: start;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.week-strip__top:active {
+  opacity: 0.5;
 }
 
 .week-strip__theme {
@@ -326,7 +419,10 @@ button.week-strip:active {
 }
 
 .week-strip__week {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 0.125rem;
   color: var(--color-muted);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
@@ -337,9 +433,17 @@ button.week-strip:active {
   gap: var(--space-xs);
 }
 
-.week-strip__targets > span {
+.week-strip__target {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.week-strip__target-main {
   display: block;
   min-width: 0;
+  flex: 1;
 }
 
 .week-strip__target-head {

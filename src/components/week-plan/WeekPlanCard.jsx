@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Check, Pencil, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { RowMenu, toast } from '../../ui';
 import { useWeekPlans } from '../../context/WeekPlanContext';
 import { confirmAction } from '../../utils/confirm';
 import { dateFromKey, formatMinutes, getWeekNumber } from '../../utils/weekPlan';
 import { HABIT_COLORS } from '../habitModalUtils';
 import WeekDots from './WeekDots';
+import TargetLogSheet from './TargetLogSheet';
 import WeekPlanSheet from './WeekPlanSheet';
 import useWeekPlanModel from './useWeekPlanModel';
 import './week-plan.css';
@@ -38,32 +39,43 @@ const HabitColumn = ({ kind, habit, days, onEdit }) => {
     );
 };
 
-const TargetRow = ({ target }) => {
-    const today = target.today;
-    return (
-        <li className="week-target">
+const todayLine = (target) => {
+    const { today } = target;
+    const logged = today.logged > 0 ? ` · ${formatMinutes(today.logged)} logged` : '';
+    if (today.met) return `Today ${formatMinutes(today.done)} · target met${logged}`;
+    const planned = today.planned > 0 ? ` · ${formatMinutes(today.planned)} planned` : '';
+    return `Today ${formatMinutes(today.done)} of ${formatMinutes(target.minutes)}${planned}${logged}`;
+};
+
+const TargetRow = ({ target, onLog }) => (
+    <li className="week-target">
+        <div className="week-target__body">
             <div className="week-target__head">
                 <span className="week-target__label">{target.label}</span>
                 <span className="week-target__meta">{formatMinutes(target.minutes)} a day · {target.daysMet} of 7</span>
             </div>
             <WeekDots days={target.days} label={`${target.label} this week`} />
-            {today && (
-                <p className="week-target__today">
-                    {today.met
-                        ? `Today ${formatMinutes(today.done)} · target met`
-                        : `Today ${formatMinutes(today.done)} of ${formatMinutes(target.minutes)}${today.planned > 0 ? ` · ${formatMinutes(today.planned)} planned` : ''}`}
-                </p>
-            )}
-        </li>
-    );
-};
+            {target.today && <p className="week-target__today">{todayLine(target)}</p>}
+        </div>
+        <button type="button" className="week-log-button" onClick={() => onLog(target.id)} aria-label={`Log time for ${target.label}`}>
+            <span><Plus size={15} strokeWidth={2.8} aria-hidden="true" /></span>
+        </button>
+    </li>
+);
 
 /** The week's direction, habits, targets, and key tasks, at the top of This week. */
 const WeekPlanCard = ({ weekKey, now }) => {
     const { savePlan, clearPlan } = useWeekPlans();
     const { isLoaded, plan, previous, draft, targets, buildHabit, breakHabit, buildWeek, breakWeek } = useWeekPlanModel(weekKey, now);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [logTargetId, setLogTargetId] = useState(null);
     const [formKey, setFormKey] = useState(0);
+    const logTarget = targets.find((target) => target.id === logTargetId) || null;
+
+    const openLog = (targetId) => {
+        setFormKey((key) => key + 1);
+        setLogTargetId(targetId);
+    };
 
     const openSheet = () => {
         setFormKey((key) => key + 1);
@@ -139,7 +151,7 @@ const WeekPlanCard = ({ weekKey, now }) => {
                         </div>
                         {targets.length ? (
                             <ul className="week-targets">
-                                {targets.map((target) => <TargetRow key={target.id} target={target} />)}
+                                {targets.map((target) => <TargetRow key={target.id} target={target} onLog={openLog} />)}
                             </ul>
                         ) : (
                             <button type="button" className="week-plan__add" onClick={openSheet}>Add a daily target</button>
@@ -175,6 +187,13 @@ const WeekPlanCard = ({ weekKey, now }) => {
                 </div>
             )}
 
+            <TargetLogSheet
+                open={Boolean(logTarget)}
+                onClose={() => setLogTargetId(null)}
+                plan={plan}
+                target={logTarget}
+                formKey={formKey}
+            />
             <WeekPlanSheet
                 open={sheetOpen}
                 onClose={() => setSheetOpen(false)}

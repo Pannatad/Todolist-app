@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, Plus } from 'lucide-react';
 import { useHabit } from '../../context/HabitContext';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
 import { dateFromKey, formatMinutes, getWeekKey, getWeekNumber } from '../../utils/weekPlan';
+import TargetLogSheet from './TargetLogSheet';
 import WeekPlanSheet from './WeekPlanSheet';
 import useWeekPlanModel from './useWeekPlanModel';
 import './week-plan.css';
@@ -24,6 +25,7 @@ const WeekStrip = ({ now, onOpenWeek }) => {
     const { getHabitLog } = useHabit();
     const { isLoaded, plan, draft, targets, buildHabit, breakHabit } = useWeekPlanModel(weekKey, now);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [logTargetId, setLogTargetId] = useState(null);
     const [formKey, setFormKey] = useState(0);
 
     if (!isLoaded) return null;
@@ -52,43 +54,69 @@ const WeekStrip = ({ now, onOpenWeek }) => {
     }
 
     const doneToday = (habit) => getHabitLog(habit.id, todayKey)?.completed === true;
+    const logTarget = targets.find((target) => target.id === logTargetId) || null;
+    const openLog = (targetId) => {
+        setFormKey((key) => key + 1);
+        setLogTargetId(targetId);
+    };
 
     return (
-        <button type="button" className="week-strip" onClick={onOpenWeek} aria-label={`This week: ${plan.theme || 'week plan'}. Open the week.`}>
-            <span className="week-strip__top">
+        <div className="week-strip">
+            <button type="button" className="week-strip__top" onClick={onOpenWeek} aria-label={`Open this week: ${plan.theme || 'week plan'}`}>
                 <span className="week-strip__theme">{plan.theme || 'This week'}</span>
-                <span className="week-strip__week">Week {getWeekNumber(dateFromKey(weekKey))}</span>
-            </span>
+                <span className="week-strip__week">
+                    Week {getWeekNumber(dateFromKey(weekKey))}
+                    <ChevronRight size={16} aria-hidden="true" />
+                </span>
+            </button>
 
             {targets.length > 0 && (
-                <span className="week-strip__targets">
+                <div className="week-strip__targets">
                     {targets.map((target) => {
                         const done = target.today?.done || 0;
                         const planned = target.today?.planned || 0;
                         const met = done >= target.minutes;
                         return (
-                            <span key={target.id}>
-                                <span className="week-strip__target-head">
-                                    <span>{target.label}</span>
-                                    <span>{formatMinutes(done)} of {formatMinutes(target.minutes)}</span>
-                                </span>
-                                <span className={`week-strip__bar${met ? ' is-met' : ''}`} aria-hidden="true">
-                                    <span className="week-strip__bar-planned" style={{ width: percent(done + planned, target.minutes) }} />
-                                    <span className="week-strip__bar-done" style={{ width: percent(done, target.minutes) }} />
-                                </span>
-                            </span>
+                            <div key={target.id} className="week-strip__target">
+                                <div className="week-strip__target-main">
+                                    <span className="week-strip__target-head">
+                                        <span>{target.label}</span>
+                                        <span>{formatMinutes(done)} of {formatMinutes(target.minutes)}</span>
+                                    </span>
+                                    <span className={`week-strip__bar${met ? ' is-met' : ''}`} aria-hidden="true">
+                                        <span className="week-strip__bar-planned" style={{ width: percent(done + planned, target.minutes) }} />
+                                        <span className="week-strip__bar-done" style={{ width: percent(done, target.minutes) }} />
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="week-log-button"
+                                    onClick={() => openLog(target.id)}
+                                    aria-label={`Log time for ${target.label}`}
+                                >
+                                    <span><Plus size={15} strokeWidth={2.8} aria-hidden="true" /></span>
+                                </button>
+                            </div>
                         );
                     })}
-                </span>
+                </div>
             )}
 
             {(buildHabit || breakHabit) && (
-                <span className="week-strip__habits">
+                <div className="week-strip__habits">
                     {buildHabit && <HabitChip kind="Build" habit={buildHabit} done={doneToday(buildHabit)} />}
                     {breakHabit && <HabitChip kind="Break" habit={breakHabit} done={doneToday(breakHabit)} />}
-                </span>
+                </div>
             )}
-        </button>
+
+            <TargetLogSheet
+                open={Boolean(logTarget)}
+                onClose={() => setLogTargetId(null)}
+                plan={plan}
+                target={logTarget}
+                formKey={formKey}
+            />
+        </div>
     );
 };
 

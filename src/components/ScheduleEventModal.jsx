@@ -5,6 +5,7 @@ import { SegmentedControl, Sheet } from '../ui';
 import { confirmAction } from '../utils/confirm';
 import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority } from '../utils/schedulePriority';
 import SchedulePriorityField from './SchedulePriorityField';
+import { useWeekTargetLabels } from '../context/WeekPlanContext';
 
 const PRESET_COLORS = [
     { name: 'Red', value: '#ef4444' },
@@ -79,6 +80,12 @@ const ScheduleEventModal = ({
     const canDeleteSingleOccurrence = isRecurringSeries && !!occurrenceDate;
     const canCustomizeDay = isRecurringSeries && !!occurrenceDate;
     const isDayScope = canCustomizeDay && editScope !== 'series';
+    // This week's daily targets appear as categories, so a block can count toward one.
+    const targetLabels = useWeekTargetLabels(isDayScope ? occurrenceDate : formData.date);
+    const builtInCategories = new Set(CATEGORY_OPTIONS.map((category) => category.toLowerCase()));
+    const targetCategories = [...new Set(targetLabels)].filter((label) => !builtInCategories.has(label.toLowerCase()));
+    const otherCategories = [...new Set([...CATEGORY_OPTIONS, formData.category].filter(Boolean))]
+        .filter((category) => !targetCategories.some((label) => label.toLowerCase() === category.toLowerCase()));
     const occurrenceWeekday = occurrenceDate ? new Date(`${occurrenceDate}T12:00:00`).getDay() : null;
     const weekdayLabel = occurrenceWeekday != null ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][occurrenceWeekday] : '';
 
@@ -309,7 +316,16 @@ const ScheduleEventModal = ({
                     <label className="form-field form-field--value">
                         <span className="form-field__label">Category</span>
                         <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
-                            {[...new Set([...CATEGORY_OPTIONS, formData.category].filter(Boolean))].map((cat) => (
+                            {targetCategories.length > 0 ? (
+                                <>
+                                    <optgroup label="Daily targets">
+                                        {targetCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                                    </optgroup>
+                                    <optgroup label="Categories">
+                                        {otherCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                                    </optgroup>
+                                </>
+                            ) : otherCategories.map((cat) => (
                                 <option key={cat} value={cat}>{cat}</option>
                             ))}
                         </select>

@@ -10,6 +10,7 @@ import {
     getWeekNumber,
     measureTargetDay,
     normalizeWeekPlan,
+    setLoggedMinutes,
     shiftWeekKey,
 } from '../src/utils/weekPlan.js';
 
@@ -138,4 +139,40 @@ test('minutes format', () => {
     assert.equal(formatMinutes(45), '45m');
     assert.equal(formatMinutes(120), '2h');
     assert.equal(formatMinutes(90), '1h 30m');
+});
+
+test('hand-logged minutes add to block time and can meet a target on their own', () => {
+    const plan = normalizeWeekPlan({
+        weekStart: '2026-10-26',
+        targets: [{ id: 's', label: 'Study', minutes: 60, logged: { '2026-10-26': 40, '2026-10-27': 60 } }],
+    });
+    const scheduleItems = [block('Study group', local(2026, 10, 26, 9), 30)];
+    const [progress] = buildTargetProgress({ plan, scheduleItems, now: local(2026, 10, 28, 8) });
+    assert.equal(progress.days[0].done, 70);
+    assert.equal(progress.days[0].blockDone, 30);
+    assert.equal(progress.days[0].logged, 40);
+    assert.equal(progress.days[0].status, 'met');
+    assert.equal(progress.days[1].status, 'met');
+    assert.equal(progress.days[2].status, 'today');
+    assert.equal(progress.daysMet, 2);
+});
+
+test('setting logged minutes replaces the day value and zero removes it', () => {
+    let plan = normalizeWeekPlan({ weekStart: '2026-10-26', targets: [{ id: 'a', label: 'AI', minutes: 120 }, { id: 'b', label: 'Study', minutes: 60 }] });
+    plan = setLoggedMinutes(plan, 'a', '2026-10-26', 45);
+    plan = setLoggedMinutes(plan, 'a', '2026-10-26', 90);
+    assert.deepEqual(plan.targets[0].logged, { '2026-10-26': 90 });
+    assert.equal(plan.targets[1].logged, undefined);
+    plan = setLoggedMinutes(plan, 'a', '2026-10-26', 0);
+    assert.equal(plan.targets[0].logged, undefined);
+    assert.equal(normalizeWeekPlan(setLoggedMinutes(plan, 'b', '2026-10-27', 30)).targets[1].logged['2026-10-27'], 30);
+});
+
+test('logged minutes are cleaned and never carried into a new week', () => {
+    const plan = normalizeWeekPlan({
+        weekStart: '2026-10-19',
+        targets: [{ id: 'a', label: 'AI', minutes: 60, logged: { '2026-10-20': '30', bad: 10, '2026-10-21': -5, '2026-10-22': 0 } }],
+    });
+    assert.deepEqual(plan.targets[0].logged, { '2026-10-20': 30 });
+    assert.equal(draftFromPreviousWeek(plan, '2026-10-26').targets[0].logged, undefined);
 });

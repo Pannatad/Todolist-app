@@ -62,11 +62,34 @@ export const formatMinutes = (minutes) => {
 
 const cleanText = (value, max = 120) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+// Minutes logged by hand per day, for time spent without a Plan block.
+const cleanLogged = (logged) => {
+    if (!logged || typeof logged !== 'object' || Array.isArray(logged)) return {};
+    return Object.fromEntries(Object.entries(logged)
+        .map(([dateKey, minutes]) => [dateKey, Math.round(Number(minutes))])
+        .filter(([dateKey, minutes]) => DATE_KEY.test(dateKey) && Number.isFinite(minutes) && minutes > 0)
+        .map(([dateKey, minutes]) => [dateKey, Math.min(minutes, 24 * 60)]));
+};
+
+const withoutLogged = (target) => {
+    const copy = { ...target };
+    delete copy.logged;
+    return copy;
+};
+
 const cleanTarget = (target) => {
     const label = cleanText(target?.label, 40);
     const minutes = Math.round(Number(target?.minutes));
     if (!label || !Number.isFinite(minutes) || minutes <= 0) return null;
-    return { id: String(target.id || makeId()), label, minutes: Math.min(minutes, 24 * 60) };
+    const logged = cleanLogged(target.logged);
+    return {
+        id: String(target.id || makeId()),
+        label,
+        minutes: Math.min(minutes, 24 * 60),
+        ...(Object.keys(logged).length ? { logged } : {}),
+    };
 };
 
 const cleanKeyTask = (task) => {
@@ -101,7 +124,7 @@ export const draftFromPreviousWeek = (previous, weekStart) => {
         theme: '',
         buildHabitId: base?.buildHabitId ?? null,
         breakHabitId: base?.breakHabitId ?? null,
-        targets: (base?.targets || []).map((target) => ({ ...target, id: makeId() })),
+        targets: (base?.targets || []).map((target) => ({ ...withoutLogged(target), id: makeId() })),
         keyTasks: (base?.keyTasks || []).filter((task) => !task.done).map((task) => ({ ...task, id: makeId() })),
     });
 };
@@ -172,7 +195,10 @@ export const buildTargetProgress = ({ plan, scheduleItems = [], now = new Date()
 
     return plan.targets.map((target) => {
         const dayStats = days.map(({ date, dateKey, items }) => {
-            const { done, planned } = measureTargetDay(items, target.label, now);
+            const fromBlocks = measureTargetDay(items, target.label, now);
+            const logged = target.logged?.[dateKey] || 0;
+            const done = fromBlocks.done + logged;
+            const { planned } = fromBlocks;
             const isToday = dateKey === todayKey;
             const isPast = dateKey < todayKey;
             const met = done >= target.minutes;
@@ -181,7 +207,7 @@ export const buildTargetProgress = ({ plan, scheduleItems = [], now = new Date()
             else if (isPast) status = 'missed';
             else if (isToday) status = 'today';
             else if (planned >= target.minutes) status = 'planned';
-            return { date, dateKey, done, planned, met, isToday, isPast, status };
+            return { date, dateKey, done, blockDone: fromBlocks.done, logged, planned, met, isToday, isPast, status };
         });
         const today = dayStats.find((day) => day.isToday) || null;
         return {
@@ -191,6 +217,21 @@ export const buildTargetProgress = ({ plan, scheduleItems = [], now = new Date()
             daysMet: dayStats.filter((day) => day.met).length,
         };
     });
+};
+
+// Sets (not adds) the minutes logged by hand for one target on one day.
+export const setLoggedMinutes = (plan, targetId, dateKey, minutes) => {
+    const value = Math.max(0, Math.min(24 * 60, Math.round(Number(minutes) || 0)));
+    return {
+        ...plan,
+        targets: plan.targets.map((target) => {
+            if (target.id !== targetId) return target;
+            const logged = { ...(target.logged || {}) };
+            if (value > 0) logged[dateKey] = value;
+            else delete logged[dateKey];
+            return Object.keys(logged).length ? { ...target, logged } : withoutLogged(target);
+        }),
+    };
 };
 
 // Seven day states for a habit across the week, from its logs.
