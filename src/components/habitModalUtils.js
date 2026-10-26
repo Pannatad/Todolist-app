@@ -38,6 +38,7 @@ const HABIT_TYPE_OPTIONS = [
     { value: 'duration', label: 'Duration' },
     { value: 'score', label: `Score 1–5` },
     { value: 'time', label: 'Time of Day' },
+    { value: 'avoid', label: 'Avoid' },
 ];
 
 const TIME_OF_DAY_OPTIONS = [

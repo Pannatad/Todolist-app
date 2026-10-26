@@ -82,7 +82,7 @@ const HabitModal = ({ isOpen, onClose, onSave, habit = null }) => {
             name: name.trim(),
             icon,
             type,
-            target: type === 'check' || type === 'time' ? 1 : type === 'score' ? SCORE_MAX : parseInt(target, 10) || 1,
+            target: type === 'check' || type === 'time' || type === 'avoid' ? 1 : type === 'score' ? SCORE_MAX : parseInt(target, 10) || 1,
             frequency,
             schedule_days: frequency === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : scheduleDays,
             time_of_day: timeOfDay,

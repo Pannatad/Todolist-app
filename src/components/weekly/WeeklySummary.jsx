@@ -3,6 +3,8 @@ import { AlertCircle } from 'lucide-react';
 import { useTask } from '../../context/TaskContext';
 import { buildWeeklySummary } from '../../utils/weeklySummary';
 import { toast } from '../../ui/Toast';
+import { toLocalDateKey } from '../../utils/scheduleOccurrences';
+import WeekPlanCard from '../week-plan/WeekPlanCard';
 import { weekLabel } from './weeklyFormat';
 import WeekTasks from './WeekTasks';
 import WeekSchedule from './WeekSchedule';
@@ -57,6 +59,7 @@ const WeeklySummary = ({ now, onOpenSchedule }) => {
   return (
     <div className="weekly-summary">
       <header className="week-header"><h1>This week</h1><p className="week-range">{weekLabel(model.weekStart, model.weekEnd)}</p>{totals && <p className="week-totals">{totals}</p>}</header>
+      <WeekPlanCard weekKey={toLocalDateKey(model.weekStart)} now={now} />
       <div className="week-content" key={model.weekStart.toISOString()}>
         {isLoading ? <SectionSkeleton title="Tasks due this week" className="week-tasks" /> : taskFailure ? <LoadFailure title="Tasks due this week" className="week-tasks" onRetry={retry} /> : <WeekTasks groups={model.taskGroups} total={model.taskCount} onOpen={openTask} onComplete={complete} pendingIds={pendingIds} />}
         {isLoading ? <SectionSkeleton title="Upcoming milestones" className="week-milestones" /> : taskFailure || scheduleFailure ? <LoadFailure title="Upcoming milestones" className="week-milestones" onRetry={retry} /> : <WeekMilestones items={model.milestones} onOpen={openMilestone} />}

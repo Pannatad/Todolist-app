@@ -6,6 +6,7 @@ const goalLabel = (habit) => {
     if (habit.type === 'score') return 'Rate 1–5';
     if (habit.type === 'duration') return `${habit.target || 1} min`;
     if (habit.type === 'count') return `${habit.target || 1} times`;
+    if (habit.type === 'avoid') return 'Stay clear';
     return 'Daily';
 };
 
@@ -26,13 +27,13 @@ const TodayHabitsSummary = ({ habits = [], completedCount = 0, onComplete }) => 
                     style={{ '--habit': HABIT_COLORS[habit.color] || 'var(--color-accent)' }}
                     onClick={() => onComplete(habit)}
                     disabled={habit.completed}
-                    aria-label={habit.completed ? `${habit.name}, done` : `Mark ${habit.name} done`}
+                    aria-label={habit.completed ? `${habit.name}, done` : habit.type === 'avoid' ? `Mark ${habit.name} as a clean day` : `Mark ${habit.name} done`}
                 >
                     <span className="today-habit__ring" aria-hidden="true">
                         {habit.completed && <Check size={15} strokeWidth={3.2} />}
                     </span>
                     <span className="today-habit__name">{habit.name}</span>
-                    <span className="today-habit__goal">{habit.completed ? 'Done' : goalLabel(habit)}</span>
+                    <span className="today-habit__goal">{habit.completed ? (habit.type === 'avoid' ? 'Clean day' : 'Done') : goalLabel(habit)}</span>
                 </button>
             ))}
         </div>

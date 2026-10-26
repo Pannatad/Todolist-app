@@ -1,0 +1,471 @@
+/* Week plan · direction, Build/Break habits, daily targets, key tasks */
+.week-plan {
+  min-width: 0;
+  margin-bottom: var(--space-2xl);
+  container-type: inline-size;
+}
+
+.week-plan :where(h3, p) {
+  margin: 0;
+}
+
+.week-plan__grid {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.week-plan__panel {
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+.week-plan__eyebrow {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-plan__theme {
+  display: block;
+  width: 100%;
+  margin-top: 0.125rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  padding: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-align: start;
+  text-wrap: balance;
+}
+
+.week-plan__theme.is-empty {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.week-plan__habits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.week-plan__habit {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.125rem;
+}
+
+.week-plan__habit--unset {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: start;
+}
+
+.week-plan__habit-kind {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.week-plan__habit-name {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-plan__habit--unset .week-plan__habit-name {
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.week-plan__habit-count {
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-plan__panel-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.week-plan__panel-title h3 {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.week-plan__panel-title span {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-plan__add {
+  min-height: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* Seven dots, Monday to Sunday */
+.week-dots {
+  --dot: var(--color-accent);
+  display: flex;
+  gap: 0.375rem;
+  margin: 0.375rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week-dots__dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+}
+
+.week-dots__dot.is-met {
+  background: var(--dot);
+}
+
+.week-dots__dot.is-today {
+  background: transparent;
+  box-shadow: inset 0 0 0 0.125rem var(--color-ink-2);
+}
+
+.week-dots__dot.is-planned {
+  background: transparent;
+  outline: 0.125rem dashed color-mix(in srgb, var(--dot) 70%, transparent);
+  outline-offset: -0.125rem;
+}
+
+.week-dots__dot.is-missed {
+  background: var(--color-fill);
+  opacity: 0.55;
+}
+
+.week-targets,
+.week-plan__tasks {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week-target {
+  padding-block: var(--space-sm);
+}
+
+.week-target + .week-target {
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.week-target:first-child {
+  padding-top: 0;
+}
+
+.week-target__head {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.week-target__label {
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-target__meta,
+.week-target__today {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-target__meta {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.week-target__today {
+  margin-top: 0.375rem !important;
+  font-size: var(--text-xs);
+}
+
+.week-plan__task {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  margin-inline: calc(-1 * var(--space-sm));
+}
+
+.week-plan__task + .week-plan__task {
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.week-plan__task-title {
+  min-width: 0;
+  flex: 1;
+  padding-block: var(--space-xs);
+  font-size: var(--text-base);
+  line-height: 1.35;
+}
+
+.week-plan__task.is-done .week-plan__task-title {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}
+
+.week-plan__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.week-plan__empty > div {
+  min-width: 12rem;
+  flex: 1;
+}
+
+.week-plan__empty-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.week-plan__empty-text {
+  margin-top: 0.125rem !important;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+/* Planning sheet */
+.week-plan-form__target {
+  gap: var(--space-sm);
+}
+
+.week-plan-form__target select {
+  max-width: 9rem;
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  color: var(--color-muted);
+  text-align: right;
+  text-align-last: right;
+  cursor: pointer;
+}
+
+.week-plan-form__add {
+  justify-content: flex-start;
+  gap: var(--space-sm);
+  color: var(--color-accent);
+  font-size: var(--text-base);
+}
+
+/* Today strip */
+.week-strip {
+  display: grid;
+  width: 100%;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+  color: var(--color-ink);
+  padding: var(--space-md) var(--space-lg);
+  text-align: start;
+  box-shadow: var(--shadow-card);
+  transition: transform 220ms var(--ease-out);
+}
+
+button.week-strip:active {
+  transform: scale(0.98);
+}
+
+.week-strip__top {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.week-strip__theme {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-strip__week {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-strip__targets {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.week-strip__targets > span {
+  display: block;
+  min-width: 0;
+}
+
+.week-strip__target-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.week-strip__target-head span:last-child {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.week-strip__bar {
+  position: relative;
+  display: block;
+  height: 0.375rem;
+  margin-top: 0.25rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+}
+
+.week-strip__bar > span {
+  position: absolute;
+  inset-block: 0;
+  border-radius: var(--radius-pill);
+}
+
+.week-strip__bar-planned {
+  background: color-mix(in srgb, var(--color-accent) 26%, transparent);
+}
+
+.week-strip__bar-done {
+  background: var(--color-accent);
+  transition: width 400ms var(--ease-out);
+}
+
+.week-strip__bar.is-met .week-strip__bar-done {
+  background: var(--color-success);
+}
+
+.week-strip__habits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.week-strip__chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-paper-2);
+  color: var(--color-ink-2);
+  padding: 0.1875rem 0.625rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.week-strip__chip.is-done {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.week-strip__chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-strip--empty {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-block: var(--space-sm);
+}
+
+.week-strip--empty .week-strip__theme {
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.week-strip--empty svg {
+  color: var(--color-muted);
+}
+
+/* Columns follow the card's own width, since the sidebar takes room on wide screens. */
+@container (min-width: 34rem) {
+  .week-plan__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .week-plan__focus {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (min-width: 60rem) {
+  .week-plan__grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .week-plan__focus {
+    grid-column: auto;
+  }
+}
+
+@media (hover: hover) {
+  .week-plan__theme:hover,
+  .week-plan__add:hover,
+  .week-plan__habit--unset:hover .week-plan__habit-name {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .week-strip,
+  .week-strip__bar-done {
+    transition: none;
+  }
+}

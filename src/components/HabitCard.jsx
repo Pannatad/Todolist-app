@@ -47,7 +47,9 @@ const HabitCard = ({
     const currentValue = localDuration !== null ? localDuration : actualValue;
     const isCompleted = log?.completed || false;
     const noteText = log?.notes || '';
-    const progress = habit.type === 'check'
+    // Avoid habits work like a checkbox: done means a clean day.
+    const isCheckLike = habit.type === 'check' || habit.type === 'avoid';
+    const progress = isCheckLike
         ? (isCompleted ? 100 : 0)
         : Math.min((currentValue / (habit.type === 'score' ? SCORE_MAX : habit.target)) * 100, 100);
     const currentStreak = streak?.current || 0;
@@ -65,7 +67,7 @@ const HabitCard = ({
     const handleIncrement = (event) => {
         event?.stopPropagation();
         if (disabled) return;
-        if (habit.type === 'check') {
+        if (isCheckLike) {
             if (!isCompleted) pulseCompletion();
             onLog(habit.id, isCompleted ? 0 : 1, !isCompleted);
             return;
@@ -179,7 +181,7 @@ const HabitCard = ({
                             onClick={handleIncrement}
                             disabled={disabled}
                             title={disabled ? disabledReason : undefined}
-                            aria-label={isCompleted ? `Undo ${habit.name}` : `Log ${habit.name}`}
+                            aria-label={isCompleted ? `Undo ${habit.name}` : habit.type === 'avoid' ? `Mark ${habit.name} as a clean day` : `Log ${habit.name}`}
                             className={`habit-row__check${isCompleted ? ' is-completed' : ''}`}
                         >
                             {isCompleted ? <Check size={17} strokeWidth={3} /> : <Circle size={19} strokeWidth={1.8} />}
@@ -194,12 +196,15 @@ const HabitCard = ({
                             <h3 className={isCompleted ? 'is-completed' : ''}>{habit.name}</h3>
                         </div>
                         <div className="habit-row__meta">
+                            {habit.type === 'avoid' && <span>Avoid</span>}
                             <span>{getFrequencyLabel(habit)}</span>
                             {habit.reminder_time && <span>{formatTime12h(habit.reminder_time)}</span>}
                             {currentStreak > 0 && (
                                 <span className="habit-row__streak">
                                     <Flame size={13} strokeWidth={2.5} aria-hidden="true" />
-                                    {currentStreak} day streak
+                                    {habit.type === 'avoid'
+                                        ? `${currentStreak} clean ${currentStreak === 1 ? 'day' : 'days'}`
+                                        : `${currentStreak} day streak`}
                                 </span>
                             )}
                             {disabled && (
@@ -211,7 +216,7 @@ const HabitCard = ({
                         </div>
                     </div>
 
-                    {habit.type !== 'check' && (
+                    {!isCheckLike && (
                         <div className="habit-row__progress">
                             {habit.type === 'count' && (
                                 <div className="habit-progress-line">

@@ -182,7 +182,7 @@ export const HabitProvider = ({ children }) => {
             const isTypeConstraintError = error?.code === '23514' || /habits_type_check|violates check constraint|type check/i.test(error?.message || '');
             toast(
                 isTypeConstraintError
-                    ? 'Time habits need the latest Supabase migration. Apply 0015_supabase_habit_value.sql and try again.'
+                    ? 'This habit type needs the latest Supabase migration (2026-10-26_week_plans.sql). Apply it and try again.'
                     : 'Could not save this habit. Please try again.',
                 { tone: 'error' },
             );

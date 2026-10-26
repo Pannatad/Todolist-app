@@ -25,6 +25,7 @@ import { useAgentCommands } from './today/useAgentCommands';
 import { getCurrentTimeValue } from './habitValueUtils';
 import { BarButton, PageHeader, SegmentedControl } from '../ui';
 import WeeklySummary from './weekly/WeeklySummary';
+import WeekStrip from './week-plan/WeekStrip';
 import './today/today.css';
 import './weekly/weekly-summary.css';
 
@@ -165,6 +166,7 @@ const Overview = ({ onNavigate }) => {
       {summaryView === 'week' ? <WeeklySummary now={now} onOpenSchedule={openSchedule} /> : (
       <div className="today-layout">
         <div className="today-layout__main">
+          <WeekStrip now={now} onOpenWeek={() => setSummaryView('week')} />
           <NowCard
             current={currentEntry}
             next={nextEntry}

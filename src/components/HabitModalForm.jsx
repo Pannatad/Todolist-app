@@ -161,6 +161,9 @@ const HabitModalForm = ({
                         </label>
                     )}
                 </div>
+                {type === 'avoid' && (
+                    <p className="form-note">Check it off on days you stayed clear. Your streak counts clean days.</p>
+                )}
 
                 <div className="form-group">
                     <label className="form-field">

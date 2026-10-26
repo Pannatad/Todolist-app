@@ -20,6 +20,7 @@ import { ProjectProvider } from './context/ProjectContext';
 import { HabitProvider } from './context/HabitContext';
 import { ChatProvider, useChatContext } from './context/ChatContext';
 import { ScheduleTemplateProvider } from './context/ScheduleTemplateContext';
+import { WeekPlanProvider } from './context/WeekPlanContext';
 import { useHabit } from './context/HabitContext';
 import { useUserProfile } from './context/UserProfileContext';
 import smartNotificationService from './services/SmartNotificationService';
@@ -281,6 +282,7 @@ function App() {
         <IdeaBoardProvider>
           <ProjectProvider>
             <ScheduleTemplateProvider>
+              <WeekPlanProvider>
               <ChatProvider>
                 <ShellContext.Provider value={shellValue}>
                   <SmartNotificationBridge />
@@ -366,6 +368,7 @@ function App() {
                   </Suspense>
                 </ShellContext.Provider>
               </ChatProvider>
+              </WeekPlanProvider>
             </ScheduleTemplateProvider>
           </ProjectProvider>
         </IdeaBoardProvider>
