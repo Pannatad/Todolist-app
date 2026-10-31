@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { createWeekPlansRepo } from '../data/weekPlansRepo';
 import { dateFromKey, getWeekKey, isWeekPlanEmpty, normalizeWeekPlan } from '../utils/weekPlan';
@@ -31,6 +31,10 @@ export const WeekPlanProvider = ({ children }) => {
     const repo = useMemo(() => createWeekPlansRepo(userId ? { id: userId } : null), [userId]);
     const [plans, setPlans] = useState([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    // Saves for one week run one after another, and only the newest one's
+    // reply updates the screen, so quick +/− taps can't land out of order.
+    const saveQueues = useRef(new Map());
+    const saveVersions = useRef(new Map());
 
     useEffect(() => {
         let cancelled = false;
@@ -61,18 +65,28 @@ export const WeekPlanProvider = ({ children }) => {
     const savePlan = useCallback(async (draft) => {
         const plan = normalizeWeekPlan(draft);
         if (!plan.weekStart) throw new Error('A week plan needs a week.');
-        const previous = plansByWeek.get(plan.weekStart) || null;
+        const week = plan.weekStart;
+        const previous = plansByWeek.get(week) || null;
         const optimistic = { ...plan, id: previous?.id ?? plan.id };
-        setPlans((current) => [...current.filter((item) => item.weekStart !== plan.weekStart), optimistic]);
+        const version = (saveVersions.current.get(week) || 0) + 1;
+        saveVersions.current.set(week, version);
+        const isLatest = () => saveVersions.current.get(week) === version;
+        setPlans((current) => [...current.filter((item) => item.weekStart !== week), optimistic]);
+        const run = (saveQueues.current.get(week) || Promise.resolve())
+            .catch(() => {})
+            .then(() => repo.save(optimistic));
+        saveQueues.current.set(week, run);
         try {
-            const saved = normalizeWeekPlan(await repo.save(optimistic));
-            setPlans((current) => current.map((item) => item.weekStart === plan.weekStart ? saved : item));
+            const saved = normalizeWeekPlan(await run);
+            if (isLatest()) setPlans((current) => current.map((item) => item.weekStart === week ? saved : item));
             return saved;
         } catch (error) {
-            setPlans((current) => [
-                ...current.filter((item) => item.weekStart !== plan.weekStart),
-                ...(previous ? [previous] : []),
-            ]);
+            if (isLatest()) {
+                setPlans((current) => [
+                    ...current.filter((item) => item.weekStart !== week),
+                    ...(previous ? [previous] : []),
+                ]);
+            }
             console.error('Failed to save week plan:', error);
             throw new Error(isMissingTable(error)
                 ? 'Week plans need the latest Supabase migration (2026-10-26_week_plans.sql).'

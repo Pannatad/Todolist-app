@@ -275,6 +275,9 @@ const withLogged = (target, logged) => {
     return copy;
 };
 
+// How much one tap of + or − changes a target: about four taps to fill it.
+export const targetStep = (minutes) => (Number(minutes) >= 120 ? 30 : 15);
+
 // Sets (not adds) the minutes logged for one target on one day.
 export const setLoggedMinutes = (plan, targetId, dateKey, minutes) => {
     const value = Math.max(0, Math.min(24 * 60, Math.round(Number(minutes) || 0)));

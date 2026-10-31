@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from '../../ui';
 import { useWeekPlans } from '../../context/WeekPlanContext';
-import { acceptSuggestion, dismissSuggestion, formatMinutes, getWeekDays } from '../../utils/weekPlan';
+import { acceptSuggestion, dismissSuggestion, formatMinutes, getWeekDays, setLoggedMinutes } from '../../utils/weekPlan';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
-import TargetLogSheet from './TargetLogSheet';
+import TargetStepper from './TargetStepper';
 import TargetSuggestion from './TargetSuggestion';
 import WeekPlanSheet from './WeekPlanSheet';
 import WeekRow, { WeekDaysHead } from './WeekRow';
@@ -18,10 +18,8 @@ const WeekTargets = ({ weekKey, now }) => {
     const { savePlan } = useWeekPlans();
     const { isLoaded, plan, draft, targets } = useWeekPlanModel(weekKey, now);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [logTargetId, setLogTargetId] = useState(null);
     const [formKey, setFormKey] = useState(0);
     const [busyKey, setBusyKey] = useState(null);
-    const logTarget = targets.find((target) => target.id === logTargetId) || null;
     const todayKey = toLocalDateKey(now);
     const headDays = getWeekDays(weekKey).map((date) => ({ date, dateKey: toLocalDateKey(date), isToday: toLocalDateKey(date) === todayKey }));
 
@@ -29,9 +27,14 @@ const WeekTargets = ({ weekKey, now }) => {
         setFormKey((key) => key + 1);
         setSheetOpen(true);
     };
-    const openLog = (targetId) => {
-        setFormKey((key) => key + 1);
-        setLogTargetId(targetId);
+
+    const logToday = async (target, minutes) => {
+        if (!plan) return;
+        try {
+            await savePlan(setLoggedMinutes(plan, target.id, todayKey, minutes));
+        } catch (error) {
+            toast(error.message || 'Could not save that.', { tone: 'error' });
+        }
     };
 
     const answer = async (target, suggestion, didIt) => {
@@ -77,10 +80,9 @@ const WeekTargets = ({ weekKey, now }) => {
                                         color={target.color}
                                         title={target.label}
                                         days={target.days}
-                                        meta={<><strong>{formatMinutes(done)}</strong> / {formatMinutes(target.minutes)}</>}
-                                        trailing={<Plus size={17} strokeWidth={2.4} className="wt-row__plus" aria-hidden="true" />}
-                                        onPress={() => openLog(target.id)}
-                                        pressLabel={`${target.label}: ${formatMinutes(done)} of ${formatMinutes(target.minutes)} today, ${target.daysMet} of 7 days met. Log time.`}
+                                        meta={<span><strong>{formatMinutes(done)}</strong> / {formatMinutes(target.minutes)}</span>}
+                                        summary={`${target.daysMet} of 7 days met this week`}
+                                        action={<TargetStepper target={target} value={done} onChange={(minutes) => logToday(target, minutes)} />}
                                     >
                                         {target.suggestions.slice(0, MAX_SUGGESTIONS).map((suggestion) => (
                                             <TargetSuggestion
@@ -101,13 +103,6 @@ const WeekTargets = ({ weekKey, now }) => {
                 </div>
             )}
 
-            <TargetLogSheet
-                open={Boolean(logTarget)}
-                onClose={() => setLogTargetId(null)}
-                plan={plan}
-                target={logTarget}
-                formKey={formKey}
-            />
             <WeekPlanSheet
                 open={sheetOpen}
                 onClose={() => setSheetOpen(false)}

@@ -1,27 +1,35 @@
 import { useState } from 'react';
 import { ChevronRight, Plus } from 'lucide-react';
-import { formatMinutes, getWeekKey } from '../../utils/weekPlan';
-import TargetLogSheet from './TargetLogSheet';
+import { toast } from '../../ui';
+import { useWeekPlans } from '../../context/WeekPlanContext';
+import { toLocalDateKey } from '../../utils/scheduleOccurrences';
+import { formatMinutes, getWeekKey, setLoggedMinutes } from '../../utils/weekPlan';
+import TargetStepper from './TargetStepper';
 import WeekPlanSheet from './WeekPlanSheet';
 import useWeekPlanModel from './useWeekPlanModel';
 import './week-plan.css';
 
-/** Today's daily targets on Today: a ring per target, tap a row to log time. */
+/** Today's daily targets on Today: a ring per target and a +/− stepper to log time. */
 const WeekStrip = ({ now, onOpenWeek }) => {
     const weekKey = getWeekKey(now);
+    const todayKey = toLocalDateKey(now);
+    const { savePlan } = useWeekPlans();
     const { isLoaded, plan, draft, targets } = useWeekPlanModel(weekKey, now);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [logTargetId, setLogTargetId] = useState(null);
     const [formKey, setFormKey] = useState(0);
 
     if (!isLoaded) return null;
 
-    const logTarget = targets.find((target) => target.id === logTargetId) || null;
     const pending = targets.reduce((sum, target) => sum + target.suggestions.length, 0);
     const metCount = targets.filter((target) => target.today?.met).length;
-    const openLog = (targetId) => {
-        setFormKey((key) => key + 1);
-        setLogTargetId(targetId);
+
+    const logToday = async (target, minutes) => {
+        if (!plan) return;
+        try {
+            await savePlan(setLoggedMinutes(plan, target.id, todayKey, minutes));
+        } catch (error) {
+            toast(error.message || 'Could not save that.', { tone: 'error' });
+        }
     };
 
     return (
@@ -42,20 +50,20 @@ const WeekStrip = ({ now, onOpenWeek }) => {
                         {targets.map((target) => {
                             const done = target.today?.done || 0;
                             return (
-                                <button
+                                <div
                                     key={target.id}
-                                    type="button"
                                     className="wt-today-row"
                                     style={{ '--row': target.color, '--p': Math.round((target.today?.ratio || 0) * 100) }}
-                                    onClick={() => openLog(target.id)}
-                                    aria-label={`${target.label}: ${formatMinutes(done)} of ${formatMinutes(target.minutes)} today. Log time.`}
                                 >
                                     <span className="wt-ring" aria-hidden="true" />
-                                    <span className="wt-today-row__title">{target.label}</span>
-                                    <span className="wt-today-row__value">
-                                        <strong>{formatMinutes(done)}</strong> / {formatMinutes(target.minutes)}
+                                    <span className="wt-today-row__copy">
+                                        <span className="wt-today-row__title">{target.label}</span>
+                                        <span className="wt-today-row__value">
+                                            <strong>{formatMinutes(done)}</strong> / {formatMinutes(target.minutes)}
+                                        </span>
                                     </span>
-                                </button>
+                                    <TargetStepper target={target} value={done} onChange={(minutes) => logToday(target, minutes)} />
+                                </div>
                             );
                         })}
                         {pending > 0 && (
@@ -70,13 +78,6 @@ const WeekStrip = ({ now, onOpenWeek }) => {
                 )}
             </div>
 
-            <TargetLogSheet
-                open={Boolean(logTarget)}
-                onClose={() => setLogTargetId(null)}
-                plan={plan}
-                target={logTarget}
-                formKey={formKey}
-            />
             <WeekPlanSheet
                 open={sheetOpen}
                 onClose={() => setSheetOpen(false)}

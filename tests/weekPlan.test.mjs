@@ -16,6 +16,7 @@ import {
     pickDistinctColors,
     setLoggedMinutes,
     shiftWeekKey,
+    targetStep,
 } from '../src/utils/weekPlan.js';
 
 const local = (year, month, day, hour = 0, minute = 0) => new Date(year, month - 1, day, hour, minute);
@@ -191,4 +192,12 @@ test('minutes format', () => {
     assert.equal(formatMinutes(45), '45m');
     assert.equal(formatMinutes(120), '2h');
     assert.equal(formatMinutes(90), '1h 30m');
+});
+
+test('one tap is 15 minutes, or 30 for targets of 2 hours or more', () => {
+    assert.equal(targetStep(30), 15);
+    assert.equal(targetStep(60), 15);
+    assert.equal(targetStep(90), 15);
+    assert.equal(targetStep(120), 30);
+    assert.equal(targetStep(300), 30);
 });
