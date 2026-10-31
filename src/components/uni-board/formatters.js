@@ -143,3 +143,63 @@ export const sameDay = (left, right) => {
   const b = asDate(right);
   return Boolean(a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate());
 };
+
+// Date-only deadlines are stored as 23:59, which reads as noise in a list.
+export const isEndOfDay = (value) => {
+  const date = asDate(value);
+  return Boolean(date && date.getHours() === 23 && date.getMinutes() === 59);
+};
+
+const dayOffset = (value, now = new Date()) => {
+  const date = asDate(value);
+  const current = asDate(now);
+  if (!date || !current) return null;
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const today = new Date(current);
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / DAY_MS);
+};
+
+// overdue · today · soon (≤3 days) · later · none
+export const getUrgency = (value, now = new Date()) => {
+  const date = asDate(value);
+  if (!date) return 'none';
+  if (date.getTime() < asDate(now).getTime()) return 'overdue';
+  const days = dayOffset(date, now);
+  if (days <= 1) return 'today';
+  if (days <= 3) return 'soon';
+  return 'later';
+};
+
+export const formatRelativeDay = (value, now = new Date()) => {
+  const days = dayOffset(value, now);
+  if (days === null) return 'No date';
+  if (days < 0) return 'Overdue';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  return `In ${days} days`;
+};
+
+export const formatDayTitle = (value) => {
+  const date = asDate(value);
+  return date ? new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(date) : 'No date';
+};
+
+// "Due tomorrow", "In 3 days · 1:00 PM", "Overdue", "No date"
+export const formatDueLine = (value, now = new Date()) => {
+  const date = asDate(value);
+  if (!date) return 'No date';
+  if (date.getTime() < asDate(now).getTime()) return 'Overdue';
+  const days = dayOffset(date, now);
+  const day = days > 6 ? formatShortDate(date) : formatRelativeDay(date, now);
+  return isEndOfDay(date) ? day : `${day} · ${formatTime(date)}`;
+};
+
+export const getDayUrgency = (value, now = new Date()) => {
+  const days = dayOffset(value, now);
+  if (days === null) return 'none';
+  if (days < 0) return 'overdue';
+  if (days <= 1) return 'today';
+  return days <= 3 ? 'soon' : 'later';
+};

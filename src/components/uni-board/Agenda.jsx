@@ -14,14 +14,16 @@ import {
 import { AGENDA_KIND_OPTIONS, AGENDA_RANGE_OPTIONS } from './constants';
 import {
   filterAgendaGroups,
-  formatAgendaDate,
-  formatDaysRemaining,
+  formatDayTitle,
+  formatRelativeDay,
+  formatShortDate,
   formatTime,
-  formatTimeRemaining,
   getItemKind,
   getItemNotes,
-  itemLabel,
+  getDayUrgency,
+  isEndOfDay,
 } from './formatters';
+import { KindTag, SectionHeading } from './SectionHeading';
 
 const AgendaItemIcon = ({ item }) => {
   switch (getItemKind(item)) {
@@ -45,22 +47,28 @@ const getNotesText = (item) => {
   return typeof notes === 'string' ? notes.trim() : notes ? String(notes) : '';
 };
 
-export const AgendaItemRow = ({ item, now, onSelect, isNotesOpen, onToggleNotes }) => {
+export const AgendaItemRow = ({ item, onSelect, isNotesOpen, onToggleNotes }) => {
   const kind = getItemKind(item);
+  const showTime = item.occursAt && !isEndOfDay(item.occursAt);
   const notesId = notesIdFor(item.key);
   const notes = getNotesText(item);
 
   return (
     <div className={`uni-board-agenda-row${item.completed ? ' is-complete' : ''}${isNotesOpen ? ' is-notes-open' : ''}${notes ? ' has-notes' : ''}`}>
       <button type="button" className="uni-board-agenda-row__main" onClick={() => onSelect(item)}>
-        <span className={`uni-board-agenda-row__marker uni-board-agenda-row__marker--${kind}`} aria-hidden="true">
+        <span className={`uni-board-agenda-row__marker uni-kind--${kind}`} aria-hidden="true">
           <AgendaItemIcon item={item} />
         </span>
         <span className="uni-board-item-copy">
           <strong>{item.title}</strong>
-          <span>{itemLabel(item)} · {item.subject || 'University'} · {formatTimeRemaining(item.occursAt, now)}</span>
+          <span className="uni-board-item-meta">
+            <KindTag kind={kind} />
+            <span className="uni-board-item-meta__text">{item.subject || 'University'}</span>
+          </span>
         </span>
-        <span className="uni-board-agenda-row__time">{item.occursAt ? formatTime(item.occursAt) : 'Any time'}</span>
+        <span className={`uni-board-agenda-row__time${showTime ? '' : ' is-due'}`}>
+          {!item.occursAt ? 'Any time' : showTime ? formatTime(item.occursAt) : 'Due'}
+        </span>
       </button>
       {notes && (
         <button
@@ -109,8 +117,7 @@ const Agenda = ({
 
   return (
     <section className="uni-board-agenda" aria-labelledby="uni-board-agenda-title">
-      <div className="ui-section-title">
-        <h2 id="uni-board-agenda-title">Agenda</h2>
+      <SectionHeading id="uni-board-agenda-title" icon={CalendarDays} title="Agenda" tone="accent">
         <div className="uni-board-agenda__filters">
           <label className="pill-select">
             <span className="sr-only">Show type</span>
@@ -127,21 +134,25 @@ const Agenda = ({
             <ChevronDown size={14} strokeWidth={2.4} aria-hidden="true" />
           </label>
         </div>
-      </div>
+      </SectionHeading>
       {isLoading ? <div className="uni-board-skeleton-list" aria-label="Loading agenda">{[1, 2, 3].map((row) => <span key={row} className="uni-board-skeleton-row" />)}</div> : visibleGroups.length > 0 ? (
         <div className="uni-board-agenda-list">
           {visibleGroups.map((group) => (
             <div key={group.dateKey} className="uni-board-agenda-day">
               <div className="uni-board-agenda-day__heading">
-                <h3>{formatAgendaDate(group.date)}</h3>
-                <span className="uni-board-agenda-day__remaining">{formatDaysRemaining(group.date, now)}</span>
+                <h3>
+                  <span className="uni-board-agenda-day__title">{formatDayTitle(group.date)}</span>
+                  <span className="uni-board-agenda-day__date">{formatShortDate(group.date)}</span>
+                </h3>
+                <span className={`uni-urgency-pill is-${getDayUrgency(group.date, now)}`}>
+                  {formatRelativeDay(group.date, now)}
+                </span>
               </div>
               <div className="ui-group uni-board-agenda-day__items">
                 {group.items.map((item) => (
                   <AgendaItemRow
                     key={item.key}
                     item={item}
-                    now={now}
                     onSelect={onSelect}
                     isNotesOpen={expandedNotes.has(item.key)}
                     onToggleNotes={toggleNotes}

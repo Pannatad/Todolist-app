@@ -891,3 +891,323 @@
     color: #fff;
   }
 }
+
+/* ═══ Readability pass ═══════════════════════════════════════════════
+ * Each overview section gets a colored icon heading and more room, rows
+ * lead with a bold title and a colored type tag, and dates read as
+ * "Tomorrow" / "In 3 days" with an urgency color instead of grey text.
+ */
+.uni-tone--accent { --uni-tone: var(--color-accent); }
+.uni-tone--success { --uni-tone: var(--color-success); }
+.uni-tone--warning { --uni-tone: var(--color-warning); }
+.uni-tone--neutral { --uni-tone: var(--color-neutral); }
+
+.uni-kind--task,
+.uni-kind--deadline,
+.uni-kind--quiz { --uni-kind-color: var(--color-accent); }
+.uni-kind--event,
+.uni-kind--registration { --uni-kind-color: var(--color-success); }
+.uni-kind--meeting,
+.uni-kind--exam { --uni-kind-color: var(--color-warning); }
+.uni-kind--payment { --uni-kind-color: var(--color-error); }
+.uni-kind--report { --uni-kind-color: var(--color-neutral); }
+
+/* Section headings */
+.uni-board .uni-section-head {
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: var(--space-sm);
+  margin: var(--space-2xl) 0 var(--space-sm);
+}
+
+.uni-board-main-grid > .uni-board-agenda > .uni-section-head,
+.uni-board-side > :first-child > .uni-section-head {
+  margin-top: var(--space-lg);
+}
+
+.uni-board .uni-section-head > h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.uni-section-head__icon {
+  display: grid;
+  width: 1.875rem;
+  height: 1.875rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--uni-tone) 15%, transparent);
+  color: var(--uni-tone);
+}
+
+.uni-section-head__count {
+  display: inline-grid;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+  color: var(--color-muted);
+  padding-inline: 0.4rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.uni-board-agenda__filters {
+  flex-wrap: nowrap;
+}
+
+/* Row text: bold title, then a colored type tag + subject */
+.uni-board .uni-board-item-copy {
+  gap: 0.3rem;
+}
+
+.uni-board .uni-board-item-copy strong {
+  display: -webkit-box;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.uni-board .uni-board-item-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-xs);
+  overflow: visible;
+}
+
+.uni-board .uni-kind-tag {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 1.375rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--uni-kind-color) 14%, transparent);
+  color: var(--uni-kind-color);
+  padding: 0 0.5rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.uni-board .uni-board-item-meta__text {
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.uni-board .uni-board-item-meta__text:is(.is-overdue, .is-today) { color: var(--color-error); font-weight: 600; }
+.uni-board .uni-board-item-meta__text.is-soon { color: var(--color-warning); font-weight: 600; }
+
+/* Urgency pill: red for today/tomorrow, amber within 3 days, grey after */
+.uni-urgency-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 1.625rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+  color: var(--color-muted);
+  padding: 0 0.625rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.uni-urgency-pill:is(.is-overdue, .is-today) { background: var(--color-error-soft); color: var(--color-error); }
+.uni-urgency-pill.is-soon { background: var(--color-warning-soft); color: var(--color-warning); }
+
+/* Agenda days */
+.uni-board-agenda-day + .uni-board-agenda-day {
+  margin-top: var(--space-lg);
+}
+
+.uni-board-agenda-day__heading {
+  margin-bottom: var(--space-xs);
+}
+
+.uni-board .uni-board-agenda-day h3 {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.uni-board-agenda-day__title {
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.uni-board-agenda-day__date {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.uni-board-agenda-row__main {
+  min-height: 4rem;
+  padding-block: var(--space-sm);
+}
+
+.uni-board-agenda-row__marker {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.uni-board-agenda-row__main {
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+}
+
+.uni-board .uni-board-agenda-row__time {
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.uni-board .uni-board-agenda-row__time.is-due {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.uni-board-agenda-row + .uni-board-agenda-row::before {
+  inset-inline-start: 3.75rem;
+}
+
+/* To Do rows: title + tag on the left, due pill on the right */
+.uni-board .uni-board-action-row__open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-block: var(--space-sm);
+}
+
+.uni-board .uni-board-action-row__open .uni-board-item-copy {
+  flex: 1;
+}
+
+.uni-board-action-row {
+  min-height: 4rem;
+}
+
+/* Right column on wide screens: To Do, then Milestones */
+.uni-board-side {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+}
+
+/* Milestones: calendar-date tile instead of a flag icon */
+.uni-board-milestone {
+  min-height: 4rem;
+  padding-block: var(--space-sm);
+}
+
+.uni-board-milestone__date {
+  display: grid;
+  width: 2.75rem;
+  flex: 0 0 auto;
+  justify-items: center;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  background: var(--color-warning-soft);
+  padding: 0.25rem 0 0.3rem;
+  line-height: 1;
+}
+
+.uni-board-milestone__date small {
+  color: var(--color-warning);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.uni-board-milestone__date strong {
+  margin-top: 0.15rem;
+  color: var(--color-ink);
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.uni-board-milestone-list li + li::after {
+  inset-inline-start: 4.25rem;
+}
+
+@media (max-width: 29.999rem) {
+  .uni-board .uni-section-head {
+    margin-top: var(--space-xl);
+  }
+
+  .uni-board-agenda__filters {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .uni-board-agenda-row__main {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  }
+}
+
+/* ═══ Add with agent ═════════════════════════════════════════════════
+ * A short chat: the student describes entries, the agent drafts them as
+ * cards, the student asks for fixes, then approves to save them all.
+ */
+.uni-agent-sheet .ui-sheet__surface { width: min(36rem, calc(100vw - var(--space-lg))); }
+.uni-agent { display: flex; min-height: 100%; flex-direction: column; gap: var(--space-md); }
+.uni-agent__intro { color: var(--color-muted); font-size: var(--text-sm); line-height: 1.45; }
+
+.uni-agent__thread { display: flex; flex-direction: column; gap: var(--space-xs); }
+.uni-agent__thread:empty { display: none; }
+.uni-agent__bubble {
+  max-width: 85%;
+  border-radius: 1.125rem;
+  padding: 0.55rem 0.85rem;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.uni-agent__bubble.is-user { align-self: flex-end; border-bottom-right-radius: 0.375rem; background: var(--color-accent); color: var(--color-accent-ink); }
+.uni-agent__bubble.is-agent { align-self: flex-start; border-bottom-left-radius: 0.375rem; background: var(--color-fill); color: var(--color-ink); }
+.uni-agent__bubble.is-thinking { color: var(--color-muted); animation: uni-board-skeleton 0.9s var(--ease-in-out) infinite alternate; }
+
+.uni-agent__drafts-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); margin: 0 0 var(--space-xs); padding-inline: var(--space-2xs); color: var(--color-muted); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.uni-agent__drafts-warning { color: var(--color-error); text-transform: none; letter-spacing: 0; }
+.uni-agent__draft-list { margin: 0; padding: 0; list-style: none; background: var(--color-fill); box-shadow: none; }
+.uni-agent-draft { position: relative; display: flex; align-items: flex-start; gap: var(--space-xs); padding: var(--space-sm) var(--space-xs) var(--space-sm) var(--space-md); }
+.uni-agent-draft + .uni-agent-draft::before { position: absolute; inset: 0 0 auto var(--space-md); height: var(--rule-hair); background: var(--color-rule); content: ""; }
+.uni-agent-draft .uni-board-item-copy { flex: 1; }
+.uni-board .uni-agent-draft__when { color: var(--color-ink); font-size: var(--text-sm); font-weight: 500; }
+.uni-board .uni-agent-draft__when:empty { display: none; }
+.uni-board .uni-agent-draft__problem { color: var(--color-error); font-size: var(--text-sm); font-weight: 600; }
+.uni-agent-draft.has-problem { box-shadow: inset 3px 0 0 var(--color-error); }
+.uni-agent-draft__remove { display: grid; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; place-items: center; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted); }
+.uni-agent-draft__remove:hover { background: var(--color-card); color: var(--color-error); }
+
+.uni-agent__footer {
+  position: sticky;
+  bottom: calc(-1 * (var(--space-lg) + env(safe-area-inset-bottom)));
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: auto;
+  background: linear-gradient(to bottom, transparent, var(--color-card) var(--space-sm));
+  padding: var(--space-sm) 0 calc(var(--space-lg) + env(safe-area-inset-bottom));
+}
+.uni-agent__approve { width: 100%; min-height: 3rem; font-size: var(--text-base); }
+.uni-agent__composer { display: flex; align-items: flex-end; gap: var(--space-xs); }
+.uni-agent__input { min-height: 2.75rem; max-height: 8rem; flex: 1; resize: none; border-radius: 1.375rem; padding: 0.65rem var(--space-md); field-sizing: content; line-height: 1.4; }
+.uni-agent__send { display: grid; width: 2.75rem; height: 2.75rem; flex: 0 0 auto; place-items: center; border: 0; border-radius: var(--radius-pill); background: var(--color-accent); color: var(--color-accent-ink); }
+.uni-agent__send:disabled { background: var(--color-fill-strong); color: var(--color-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .uni-agent__bubble.is-thinking { animation: none; }
+}

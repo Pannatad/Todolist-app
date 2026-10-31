@@ -1,15 +1,13 @@
-import { Check, FileText } from 'lucide-react';
+import { Check, CircleCheckBig, FileText } from 'lucide-react';
 import { SegmentedControl } from '../../ui';
-import { formatDateTime, formatTimeRemaining, itemLabel } from './formatters';
+import { formatDueLine, getItemKind, getUrgency } from './formatters';
+import { KindTag, SectionHeading } from './SectionHeading';
 
 const ActionPanel = ({ tasks, assessments, selectedView, onViewChange, onSelect, onComplete, isLoading, now }) => {
   const items = selectedView === 'tasks' ? tasks : assessments;
   return (
     <section className={`uni-board-action-panel is-${selectedView}`} aria-labelledby="uni-board-actions-title">
-      <div className="ui-section-title">
-        <h2 id="uni-board-actions-title">To Do</h2>
-        <span aria-label={`${items.length} ${selectedView === 'tasks' ? 'tasks' : 'assessments'}`}>{items.length}</span>
-      </div>
+      <SectionHeading id="uni-board-actions-title" icon={CircleCheckBig} title="To Do" tone="success" count={items.length} />
       <SegmentedControl
         items={[
           { id: 'tasks', label: 'Tasks', controls: 'uni-board-action-list' },
@@ -32,8 +30,12 @@ const ActionPanel = ({ tasks, assessments, selectedView, onViewChange, onSelect,
               <button type="button" className="uni-board-action-row__open" onClick={() => onSelect(item)}>
                 <span className="uni-board-item-copy">
                   <strong>{item.title}</strong>
-                  <span>{itemLabel(item)} · {formatDateTime(item.occursAt)} · {formatTimeRemaining(item.occursAt, now)}</span>
+                  <span className="uni-board-item-meta">
+                    <KindTag kind={getItemKind(item)} />
+                    {item.subject && <span className="uni-board-item-meta__text">{item.subject}</span>}
+                  </span>
                 </span>
+                <span className={`uni-urgency-pill is-${getUrgency(item.occursAt, now)}`}>{formatDueLine(item.occursAt, now)}</span>
               </button>
             </div>
           ))}

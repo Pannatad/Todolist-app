@@ -438,7 +438,7 @@ test('Agenda renders an inline Notes disclosure and prominent day countdown', as
             now,
         }));
 
-        assert.match(html, /3 days left/);
+        assert.match(html, /In 3 days/);
         assert.match(html, /aria-label="Show notes for Read the brief"/);
         assert.match(html, /uni-board-agenda-row__main/);
         assert.doesNotMatch(html, /uni-board-next-up/);

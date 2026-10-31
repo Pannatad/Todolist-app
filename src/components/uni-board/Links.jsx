@@ -5,6 +5,7 @@ import { toast } from '../../ui/Toast';
 import { confirmAction } from '../../utils/confirm';
 import { useLinks } from '../../context/LinksContext';
 import { getLinkDraftError, getLinkHostname } from './linkUtils';
+import { SectionHeading } from './SectionHeading';
 
 const emptyDraft = () => ({
   title: '',
@@ -159,10 +160,9 @@ const Links = () => {
   return (
     <>
       <section className="uni-board-links" aria-labelledby="uni-board-links-title">
-        <div className="ui-section-title">
-          <h2 id="uni-board-links-title">Links</h2>
+        <SectionHeading id="uni-board-links-title" icon={Link2} title="Links" tone="neutral">
           <button type="button" className="ui-text-button" onClick={openNewLink}>Add</button>
-        </div>
+        </SectionHeading>
 
         {loadError && (
           <div className="uni-board-links__error" role="alert">

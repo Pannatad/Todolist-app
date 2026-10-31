@@ -6,6 +6,7 @@ import { toast } from '../../ui/Toast';
 import { BarButton, PageHeader, SegmentedControl } from '../../ui';
 import MagicSchedule from '../magic/MagicSchedule';
 import Agenda from './Agenda';
+import AgentAdd from './AgentAdd';
 import ActionPanel from './ActionPanel';
 import ClassScheduleSheet from './ClassScheduleSheet';
 import { AGENDA_RANGE_OPTIONS } from './constants';
@@ -64,6 +65,19 @@ const UniBoard = () => {
   const outstandingTasks = viewModel?.outstandingTasks || [];
   const assessments = viewModel?.assessments || [];
   const milestones = viewModel?.milestones || [];
+  // Subject names the agent can match against ("linear" → "Linear Algebra").
+  const knownSubjects = useMemo(() => {
+    const names = new Map();
+    const add = (value) => {
+      const name = typeof value === 'string' ? value.trim() : '';
+      if (name && name !== 'University' && !names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
+    };
+    classData.classes.forEach((course) => add(course.name));
+    [...tasks, ...scheduleItems]
+      .filter((item) => item?.workspace === 'university')
+      .forEach((item) => add(item.subject ?? item.category));
+    return [...names.values()].slice(0, 40);
+  }, [classData.classes, scheduleItems, tasks]);
   const classScheduleItems = useMemo(
     () => scheduleItems.filter(isClassScheduleItem),
     [scheduleItems],
@@ -109,7 +123,10 @@ const UniBoard = () => {
       <PageHeader
         title="Uni"
         actions={view === 'overview' ? (
-          <QuickAdd addTask={addTask} addScheduleItem={addScheduleItem} />
+          <>
+            <AgentAdd addTask={addTask} addScheduleItem={addScheduleItem} subjects={knownSubjects} />
+            <QuickAdd addTask={addTask} addScheduleItem={addScheduleItem} />
+          </>
         ) : view === 'class-schedule' ? (
           <BarButton icon={Settings2} label="Manage classes" onClick={() => setClassSheetOpen(true)} />
         ) : null}
@@ -149,22 +166,23 @@ const UniBoard = () => {
               kind={agendaKind}
               onKindChange={setAgendaKind}
             />
-            <ActionPanel
-              tasks={outstandingTasks}
-              assessments={assessments}
-              selectedView={actionView}
-              onViewChange={setActionView}
-              onSelect={setSelectedItem}
-              onDelete={handleDeleteItem}
-              onComplete={handleComplete}
-              isLoading={isLoading}
-              now={now}
-            />
+            <div className="uni-board-side">
+              <ActionPanel
+                tasks={outstandingTasks}
+                assessments={assessments}
+                selectedView={actionView}
+                onViewChange={setActionView}
+                onSelect={setSelectedItem}
+                onDelete={handleDeleteItem}
+                onComplete={handleComplete}
+                isLoading={isLoading}
+                now={now}
+              />
+              <MilestoneTimeline items={milestones} onSelect={setSelectedItem} onDelete={handleDeleteItem} now={now} />
+            </div>
           </div>
 
           <Links />
-
-          <MilestoneTimeline items={milestones} onSelect={setSelectedItem} onDelete={handleDeleteItem} now={now} />
         </div>
       ) : view === 'classes' ? (
         <Classes now={now} key={classData.owner} data={classData} tasks={tasks} addTask={addTask} updateTask={updateTask} deleteTask={deleteTask} />
