@@ -839,26 +839,29 @@
 
 .uni-board-link-tile__open {
   display: flex;
-  min-height: 5.5rem;
+  min-height: 6rem;
   flex-direction: column;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   gap: 0.125rem;
-  padding: 0.875rem 1rem;
-  padding-right: 2.25rem;
+  padding: 1rem 2.25rem;
   color: #fff;
+  text-align: center;
   text-decoration: none;
 }
 
 .uni-board-link-tile__open strong {
+  max-width: 100%;
   overflow: hidden;
-  font-size: var(--text-base, 1rem);
+  font-size: 1.25rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .uni-board-link-tile__open span {
+  max-width: 100%;
   overflow: hidden;
   color: rgb(255 255 255 / 0.72);
   font-size: var(--text-xs);
