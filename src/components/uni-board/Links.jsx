@@ -172,15 +172,12 @@ const Links = () => {
         )}
 
         {isLoading ? <div className="uni-board-skeleton-list" aria-label="Loading links">{[1, 2].map((row) => <span key={row} className="uni-board-skeleton-row" />)}</div> : links.length > 0 ? (
-          <div className="ui-group uni-board-link-list">
+          <div className="uni-board-link-grid">
             {links.map((link) => (
-              <article key={link.id} className="uni-board-link-row">
-                <a className="uni-board-link-row__open" href={link.url} target="_blank" rel="noreferrer">
-                  <span className="uni-board-link-row__marker" aria-hidden="true"><Globe2 size={17} /></span>
-                  <span className="uni-board-item-copy">
-                    <strong>{link.title}</strong>
-                    <span>{link.category ? `${link.category} · ` : ''}{getLinkHostname(link.url)}</span>
-                  </span>
+              <article key={link.id} className="uni-board-link-tile">
+                <a className="uni-board-link-tile__open" href={link.url} target="_blank" rel="noreferrer">
+                  <strong>{link.title}</strong>
+                  <span>{link.category || getLinkHostname(link.url)}</span>
                 </a>
                 <RowMenu
                   label={`Actions for ${link.title}`}
