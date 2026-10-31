@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from '../../ui';
 import { useWeekPlans } from '../../context/WeekPlanContext';
-import { acceptSuggestion, dismissSuggestion, formatMinutes } from '../../utils/weekPlan';
+import { acceptSuggestion, dismissSuggestion, formatMinutes, getWeekDays } from '../../utils/weekPlan';
+import { toLocalDateKey } from '../../utils/scheduleOccurrences';
 import TargetLogSheet from './TargetLogSheet';
 import TargetSuggestion from './TargetSuggestion';
 import WeekPlanSheet from './WeekPlanSheet';
-import WeekRow from './WeekRow';
+import WeekRow, { WeekDaysHead } from './WeekRow';
 import useWeekPlanModel from './useWeekPlanModel';
 import './week-plan.css';
 
@@ -21,6 +22,8 @@ const WeekTargets = ({ weekKey, now }) => {
     const [formKey, setFormKey] = useState(0);
     const [busyKey, setBusyKey] = useState(null);
     const logTarget = targets.find((target) => target.id === logTargetId) || null;
+    const todayKey = toLocalDateKey(now);
+    const headDays = getWeekDays(weekKey).map((date) => ({ date, dateKey: toLocalDateKey(date), isToday: toLocalDateKey(date) === todayKey }));
 
     const openSheet = () => {
         setFormKey((key) => key + 1);
@@ -55,45 +58,46 @@ const WeekTargets = ({ weekKey, now }) => {
 
             {!isLoaded ? (
                 <div className="week-skeleton" aria-hidden="true"><span /><span /></div>
-            ) : targets.length === 0 ? (
-                <div className="week-empty-card">
-                    <div>
-                        <p className="week-empty-card__title">Set daily targets</p>
-                        <p className="week-empty-card__text">Time goals like AI 2h or Study 1h a day. Log time as you go.</p>
-                    </div>
-                    <button type="button" className="ui-button ui-button--accent" onClick={openSheet}>Add Targets</button>
-                </div>
             ) : (
-                <div className="week-tracks">
-                    {targets.map((target) => {
-                        const done = target.today?.done || 0;
-                        const extra = target.suggestions.length - MAX_SUGGESTIONS;
-                        return (
-                            <WeekRow
-                                key={target.id}
-                                color={target.color}
-                                title={target.label}
-                                subtitle={`${formatMinutes(target.minutes)} a day · ${target.daysMet} of 7 days`}
-                                todayValue={formatMinutes(done)}
-                                todayLabel={`of ${formatMinutes(target.minutes)} today`}
-                                ratio={target.today?.ratio || 0}
-                                days={target.days}
-                                action={{ icon: Plus, label: `Log time for ${target.label}`, onClick: () => openLog(target.id) }}
-                            >
-                                {target.suggestions.slice(0, MAX_SUGGESTIONS).map((suggestion) => (
-                                    <TargetSuggestion
-                                        key={suggestion.key}
-                                        suggestion={suggestion}
-                                        now={now}
-                                        busy={busyKey === suggestion.key}
-                                        onLog={() => answer(target, suggestion, true)}
-                                        onSkip={() => answer(target, suggestion, false)}
-                                    />
-                                ))}
-                                {extra > 0 && <p className="week-suggest__more">{extra} more finished {extra === 1 ? 'block' : 'blocks'} to check</p>}
-                            </WeekRow>
-                        );
-                    })}
+                <div className="wt-list">
+                    {targets.length === 0 ? (
+                        <button type="button" className="wt-empty" onClick={openSheet}>
+                            <Plus size={18} strokeWidth={2.4} aria-hidden="true" />
+                            Add a daily target
+                        </button>
+                    ) : (
+                        <>
+                            <WeekDaysHead days={headDays} />
+                            {targets.map((target) => {
+                                const done = target.today?.done || 0;
+                                const extra = target.suggestions.length - MAX_SUGGESTIONS;
+                                return (
+                                    <WeekRow
+                                        key={target.id}
+                                        color={target.color}
+                                        title={target.label}
+                                        days={target.days}
+                                        meta={<><strong>{formatMinutes(done)}</strong> / {formatMinutes(target.minutes)}</>}
+                                        trailing={<Plus size={17} strokeWidth={2.4} className="wt-row__plus" aria-hidden="true" />}
+                                        onPress={() => openLog(target.id)}
+                                        pressLabel={`${target.label}: ${formatMinutes(done)} of ${formatMinutes(target.minutes)} today, ${target.daysMet} of 7 days met. Log time.`}
+                                    >
+                                        {target.suggestions.slice(0, MAX_SUGGESTIONS).map((suggestion) => (
+                                            <TargetSuggestion
+                                                key={suggestion.key}
+                                                suggestion={suggestion}
+                                                now={now}
+                                                busy={busyKey === suggestion.key}
+                                                onLog={() => answer(target, suggestion, true)}
+                                                onSkip={() => answer(target, suggestion, false)}
+                                            />
+                                        ))}
+                                        {extra > 0 && <p className="wt-ask__more">{extra} more to check</p>}
+                                    </WeekRow>
+                                );
+                            })}
+                        </>
+                    )}
                 </div>
             )}
 

@@ -1,82 +1,58 @@
-import { Check } from 'lucide-react';
-
-const STATUS_TEXT = {
-    met: 'done',
-    missed: 'missed',
-    today: 'today',
-    open: 'ahead',
-    off: 'rest day',
-};
-
 const weekdayLetter = (date) => date.toLocaleDateString([], { weekday: 'narrow' });
-const weekdayName = (date) => date.toLocaleDateString([], { weekday: 'long' });
+
+/** Weekday letters once, above the rows of a week list. */
+export const WeekDaysHead = ({ days }) => (
+    <div className="wt-head" aria-hidden="true">
+        <span className="wt-head__days">
+            {days.map((day) => (
+                <span key={day.dateKey} className={day.isToday ? 'is-today' : undefined}>{weekdayLetter(day.date)}</span>
+            ))}
+        </span>
+    </div>
+);
+
+const RowContent = ({ title, meta, trailing, days, summary }) => (
+    <>
+        <span className="wt-row__name">
+            <span className="wt-row__dot" aria-hidden="true" />
+            <span className="wt-row__title">{title}</span>
+        </span>
+        <span className="wt-row__meta">
+            {meta}
+            {trailing}
+        </span>
+        <span className="wt-row__days" aria-hidden="true">
+            {days.map((day) => (
+                <span
+                    key={day.dateKey}
+                    className={`wt-day is-${day.status}${day.isToday ? ' is-today' : ''}`}
+                    style={{ '--p': Math.round((day.ratio || 0) * 100) }}
+                />
+            ))}
+        </span>
+        {summary && <span className="sr-only">{summary}</span>}
+    </>
+);
 
 /**
- * One daily target or habit: its color, today's progress in large type, a
- * progress bar, and a ring for each day of the week (filled when done).
- * Targets and habits share this layout so the week reads as one list.
+ * One daily target or habit in a week list: colored dot and name, today's
+ * value on the right, and a dot per day (filled when done, partly drawn for
+ * partial days). Pass onPress to make the whole row a button, or `action`
+ * for a separate control (a row button can't hold another button).
  */
-const WeekRow = ({
-    color,
-    title,
-    subtitle,
-    todayValue,
-    todayLabel,
-    ratio = 0,
-    days = [],
-    metText = 'done',
-    action,
-    children,
-}) => {
-    const ActionIcon = action?.icon;
-    return (
-    <article className="week-track" style={{ '--row': color }}>
-        <div className="week-track__head">
-            <span className="week-track__swatch" aria-hidden="true" />
-            <div className="week-track__titles">
-                <h3 className="week-track__title">{title}</h3>
-                {subtitle && <p className="week-track__subtitle">{subtitle}</p>}
+const WeekRow = ({ color, title, meta, trailing, action, days = [], summary, onPress, pressLabel, children }) => (
+    <div className="wt-item" style={{ '--row': color }}>
+        {onPress ? (
+            <button type="button" className="wt-row" onClick={onPress} aria-label={pressLabel}>
+                <RowContent title={title} meta={meta} trailing={trailing} days={days} summary={summary} />
+            </button>
+        ) : (
+            <div className="wt-row">
+                <RowContent title={title} meta={meta} trailing={action} days={days} summary={summary} />
             </div>
-            <div className="week-track__today">
-                <span className="week-track__today-value">{todayValue}</span>
-                {todayLabel && <span className="week-track__today-label">{todayLabel}</span>}
-            </div>
-            {action && (
-                <button
-                    type="button"
-                    className={`week-track__action${action.pressed ? ' is-pressed' : ''}`}
-                    onClick={action.onClick}
-                    aria-label={action.label}
-                    aria-pressed={action.pressed === undefined ? undefined : action.pressed}
-                    disabled={action.disabled}
-                >
-                    <ActionIcon size={20} strokeWidth={2.8} aria-hidden="true" />
-                </button>
-            )}
-        </div>
-
-        <div className={`week-track__bar${ratio >= 1 ? ' is-full' : ''}`} aria-hidden="true">
-            <span style={{ width: `${Math.round(Math.min(1, ratio) * 100)}%` }} />
-        </div>
-
-        <ol className="week-track__days" aria-label={`${title} this week`}>
-            {days.map((day) => {
-                const text = day.status === 'met' ? metText : STATUS_TEXT[day.status];
-                return (
-                    <li key={day.dateKey} className={`week-track-day is-${day.status}${day.isToday ? ' is-today' : ''}`} title={`${weekdayName(day.date)}: ${text}`}>
-                        <span className="week-track-day__letter" aria-hidden="true">{weekdayLetter(day.date)}</span>
-                        <span className="week-track-day__ring" style={{ '--p': Math.round((day.ratio || 0) * 100) }} aria-hidden="true">
-                            {day.status === 'met' && <Check size={13} strokeWidth={3.4} />}
-                        </span>
-                        <span className="sr-only">{weekdayName(day.date)}: {text}</span>
-                    </li>
-                );
-            })}
-        </ol>
-
+        )}
         {children}
-    </article>
-    );
-};
+    </div>
+);
 
 export default WeekRow;

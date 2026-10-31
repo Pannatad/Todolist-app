@@ -166,7 +166,6 @@ const Overview = ({ onNavigate }) => {
       {summaryView === 'week' ? <WeeklySummary now={now} onOpenSchedule={openSchedule} onNavigate={onNavigate} /> : (
       <div className="today-layout">
         <div className="today-layout__main">
-          <WeekStrip now={now} onOpenWeek={() => setSummaryView('week')} />
           <NowCard
             current={currentEntry}
             next={nextEntry}
@@ -186,6 +185,8 @@ const Overview = ({ onNavigate }) => {
 
         <div className="today-layout__side">
           <TodayDueTasks tasks={tasksDueToday} onCompleteTask={completeTask} onOpenTask={openTask} />
+
+          <WeekStrip now={now} onOpenWeek={() => setSummaryView('week')} />
 
           {habitItems.length > 0 && (
             <TodayHabitsSummary habits={habitItems} completedCount={habitsDone} onComplete={markHabit} />
