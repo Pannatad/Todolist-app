@@ -23,7 +23,7 @@ import {
   getDayUrgency,
   isEndOfDay,
 } from './formatters';
-import { KindTag, SectionHeading } from './SectionHeading';
+import { KindMeta, SectionHeading } from './SectionHeading';
 
 const AgendaItemIcon = ({ item }) => {
   switch (getItemKind(item)) {
@@ -61,10 +61,7 @@ export const AgendaItemRow = ({ item, onSelect, isNotesOpen, onToggleNotes }) =>
         </span>
         <span className="uni-board-item-copy">
           <strong>{item.title}</strong>
-          <span className="uni-board-item-meta">
-            <KindTag kind={kind} />
-            <span className="uni-board-item-meta__text">{item.subject || 'University'}</span>
-          </span>
+          <KindMeta kind={kind} detail={item.subject || 'University'} dot={false} />
         </span>
         <span className={`uni-board-agenda-row__time${showTime ? '' : ' is-due'}`}>
           {!item.occursAt ? 'Any time' : showTime ? formatTime(item.occursAt) : 'Due'}
@@ -117,7 +114,7 @@ const Agenda = ({
 
   return (
     <section className="uni-board-agenda" aria-labelledby="uni-board-agenda-title">
-      <SectionHeading id="uni-board-agenda-title" icon={CalendarDays} title="Agenda" tone="accent">
+      <SectionHeading id="uni-board-agenda-title" title="Agenda">
         <div className="uni-board-agenda__filters">
           <label className="pill-select">
             <span className="sr-only">Show type</span>
@@ -144,7 +141,7 @@ const Agenda = ({
                   <span className="uni-board-agenda-day__title">{formatDayTitle(group.date)}</span>
                   <span className="uni-board-agenda-day__date">{formatShortDate(group.date)}</span>
                 </h3>
-                <span className={`uni-urgency-pill is-${getDayUrgency(group.date, now)}`}>
+                <span className={`uni-due is-${getDayUrgency(group.date, now)}`}>
                   {formatRelativeDay(group.date, now)}
                 </span>
               </div>

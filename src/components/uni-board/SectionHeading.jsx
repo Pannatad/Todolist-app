@@ -1,22 +1,23 @@
 import { getKindLabel } from './constants';
 
-// Section title with a colored icon tile so each block on the overview reads as its own area.
-export const SectionHeading = ({ id, icon, title, tone = 'accent', count, children }) => {
-  const Icon = icon;
-  return (
+// Plain section title with an optional grey count, matching the src/ui section titles.
+export const SectionHeading = ({ id, title, count, children }) => (
   <div className="ui-section-title uni-section-head">
     <h2 id={id}>
-      <span className={`uni-section-head__icon uni-tone--${tone}`} aria-hidden="true">
-        <Icon size={16} strokeWidth={2.3} />
-      </span>
-      <span className="uni-section-head__title">{title}</span>
+      {title}
       {count !== undefined && <span className="uni-section-head__count">{count}</span>}
     </h2>
     {children}
   </div>
-  );
-};
+);
 
-export const KindTag = ({ kind }) => (
-  <span className={`uni-kind-tag uni-kind--${kind}`}>{getKindLabel(kind)}</span>
+// "● Exam · Linear Algebra": a small colored dot is the only color on the row.
+export const KindMeta = ({ kind, detail, dot = true, detailClassName = '' }) => (
+  <span className="uni-board-item-meta">
+    {dot && <span className={`uni-kind-dot uni-kind--${kind}`} aria-hidden="true" />}
+    <span className="uni-board-item-meta__text">
+      {getKindLabel(kind)}
+      {detail && <> · <span className={detailClassName}>{detail}</span></>}
+    </span>
+  </span>
 );

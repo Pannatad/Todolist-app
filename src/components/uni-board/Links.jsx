@@ -160,7 +160,7 @@ const Links = () => {
   return (
     <>
       <section className="uni-board-links" aria-labelledby="uni-board-links-title">
-        <SectionHeading id="uni-board-links-title" icon={Link2} title="Links" tone="neutral">
+        <SectionHeading id="uni-board-links-title" title="Links">
           <button type="button" className="ui-text-button" onClick={openNewLink}>Add</button>
         </SectionHeading>
 

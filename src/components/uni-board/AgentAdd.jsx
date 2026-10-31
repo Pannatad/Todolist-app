@@ -4,7 +4,7 @@ import { BarButton, Sheet } from '../../ui';
 import { toast } from '../../ui/Toast';
 import { isScheduleKind } from './constants';
 import { formatAgendaDate, formatTime } from './formatters';
-import { KindTag } from './SectionHeading';
+import { KindMeta } from './SectionHeading';
 import { askUniAgent, draftToItemInput, getDraftProblems, getMissingQuestion } from './uniAgent';
 
 const MAX_HISTORY = 12;
@@ -33,13 +33,10 @@ const DraftCard = ({ draft, onRemove }) => {
   const problems = getDraftProblems(draft);
   const when = draftWhen(draft);
   return (
-    <li className={`uni-agent-draft${problems.length ? ' has-problem' : ''}`}>
+    <li className="uni-agent-draft">
       <span className="uni-board-item-copy">
         <strong>{draft.title}</strong>
-        <span className="uni-board-item-meta">
-          <KindTag kind={draft.kind} />
-          <span className="uni-board-item-meta__text">{draft.subject || 'University'}</span>
-        </span>
+        <KindMeta kind={draft.kind} detail={draft.subject || 'University'} />
         <span className="uni-agent-draft__when">{when || (isScheduleKind(draft.kind) ? '' : 'No due date')}</span>
         {problems.length > 0 && <span className="uni-agent-draft__problem">{problemText(problems)}</span>}
         {draft.notes && <small>{draft.notes}</small>}

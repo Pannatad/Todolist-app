@@ -1,12 +1,12 @@
-import { ChevronRight, Flag } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { formatRelativeDay, getDayUrgency, getItemKind } from './formatters';
-import { KindTag, SectionHeading } from './SectionHeading';
+import { KindMeta, SectionHeading } from './SectionHeading';
 
 const monthLabel = (date) => new Intl.DateTimeFormat(undefined, { month: 'short' }).format(date);
 
 const MilestoneTimeline = ({ items, onSelect, now }) => (
   <section className="uni-board-milestones" aria-labelledby="uni-board-milestones-title">
-    <SectionHeading id="uni-board-milestones-title" icon={Flag} title="Milestones" tone="warning" />
+    <SectionHeading id="uni-board-milestones-title" title="Milestones" />
     {items.length > 0 ? (
       <ol className="ui-group uni-board-milestone-list">
         {items.slice(0, 6).map((item) => (
@@ -18,10 +18,11 @@ const MilestoneTimeline = ({ items, onSelect, now }) => (
               </span>
               <span className="uni-board-item-copy">
                 <strong>{item.title}</strong>
-                <span className="uni-board-item-meta">
-                  <KindTag kind={getItemKind(item)} />
-                  <span className={`uni-board-item-meta__text is-${getDayUrgency(item.occursAt, now)}`}>{formatRelativeDay(item.occursAt, now)}</span>
-                </span>
+                <KindMeta
+                  kind={getItemKind(item)}
+                  detail={formatRelativeDay(item.occursAt, now)}
+                  detailClassName={`uni-due-text is-${getDayUrgency(item.occursAt, now)}`}
+                />
               </span>
               <ChevronRight size={17} className="uni-board-milestone__chevron" aria-hidden="true" />
             </button>
