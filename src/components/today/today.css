@@ -211,12 +211,29 @@ button.now-card:active {
 }
 
 .today-secretary__text {
+  display: grid;
   min-width: 0;
   flex: 1;
+  gap: 0.0625rem;
   font-size: var(--text-sm);
   font-weight: 500;
   line-height: 1.35;
   white-space: normal;
+}
+
+.today-secretary__title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.today-secretary__hint {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .today-secretary__chevron {

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/purity */
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronRight, MessageCircle, Sunrise } from 'lucide-react';
+import { CheckCircle2, ChevronRight, NotebookPen, Sunrise } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
 import { useGoal } from '../context/GoalContext';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +21,7 @@ import NowCard from './today/NowCard';
 import TodaySchedule from './today/TodaySchedule';
 import TodayDueTasks from './today/TodayDueTasks';
 import TodayHabitsSummary from './today/TodayHabitsSummary';
+import SecretarySheet from './today/secretary/SecretarySheet';
 import { useAgentCommands } from './today/useAgentCommands';
 import { getCurrentTimeValue } from './habitValueUtils';
 import { BarButton, PageHeader, SegmentedControl } from '../ui';
@@ -47,6 +48,7 @@ const Overview = ({ onNavigate }) => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showDailyRitual, setShowDailyRitual] = useState(false);
+  const [showSecretary, setShowSecretary] = useState(false);
   const [ritualCompletedAt, setRitualCompletedAt] = useState(null);
 
   const now = useMemo(() => new Date(nowTick), [nowTick]);
@@ -174,9 +176,12 @@ const Overview = ({ onNavigate }) => {
             onPlanDay={() => askAgent('Plan my day.')}
           />
 
-          <button type="button" className="today-secretary" onClick={() => askAgent(secretary.prompt)}>
-            <span className="today-secretary__icon" aria-hidden="true"><MessageCircle size={17} strokeWidth={2.2} /></span>
-            <span className="today-secretary__text">{secretary.message}</span>
+          <button type="button" className="today-secretary" onClick={() => setShowSecretary(true)} aria-haspopup="dialog" aria-expanded={showSecretary}>
+            <span className="today-secretary__icon" aria-hidden="true"><NotebookPen size={17} strokeWidth={2.2} /></span>
+            <span className="today-secretary__text">
+              <span className="today-secretary__title">Secretary</span>
+              <span className="today-secretary__hint">{secretary.message}</span>
+            </span>
             <ChevronRight size={18} className="today-secretary__chevron" aria-hidden="true" />
           </button>
 
@@ -196,6 +201,7 @@ const Overview = ({ onNavigate }) => {
       )}
       </div>
 
+      <SecretarySheet open={showSecretary} onClose={() => setShowSecretary(false)} now={now} onOpenTask={openTask} onOpenSchedule={openSchedule} chatSuggestion={secretary} onAskChat={() => askAgent(secretary.prompt)} />
       <DailyRitualModal isOpen={showDailyRitual} onClose={() => setShowDailyRitual(false)} profile={profile} tasks={tasks} scheduleItems={scheduleItems} habits={todaysHabits} getHabitLog={getHabitLog} logHabit={logHabit} addScheduleItem={addScheduleItem} onOpenTask={openTask} onNavigate={onNavigate} onAskAgent={(action) => { sendMessage(action); openSidebar(); }} onComplete={setRitualCompletedAt} />
       <ScheduleEventModal isOpen={showScheduleModal} onClose={closeSchedule} onSave={async (data) => { if (selectedScheduleItem?.id) await updateScheduleItem(selectedScheduleItem.id, data); else await addScheduleItem(data); closeSchedule(); }} onDelete={selectedScheduleItem?.id ? async (_id, options) => { await deleteScheduleItem(selectedScheduleItem.id, options); closeSchedule(); } : null} event={selectedScheduleItem} selectedDate={selectedScheduleItem ? undefined : todayStart} />
       <TaskModal key={selectedTask?.id || 'new'} isOpen={showTaskModal} onClose={closeTask} onSave={(data) => { if (selectedTask?.id) updateTask(selectedTask.id, data); else addTask(data); closeTask(); }} initialData={selectedTask} mode={selectedTask ? 'edit' : 'create'} />
