@@ -1,18 +1,14 @@
 import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Sheet, toast } from '../../ui';
-import { useHabit } from '../../context/HabitContext';
 import { useWeekPlans } from '../../context/WeekPlanContext';
 import {
-    MAX_KEY_TASKS,
     MAX_TARGETS,
     TARGET_MINUTE_OPTIONS,
     formatMinutes,
     getWeekDays,
+    pickDistinctColors,
 } from '../../utils/weekPlan';
-
-const NEW_HABIT = '__new';
-const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 const newId = () => globalThis.crypto?.randomUUID?.() || `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -22,144 +18,34 @@ const rangeLabel = (weekKey) => {
     return `${format(days[0])} – ${format(days[6])}`;
 };
 
-const padTasks = (tasks) => [
-    ...tasks,
-    ...Array.from({ length: Math.max(0, MAX_KEY_TASKS - tasks.length) }, () => ({ id: newId(), title: '', done: false })),
-];
-
-// Build or Break row: pick an existing habit or name a new one.
-const HabitPicker = ({ label, value, onChange, newName, onNewName, options, placeholder }) => (
-    <>
-        <label className="form-field form-field--value">
-            <span className="form-field__label">{label}</span>
-            <select value={value} onChange={(event) => onChange(event.target.value)}>
-                <option value="">None</option>
-                {options.map((habit) => <option key={habit.id} value={habit.id}>{habit.name}</option>)}
-                <option value={NEW_HABIT}>New habit…</option>
-            </select>
-        </label>
-        {value === NEW_HABIT && (
-            <label className="form-field">
-                <span className="sr-only">{label} habit name</span>
-                <input
-                    type="text"
-                    value={newName}
-                    onChange={(event) => onNewName(event.target.value)}
-                    placeholder={placeholder}
-                    maxLength={60}
-                    autoFocus
-                />
-            </label>
-        )}
-    </>
-);
+const blankTarget = (taken) => ({ id: newId(), label: '', minutes: 60, color: pickDistinctColors([null], taken)[0] });
 
 const WeekPlanForm = ({ weekKey, initial, onDone }) => {
-    const { habits, addHabit } = useHabit();
     const { savePlan } = useWeekPlans();
-    const habitExists = (id) => Boolean(id) && habits.some((habit) => habit.id === id);
-
-    const [theme, setTheme] = useState(initial.theme || '');
-    const [buildChoice, setBuildChoice] = useState(habitExists(initial.buildHabitId) ? initial.buildHabitId : '');
-    const [breakChoice, setBreakChoice] = useState(habitExists(initial.breakHabitId) ? initial.breakHabitId : '');
-    const [buildName, setBuildName] = useState('');
-    const [breakName, setBreakName] = useState('');
-    const [targets, setTargets] = useState(initial.targets.length ? initial.targets : [{ id: newId(), label: '', minutes: 60 }]);
-    const [keyTasks, setKeyTasks] = useState(padTasks(initial.keyTasks));
+    const [targets, setTargets] = useState(initial.targets.length ? initial.targets : [blankTarget([])]);
     const [saving, setSaving] = useState(false);
-
-    const buildOptions = habits.filter((habit) => habit.type !== 'avoid');
-    const breakOptions = habits.filter((habit) => habit.type === 'avoid');
 
     const updateTarget = (id, changes) => setTargets((current) => current.map((target) => target.id === id ? { ...target, ...changes } : target));
     const removeTarget = (id) => setTargets((current) => current.filter((target) => target.id !== id));
-    const addTarget = () => setTargets((current) => [...current, { id: newId(), label: '', minutes: 60 }]);
-    const updateTask = (id, title) => setKeyTasks((current) => current.map((task) => task.id === id ? { ...task, title } : task));
-
-    const resolveHabit = async (choice, name, type) => {
-        if (choice !== NEW_HABIT) return choice || null;
-        const cleanName = name.trim();
-        if (!cleanName) return null;
-        const created = await addHabit({
-            name: cleanName,
-            icon: type === 'avoid' ? '🚫' : '🌱',
-            type,
-            target: 1,
-            frequency: 'daily',
-            schedule_days: ALL_DAYS,
-            time_of_day: 'anytime',
-            reminder_time: null,
-            color: type === 'avoid' ? 'rose' : 'emerald',
-            is_seed: false,
-        });
-        return created?.id || null;
-    };
+    const addTarget = () => setTargets((current) => [...current, blankTarget(current.map((target) => target.color))]);
 
     const submit = async (event) => {
         event.preventDefault();
         if (saving) return;
         setSaving(true);
         try {
-            // One at a time: new habits get temporary ids from the clock.
-            const buildHabitId = await resolveHabit(buildChoice, buildName, 'check');
-            const breakHabitId = await resolveHabit(breakChoice, breakName, 'avoid');
-            await savePlan({
-                ...initial,
-                weekStart: weekKey,
-                theme,
-                buildHabitId,
-                breakHabitId,
-                targets,
-                keyTasks: keyTasks.filter((task) => task.title.trim()),
-            });
-            toast('Week saved');
+            // Keeps everything else stored on the week (logged time, older fields) as it was.
+            await savePlan({ ...initial, weekStart: weekKey, targets });
+            toast('Targets saved');
             onDone();
         } catch (error) {
-            toast(error.message || 'Could not save this week.', { tone: 'error' });
+            toast(error.message || 'Could not save targets.', { tone: 'error' });
             setSaving(false);
         }
     };
 
     return (
         <form onSubmit={submit} className="form-stack week-plan-form">
-            <p className="form-section-label">Direction</p>
-            <div className="form-group">
-                <label className="form-field">
-                    <span className="sr-only">This week's direction</span>
-                    <input
-                        type="text"
-                        value={theme}
-                        onChange={(event) => setTheme(event.target.value)}
-                        placeholder="Ship the AI side project"
-                        maxLength={120}
-                    />
-                </label>
-            </div>
-
-            <p className="form-section-label">Habits</p>
-            <div className="form-group">
-                <HabitPicker
-                    label="Build"
-                    value={buildChoice}
-                    onChange={setBuildChoice}
-                    newName={buildName}
-                    onNewName={setBuildName}
-                    options={buildOptions}
-                    placeholder="Read 20 minutes"
-                />
-                <HabitPicker
-                    label="Break"
-                    value={breakChoice}
-                    onChange={setBreakChoice}
-                    newName={breakName}
-                    onNewName={setBreakName}
-                    options={breakOptions}
-                    placeholder="Phone in bed"
-                />
-            </div>
-            <p className="form-note">New habits show up in Habits as daily habits.</p>
-
-            <p className="form-section-label">Daily targets</p>
             <div className="form-group">
                 {targets.map((target, index) => {
                     const minuteOptions = TARGET_MINUTE_OPTIONS.includes(target.minutes)
@@ -175,6 +61,7 @@ const WeekPlanForm = ({ weekKey, initial, onDone }) => {
                             >
                                 <Minus size={14} strokeWidth={3} aria-hidden="true" />
                             </button>
+                            <span className="week-plan-form__swatch" style={{ '--row': target.color }} aria-hidden="true" />
                             <input
                                 type="text"
                                 value={target.label}
@@ -182,6 +69,7 @@ const WeekPlanForm = ({ weekKey, initial, onDone }) => {
                                 placeholder={index === 0 ? 'AI' : 'Study'}
                                 aria-label={`Target ${index + 1} name`}
                                 maxLength={40}
+                                autoFocus={!initial.targets.length && index === 0}
                             />
                             <select
                                 value={target.minutes}
@@ -200,37 +88,23 @@ const WeekPlanForm = ({ weekKey, initial, onDone }) => {
                     </button>
                 )}
             </div>
-            <p className="form-note">Plan blocks count when their name or category matches, like "AI course" for AI.</p>
-
-            <p className="form-section-label">Key tasks</p>
-            <div className="form-group">
-                {keyTasks.map((task, index) => (
-                    <label key={task.id} className="form-field">
-                        <span className="sr-only">Key task {index + 1}</span>
-                        <input
-                            type="text"
-                            value={task.title}
-                            onChange={(event) => updateTask(task.id, event.target.value)}
-                            placeholder={index === 0 ? 'The one thing that would make this week a win' : 'Key task'}
-                            maxLength={140}
-                        />
-                    </label>
-                ))}
-            </div>
+            <p className="form-note">
+                You log time yourself. When a finished Plan block matches a target by name or category, you're asked whether to log it.
+            </p>
 
             <button type="submit" className="ui-button ui-button--accent form-submit" disabled={saving}>
-                {saving ? 'Saving…' : 'Save Week'}
+                {saving ? 'Saving…' : 'Save'}
             </button>
         </form>
     );
 };
 
-/** Sheet for setting a week's direction, habits, targets, and key tasks. */
+/** Sheet for setting the week's daily targets. */
 const WeekPlanSheet = ({ open, onClose, weekKey, initial, isNew, formKey }) => (
     <Sheet
         open={open}
         onClose={onClose}
-        title={isNew ? 'Plan this week' : 'Edit week'}
+        title={isNew ? 'Set daily targets' : 'Daily targets'}
         description={weekKey ? rangeLabel(weekKey) : undefined}
         className="form-sheet week-plan-sheet"
     >

@@ -21,16 +21,14 @@ const TargetLogForm = ({ plan, target, onDone }) => {
     const loggableDays = target.days.slice(0, todayIndex + 1);
     const [dayIndex, setDayIndex] = useState(todayIndex);
     const day = loggableDays[dayIndex] || loggableDays[loggableDays.length - 1];
-    const [minutes, setMinutes] = useState(day?.logged || 0);
+    const [minutes, setMinutes] = useState(day?.done || 0);
     const [saving, setSaving] = useState(false);
 
     const clamp = (value) => Math.max(0, Math.min(MAX_MINUTES, value));
     const changeDay = (index) => {
         setDayIndex(index);
-        setMinutes(loggableDays[index]?.logged || 0);
+        setMinutes(loggableDays[index]?.done || 0);
     };
-
-    const total = (day?.blockDone || 0) + minutes;
 
     const submit = async (event) => {
         event.preventDefault();
@@ -92,8 +90,7 @@ const TargetLogForm = ({ plan, target, onDone }) => {
                 </div>
             </div>
             <p className="form-note">
-                {day?.blockDone ? `${formatMinutes(day.blockDone)} from Plan blocks · ` : ''}
-                {formatMinutes(total)} of {formatMinutes(target.minutes)} in total
+                {formatMinutes(minutes)} of {formatMinutes(target.minutes)} {day?.isToday ? 'today' : 'that day'}
             </p>
 
             <button type="submit" className="ui-button ui-button--accent form-submit" disabled={saving}>
@@ -103,13 +100,13 @@ const TargetLogForm = ({ plan, target, onDone }) => {
     );
 };
 
-/** Log time spent on a daily target without a Plan block. */
+/** Set the time spent on a daily target for one day this week. */
 const TargetLogSheet = ({ open, onClose, plan, target, formKey }) => (
     <Sheet
         open={open}
         onClose={onClose}
         title={target ? `Log ${target.label}` : 'Log time'}
-        description="Time you spent without a Plan block"
+        description="Set how much time you spent"
         className="form-sheet target-log-sheet"
     >
         {plan && target && <TargetLogForm key={formKey} plan={plan} target={target} onDone={onClose} />}

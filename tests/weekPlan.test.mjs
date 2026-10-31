@@ -1,22 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    ROW_COLORS,
+    acceptSuggestion,
     blockMatchesTarget,
     buildHabitWeek,
     buildTargetProgress,
+    dismissSuggestion,
     draftFromPreviousWeek,
+    findFinishedBlocks,
     formatMinutes,
     getWeekKey,
     getWeekNumber,
-    measureTargetDay,
     normalizeWeekPlan,
+    pickDistinctColors,
     setLoggedMinutes,
     shiftWeekKey,
 } from '../src/utils/weekPlan.js';
 
 const local = (year, month, day, hour = 0, minute = 0) => new Date(year, month - 1, day, hour, minute);
 const block = (id, start, duration, extra = {}) => ({ id, title: id, startTime: start.toISOString(), duration, ...extra });
-const occurrence = (title, start, duration, extra = {}) => ({ title, displayTime: start, duration, ...extra });
+const occurrence = (id, title, start, duration, extra = {}) => ({ id, title, displayTime: start, duration, ...extra });
 
 test('weeks start on Monday, including across a year boundary', () => {
     assert.equal(getWeekKey(local(2026, 10, 26, 9)), '2026-10-26');
@@ -43,118 +47,66 @@ test('a block matches by category or by a whole word in its title', () => {
     assert.equal(blockMatchesTarget({ title: 'Gym' }, ''), false);
 });
 
-test('passed time counts as done and time ahead as planned', () => {
+test('only finished matching blocks are suggested, and overlaps become one suggestion', () => {
     const items = [
-        occurrence('AI course', local(2026, 10, 26, 9), 120),
-        occurrence('Lunch', local(2026, 10, 26, 12), 60),
-        occurrence('AI side project', local(2026, 10, 26, 15), 60),
+        occurrence('shell', 'AI deep work', local(2026, 10, 26, 9), 180, { itemKind: 'flexible_shell' }),
+        occurrence('course', 'AI course', local(2026, 10, 26, 9), 60),
+        occurrence('lunch', 'Lunch', local(2026, 10, 26, 12), 60),
+        occurrence('later', 'AI side project', local(2026, 10, 26, 15), 60),
+        occurrence('old', 'AI old', local(2026, 10, 26, 7), 30, { archived: true }),
     ];
-    assert.deepEqual(measureTargetDay(items, 'AI', local(2026, 10, 26, 10, 30)), { done: 90, planned: 90 });
-    assert.deepEqual(measureTargetDay(items, 'AI', local(2026, 10, 26, 18)), { done: 180, planned: 0 });
-    assert.deepEqual(measureTargetDay(items, 'AI', local(2026, 10, 26, 7)), { done: 0, planned: 180 });
+    const found = findFinishedBlocks(items, 'AI', '2026-10-26', local(2026, 10, 26, 14));
+    assert.equal(found.length, 1);
+    assert.equal(found[0].minutes, 180);
+    assert.equal(found[0].title, 'AI deep work');
+    assert.equal(found[0].extraCount, 1);
+    assert.equal(found[0].key, '2026-10-26|course+shell');
+    assert.equal(findFinishedBlocks(items, 'AI', '2026-10-26', local(2026, 10, 26, 16)).length, 2);
+    assert.equal(findFinishedBlocks(items, 'AI', '2026-10-26', local(2026, 10, 26, 8)).length, 0);
 });
 
-test('overlapping blocks, like a shell and the block inside it, are not counted twice', () => {
-    const items = [
-        occurrence('AI deep work', local(2026, 10, 26, 9), 180, { itemKind: 'flexible_shell' }),
-        occurrence('AI course', local(2026, 10, 26, 9), 60),
-        occurrence('AI reading', local(2026, 10, 26, 11, 30), 60),
-    ];
-    assert.deepEqual(measureTargetDay(items, 'AI', local(2026, 10, 27)), { done: 210, planned: 0 });
-});
-
-test('archived blocks never count', () => {
-    const items = [occurrence('AI course', local(2026, 10, 26, 9), 60, { archived: true })];
-    assert.deepEqual(measureTargetDay(items, 'AI', local(2026, 10, 27)), { done: 0, planned: 0 });
-});
-
-test('week progress marks met, missed, today, planned, and open days', () => {
+test('Plan blocks never count as done on their own; only logged time does', () => {
     const plan = normalizeWeekPlan({ weekStart: '2026-10-26', targets: [{ id: 't1', label: 'AI', minutes: 120 }] });
-    const scheduleItems = [
-        block('AI daily', local(2026, 10, 26, 9), 120, { recurrence_type: 'daily', recurrence_exceptions: ['2026-10-27'] }),
-        block('AI extra', local(2026, 10, 30, 14), 60),
-    ];
-    const [progress] = buildTargetProgress({ plan, scheduleItems, now: local(2026, 10, 28, 10) });
-    assert.deepEqual(progress.days.map((day) => day.status), ['met', 'missed', 'today', 'planned', 'planned', 'planned', 'planned']);
-    assert.equal(progress.today.done, 60);
-    assert.equal(progress.today.planned, 60);
-    assert.equal(progress.days[4].planned, 180);
-    assert.equal(progress.daysMet, 1);
+    const scheduleItems = [block('AI daily', local(2026, 10, 26, 9), 120, { recurrence_type: 'daily' })];
+    const [progress] = buildTargetProgress({ plan, scheduleItems, now: local(2026, 10, 28, 12) });
+    assert.deepEqual(progress.days.map((day) => day.done), [0, 0, 0, 0, 0, 0, 0]);
+    assert.deepEqual(progress.days.map((day) => day.status), ['missed', 'missed', 'today', 'open', 'open', 'open', 'open']);
+    assert.equal(progress.daysMet, 0);
+    // Monday, Tuesday, and today's finished block are offered, newest first.
+    assert.deepEqual(progress.suggestions.map((item) => item.dateKey), ['2026-10-28', '2026-10-27', '2026-10-26']);
+    assert.ok(progress.suggestions.every((item) => item.minutes === 120));
 });
 
-test('a target with no matching blocks stays open ahead and missed behind', () => {
-    const plan = normalizeWeekPlan({ weekStart: '2026-10-26', targets: [{ label: 'Study', minutes: 60 }] });
-    const [progress] = buildTargetProgress({ plan, scheduleItems: [], now: local(2026, 10, 27, 8) });
-    assert.deepEqual(progress.days.map((day) => day.status), ['missed', 'today', 'open', 'open', 'open', 'open', 'open']);
-});
+test('confirming a suggestion logs its minutes; skipping just stops asking', () => {
+    let plan = normalizeWeekPlan({ weekStart: '2026-10-26', targets: [{ id: 't1', label: 'AI', minutes: 120, logged: { '2026-10-26': 30 } }] });
+    const scheduleItems = [block('AI daily', local(2026, 10, 26, 9), 120, { recurrence_type: 'daily' })];
+    const now = local(2026, 10, 27, 12);
+    let [progress] = buildTargetProgress({ plan, scheduleItems, now });
+    const [today, monday] = progress.suggestions;
+    assert.equal(today.dateKey, '2026-10-27');
+    assert.equal(monday.dateKey, '2026-10-26');
 
-test('plans are cleaned: blank targets and tasks dropped, limits applied', () => {
-    const plan = normalizeWeekPlan({
-        week_start: '2026-10-26',
-        theme: '  Ship   the AI app ',
-        build_habit_id: 'h1',
-        targets: [{ label: 'AI', minutes: 120 }, { label: '', minutes: 30 }, { label: 'Gym', minutes: 0 }],
-        key_tasks: [{ title: 'One' }, { title: ' ' }, { title: 'Two', done: true }, { title: 'Three' }, { title: 'Four' }],
-    });
-    assert.equal(plan.weekStart, '2026-10-26');
-    assert.equal(plan.theme, 'Ship the AI app');
-    assert.equal(plan.buildHabitId, 'h1');
-    assert.deepEqual(plan.targets.map((target) => target.label), ['AI']);
-    assert.deepEqual(plan.keyTasks.map((task) => [task.title, task.done]), [['One', false], ['Two', true], ['Three', false]]);
-});
-
-test('a new week copies habits and targets and carries unfinished key tasks', () => {
-    const previous = normalizeWeekPlan({
-        weekStart: '2026-10-19',
-        theme: 'Old direction',
-        buildHabitId: 'read',
-        breakHabitId: 'phone',
-        targets: [{ id: 'a', label: 'AI', minutes: 120 }],
-        keyTasks: [{ id: 'k1', title: 'Done thing', done: true }, { id: 'k2', title: 'Open thing' }],
-    });
-    const draft = draftFromPreviousWeek(previous, '2026-10-26');
-    assert.equal(draft.weekStart, '2026-10-26');
-    assert.equal(draft.theme, '');
-    assert.equal(draft.buildHabitId, 'read');
-    assert.equal(draft.breakHabitId, 'phone');
-    assert.deepEqual(draft.targets.map((target) => [target.label, target.minutes]), [['AI', 120]]);
-    assert.notEqual(draft.targets[0].id, 'a');
-    assert.deepEqual(draft.keyTasks.map((task) => task.title), ['Open thing']);
-    assert.deepEqual(draftFromPreviousWeek(null, '2026-10-26').targets, []);
-});
-
-test('habit week reads logs into day states', () => {
-    const logs = { 'h_2026-10-26': { completed: true }, 'h_2026-10-28': { completed: true } };
-    const week = buildHabitWeek({
-        habit: { id: 'h' },
-        weekStart: '2026-10-26',
-        getLog: (id, key) => logs[`${id}_${key}`],
-        now: local(2026, 10, 28, 9),
-    });
-    assert.deepEqual(week.map((day) => day.status), ['met', 'missed', 'met', 'open', 'open', 'open', 'open']);
-});
-
-test('minutes format', () => {
-    assert.equal(formatMinutes(0), '0m');
-    assert.equal(formatMinutes(45), '45m');
-    assert.equal(formatMinutes(120), '2h');
-    assert.equal(formatMinutes(90), '1h 30m');
-});
-
-test('hand-logged minutes add to block time and can meet a target on their own', () => {
-    const plan = normalizeWeekPlan({
-        weekStart: '2026-10-26',
-        targets: [{ id: 's', label: 'Study', minutes: 60, logged: { '2026-10-26': 40, '2026-10-27': 60 } }],
-    });
-    const scheduleItems = [block('Study group', local(2026, 10, 26, 9), 30)];
-    const [progress] = buildTargetProgress({ plan, scheduleItems, now: local(2026, 10, 28, 8) });
-    assert.equal(progress.days[0].done, 70);
-    assert.equal(progress.days[0].blockDone, 30);
-    assert.equal(progress.days[0].logged, 40);
+    plan = acceptSuggestion(plan, 't1', monday);
+    plan = dismissSuggestion(plan, 't1', today.key);
+    [progress] = buildTargetProgress({ plan, scheduleItems, now });
+    assert.equal(progress.days[0].done, 150);
     assert.equal(progress.days[0].status, 'met');
+    assert.equal(progress.days[1].done, 0);
+    assert.equal(progress.suggestions.length, 0);
+    assert.deepEqual(normalizeWeekPlan(plan).targets[0].reviewed, [monday.key, today.key]);
+});
+
+test('logged minutes meet targets and show partial progress', () => {
+    const plan = normalizeWeekPlan({
+        weekStart: '2026-10-26',
+        targets: [{ id: 's', label: 'Study', minutes: 60, logged: { '2026-10-26': 30, '2026-10-27': 60 } }],
+    });
+    const [progress] = buildTargetProgress({ plan, now: local(2026, 10, 28, 8) });
+    assert.equal(progress.days[0].ratio, 0.5);
+    assert.equal(progress.days[0].status, 'missed');
     assert.equal(progress.days[1].status, 'met');
     assert.equal(progress.days[2].status, 'today');
-    assert.equal(progress.daysMet, 2);
+    assert.equal(progress.daysMet, 1);
 });
 
 test('setting logged minutes replaces the day value and zero removes it', () => {
@@ -165,14 +117,78 @@ test('setting logged minutes replaces the day value and zero removes it', () => 
     assert.equal(plan.targets[1].logged, undefined);
     plan = setLoggedMinutes(plan, 'a', '2026-10-26', 0);
     assert.equal(plan.targets[0].logged, undefined);
-    assert.equal(normalizeWeekPlan(setLoggedMinutes(plan, 'b', '2026-10-27', 30)).targets[1].logged['2026-10-27'], 30);
 });
 
-test('logged minutes are cleaned and never carried into a new week', () => {
+test('every target gets its own color and keeps it', () => {
     const plan = normalizeWeekPlan({
-        weekStart: '2026-10-19',
-        targets: [{ id: 'a', label: 'AI', minutes: 60, logged: { '2026-10-20': '30', bad: 10, '2026-10-21': -5, '2026-10-22': 0 } }],
+        weekStart: '2026-10-26',
+        targets: [
+            { id: 'a', label: 'AI', minutes: 60, color: '#FF9500' },
+            { id: 'b', label: 'Study', minutes: 60 },
+            { id: 'c', label: 'Read', minutes: 30, color: '#ff9500' },
+        ],
     });
-    assert.deepEqual(plan.targets[0].logged, { '2026-10-20': 30 });
-    assert.equal(draftFromPreviousWeek(plan, '2026-10-26').targets[0].logged, undefined);
+    const colors = plan.targets.map((target) => target.color);
+    assert.equal(colors[0], '#ff9500');
+    assert.equal(new Set(colors).size, 3);
+    assert.deepEqual(normalizeWeekPlan(plan).targets.map((target) => target.color), colors);
+});
+
+test('distinct colors keep free preferences and avoid taken ones', () => {
+    assert.deepEqual(pickDistinctColors(['#34c759', '#34c759', 'teal'], ['#007aff']), ['#34c759', '#ff9500', '#af52de']);
+    assert.equal(new Set(pickDistinctColors(Array(ROW_COLORS.length).fill(null))).size, ROW_COLORS.length);
+    // A later item's own free color is kept before earlier clashing items are reassigned.
+    assert.deepEqual(pickDistinctColors(['#007aff', '#ff9500'], ['#007aff']), ['#34c759', '#ff9500']);
+});
+
+test('plans are cleaned: blank targets dropped, logged and reviewed tidied', () => {
+    const plan = normalizeWeekPlan({
+        week_start: '2026-10-26',
+        targets: [
+            { label: 'AI', minutes: 120, logged: { '2026-10-27': '30', bad: 10, '2026-10-28': -5 }, reviewed: ['k1', 'k1', 4] },
+            { label: '', minutes: 30 },
+            { label: 'Gym', minutes: 0 },
+        ],
+    });
+    assert.equal(plan.weekStart, '2026-10-26');
+    assert.deepEqual(plan.targets.map((target) => target.label), ['AI']);
+    assert.deepEqual(plan.targets[0].logged, { '2026-10-27': 30 });
+    assert.deepEqual(plan.targets[0].reviewed, ['k1']);
+});
+
+test('a new week copies targets and colors, with nothing logged or reviewed', () => {
+    const previous = normalizeWeekPlan({
+        weekStart: '2026-10-19',
+        targets: [{ id: 'a', label: 'AI', minutes: 120, color: '#af52de', logged: { '2026-10-20': 60 }, reviewed: ['x'] }],
+    });
+    const draft = draftFromPreviousWeek(previous, '2026-10-26');
+    assert.equal(draft.weekStart, '2026-10-26');
+    assert.deepEqual(draft.targets.map((target) => [target.label, target.minutes, target.color]), [['AI', 120, '#af52de']]);
+    assert.notEqual(draft.targets[0].id, 'a');
+    assert.equal(draft.targets[0].logged, undefined);
+    assert.equal(draft.targets[0].reviewed, undefined);
+    assert.deepEqual(draftFromPreviousWeek(null, '2026-10-26').targets, []);
+});
+
+test('habit week reads logs, partial counts, and unscheduled days', () => {
+    const logs = {
+        'h_2026-10-26': { completed: true },
+        'h_2026-10-28': { completed: false, value: 2 },
+    };
+    const week = buildHabitWeek({
+        habit: { id: 'h', type: 'count', target: 4 },
+        weekStart: '2026-10-26',
+        getLog: (id, key) => logs[`${id}_${key}`],
+        isScheduled: (_habit, date) => date.getDay() !== 0,
+        now: local(2026, 10, 28, 9),
+    });
+    assert.deepEqual(week.map((day) => day.status), ['met', 'missed', 'today', 'open', 'open', 'open', 'off']);
+    assert.equal(week[2].ratio, 0.5);
+});
+
+test('minutes format', () => {
+    assert.equal(formatMinutes(0), '0m');
+    assert.equal(formatMinutes(45), '45m');
+    assert.equal(formatMinutes(120), '2h');
+    assert.equal(formatMinutes(90), '1h 30m');
 });

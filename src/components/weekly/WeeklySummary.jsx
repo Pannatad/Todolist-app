@@ -4,10 +4,11 @@ import { useTask } from '../../context/TaskContext';
 import { buildWeeklySummary } from '../../utils/weeklySummary';
 import { toast } from '../../ui/Toast';
 import { toLocalDateKey } from '../../utils/scheduleOccurrences';
-import WeekPlanCard from '../week-plan/WeekPlanCard';
+import { useWeekPlans } from '../../context/WeekPlanContext';
+import WeekTargets from '../week-plan/WeekTargets';
+import WeekHabits from '../week-plan/WeekHabits';
 import { weekLabel } from './weeklyFormat';
 import WeekTasks from './WeekTasks';
-import WeekSchedule from './WeekSchedule';
 import WeekMilestones from './WeekMilestones';
 import WeekTaskSheet from './WeekTaskSheet';
 
@@ -25,9 +26,14 @@ const LoadFailure = ({ title, className, onRetry }) => (
   </section>
 );
 
-const WeeklySummary = ({ now, onOpenSchedule }) => {
+const WeeklySummary = ({ now, onOpenSchedule, onNavigate }) => {
   const { tasks, scheduleItems, isLoading, loadError, refreshData, updateTask, deleteTask } = useTask();
+  const { getPlan } = useWeekPlans();
   const model = useMemo(() => buildWeeklySummary({ tasks, scheduleItems, now }), [tasks, scheduleItems, now]);
+  const weekKey = toLocalDateKey(model.weekStart);
+  const weekPlan = getPlan(weekKey);
+  // Habits pick colors that the week's targets aren't using.
+  const targetColors = useMemo(() => (weekPlan?.targets || []).map((target) => target.color), [weekPlan]);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [pendingIds, setPendingIds] = useState(new Set());
   const selectedTask = tasks.find((task) => task.id === selectedTaskId);
@@ -51,20 +57,19 @@ const WeeklySummary = ({ now, onOpenSchedule }) => {
   };
   const openTask = (task) => setSelectedTaskId(task.id);
   const openMilestone = (entry) => entry.source === 'task' ? openTask(entry.record) : onOpenSchedule(entry.record);
-  const totals = !isLoading ? [
-    !taskFailure && `${model.unfinishedTaskCount} ${model.unfinishedTaskCount === 1 ? 'task' : 'tasks'} due`,
-    !scheduleFailure && `${model.commitmentCount} ${model.commitmentCount === 1 ? 'commitment' : 'commitments'}`,
-  ].filter(Boolean).join(' · ') : '';
+  const totals = !isLoading && !taskFailure
+    ? `${model.unfinishedTaskCount} ${model.unfinishedTaskCount === 1 ? 'task' : 'tasks'} due`
+    : '';
 
   return (
     <div className="weekly-summary">
       <header className="week-header"><h1>This week</h1><p className="week-range">{weekLabel(model.weekStart, model.weekEnd)}</p>{totals && <p className="week-totals">{totals}</p>}</header>
-      <WeekPlanCard weekKey={toLocalDateKey(model.weekStart)} now={now} />
+      <WeekTargets weekKey={weekKey} now={now} />
       <div className="week-content" key={model.weekStart.toISOString()}>
         {isLoading ? <SectionSkeleton title="Tasks due this week" className="week-tasks" /> : taskFailure ? <LoadFailure title="Tasks due this week" className="week-tasks" onRetry={retry} /> : <WeekTasks groups={model.taskGroups} total={model.taskCount} onOpen={openTask} onComplete={complete} pendingIds={pendingIds} />}
         {isLoading ? <SectionSkeleton title="Upcoming milestones" className="week-milestones" /> : taskFailure || scheduleFailure ? <LoadFailure title="Upcoming milestones" className="week-milestones" onRetry={retry} /> : <WeekMilestones items={model.milestones} onOpen={openMilestone} />}
-        {isLoading ? <SectionSkeleton title="Fixed schedule" className="week-schedule" /> : scheduleFailure ? <LoadFailure title="Fixed schedule" className="week-schedule" onRetry={retry} /> : <WeekSchedule days={model.days} onOpen={onOpenSchedule} />}
       </div>
+      <WeekHabits weekKey={weekKey} now={now} takenColors={targetColors} onManage={onNavigate ? () => onNavigate('habits') : undefined} />
       {selectedTask && <WeekTaskSheet key={selectedTask.id} task={selectedTask} onClose={() => setSelectedTaskId(null)} onSave={updateTask} onDelete={deleteTask} />}
     </div>
   );

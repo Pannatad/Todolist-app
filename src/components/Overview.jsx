@@ -163,7 +163,7 @@ const Overview = ({ onNavigate }) => {
 
       {/* One column on phones; on iPad and desktop the day sits left, to-dos right. */}
       <div id="today-summary-panel" role="tabpanel" aria-label={summaryView === 'week' ? 'This week' : 'Today'}>
-      {summaryView === 'week' ? <WeeklySummary now={now} onOpenSchedule={openSchedule} /> : (
+      {summaryView === 'week' ? <WeeklySummary now={now} onOpenSchedule={openSchedule} onNavigate={onNavigate} /> : (
       <div className="today-layout">
         <div className="today-layout__main">
           <WeekStrip now={now} onOpenWeek={() => setSummaryView('week')} />
