@@ -1,5 +1,6 @@
 import { getColorForSubject } from '../constants/subjects';
 import { toLocalDateKey } from '../utils/scheduleOccurrences';
+import { scheduleEnergyColor } from '../utils/scheduleEnergy';
 
 const getMonday = (date) => {
     const copy = new Date(date);
@@ -40,8 +41,9 @@ const getItemColor = (item) => {
         return { color, bg: `${color}1F`, border: `${color}55` };
     }
 
-    if (item.type === 'schedule' && item.color) {
-        return { color: item.color, bg: `${item.color}1F`, border: `${item.color}55` };
+    if (item.type === 'schedule') {
+        const color = scheduleEnergyColor(item.color);
+        return { color, bg: `${color}1F`, border: `${color}55` };
     }
 
     const fallback = getColorForSubject(item.subject || item.category);

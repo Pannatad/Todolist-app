@@ -28,8 +28,9 @@ import { toast } from '../../ui/Toast';
 import { confirmAction } from '../../utils/confirm';
 import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority, schedulePriorityClass, schedulePriorityLabel } from '../../utils/schedulePriority';
 import SchedulePriorityField from '../SchedulePriorityField';
+import { ScheduleEnergyControl } from '../ScheduleEnergyField';
+import { DEFAULT_ENERGY_COLOR, scheduleEnergyColor } from '../../utils/scheduleEnergy';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6'];
 const SUGGESTIONS = [
     'A focused deep-work morning',
     'A light, restful day',
@@ -49,7 +50,7 @@ const createCraftBlock = (startTime = '09:00', duration = 60) => ({
     startTime,
     duration,
     category: 'Other',
-    color: COLORS[0],
+    color: DEFAULT_ENERGY_COLOR,
     notes: '',
     priority: DEFAULT_SCHEDULE_PRIORITY,
     children: []
@@ -61,7 +62,7 @@ const createCraftChild = (parent) => ({
     startTime: parent.startTime,
     duration: Math.min(30, Number(parent.duration) || 30),
     category: parent.category || 'Other',
-    color: parent.color || COLORS[0],
+    color: parent.color || DEFAULT_ENERGY_COLOR,
     notes: ''
 });
 
@@ -238,7 +239,7 @@ const DayTimeline = ({ open, visible, dateKey, blocks, existingBlocks, activeId,
                         height: `calc(${percent(item.end)} - ${percent(item.start)} - 2px)`,
                         left: `calc(var(--craft-gutter) + (100% - var(--craft-gutter)) * ${item.lane / item.lanes})`,
                         width: `calc((100% - var(--craft-gutter)) / ${item.lanes} - 3px)`,
-                        '--craft-color': block.color || COLORS[0]
+                        '--craft-color': scheduleEnergyColor(block.color)
                     };
                     const className = [
                         'craft-timeline__event',
@@ -309,7 +310,7 @@ const BlockCard = ({ block, open, conflict, autoFocus, onToggle, onChange, onRem
     });
 
     return (
-        <li className={`craft-block${open ? ' is-open' : ''}`} data-block-id={block.id} style={{ '--craft-color': block.color || COLORS[0] }}>
+        <li className={`craft-block${open ? ' is-open' : ''}`} data-block-id={block.id} style={{ '--craft-color': scheduleEnergyColor(block.color) }}>
             <button type="button" className="craft-block__summary" onClick={onToggle} aria-expanded={open}>
                 <span className={`craft-block__swatch${isShell ? ' is-shell' : ''} ${schedulePriorityClass(priority)}`.trim()} aria-hidden="true" />
                 <span className="craft-block__text">
@@ -349,22 +350,9 @@ const BlockCard = ({ block, open, conflict, autoFocus, onToggle, onChange, onRem
                             />
                         </div>
                         <SchedulePriorityField value={priority} onChange={(next) => onChange({ priority: next })} />
-                        <div className="form-field">
-                            <span className="form-field__label">Color</span>
-                            <div className="craft-swatches" role="radiogroup" aria-label="Block color">
-                                {COLORS.map((color) => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={block.color === color}
-                                        className={`form-swatch${block.color === color ? ' is-selected' : ''}`}
-                                        style={{ '--swatch': color }}
-                                        onClick={() => onChange({ color })}
-                                        aria-label={`Color ${COLORS.indexOf(color) + 1}`}
-                                    />
-                                ))}
-                            </div>
+                        <div className="form-field form-field--priority">
+                            <span className="form-field__label">Energy</span>
+                            <ScheduleEnergyControl value={block.color} onChange={(color) => onChange({ color })} />
                         </div>
                         <label className="form-field">
                             <span className="form-field__label">Flexible block</span>

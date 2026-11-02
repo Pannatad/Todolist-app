@@ -5,6 +5,7 @@ import {
     autoFitTemplateItems,
     removeConflictingProposals
 } from '../../services/magicSchedule';
+import { scheduleEnergyColor } from '../../utils/scheduleEnergy';
 
 const formatTime = (value) => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const PREVIEW_START_MINUTES = 6 * 60;
@@ -44,7 +45,7 @@ const FinalTimelinePreview = ({ proposals, label, warning, variant = 'template' 
                 return (
                     <div key={proposal.clientKey} className="magic-final-timeline__row">
                         <div className="magic-final-timeline__name">
-                            <span style={{ backgroundColor: proposal.color || '#6366f1' }} />
+                            <span style={{ backgroundColor: scheduleEnergyColor(proposal.color) }} />
                             <strong>{proposal.title}</strong>
                         </div>
                         <div className="magic-final-timeline__track">
@@ -53,7 +54,7 @@ const FinalTimelinePreview = ({ proposals, label, warning, variant = 'template' 
                                 style={{
                                     left: `${geometry.left}%`,
                                     width: `${Math.max(geometry.width, 1.5)}%`,
-                                    '--preview-color': proposal.color || '#6366f1'
+                                    '--preview-color': scheduleEnergyColor(proposal.color)
                                 }}
                                 title={`${formatTime(proposal.startTime)} – ${formatTime(geometry.end)}`}
                             >

@@ -5,26 +5,9 @@ import { SegmentedControl, Sheet } from '../ui';
 import { confirmAction } from '../utils/confirm';
 import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority } from '../utils/schedulePriority';
 import SchedulePriorityField from './SchedulePriorityField';
+import ScheduleEnergyField from './ScheduleEnergyField';
+import { DEFAULT_ENERGY_COLOR } from '../utils/scheduleEnergy';
 import { useWeekTargetLabels } from '../context/WeekPlanContext';
-
-const PRESET_COLORS = [
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Amber', value: '#f59e0b' },
-    { name: 'Yellow', value: '#eab308' },
-    { name: 'Lime', value: '#84cc16' },
-    { name: 'Green', value: '#22c55e' },
-    { name: 'Emerald', value: '#10b981' },
-    { name: 'Teal', value: '#14b8a6' },
-    { name: 'Cyan', value: '#06b6d4' },
-    { name: 'Sky', value: '#0ea5e9' },
-    { name: 'Blue', value: '#3b82f6' },
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Violet', value: '#8b5cf6' },
-    { name: 'Purple', value: '#a855f7' },
-    { name: 'Fuchsia', value: '#d946ef' },
-    { name: 'Pink', value: '#ec4899' },
-];
 
 const RECURRENCE_OPTIONS = [
     { value: 'none', label: 'Does not repeat' },
@@ -61,7 +44,7 @@ const ScheduleEventModal = ({
         date: '',
         startTime: '09:00',
         duration: 60,
-        color: '#6366f1',
+        color: DEFAULT_ENERGY_COLOR,
         category: 'Other',
         recurrenceType: 'none',
         recurrenceInterval: 1,
@@ -280,6 +263,10 @@ const ScheduleEventModal = ({
                         value={formData.priority}
                         onChange={(priority) => setFormData({ ...formData, priority })}
                     />
+                    <ScheduleEnergyField
+                        value={formData.color}
+                        onChange={(color) => setFormData({ ...formData, color })}
+                    />
                 </div>
 
                 <div className="form-group">
@@ -330,23 +317,6 @@ const ScheduleEventModal = ({
                             ))}
                         </select>
                     </label>
-                    <div className="form-field form-field--stacked form-field--swatches">
-                        <span className="form-field__label">Color</span>
-                        <div className="form-swatches form-swatches--compact" role="radiogroup" aria-label="Color">
-                            {PRESET_COLORS.map((color) => (
-                                <button
-                                    key={color.value}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={formData.color === color.value}
-                                    aria-label={color.name}
-                                    onClick={() => setFormData({ ...formData, color: color.value })}
-                                    className={`form-swatch${formData.color === color.value ? ' is-selected' : ''}`}
-                                    style={{ '--swatch': color.value }}
-                                />
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
                 {!isDayScope && (

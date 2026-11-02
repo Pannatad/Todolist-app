@@ -8,6 +8,7 @@ import { log } from '../utils/log.js';
 import { createScheduleRepo, normalizeScheduleRecord } from '../data/scheduleRepo';
 import { createTasksRepo, normalizeTaskRecord as normalizeTaskPersistenceRecord } from '../data/tasksRepo';
 import { normalizeSchedulePriority } from '../utils/schedulePriority';
+import { DEFAULT_ENERGY_COLOR } from '../utils/scheduleEnergy';
 
 const TaskContext = createContext();
 
@@ -345,7 +346,7 @@ export const TaskProvider = ({ children }) => {
             templateBlockId: itemData.templateBlockId || null,
             template_application_id: itemData.templateApplicationId || null,
             templateApplicationId: itemData.templateApplicationId || null,
-            color: itemData.color || '#6366f1',
+            color: itemData.color || DEFAULT_ENERGY_COLOR,
             notes: itemData.notes || null,
             priority: normalizeSchedulePriority(itemData.priority),
             workspace: itemData.workspace ?? 'personal',

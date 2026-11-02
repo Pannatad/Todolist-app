@@ -57,6 +57,8 @@ import { toast } from '../../ui/Toast';
 import { BarButton, RowMenu, SegmentedControl, Sheet, useMediaQuery } from '../../ui';
 import { confirmAction } from '../../utils/confirm';
 import './magic-schedule.css';
+import { DEFAULT_ENERGY_COLOR, scheduleEnergyColor, scheduleEnergyLabel, scheduleEnergyOf } from '../../utils/scheduleEnergy';
+import { ScheduleEnergyControl } from '../ScheduleEnergyField';
 
 // Keep the planning surface aligned with the full calendar day. The viewport
 // remains compact; the timeline itself is intentionally scrollable.
@@ -288,20 +290,20 @@ const MagicSchedule = ({
     const selectedPriority = liveSelectedItem ? normalizeSchedulePriority(liveSelectedItem.priority) : null;
 
     // Quick change from the inspector applies to the whole block, including every
-    // repeat. A per-day priority on this occurrence is dropped so the new level shows.
-    const setSelectedPriority = (priority) => {
+    // repeat. A per-day value on this occurrence is dropped so the new one shows.
+    const setSelectedField = (field, value, description) => {
         const base = selectedItem && events.find((item) => String(item.id) === String(selectedItem.id));
-        if (!base || priority === selectedPriority) return;
-        const updates = { priority };
+        if (!base) return;
+        const updates = { [field]: value };
         if (recurrenceType(base) !== 'none') {
             const dateKey = occurrenceKeyOf(selectedItem, selectedDateKey);
             const overrides = { ...(base.recurrenceOverrides || base.recurrence_overrides || {}) };
             const keys = [dateKey, `weekday-${new Date(`${dateKey}T12:00:00`).getDay()}`];
             let changed = false;
             keys.forEach((key) => {
-                if (overrides[key]?.priority === undefined) return;
+                if (overrides[key]?.[field] === undefined) return;
                 const rest = { ...overrides[key] };
-                delete rest.priority;
+                delete rest[field];
                 if (Object.keys(rest).length) overrides[key] = rest;
                 else delete overrides[key];
                 changed = true;
@@ -310,7 +312,17 @@ const MagicSchedule = ({
         }
         // A failed save rolls back and the schedule context already shows a toast.
         transactions.runBatch([{ type: 'update', id: base.id, updates, before: base }],
-            `Set ${base.title} to ${schedulePriorityLabel(priority)}`).catch(() => {});
+            `Set ${base.title} to ${description}`).catch(() => {});
+    };
+
+    const setSelectedPriority = (priority) => {
+        if (priority === selectedPriority) return;
+        setSelectedField('priority', priority, schedulePriorityLabel(priority));
+    };
+
+    const setSelectedEnergy = (color) => {
+        if (color === liveSelectedItem?.color) return;
+        setSelectedField('color', color, scheduleEnergyLabel(color));
     };
 
     const navigateWeek = (amount) => {
@@ -572,7 +584,7 @@ const MagicSchedule = ({
                     startTime: item.startTime || '09:00',
                     duration: item.duration || 60,
                     category: item.category || 'Other',
-                    color: item.color || '#6366f1',
+                    color: scheduleEnergyOf(item.color)?.color || DEFAULT_ENERGY_COLOR,
                     children: []
                 }))
             };
@@ -827,7 +839,7 @@ const MagicSchedule = ({
                     height,
                     '--event-lane-left': `${(lane.laneIndex / lane.laneCount) * 100}%`,
                     '--event-lane-width': `${100 / lane.laneCount}%`,
-                    '--event-color': item.color || '#6366f1'
+                    '--event-color': scheduleEnergyColor(item.color)
                 }}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -1293,6 +1305,8 @@ const MagicSchedule = ({
                                     ariaLabel="Priority"
                                     className="form-priority"
                                 />
+                                <span>Energy</span>
+                                <ScheduleEnergyControl value={liveSelectedItem?.color} onChange={setSelectedEnergy} />
                                 {recurrenceType(selectedItem) !== 'none' && <small>Applies to every repeat. Use Edit details for one day.</small>}
                             </div>
                             {linkedTemplateIsNewer && (
@@ -1307,7 +1321,7 @@ const MagicSchedule = ({
                                     <strong>Nested activities</strong>
                                     {selectedChildren.map((child) => (
                                         <button type="button" key={child.id} onClick={() => setSelectedItem(child)}>
-                                            <span style={{ backgroundColor: child.color || '#6366f1' }} />
+                                            <span style={{ backgroundColor: scheduleEnergyColor(child.color) }} />
                                             <div><strong>{child.title}</strong><small>{rangeLabel(child)}</small></div>
                                             <ChevronRight size={15} />
                                         </button>

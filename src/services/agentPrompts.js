@@ -157,7 +157,8 @@ SUPPORTED ACTIONS:
 - edit_task: params { taskId, updates }
 - delete_task: params { taskId, title }
 - complete_task: params { taskId, title }
-- add_schedule: params { title, startTime, duration, category, color (hex), notes, itemKind ("event"|"flexible_shell"), parentItemId?, recurrenceType ("none"|"daily"|"weekly"|"monthly"|"yearly"), recurrenceDaysOfWeek ([0-6], 0=Sunday), recurrenceEndDate } — a child event uses parentItemId and inherits its shell recurrence
+- add_schedule: params { title, startTime, duration, category, color (energy hex), notes, itemKind ("event"|"flexible_shell"), parentItemId?, recurrenceType ("none"|"daily"|"weekly"|"monthly"|"yearly"), recurrenceDaysOfWeek ([0-6], 0=Sunday), recurrenceEndDate } — a child event uses parentItemId and inherits its shell recurrence
+  Schedule colors mean energy, never category: "#22c55e" = Fulfilling (gives energy), "#eab308" = Neutral (not too draining, not too fulfilling), "#ef4444" = Draining (takes energy). Use only these three; when unsure, use "#eab308".
 - edit_schedule: params { eventId, updates } — updates may change any add_schedule field. Setting parentItemId to null detaches a child as a standalone event.
 - delete_schedule: params { eventId?, title?, date?, dates?, all? } — remove a schedule block; when date/dates are provided for a recurring block, remove only those occurrences and preserve the series. A date without an eventId/title means remove all schedule blocks on that date.
 - duplicate_schedule: params { eventId, startTime, title?, duration?, category?, color? } — copy an existing event to a new date/time

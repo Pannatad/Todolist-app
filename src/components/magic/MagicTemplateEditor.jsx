@@ -11,8 +11,9 @@ import {
 } from '../../services/magicSchedule';
 import { toast } from '../../ui/Toast';
 import { DEFAULT_SCHEDULE_PRIORITY, normalizeSchedulePriority, SCHEDULE_PRIORITIES } from '../../utils/schedulePriority';
+import { DEFAULT_ENERGY_COLOR, scheduleEnergyColor } from '../../utils/scheduleEnergy';
+import { ScheduleEnergyControl } from '../ScheduleEnergyField';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6'];
 const PREVIEW_HOURS = [7, 12, 17, 22];
 const PRIORITY_ITEMS = SCHEDULE_PRIORITIES.map(({ id, label }) => ({ id, label }));
 
@@ -23,7 +24,7 @@ const blankBlock = (startTime = '09:00') => ({
     startTime,
     duration: 60,
     category: 'Other',
-    color: COLORS[0],
+    color: DEFAULT_ENERGY_COLOR,
     notes: '',
     priority: DEFAULT_SCHEDULE_PRIORITY,
     children: []
@@ -35,7 +36,7 @@ const blankChild = (parent) => ({
     startTime: parent.startTime,
     duration: Math.min(60, parent.duration),
     category: parent.category || 'Other',
-    color: parent.color || COLORS[0],
+    color: parent.color || DEFAULT_ENERGY_COLOR,
     notes: ''
 });
 
@@ -84,7 +85,7 @@ const TimelinePreview = ({ blocks, existingBlocks = [], hours = PREVIEW_HOURS, a
                             style={{
                                 left: `${geometry.left}%`,
                                 width: `${geometry.width}%`,
-                                '--template-block-color': block.color || COLORS[0]
+                                '--template-block-color': scheduleEnergyColor(block.color)
                             }}
                             title={`${hasExisting ? `${block.source === 'existing' ? 'Existing' : 'Draft'} · ` : ''}${block.previewKind === 'nested' ? 'Nested · ' : ''}${block.startTime} ${block.title || 'Untitled'}`}
                         />
@@ -95,7 +96,7 @@ const TimelinePreview = ({ blocks, existingBlocks = [], hours = PREVIEW_HOURS, a
             <div className="magic-template-preview__labels" aria-label="Template activities">
                 {previewBlocks.slice(0, 4).map((block) => (
                     <span key={`label-${block.previewKey}`}>
-                        <i style={{ backgroundColor: block.color || COLORS[0] }} />
+                        <i style={{ backgroundColor: scheduleEnergyColor(block.color) }} />
                         <strong>{block.title || 'Untitled'}</strong>
                     </span>
                 ))}
@@ -134,7 +135,7 @@ const BlockEditor = ({ block, onChange, onRemove }) => {
 
     return (
         <section className={`magic-template-block-editor ${block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL ? 'is-shell' : ''}`}>
-            <div className="magic-template-block-editor__color" style={{ backgroundColor: block.color }} />
+            <div className="magic-template-block-editor__color" style={{ backgroundColor: scheduleEnergyColor(block.color) }} />
             <div className="magic-template-block-editor__main">
                 <input
                     className="magic-template-block-editor__title"
@@ -165,6 +166,10 @@ const BlockEditor = ({ block, onChange, onRemove }) => {
                             className="form-priority"
                         />
                     </div>
+                    <div className="magic-template-priority">
+                        Energy
+                        <ScheduleEnergyControl value={block.color} onChange={(color) => onChange({ color })} />
+                    </div>
                 </div>
                 <div className="magic-template-block-editor__row">
                     <label className="magic-switch-label">
@@ -178,18 +183,6 @@ const BlockEditor = ({ block, onChange, onRemove }) => {
                         />
                         Flexible shell
                     </label>
-                    <div className="magic-color-dots" aria-label="Block color">
-                        {COLORS.map((color) => (
-                            <button
-                                key={color}
-                                type="button"
-                                className={block.color === color ? 'is-selected' : ''}
-                                style={{ backgroundColor: color }}
-                                onClick={() => onChange({ color })}
-                                aria-label={`Use color ${color}`}
-                            />
-                        ))}
-                    </div>
                 </div>
                 {block.kind === SCHEDULE_ITEM_KINDS.FLEXIBLE_SHELL && (
                     <div className="magic-template-children">

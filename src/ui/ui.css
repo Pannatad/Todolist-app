@@ -1626,6 +1626,24 @@ button.week-row__body:active {
   font-size: 0.8125rem;
 }
 
+.form-energy {
+  max-width: 18rem;
+}
+
+.energy-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+}
+
+.energy-option i {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--energy);
+}
+
 .form-field--swatches {
   flex-direction: column;
   align-items: stretch;

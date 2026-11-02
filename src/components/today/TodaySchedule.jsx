@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { scheduleEnergyColor } from '../../utils/scheduleEnergy';
 
 const HOUR_HEIGHT = 56;
 const MIN_TIMELINE_HOURS = 6;
@@ -72,7 +73,7 @@ const assignLanes = (entries) => {
 };
 
 const Block = ({ entry, isPast, lane, laneCount, scale, onOpen }) => {
-  const color = entry.item.color || 'var(--color-accent)';
+  const color = scheduleEnergyColor(entry.item.color);
   const minutes = Math.max(1, Math.round((entry.end - entry.start) / MINUTE_MS));
   const height = Math.max(22, (minutes / 60) * HOUR_HEIGHT - 2);
   const top = ((entry.start.getTime() - scale.rangeStart.getTime()) / HOUR_MS) * HOUR_HEIGHT + 1;

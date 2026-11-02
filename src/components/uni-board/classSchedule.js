@@ -1,3 +1,4 @@
+import { DEFAULT_ENERGY_COLOR } from '../../utils/scheduleEnergy.js';
 const classIdOf = (item) => item?.classId ?? item?.class_id ?? null;
 const uniKindOf = (item) => item?.uniKind ?? item?.uni_kind ?? null;
 
@@ -48,7 +49,7 @@ export const emptyClassDraft = (date = new Date()) => ({
   duration: 60,
   repeatDays: [date.getDay()],
   endDate: '',
-  color: '#6366f1',
+  color: DEFAULT_ENERGY_COLOR,
 });
 
 export const classDraftFromItem = (item) => {
@@ -67,7 +68,7 @@ export const classDraftFromItem = (item) => {
     duration: Number(item?.duration) || 60,
     repeatDays: repeatDays.length ? repeatDays : [start.getDay()],
     endDate: item?.recurrenceEndDate || item?.recurrence_end_date || '',
-    color: item?.color || '#6366f1',
+    color: item?.color || DEFAULT_ENERGY_COLOR,
   };
 };
 

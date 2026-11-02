@@ -11,6 +11,7 @@ import { kindLabel } from '../../weekly/weeklyFormat';
 import { summarizeDay, summarizeWeek } from '../../../services/secretaryBriefing';
 import { INTENSITY_LABELS, buildDayBriefing, buildWeekBriefing, dayLabel, timeLabel } from './secretaryData';
 import './secretary.css';
+import { scheduleEnergyColor } from '../../../utils/scheduleEnergy';
 
 const CHOICES = [
   { id: 'day', icon: Sun, title: 'Summarize this day', subtitle: 'Schedule by type, main things, due soon, targets and habits' },
@@ -100,7 +101,7 @@ const DayReport = ({ briefing, report, status, error, onRetry, onOpenTask, onOpe
               return (
                 <Row
                   key={group.label}
-                  dot={blocks[0]?.record.color || 'var(--color-accent)'}
+                  dot={scheduleEnergyColor(blocks[0]?.record.color)}
                   title={group.label}
                   subtitle={blocks.map((block) => `${timeLabel(block.start)} ${block.title}`).join(' · ')}
                   trailing={formatMinutes(minutes)}
@@ -115,7 +116,7 @@ const DayReport = ({ briefing, report, status, error, onRetry, onOpenTask, onOpe
         <Section title="Schedule" meta={`${briefing.blocks.length} blocks`}>
           <div className="ui-group">
             {briefing.blocks.map((block) => (
-              <Row key={block.id + block.start.toISOString()} dot={block.record.color || 'var(--color-accent)'} title={block.title} subtitle={block.category} trailing={`${timeLabel(block.start)} · ${formatMinutes(block.minutes)}`} onClick={() => onOpenSchedule(block.record)} />
+              <Row key={block.id + block.start.toISOString()} dot={scheduleEnergyColor(block.record.color)} title={block.title} subtitle={block.category} trailing={`${timeLabel(block.start)} · ${formatMinutes(block.minutes)}`} onClick={() => onOpenSchedule(block.record)} />
             ))}
           </div>
         </Section>

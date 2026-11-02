@@ -1,5 +1,6 @@
 import { getScheduleItemsForDate, toLocalDateKey } from '../utils/scheduleOccurrences.js';
 import { normalizeSchedulePriority } from '../utils/schedulePriority.js';
+import { DEFAULT_ENERGY_COLOR } from '../utils/scheduleEnergy.js';
 
 export const TEMPLATE_SCHEMA_VERSION = 2;
 export const SCHEDULE_ITEM_KINDS = {
@@ -8,7 +9,7 @@ export const SCHEDULE_ITEM_KINDS = {
 };
 
 const TIME_PATTERN = /^([01]?\d|2[0-3]):([0-5]\d)$/;
-const DEFAULT_COLOR = '#6366f1';
+const DEFAULT_COLOR = DEFAULT_ENERGY_COLOR;
 const DEFAULT_CATEGORY = 'Other';
 const legacyIdPart = (value = '') => String(value).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 32) || 'untitled';
 

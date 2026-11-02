@@ -1480,23 +1480,6 @@
   color: var(--color-ink-2) !important;
 }
 
-.magic-color-dots {
-  display: flex;
-  gap: .3rem;
-}
-
-.magic-color-dots button {
-  width: 1.2rem;
-  height: 1.2rem;
-  border: 2px solid transparent;
-  border-radius: 50%;
-}
-
-.magic-color-dots button.is-selected {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
-}
-
 .magic-template-children {
   display: grid;
   gap: .45rem;
@@ -2766,11 +2749,16 @@
 }
 
 .magic-inspector__priority {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.375rem;
   margin-top: 1rem;
+}
+
+.magic-inspector__priority > .form-priority {
+  width: 100%;
+  max-width: none;
+  margin: 0 0 0.375rem;
 }
 
 .magic-inspector__priority > span {
@@ -2780,7 +2768,6 @@
 }
 
 .magic-inspector__priority > small {
-  flex-basis: 100%;
   color: var(--color-muted);
   font-size: var(--text-xs);
 }
@@ -3754,20 +3741,6 @@
 
 .craft-block__editor .form-note {
   margin-top: calc(-1 * var(--space-2xs));
-}
-
-.craft-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.625rem;
-  margin-left: auto;
-  padding-block: 0.625rem;
-}
-
-.craft-swatches .form-swatch {
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 .craft-stepper {

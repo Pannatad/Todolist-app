@@ -20,6 +20,7 @@ import {
     sortTasksForRitual,
     STEP_META,
 } from './dailyRitualUtils';
+import { DEFAULT_ENERGY_COLOR } from '../utils/scheduleEnergy';
 
 const DailyRitualModal = ({
     isOpen,
@@ -172,7 +173,7 @@ const DailyRitualModal = ({
                     startTime: block.start.toISOString(),
                     duration: block.duration,
                     category: block.kind === 'habit' ? 'Habit' : 'Focus',
-                    color: block.kind === 'habit' ? '#14b8a6' : '#6366f1',
+                    color: DEFAULT_ENERGY_COLOR,
                     notes: `${RITUAL_NOTE_PREFIX} key:${block.key} title:${block.title}`,
                 });
             }

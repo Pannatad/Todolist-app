@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { scheduleEnergyColor } from '../../utils/scheduleEnergy';
 
 const timeLabel = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
@@ -36,7 +37,7 @@ const NowCard = ({ current, next, now, onOpen, onPlanDay }) => {
   }
 
   const isNow = Boolean(current);
-  const color = entry.item.color || 'var(--color-accent)';
+  const color = scheduleEnergyColor(entry.item.color);
   const progress = isNow ? Math.min(1, Math.max(0, (now - entry.start) / (entry.end - entry.start))) : 0;
   const followUp = isNow ? next : null;
 

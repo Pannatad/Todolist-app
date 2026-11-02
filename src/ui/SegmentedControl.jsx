@@ -11,10 +11,13 @@ export const SegmentedControl = ({
   ariaLabel = 'View',
   className = '',
   withIcons = false,
+  allowEmpty = false,
 }) => {
   const trackRef = useRef(null);
   const [thumb, setThumb] = useState(null);
-  const activeIndex = Math.max(0, items.findIndex((item) => item.id === value));
+  const matchIndex = items.findIndex((item) => item.id === value);
+  // With allowEmpty, a value that matches no segment selects nothing.
+  const activeIndex = allowEmpty ? matchIndex : Math.max(0, matchIndex);
 
   useLayoutEffect(() => {
     const track = trackRef.current;
@@ -22,7 +25,10 @@ export const SegmentedControl = ({
 
     const measure = () => {
       const segment = track.querySelectorAll('[role="tab"]')[activeIndex];
-      if (!segment) return;
+      if (!segment) {
+        setThumb(null);
+        return;
+      }
       setThumb((current) => {
         const next = { left: segment.offsetLeft, width: segment.offsetWidth };
         return current && current.left === next.left && current.width === next.width ? current : next;
@@ -76,7 +82,7 @@ export const SegmentedControl = ({
             role="tab"
             aria-selected={active}
             aria-controls={item.controls}
-            tabIndex={active ? 0 : -1}
+            tabIndex={active || (activeIndex < 0 && index === 0) ? 0 : -1}
             onClick={() => onChange(item.id)}
             onKeyDown={moveFocus}
           >
