@@ -1666,6 +1666,16 @@ button.week-row__body:active {
   color: var(--color-muted);
 }
 
+.form-duration {
+  display: flex;
+  margin-left: auto;
+  gap: var(--space-md);
+}
+
+.form-duration select {
+  flex: 0 0 auto;
+}
+
 .form-field--value input[type="number"] {
   max-width: 4rem;
   margin-left: auto;
