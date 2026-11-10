@@ -82,6 +82,20 @@ const mondayFor = (input) => {
     return date;
 };
 
+// Text color that stays readable on a solid (selected) block: dark on light hues like yellow.
+const readableOn = (hex) => {
+    const value = parseInt(String(hex).replace('#', ''), 16);
+    if (Number.isNaN(value)) return '#fff';
+    const [r, g, b] = [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? 'rgb(0 0 0 / 0.82)' : '#fff';
+};
+
+// Week title with the year set apart, like Calendar: "November 9–15" + "2026".
+const splitRangeYear = (label) => {
+    const match = label.match(/^(.*?),?\s(\d{4})$/);
+    return match ? [match[1], match[2]] : [label, ''];
+};
+
 const formatRange = (dates) => {
     const first = dates[0];
     const last = dates.at(-1);
@@ -187,6 +201,9 @@ const MagicSchedule = ({
     const todayKey = toLocalDateKey(now);
     const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
     const currentTimeTop = ((currentTimeMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const showNowInAxis = visibleDates.some((date) => toLocalDateKey(date) === todayKey)
+        && currentTimeMinutes >= START_HOUR * 60
+        && currentTimeMinutes <= END_HOUR * 60;
     const selectedTemplate = templates.find((template) => String(template.id) === String(selectedTemplateId)) || null;
 
     const removeTemplate = async (template) => {
@@ -215,6 +232,17 @@ const MagicSchedule = ({
         const interval = window.setInterval(updateNow, 60_000);
         return () => window.clearInterval(interval);
     }, []);
+
+    // New day columns slide in from the side you moved toward (next week from the right).
+    const firstVisibleKey = toLocalDateKey(visibleDates[0]);
+    const previousFirstKeyRef = useRef(firstVisibleKey);
+    useLayoutEffect(() => {
+        const canvas = canvasRef.current;
+        const previous = previousFirstKeyRef.current;
+        previousFirstKeyRef.current = firstVisibleKey;
+        if (!canvas || previous === firstVisibleKey) return;
+        canvas.dataset.nav = firstVisibleKey > previous ? 'next' : 'prev';
+    }, [firstVisibleKey]);
 
     useLayoutEffect(() => {
         const visibleDateKeys = mobile
@@ -829,17 +857,20 @@ const MagicSchedule = ({
         }
         if (minutes + itemDuration(item) < START_HOUR * 60 || minutes > END_HOUR * 60) return null;
         const priority = normalizeSchedulePriority(item.priority);
+        const eventColor = scheduleEnergyColor(item.color);
         return (
             <button
                 key={`${item._type}-${item.id}-${item._dateKey}`}
                 type="button"
                 className={`magic-event ${shell ? 'is-shell' : ''} ${nested ? 'is-nested' : ''} ${schedulePriorityClass(priority)} ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
                 style={{
-                    top,
-                    height,
+                    // A 1px inset on each end leaves a hairline gap between back-to-back blocks.
+                    top: top + 1,
+                    height: height - 2,
                     '--event-lane-left': `${(lane.laneIndex / lane.laneCount) * 100}%`,
                     '--event-lane-width': `${100 / lane.laneCount}%`,
-                    '--event-color': scheduleEnergyColor(item.color)
+                    '--event-color': eventColor,
+                    '--event-on': readableOn(eventColor)
                 }}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -1101,14 +1132,20 @@ const MagicSchedule = ({
                     }}
                 >
                     <div className="magic-toolbar">
-                        <h2 className="magic-toolbar__title">
-                            {mobile
+                        {(() => {
+                            const [titleLabel, titleYear] = splitRangeYear(mobile
                                 ? selectedDate.toLocaleDateString([], { month: 'long', year: 'numeric' })
-                                : formatRange(weekDates)}
-                        </h2>
+                                : formatRange(weekDates));
+                            return (
+                                <h2 key={`${titleLabel}-${titleYear}`} className="magic-toolbar__title">
+                                    {titleLabel}
+                                    {titleYear && <span className="magic-toolbar__year"> {titleYear}</span>}
+                                </h2>
+                            );
+                        })()}
                         <div className="magic-toolbar__actions">
                             {!weekDates.some((date) => toLocalDateKey(date) === todayKey) || selectedDateKey !== todayKey ? (
-                                <button type="button" className="magic-text-button" onClick={() => { setAnchorDate(new Date()); setSelectedDate(new Date()); }}>Today</button>
+                                <button type="button" className="magic-text-button magic-today-button" onClick={() => { setAnchorDate(new Date()); setSelectedDate(new Date()); }}>Today</button>
                             ) : null}
                             <button type="button" className="magic-round-button" onClick={() => navigateWeek(-1)} aria-label="Previous week"><ChevronLeft size={19} strokeWidth={2.3} /></button>
                             <button type="button" className="magic-round-button" onClick={() => navigateWeek(1)} aria-label="Next week"><ChevronRight size={19} strokeWidth={2.3} /></button>
@@ -1133,11 +1170,12 @@ const MagicSchedule = ({
                     <div className="magic-canvas-scroll" ref={canvasScrollRef}>
                         <div className="magic-canvas" ref={canvasRef} style={{ '--day-count': visibleDates.length }}>
                             <div className="magic-time-heading" />
-                            {visibleDates.map((date) => (
+                            {visibleDates.map((date, dayIndex) => (
                                 <button
                                     type="button"
                                     key={`heading-${toLocalDateKey(date)}`}
-                                    className={`magic-day-heading ${toLocalDateKey(date) === toLocalDateKey(new Date()) ? 'is-today' : ''}`}
+                                    className={`magic-day-heading ${toLocalDateKey(date) === todayKey ? 'is-today' : ''}`}
+                                    style={{ '--day-index': dayIndex }}
                                     onClick={() => setSelectedDate(date)}
                                 >
                                     <span>{date.toLocaleDateString([], { weekday: 'short' })}</span>
@@ -1146,17 +1184,29 @@ const MagicSchedule = ({
                             ))}
                             <div className="magic-time-axis">
                                 {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => (
-                                    <span key={index} style={{ top: index * HOUR_HEIGHT }}>{timelineTimeLabel((START_HOUR + index) * 60)}</span>
+                                    <span
+                                        key={index}
+                                        className={showNowInAxis && Math.abs((START_HOUR + index) * 60 - currentTimeMinutes) < 16 ? 'is-covered' : undefined}
+                                        style={{ top: index * HOUR_HEIGHT }}
+                                    >
+                                        {timelineTimeLabel((START_HOUR + index) * 60)}
+                                    </span>
                                 ))}
+                                {showNowInAxis && (
+                                    <span className="magic-time-axis__now" style={{ top: currentTimeTop }} aria-hidden="true">
+                                        {timeLabel(now)}
+                                    </span>
+                                )}
                             </div>
-                            {visibleDates.map((date) => {
+                            {visibleDates.map((date, dayIndex) => {
                                 const dateKey = toLocalDateKey(date);
                                 const dayItems = itemsForDate(date);
                                 const overlapLayout = getScheduleOverlapLayout(dayItems);
                                 return (
                                     <div
                                         key={dateKey}
-                                        className={`magic-day-column ${dateKey === selectedDateKey ? 'is-selected' : ''}`}
+                                        className={`magic-day-column ${dateKey === selectedDateKey ? 'is-selected' : ''} ${dateKey === todayKey ? 'is-today' : ''} ${date.getDay() === 0 || date.getDay() === 6 ? 'is-weekend' : ''}`}
+                                        style={{ '--day-index': dayIndex }}
                                         data-magic-date={dateKey}
                                         onPointerDown={(event) => {
                                             if (event.target !== event.currentTarget) return;
@@ -1178,16 +1228,13 @@ const MagicSchedule = ({
                                         {Array.from({ length: END_HOUR - START_HOUR }, (_, index) => (
                                             <span key={index} className="magic-hour-line" style={{ top: index * HOUR_HEIGHT }} />
                                         ))}
-                                        {dateKey === todayKey
-                                            && currentTimeMinutes >= START_HOUR * 60
-                                            && currentTimeMinutes <= END_HOUR * 60 && (
+                                        {/* Now: a solid line on today, a faint guide across the rest of the week. */}
+                                        {showNowInAxis && (
                                             <div
-                                                className="magic-current-time"
+                                                className={`magic-current-time${dateKey === todayKey ? '' : ' is-ghost'}`}
                                                 style={{ top: currentTimeTop }}
                                                 aria-hidden="true"
-                                            >
-                                                <span>{timeLabel(now)}</span>
-                                            </div>
+                                            />
                                         )}
                                         {dayItems.map((item) => renderBlock(item, date, overlapLayout))}
                                     </div>

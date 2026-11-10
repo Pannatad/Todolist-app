@@ -21,6 +21,7 @@ const RECURRENCE_OPTIONS = [
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CATEGORY_OPTIONS = ['Work', 'Study', 'Personal', 'Health', 'Errands', 'Social', 'Other'];
 const EMPTY_DEFAULTS = {};
+const MAX_DURATION_HOURS = 23;
 
 const formatOccurrenceLabel = (dateString) => {
     if (!dateString) return '';
@@ -219,8 +220,14 @@ const ScheduleEventModal = ({
 
     if (!isOpen) return null;
 
-    const durationOptions = [...new Set([15, 30, 45, 60, 90, 120, 180, 240, Number(formData.duration) || 60])].sort((a, b) => a - b);
-    const durationLabel = (mins) => (mins < 60 ? `${mins} min` : mins % 60 ? `${Math.floor(mins / 60)} hr ${mins % 60} min` : `${mins / 60} hr`);
+    // Duration is picked as hours + minutes (5-minute steps); odd saved values stay selectable.
+    const totalMinutes = Math.max(0, Number(formData.duration) || 60);
+    const durationHours = Math.floor(totalMinutes / 60);
+    const durationMinutes = totalMinutes % 60;
+    const hourOptions = [...new Set([...Array.from({ length: MAX_DURATION_HOURS + 1 }, (_, h) => h), durationHours])].sort((a, b) => a - b);
+    const minuteOptions = [...new Set([...Array.from({ length: 12 }, (_, i) => i * 5), durationMinutes])].sort((a, b) => a - b);
+    // A block needs some length: 0 hr 0 min snaps to 5 min.
+    const setDuration = (hours, minutes) => setFormData((prev) => ({ ...prev, duration: hours * 60 + minutes || 5 }));
     const submitLabel = isSubmitting ? 'Saving…' : !event ? 'Add' : isDayScope ? (editScope === 'weekday' ? `Save ${weekdayLabel}s` : 'Save This Day') : 'Save';
 
     return (
@@ -288,15 +295,25 @@ const ScheduleEventModal = ({
                             onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                         />
                     </label>
-                    <label className="form-field form-field--value">
+                    <div className="form-field form-field--value">
                         <span className="form-field__label">Duration</span>
-                        <select
-                            value={formData.duration}
-                            onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value, 10) || 60 })}
-                        >
-                            {durationOptions.map((mins) => <option key={mins} value={mins}>{durationLabel(mins)}</option>)}
-                        </select>
-                    </label>
+                        <div className="form-duration">
+                            <select
+                                value={durationHours}
+                                onChange={(e) => setDuration(parseInt(e.target.value, 10), durationMinutes)}
+                                aria-label="Duration hours"
+                            >
+                                {hourOptions.map((h) => <option key={h} value={h}>{h} hr</option>)}
+                            </select>
+                            <select
+                                value={durationMinutes}
+                                onChange={(e) => setDuration(durationHours, parseInt(e.target.value, 10))}
+                                aria-label="Duration minutes"
+                            >
+                                {minuteOptions.map((m) => <option key={m} value={m}>{m} min</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="form-group">
